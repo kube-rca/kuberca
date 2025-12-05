@@ -27,7 +27,7 @@ jobs:
           role-session-name: github-actions-backend
 
       - name: Login to Amazon ECR
-        id: login-ecr
+        id: login-ecr-public
         uses: aws-actions/amazon-ecr-login@v2
         with:
           registry-type: public
@@ -40,13 +40,14 @@ jobs:
         run: |
           full_sha="${{ github.sha }}"
           short_sha="${full_sha:0:7}"
-          echo "image_tag=${{ github.event.repository.name }}:${short_sha}" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${{ github.event.repository.name }}-${short_sha}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push image
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
+          ECR_REGISTRY_ALIAS: r5b7j2e4
           IMAGE_REPO_NAME: kube-rca-ecr
           IMAGE_NAME: backend
         run: |
-          docker build -t "$ECR_REGISTRY/$IMAGE_REPO_NAME:${{ steps.image-tag.outputs.image_tag }}" .
-          docker push "$ECR_REGISTRY/$IMAGE_REPO_NAME:${{ steps.image-tag.outputs.image_tag }}"
+          docker build -t "$ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$IMAGE_REPO_NAME:${{ steps.image-tag.outputs.image_tag }}" .
+          docker push "$ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$IMAGE_REPO_NAME:${{ steps.image-tag.outputs.image_tag }}"
