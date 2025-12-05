@@ -13,7 +13,7 @@ permissions:
 jobs:
   build-and-push:
     # Run on any branch push only when commit message contains trigger keyword.
-    if: ${{ github.event_name != 'push' || contains(github.event.head_commit.message, '[build]') }}
+    if: ${{ contains(github.event.head_commit.message, '[build]') }}
     runs-on: ubuntu-latest
 
     steps:
