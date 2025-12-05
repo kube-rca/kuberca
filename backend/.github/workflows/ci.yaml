@@ -33,15 +33,16 @@ jobs:
       - name: Set Short SHA
         id: vars
         run: |
-
-          echo "short_sha=$short_sha" >> "$GITHUB_OUTPUT" # Set as an output
+          full_sha=${{ github.sha }}
+          short_sha="${full_sha:0:7}"
+          echo "short_sha=$short_sha" >> "$GITHUB_OUTPUT"
 
       - name: Set image tag 
         id: image-tag
         run: |
           full_sha=${{ github.sha }}
-          short_sha="${full_sha:0:7}" # Extract the first 7 characters
-          "image_tag=${{ github.event.repository.name }}:${short_sha}" >> "$GITHUB_OUTPUT"
+          short_sha="${full_sha:0:7}"
+          echo "image_tag=${{ github.event.repository.name }}:${short_sha}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push image
         env:
@@ -49,5 +50,5 @@ jobs:
           IMAGE_REPO_NAME: kube-rca-ecr
           IMAGE_NAME: backend
         run: |
-          docker build -t "$ECR_REGISTRY/$IMAGE_REPO_NAME:${{ steps.image-tag.image_tag }}" .
-          docker push "$ECR_REGISTRY/$IMAGE_REPO_NAME:${{ steps.image-tag.image_tag }}"
+          docker build -t "$ECR_REGISTRY/$IMAGE_REPO_NAME:${{ steps.image-tag.outputs.image_tag }}" .
+          docker push "$ECR_REGISTRY/$IMAGE_REPO_NAME:${{ steps.image-tag.outputs.image_tag }}"
