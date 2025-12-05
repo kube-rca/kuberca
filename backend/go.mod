@@ -1,4 +1,4 @@
-module github.com/bohyunchoi/backend
+module github.com/kube-rca/backend
 
 go 1.22
 

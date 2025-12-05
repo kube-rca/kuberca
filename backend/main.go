@@ -1,32 +1,23 @@
 package main
 
 import (
-	"net/http"
+	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/kube-rca/backend/internal/handler"
 )
 
 func main() {
 	// Gin의 기본 라우터 생성
 	router := gin.Default()
 
-	// 건강 체크 및 테스트용 기본 엔드포인트
-	router.GET("/ping", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "pong",
-		})
-	})
-
-	// 루트 엔드포인트 예시
-	router.GET("/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status":  "ok",
-			"message": "Gin basic API server is running",
-		})
-	})
+	// Health Check & Root 엔드포인트
+	router.GET("/ping", handler.Ping)
+	router.GET("/", handler.Root)
 
 	// 기본 포트 :8080 으로 서버 시작
+	log.Println("Starting kube-rca-backend on :8080")
 	if err := router.Run(":8080"); err != nil {
-		panic(err)
+		log.Fatalf("Failed to start server: %v", err)
 	}
 }
