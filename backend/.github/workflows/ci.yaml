@@ -42,7 +42,8 @@ jobs:
         run: |
           full_sha=${{ github.sha }}
           short_sha="${full_sha:0:7}"
-          echo "image_tag=${{ github.event.repository.name }}:${short_sha}" >> "$GITHUB_OUTPUT"
+          # Use a single colon for the tag to avoid invalid reference formats
+          echo "image_tag=backend-${short_sha}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push image
         env:
