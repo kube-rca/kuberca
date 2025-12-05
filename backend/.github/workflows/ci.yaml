@@ -10,9 +10,6 @@ permissions:
   contents: read
   id-token: write
 
-env:
-  IMAGE_TYPE: backend
-
 jobs:
   build-and-push:
     # Run on any branch push only when commit message contains trigger keyword.
@@ -44,7 +41,7 @@ jobs:
         id: image-tag
         run: |
          "short_sha=${{GITHUB_SHA::7}}" 
-         "image_tag=${{ env.IMAGE_TYPE }}:${short_sha}" >> "$GITHUB_OUTPUT"
+         "image_tag=${{ github.event.repository.name }}:${short_sha}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push image
         env:
