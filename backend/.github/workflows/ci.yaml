@@ -10,6 +10,9 @@ permissions:
   contents: read
   id-token: write
 
+env:
+  IMAGE_TYPE: backend
+
 jobs:
   build-and-push:
     # Run on any branch push only when commit message contains trigger keyword.
@@ -30,15 +33,24 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Set image tag (backend:{short_sha})
+      - name: Set Short SHA
         id: vars
-        run: echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+        run: |
+          full_sha=${{ github.sha }}
+          short_sha="${full_sha:0:7}" # Extract the first 7 characters
+          echo "short_sha=$short_sha" >> "$GITHUB_OUTPUT" # Set as an output
+
+      - name: Set image tag 
+        id: image-tag
+        run: |
+         "short_sha=${{GITHUB_SHA::7}}" 
+         "image_tag=${{ env.IMAGE_TYPE }}:${short_sha}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_REPO_NAME: kube-rca-ecr
-          IMAGE_TAG: "backend:${GITHUB_SHA::77}"
+          IMAGE_NAME: backend
         run: |
-          docker build -t "$ECR_REGISTRY/$IMAGE_REPO_NAME:${IMAGE_TAG}" .
-          docker push "$ECR_REGISTRY/$IMAGE_REPO_NAME:${IMAGE_TAG}"
+          docker build -t "$ECR_REGISTRY/$IMAGE_REPO_NAME:${{ steps.image-tag.image_tag }}" .
+          docker push "$ECR_REGISTRY/$IMAGE_REPO_NAME:${{ steps.image-tag.image_tag }}"
