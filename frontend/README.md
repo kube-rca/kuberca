@@ -1,1 +1,81 @@
-# frontend
+# Alerts Dashboard
+
+React 18 + TypeScript + Vite + Tailwind CSS 프로젝트입니다.
+
+## 실행 방법
+
+### 1. Node.js 설치 확인
+
+먼저 Node.js가 설치되어 있는지 확인하세요:
+
+```bash
+node --version
+npm --version
+```
+
+Node.js가 없다면 [nodejs.org](https://nodejs.org/)에서 설치하세요 (LTS 버전 권장).
+
+### 2. 의존성 설치
+
+프로젝트 루트 디렉토리에서 다음 명령어를 실행하세요:
+
+```bash
+npm install
+```
+
+또는 yarn을 사용하는 경우:
+
+```bash
+yarn install
+```
+
+### 3. 개발 서버 실행
+
+의존성 설치가 완료되면 개발 서버를 시작하세요:
+
+```bash
+npm run dev
+```
+
+또는 yarn을 사용하는 경우:
+
+```bash
+yarn dev
+```
+
+### 4. 브라우저에서 확인
+
+터미널에 표시된 URL (보통 `http://localhost:5173`)로 브라우저에서 접속하세요.
+
+## 사용 가능한 명령어
+
+- `npm run dev` - 개발 서버 시작
+- `npm run build` - 프로덕션 빌드
+- `npm run preview` - 빌드된 앱 미리보기
+- `npm run lint` - 코드 린팅
+
+## 프로젝트 구조
+
+```
+src/
+├── main.tsx              # React 진입점
+├── App.tsx               # 메인 앱 컴포넌트
+├── types.ts              # TypeScript 타입 정의
+├── index.css             # Tailwind CSS
+├── components/           # React 컴포넌트
+│   ├── TimeRangeSelector.tsx  # 시간 범위 선택기
+│   ├── AlertsTable.tsx        # 알림 테이블
+│   └── Pagination.tsx         # 페이지네이션
+├── constants/            # 상수 정의
+│   └── index.ts          # 앱 전역 상수
+└── utils/                # 유틸리티 함수
+    └── mockData.ts       # Mock 데이터 생성 함수
+```
+
+## 기술 스택
+
+- **React 18** - UI 라이브러리
+- **TypeScript** - 타입 안정성
+- **Vite** - 빌드 도구
+- **Tailwind CSS** - 스타일링
+- **ESLint** - 코드 품질 관리
