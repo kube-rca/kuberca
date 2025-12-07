@@ -47,6 +47,24 @@ yarn dev
 
 터미널에 표시된 URL (보통 `http://localhost:5173`)로 브라우저에서 접속하세요.
 
+## Docker를 사용한 실행
+
+### 1. Docker 이미지 빌드
+
+```bash
+docker build -t alerts-dashboard .
+```
+
+### 2. Docker 컨테이너 실행
+
+```bash
+docker run -d -p 8080:80 alerts-dashboard
+```
+
+### 3. 브라우저에서 확인
+
+`http://localhost:8080`으로 접속하세요.
+
 ## 사용 가능한 명령어
 
 - `npm run dev` - 개발 서버 시작
@@ -79,3 +97,5 @@ src/
 - **Vite** - 빌드 도구
 - **Tailwind CSS** - 스타일링
 - **ESLint** - 코드 품질 관리
+- **Docker** - 컨테이너화
+- **Nginx** - 프로덕션 웹 서버
