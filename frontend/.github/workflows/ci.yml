@@ -1,0 +1,53 @@
+name: Build and Push to ECR
+
+on:
+  push:
+    branches:
+      - "**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-and-push:
+    # Run on any branch push only when commit message contains trigger keyword.
+    if: ${{ contains(github.event.head_commit.message, '[build]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC assume role)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ap-northeast-2
+          role-session-name: github-actions-frontend
+
+      - name: Login to Amazon ECR
+        id: login-ecr-public
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
+        env:
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_REGION: us-east-1
+
+      - name: Set image tag
+        id: image-tag
+        run: |
+          full_sha="${{ github.sha }}"
+          short_sha="${full_sha:0:7}"
+          echo "image_tag=${{ github.event.repository.name }}-${short_sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
+          ECR_REGISTRY_ALIAS: r5b7j2e4
+          IMAGE_REPO_NAME: kube-rca-ecr
+          IMAGE_NAME: frontend
+        run: |
+          docker build -t "$ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$IMAGE_REPO_NAME:${{ steps.image-tag.outputs.image_tag }}" .
+          docker push "$ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$IMAGE_REPO_NAME:${{ steps.image-tag.outputs.image_tag }}"
