@@ -58,7 +58,7 @@ docker build -t alerts-dashboard .
 ### 2. Docker 컨테이너 실행
 
 ```bash
-docker run -d -p 8080:80 alerts-dashboard
+docker run -d -p 80:80 alerts-dashboard
 ```
 
 ### 3. 브라우저에서 확인
