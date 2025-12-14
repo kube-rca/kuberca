@@ -1,0 +1,43 @@
+{{- if .Values.backend.ingress.enabled -}}
+{{- $ingress := .Values.backend.ingress -}}
+{{- $hosts := default (list) $ingress.hosts -}}
+{{- if not (gt (len $hosts) 0) -}}
+{{- fail "backend.ingress.enabled=true requires backend.ingress.hosts to be set" -}}
+{{- end -}}
+{{- $paths := default (list "/") $ingress.paths -}}
+{{- $pathType := default "Prefix" $ingress.pathType -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ printf "%s-ingress" (include "kube-rca.backend.name" .) | trunc 63 | trimSuffix "-" }}
+  labels:
+    {{- include "kube-rca.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+{{- with $ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+{{- end }}
+spec:
+{{- with $ingress.ingressClassName }}
+  ingressClassName: {{ . | quote }}
+{{- end }}
+  rules:
+{{- range $host := $hosts }}
+    - host: {{ $host | quote }}
+      http:
+        paths:
+{{- range $path := $paths }}
+          - path: {{ $path | quote }}
+            pathType: {{ $pathType }}
+            backend:
+              service:
+                name: {{ include "kube-rca.backend.name" $ }}
+                port:
+                  name: http
+{{- end }}
+{{- end }}
+{{- with $ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+{{- end }}
+{{- end }}

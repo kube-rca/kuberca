@@ -8,36 +8,50 @@ Deploy kube-rca backend and frontend
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| backend.affinity | object | `{}` |  |
-| backend.containerPort | int | `8080` |  |
-| backend.image.pullPolicy | string | `"IfNotPresent"` |  |
-| backend.image.repository | string | `""` |  |
-| backend.image.tag | string | `""` |  |
-| backend.nodeSelector | object | `{}` |  |
-| backend.replicaCount | int | `1` |  |
-| backend.resources | object | `{}` |  |
-| backend.service.port | int | `8080` |  |
-| backend.service.type | string | `"ClusterIP"` |  |
-| backend.slack.channelId | string | `""` |  |
-| backend.slack.enabled | bool | `true` |  |
-| backend.slack.secret.channelIdKey | string | `"kube-rca-slack-channel-id"` |  |
-| backend.slack.secret.existingSecret | string | `"kube-rca-slack"` |  |
-| backend.slack.secret.tokenKey | string | `"kube-rca-slack-token"` |  |
-| backend.slack.token | string | `""` |  |
-| backend.tolerations | list | `[]` |  |
-| frontend.affinity | object | `{}` |  |
-| frontend.containerPort | int | `80` |  |
-| frontend.image.pullPolicy | string | `"IfNotPresent"` |  |
-| frontend.image.repository | string | `""` |  |
-| frontend.image.tag | string | `""` |  |
-| frontend.nodeSelector | object | `{}` |  |
-| frontend.replicaCount | int | `1` |  |
-| frontend.resources | object | `{}` |  |
-| frontend.service.port | int | `80` |  |
-| frontend.service.type | string | `"ClusterIP"` |  |
-| frontend.tolerations | list | `[]` |  |
-| fullnameOverride | string | `""` |  |
-| nameOverride | string | `""` |  |
+| backend.affinity | object | `{}` | Affinity for backend pods assignment. |
+| backend.containerPort | int | `8080` | Backend container port. |
+| backend.image.pullPolicy | string | `"IfNotPresent"` | Backend image pull policy. |
+| backend.image.repository | string | `""` | Backend image repository. |
+| backend.image.tag | string | `""` | Backend image tag. |
+| backend.ingress.annotations | object | `{}` | Annotations for backend ingress. |
+| backend.ingress.enabled | bool | `false` | Enable backend ingress. |
+| backend.ingress.hosts | list | `[]` | Hostnames for backend ingress. |
+| backend.ingress.ingressClassName | string | `""` | IngressClass name for backend ingress. |
+| backend.ingress.pathType | string | `"Prefix"` | PathType for backend ingress. |
+| backend.ingress.paths | list | `["/"]` | Paths for backend ingress. |
+| backend.ingress.tls | list | `[]` | TLS configuration for backend ingress. |
+| backend.nodeSelector | object | `{}` | Node labels for backend pods assignment. |
+| backend.replicaCount | int | `1` | Number of backend replicas. |
+| backend.resources | object | `{}` | Backend resource requests/limits. |
+| backend.service.port | int | `8080` | Backend service port. |
+| backend.service.type | string | `"ClusterIP"` | Backend service type. |
+| backend.slack.channelId | string | `""` | Slack channel ID (used when backend.slack.source=values). |
+| backend.slack.enabled | bool | `true` | Enable Slack notifications. |
+| backend.slack.secret.channelIdKey | string | `"kube-rca-slack-channel-id"` | Secret key for Slack channel ID. |
+| backend.slack.secret.existingSecret | string | `"kube-rca-slack"` | Existing Secret name for Slack credentials. |
+| backend.slack.secret.tokenKey | string | `"kube-rca-slack-token"` | Secret key for Slack bot token. |
+| backend.slack.token | string | `""` | Slack bot token (used when backend.slack.source=values). |
+| backend.tolerations | list | `[]` | Tolerations for backend pods assignment. |
+| frontend.affinity | object | `{}` | Affinity for frontend pods assignment. |
+| frontend.containerPort | int | `80` | Frontend container port. |
+| frontend.image.pullPolicy | string | `"IfNotPresent"` | Frontend image pull policy. |
+| frontend.image.repository | string | `""` | Frontend image repository. |
+| frontend.image.tag | string | `""` | Frontend image tag. |
+| frontend.ingress.annotations | object | `{}` | Annotations for frontend ingress. |
+| frontend.ingress.enabled | bool | `false` | Enable frontend ingress. |
+| frontend.ingress.hosts | list | `[]` | Hostnames for frontend ingress. |
+| frontend.ingress.ingressClassName | string | `""` | IngressClass name for frontend ingress. |
+| frontend.ingress.pathType | string | `"Prefix"` | PathType for frontend ingress. |
+| frontend.ingress.paths | list | `["/"]` | Paths for frontend ingress. |
+| frontend.ingress.tls | list | `[]` | TLS configuration for frontend ingress. |
+| frontend.nodeSelector | object | `{}` | Node labels for frontend pods assignment. |
+| frontend.replicaCount | int | `1` | Number of frontend replicas. |
+| frontend.resources | object | `{}` | Frontend resource requests/limits. |
+| frontend.service.port | int | `80` | Frontend service port. |
+| frontend.service.type | string | `"ClusterIP"` | Frontend service type. |
+| frontend.tolerations | list | `[]` | Tolerations for frontend pods assignment. |
+| fullnameOverride | string | `""` | Override the full name of the release. |
+| nameOverride | string | `""` | Override the name of the chart. |
 
 ----------------------------------------------
 Autogenerated from chart metadata using [helm-docs v1.14.2](https://github.com/norwoodj/helm-docs/releases/v1.14.2)

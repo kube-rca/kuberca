@@ -1,48 +1,107 @@
 # Default values for kube-rca.
+
+# -- Override the name of the chart.
 nameOverride: ""
+
+# -- Override the full name of the release.
 fullnameOverride: ""
 
 backend:
+  # -- Number of backend replicas.
   replicaCount: 1
   image:
+    # -- Backend image repository.
     repository: ""
+    # -- Backend image tag.
     tag: ""
+    # -- Backend image pull policy.
     pullPolicy: IfNotPresent
   service:
+    # -- Backend service type.
     type: ClusterIP
+    # -- Backend service port.
     port: 8080
+  # -- Backend container port.
   containerPort: 8080
+  ingress:
+    # -- Enable backend ingress.
+    enabled: false
+    # -- IngressClass name for backend ingress.
+    ingressClassName: ""
+    # -- Annotations for backend ingress.
+    annotations: {}
+    # -- Hostnames for backend ingress.
+    hosts: []
+    # -- Paths for backend ingress.
+    paths:
+      - /
+    # -- PathType for backend ingress.
+    pathType: Prefix
+    # -- TLS configuration for backend ingress.
+    tls: []
+  # -- Backend resource requests/limits.
   resources: {}
+  # -- Node labels for backend pods assignment.
   nodeSelector: {}
+  # -- Tolerations for backend pods assignment.
   tolerations: []
+  # -- Affinity for backend pods assignment.
   affinity: {}
 
   slack:
+    # -- Enable Slack notifications.
     enabled: true
-
-    # Used when slack.secret.existingSecret="" (chart-managed Secret).
+    # -- Slack bot token (used when backend.slack.source=values).
     token: ""
-    # Prefer `channelId`. `channel-id` is also supported for `--set backend.slack.channel-id=...`.
+    # -- Slack channel ID (used when backend.slack.source=values).
     channelId: ""
 
     secret:
-      # Use an existing Secret for Slack configuration.
-      ## Name of the secret. Can be templated.
+      # -- Existing Secret name for Slack credentials.
       existingSecret: kube-rca-slack
+      # -- Secret key for Slack bot token.
       tokenKey: kube-rca-slack-token
+      # -- Secret key for Slack channel ID.
       channelIdKey: kube-rca-slack-channel-id
 
 frontend:
+  # -- Number of frontend replicas.
   replicaCount: 1
   image:
+    # -- Frontend image repository.
     repository: ""
+    # -- Frontend image tag.
     tag: ""
+    # -- Frontend image pull policy.
     pullPolicy: IfNotPresent
   service:
+    # -- Frontend service type.
     type: ClusterIP
+    # -- Frontend service port.
     port: 80
+  # -- Frontend container port.
   containerPort: 80
+  ingress:
+    # -- Enable frontend ingress.
+    enabled: false
+    # -- IngressClass name for frontend ingress.
+    ingressClassName: ""
+    # -- Annotations for frontend ingress.
+    annotations: {}
+    # -- Hostnames for frontend ingress.
+    hosts: []
+    # -- Paths for frontend ingress.
+    paths:
+      - /
+    # -- PathType for frontend ingress.
+    pathType: Prefix
+    # -- TLS configuration for frontend ingress.
+    tls: []
+  # -- Frontend resource requests/limits.
   resources: {}
+  # -- Node labels for frontend pods assignment.
   nodeSelector: {}
+  # -- Tolerations for frontend pods assignment.
   tolerations: []
+  # -- Affinity for frontend pods assignment.
   affinity: {}
