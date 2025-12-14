@@ -1,0 +1,78 @@
+<!--?xml version="1.0" encoding="UTF-8"?-->
+<svg width="240" height="240" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title>Cloud Native Observability Project Logo</title>
+  <desc>Hexagon cluster with gradient core and waveform, representing a cloud-native observability / DevSecOps project.</desc>
+
+  <defs>
+    <!-- 배경 그라디언트 -->
+    <radialGradient id="bgGradient" cx="50%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#1f2937"></stop>
+      <stop offset="50%" stop-color="#020617"></stop>
+      <stop offset="100%" stop-color="#000000"></stop>
+    </radialGradient>
+
+    <!-- 헥사곤 라인 그라디언트 -->
+    <linearGradient id="hexStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"></stop>
+      <stop offset="50%" stop-color="#6366f1"></stop>
+      <stop offset="100%" stop-color="#a855f7"></stop>
+    </linearGradient>
+
+    <!-- 코어(중앙 원) 그라디언트 -->
+    <radialGradient id="coreGradient" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#22c55e"></stop>
+      <stop offset="45%" stop-color="#10b981"></stop>
+      <stop offset="100%" stop-color="#0f766e"></stop>
+    </radialGradient>
+
+    <!-- 파형(모니터링 라인) 그라디언트 -->
+    <linearGradient id="waveStroke" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f97316"></stop>
+      <stop offset="40%" stop-color="#e11d48"></stop>
+      <stop offset="100%" stop-color="#facc15"></stop>
+    </linearGradient>
+
+    <!-- 글로우 효과 -->
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="blur"></feGaussianBlur>
+      <feMerge>
+        <feMergeNode in="blur"></feMergeNode>
+        <feMergeNode in="SourceGraphic"></feMergeNode>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- 배경 -->
+  <rect x="0" y="0" width="200" height="200" rx="32" ry="32" fill="url(#bgGradient)"></rect>
+
+  <!-- 헥사곤 외곽 (쿠버네티스/클러스터 느낌) -->
+  <polygon points="100,18 166,56 166,132 100,170 34,132 34,56" fill="none" stroke="url(#hexStroke)" stroke-width="4" filter="url(#softGlow)"></polygon>
+
+  <!-- 내부 코어 원 (중앙 제어/관제 코어) -->
+  <circle cx="100" cy="100" r="36" fill="url(#coreGradient)" stroke="#022c22" stroke-width="2"></circle>
+
+  <!-- 코어 안에 subtle 링 -->
+  <circle cx="100" cy="100" r="24" fill="none" stroke="rgba(15,118,110,0.8)" stroke-width="2" stroke-dasharray="4 6"></circle>
+
+  <!-- 모니터링 파형 (Alert / Observability) -->
+  <path d="M52 112
+       L72 112
+       L82 96
+       L94 136
+       L110 80
+       L126 120
+       L142 112
+       L152 112" fill="none" stroke="url(#waveStroke)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" filter="url(#softGlow)"></path>
+
+  <!-- 노드 점 (클러스터 노드/에이전트) -->
+  <circle cx="66" cy="72" r="4" fill="#38bdf8"></circle>
+  <circle cx="134" cy="72" r="4" fill="#a855f7"></circle>
+  <circle cx="66" cy="138" r="4" fill="#22c55e"></circle>
+  <circle cx="134" cy="138" r="4" fill="#facc15"></circle>
+
+  <!-- 코어 위에 작은 하이라이트 -->
+  <circle cx="90" cy="90" r="6" fill="rgba(255,255,255,0.35)"></circle>
+
+  <!-- 선택: 아주 은은한 테두리 -->
+  <rect x="4" y="4" width="192" height="192" rx="30" ry="30" fill="none" stroke="rgba(148,163,184,0.35)" stroke-width="1"></rect>
+</svg>
