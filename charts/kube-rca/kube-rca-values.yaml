@@ -5,4 +5,4 @@ backend:
 frontend:
   image:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr
-    tag: frontend-8db3788
+    tag: frontend-3b6cf0e
