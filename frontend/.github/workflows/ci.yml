@@ -14,6 +14,8 @@ jobs:
   build-and-push:
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message || '', '[build]') }}
     runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.image-tag.outputs.image_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,8 +53,13 @@ jobs:
           docker build -t "$ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$IMAGE_REPO_NAME:${{ steps.image-tag.outputs.image_tag }}" .
           docker push "$ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$IMAGE_REPO_NAME:${{ steps.image-tag.outputs.image_tag }}"
 
+  update-helm-values:
+    if: ${{ github.ref_name == 'main' || github.ref_name == 'master' }}
+    needs:
+      - build-and-push
+    runs-on: ubuntu-latest
+    steps:
       - name: Create GitHub App token (helm-charts)
-        if: ${{ github.ref_name == 'main' || github.ref_name == 'master' }}
         id: helm-charts-token
         uses: actions/create-github-app-token@v1
         with:
@@ -62,7 +69,6 @@ jobs:
           repositories: helm-charts
 
       - name: Checkout helm-charts
-        if: ${{ github.ref_name == 'main' || github.ref_name == 'master' }}
         uses: actions/checkout@v4
         with:
           repository: kube-rca/helm-charts
@@ -71,18 +77,26 @@ jobs:
           ref: main
           token: ${{ steps.helm-charts-token.outputs.token }}
 
-      - name: Update kube-rca Helm values (frontend image tag)
-        if: ${{ github.ref_name == 'main' || github.ref_name == 'master' }}
-        uses: mikefarah/yq@v4.50.1
-        with:
-          cmd: yq -i '.frontend.image.tag = "${{ steps.image-tag.outputs.image_tag }}"' 'helm-charts/charts/kube-rca/kube-rca-values.yaml'
-
-      - name: Commit and push helm-charts (frontend)
-        if: ${{ github.ref_name == 'main' || github.ref_name == 'master' }}
+      - name: Ensure helm-charts branch
         env:
           HELM_CHARTS_DIR: helm-charts
+          HELM_CHARTS_BRANCH: main
+        run: |
+          set -euo pipefail
+          git -C "$HELM_CHARTS_DIR" fetch origin "$HELM_CHARTS_BRANCH"
+          git -C "$HELM_CHARTS_DIR" checkout -B "$HELM_CHARTS_BRANCH" "origin/$HELM_CHARTS_BRANCH"
+
+      - name: Update kube-rca Helm values (frontend image tag)
+        uses: mikefarah/yq@v4.50.1
+        with:
+          cmd: yq -i '.frontend.image.tag = "${{ needs.build-and-push.outputs.image_tag }}"' 'helm-charts/charts/kube-rca/kube-rca-values.yaml'
+
+      - name: Commit and push helm-charts (frontend)
+        env:
+          HELM_CHARTS_DIR: helm-charts
+          HELM_CHARTS_BRANCH: main
           VALUES_FILE: charts/kube-rca/kube-rca-values.yaml
-          NEW_TAG: ${{ steps.image-tag.outputs.image_tag }}
+          NEW_TAG: ${{ needs.build-and-push.outputs.image_tag }}
         run: |
           set -euo pipefail
 
@@ -94,13 +108,13 @@ jobs:
           git -C "$HELM_CHARTS_DIR" config user.name "github-actions[bot]"
           git -C "$HELM_CHARTS_DIR" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          branch="$(git -C "$HELM_CHARTS_DIR" rev-parse --abbrev-ref HEAD)"
           git -C "$HELM_CHARTS_DIR" add "$VALUES_FILE"
           git -C "$HELM_CHARTS_DIR" commit -m "chore(kube-rca): bump frontend image to $NEW_TAG"
 
           for i in 1 2 3 4 5; do
-            git -C "$HELM_CHARTS_DIR" pull --rebase origin "$branch"
-            if git -C "$HELM_CHARTS_DIR" push origin "HEAD:$branch"; then
+            git -C "$HELM_CHARTS_DIR" fetch origin "$HELM_CHARTS_BRANCH"
+            git -C "$HELM_CHARTS_DIR" rebase "origin/$HELM_CHARTS_BRANCH"
+            if git -C "$HELM_CHARTS_DIR" push origin "HEAD:$HELM_CHARTS_BRANCH"; then
               exit 0
             fi
             echo "Push failed (attempt $i/5). Retrying..."
