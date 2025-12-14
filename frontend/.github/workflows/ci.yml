@@ -1,4 +1,4 @@
-name: Build and Push to ECR
+name: Build/push image and update kube-rca Helm values (frontend)
 
 on:
   push:
