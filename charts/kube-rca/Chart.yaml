@@ -1,0 +1,7 @@
+apiVersion: v2
+name: kube-rca
+description: Deploy kube-rca backend and frontend
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+
