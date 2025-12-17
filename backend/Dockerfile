@@ -14,6 +14,7 @@ RUN go build -o main .
 
 FROM scratch
 
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /build/main .
 
 ENTRYPOINT ["./main"]
