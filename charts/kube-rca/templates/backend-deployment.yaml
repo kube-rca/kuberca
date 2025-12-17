@@ -24,15 +24,28 @@ spec:
           ports:
             - name: http
               containerPort: {{ .Values.backend.containerPort }}
-          {{- if .Values.backend.slack.enabled }}
-          {{- $slack := default (dict) .Values.backend.slack }}
-          {{- $channelId := coalesce (index $slack "channel-id") $slack.channelId }}
-          {{- $source := default "" $slack.source }}
-          {{- $secret := default (dict) $slack.secret }}
-          {{- $existingSecret := default "" $secret.existingSecret }}
-          {{- $tokenKey := coalesce $secret.tokenKey (dig "keys" "token" "" $secret) }}
-          {{- $channelIdKey := coalesce $secret.channelIdKey (dig "keys" "channelId" "" $secret) }}
           env:
+            - name: PGHOST
+              value: {{ default "postgresql.kube-rca.svc.cluster" .Values.backend.postgresql.host | quote }}
+            - name: PGPORT
+              value: {{ default 5432 .Values.backend.postgresql.port | quote }}
+            - name: PGUSER
+              value: {{ default "kube-rca" .Values.backend.postgresql.user | quote }}
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql
+                  key: password
+            - name: PGDATABASE
+              value: {{ default "kube-rca" .Values.backend.postgresql.database | quote }}
+            {{- if .Values.backend.slack.enabled }}
+            {{- $slack := default (dict) .Values.backend.slack }}
+            {{- $channelId := coalesce (index $slack "channel-id") $slack.channelId }}
+            {{- $source := default "" $slack.source }}
+            {{- $secret := default (dict) $slack.secret }}
+            {{- $existingSecret := default "" $secret.existingSecret }}
+            {{- $tokenKey := coalesce $secret.tokenKey (dig "keys" "token" "" $secret) }}
+            {{- $channelIdKey := coalesce $secret.channelIdKey (dig "keys" "channelId" "" $secret) }}
             {{- if eq $source "values" }}
             - name: SLACK_BOT_TOKEN
               value: {{ required "backend.slack.token is required when backend.slack.source=values" $slack.token | quote }}
@@ -67,7 +80,7 @@ spec:
                   name: {{ $secretName | quote }}
                   key: {{ required "backend.slack.secret.channelIdKey (or backend.slack.secret.keys.channelId) is required" $channelIdKey | quote }}
             {{- end }}
-          {{- end }}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /ping
