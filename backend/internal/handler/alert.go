@@ -8,6 +8,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"time"
@@ -40,7 +41,11 @@ func (h *AlertHandler) Webhook(c *gin.Context) {
 		return
 	}
 
-	// 2. 웹훅 메타데이터 로깅
+	// 2. Raw payload 로깅 (디버깅용)
+	rawPayload, _ := json.MarshalIndent(webhook, "", "  ")
+	log.Printf("Raw webhook payload:\n%s", string(rawPayload))
+
+	// 3. 웹훅 메타데이터 로깅
 	// status: firing(발생) 또는 resolved(해결)
 	// alertCount: 웹훅에 포함된 알림 개수
 	// receiver: Alertmanager에서 설정한 receiver 이름
