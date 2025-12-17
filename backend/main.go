@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	"github.com/gin-gonic/gin"
 	"github.com/kube-rca/backend/internal/client"
+	"github.com/kube-rca/backend/internal/db"
 	"github.com/kube-rca/backend/internal/handler"
 	"github.com/kube-rca/backend/internal/service"
 )
@@ -13,15 +15,23 @@ func main() {
 	// 의존성: handler → service → client
 	// 초기화 순서: client → service → handler
 
-	// 1. 외부 서비스 클라이언트 초기화
+	// 1. DB 연결 풀 초기화
+	ctx := context.Background()
+	dbPool, err := db.NewPostgresPool(ctx)
+	if err != nil {
+		log.Fatalf("Failed to connect to postgres: %v", err)
+	}
+	defer dbPool.Close()
+
+	// 2. 외부 서비스 클라이언트 초기화
 	// Slack Bot Token과 Channel ID를 환경변수에서 읽어옴
 	slackClient := client.NewSlackClient()
 
-	// 2. 비즈니스 로직 서비스 초기화
+	// 3. 비즈니스 로직 서비스 초기화
 	// 알림 필터링 및 Slack 전송 로직 담당
 	alertService := service.NewAlertService(slackClient)
 
-	// 3. HTTP 핸들러 초기화
+	// 4. HTTP 핸들러 초기화
 	// Alertmanager 웹훅 요청 수신 및 응답 처리
 	alertHandler := handler.NewAlertHandler(alertService)
 
