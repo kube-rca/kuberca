@@ -1,7 +1,7 @@
 backend:
   image:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr
-    tag: backend-03d57f3
+    tag: backend-8f052e6
   ingress:
     enabled: true
     ingressClassName: nginx
@@ -20,7 +20,6 @@ backend:
       - secretName: api-kuberca-tls
         hosts:
           - api-kuberca.kkamji.net
-
 frontend:
   image:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr
