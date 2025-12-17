@@ -17,7 +17,6 @@ import (
 	"net"
 	"net/url"
 	"os"
-
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
