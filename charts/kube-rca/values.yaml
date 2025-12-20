@@ -48,6 +48,16 @@ backend:
   # -- Affinity for backend pods assignment.
   affinity: {}
 
+  postgresql:
+    # -- PostgreSQL host.
+    host: "postgresql.kube-rca.svc.cluster.local"
+    # -- PostgreSQL port.
+    port: 5432
+    # -- PostgreSQL user.
+    user: "kube-rca"
+    # -- PostgreSQL database.
+    database: "kube-rca"
+
   slack:
     # -- Enable Slack notifications.
     enabled: true
@@ -63,6 +73,48 @@ backend:
       tokenKey: kube-rca-slack-token
       # -- Secret key for Slack channel ID.
       channelIdKey: kube-rca-slack-channel-id
+
+agent:
+  # -- Number of agent replicas.
+  replicaCount: 1
+  image:
+    # -- Agent image repository.
+    repository: ""
+    # -- Agent image tag.
+    tag: ""
+    # -- Agent image pull policy.
+    pullPolicy: IfNotPresent
+  service:
+    # -- Agent service type.
+    type: ClusterIP
+    # -- Agent service port.
+    port: 8082
+  # -- Agent container port.
+  containerPort: 8082
+  ingress:
+    # -- Enable agent ingress.
+    enabled: false
+    # -- IngressClass name for agent ingress.
+    ingressClassName: ""
+    # -- Annotations for agent ingress.
+    annotations: {}
+    # -- Hostnames for agent ingress.
+    hosts: []
+    # -- Paths for agent ingress.
+    paths:
+      - /
+    # -- PathType for agent ingress.
+    pathType: Prefix
+    # -- TLS configuration for agent ingress.
+    tls: []
+  # -- Agent resource requests/limits.
+  resources: {}
+  # -- Node labels for agent pods assignment.
+  nodeSelector: {}
+  # -- Tolerations for agent pods assignment.
+  tolerations: []
+  # -- Affinity for agent pods assignment.
+  affinity: {}
 
 frontend:
   # -- Number of frontend replicas.

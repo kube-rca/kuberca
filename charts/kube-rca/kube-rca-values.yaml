@@ -47,6 +47,10 @@ frontend:
       - secretName: kuberca-tls
         hosts:
           - kuberca.kkamji.net
+
 agent:
   image:
+    repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr
     tag: agent-689403b
+  ingress:
+    enabled: false

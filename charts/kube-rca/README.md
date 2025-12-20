@@ -8,6 +8,24 @@ Deploy kube-rca backend and frontend
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| agent.affinity | object | `{}` | Affinity for agent pods assignment. |
+| agent.containerPort | int | `8082` | Agent container port. |
+| agent.image.pullPolicy | string | `"IfNotPresent"` | Agent image pull policy. |
+| agent.image.repository | string | `""` | Agent image repository. |
+| agent.image.tag | string | `""` | Agent image tag. |
+| agent.ingress.annotations | object | `{}` | Annotations for agent ingress. |
+| agent.ingress.enabled | bool | `false` | Enable agent ingress. |
+| agent.ingress.hosts | list | `[]` | Hostnames for agent ingress. |
+| agent.ingress.ingressClassName | string | `""` | IngressClass name for agent ingress. |
+| agent.ingress.pathType | string | `"Prefix"` | PathType for agent ingress. |
+| agent.ingress.paths | list | `["/"]` | Paths for agent ingress. |
+| agent.ingress.tls | list | `[]` | TLS configuration for agent ingress. |
+| agent.nodeSelector | object | `{}` | Node labels for agent pods assignment. |
+| agent.replicaCount | int | `1` | Number of agent replicas. |
+| agent.resources | object | `{}` | Agent resource requests/limits. |
+| agent.service.port | int | `8082` | Agent service port. |
+| agent.service.type | string | `"ClusterIP"` | Agent service type. |
+| agent.tolerations | list | `[]` | Tolerations for agent pods assignment. |
 | backend.affinity | object | `{}` | Affinity for backend pods assignment. |
 | backend.containerPort | int | `8080` | Backend container port. |
 | backend.image.pullPolicy | string | `"IfNotPresent"` | Backend image pull policy. |
@@ -21,6 +39,10 @@ Deploy kube-rca backend and frontend
 | backend.ingress.paths | list | `["/"]` | Paths for backend ingress. |
 | backend.ingress.tls | list | `[]` | TLS configuration for backend ingress. |
 | backend.nodeSelector | object | `{}` | Node labels for backend pods assignment. |
+| backend.postgresql.database | string | `"kube-rca"` | PostgreSQL database. |
+| backend.postgresql.host | string | `"postgresql.kube-rca.svc.cluster.local"` | PostgreSQL host. |
+| backend.postgresql.port | int | `5432` | PostgreSQL port. |
+| backend.postgresql.user | string | `"kube-rca"` | PostgreSQL user. |
 | backend.replicaCount | int | `1` | Number of backend replicas. |
 | backend.resources | object | `{}` | Backend resource requests/limits. |
 | backend.service.port | int | `8080` | Backend service port. |

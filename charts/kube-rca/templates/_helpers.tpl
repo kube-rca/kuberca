@@ -53,6 +53,10 @@ Component names.
 {{- printf "%s-frontend" (include "kube-rca.fullname" .) | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
+{{- define "kube-rca.agent.name" -}}
+{{- printf "%s-agent" (include "kube-rca.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
 {{/*
 Slack Secret name for backend (chart-managed Secret).
 */}}
