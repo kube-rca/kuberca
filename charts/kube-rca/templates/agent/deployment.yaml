@@ -17,6 +17,7 @@ spec:
         {{- include "kube-rca.labels" . | nindent 8 }}
         app.kubernetes.io/component: agent
     spec:
+      serviceAccountName: {{ include "kube-rca.agent.name" . }}
       containers:
         - name: agent
           image: "{{ required "agent.image.repository is required" .Values.agent.image.repository }}:{{ default "latest" .Values.agent.image.tag }}"
@@ -24,6 +25,18 @@ spec:
           ports:
             - name: http
               containerPort: {{ .Values.agent.containerPort }}
+          env:
+            - name: AGENT_CONFIG_PATH
+              value: /etc/agent/config/agent-config.yaml
+            - name: AGENT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kube-rca.agent.name" . }}-secret
+                  key: api-key
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/agent/config
+              readOnly: true
           livenessProbe:
             httpGet:
               path: /healthz
@@ -50,3 +63,7 @@ spec:
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      volumes:
+        - name: config-volume
+          configMap:
+            name: {{ include "kube-rca.agent.name" . }}-config

@@ -1,0 +1,15 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "kube-rca.agent.name" . }}
+  labels:
+    {{- include "kube-rca.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "kube-rca.agent.name" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "kube-rca.agent.name" . }}
+    namespace: {{ .Release.Namespace }}
