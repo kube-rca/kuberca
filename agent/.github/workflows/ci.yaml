@@ -1,0 +1,125 @@
+name: Build/push image and update kube-rca Helm values (agent)
+
+on:
+  push:
+    branches:
+      - "**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-and-push:
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message || '', '[build]') }}
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.image-tag.outputs.image_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC assume role)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ap-northeast-2
+          role-session-name: github-actions-agent
+
+      - name: Login to Amazon ECR
+        id: login-ecr-public
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
+        env:
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_REGION: us-east-1
+
+      - name: Set image tag
+        id: image-tag
+        run: |
+          full_sha="${{ github.sha }}"
+          short_sha="${full_sha:0:7}"
+          echo "image_tag=${{ github.event.repository.name }}-${short_sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
+          ECR_REGISTRY_ALIAS: r5b7j2e4
+          IMAGE_REPO_NAME: kube-rca-ecr
+          IMAGE_NAME: agent
+        run: |
+          docker build -t "$ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$IMAGE_REPO_NAME:${{ steps.image-tag.outputs.image_tag }}" .
+          docker push "$ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$IMAGE_REPO_NAME:${{ steps.image-tag.outputs.image_tag }}"
+
+  update-helm-values:
+    if: ${{ github.ref_name == 'main' || github.ref_name == 'master' }}
+    needs:
+      - build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GitHub App token (helm-charts)
+        id: helm-charts-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HELM_CHARTS_APP_ID }}
+          private-key: ${{ secrets.HELM_CHARTS_APP_PRIVATE_KEY }}
+          owner: kube-rca
+          repositories: helm-charts
+
+      - name: Checkout helm-charts
+        uses: actions/checkout@v4
+        with:
+          repository: kube-rca/helm-charts
+          path: helm-charts
+          fetch-depth: 0
+          ref: main
+          token: ${{ steps.helm-charts-token.outputs.token }}
+
+      - name: Ensure helm-charts branch
+        env:
+          HELM_CHARTS_DIR: helm-charts
+          HELM_CHARTS_BRANCH: main
+        run: |
+          set -euo pipefail
+          git -C "$HELM_CHARTS_DIR" fetch origin "$HELM_CHARTS_BRANCH"
+          git -C "$HELM_CHARTS_DIR" checkout -B "$HELM_CHARTS_BRANCH" "origin/$HELM_CHARTS_BRANCH"
+
+      - name: Update kube-rca Helm values (agent image tag)
+        uses: mikefarah/yq@v4.50.1
+        with:
+          cmd: yq -i '.agent.image.tag = "${{ needs.build-and-push.outputs.image_tag }}"' 'helm-charts/charts/kube-rca/kube-rca-values.yaml'
+
+      - name: Commit and push helm-charts (agent)
+        env:
+          HELM_CHARTS_DIR: helm-charts
+          HELM_CHARTS_BRANCH: main
+          VALUES_FILE: charts/kube-rca/kube-rca-values.yaml
+          NEW_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+        run: |
+          set -euo pipefail
+
+          if git -C "$HELM_CHARTS_DIR" diff --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git -C "$HELM_CHARTS_DIR" config user.name "github-actions[bot]"
+          git -C "$HELM_CHARTS_DIR" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git -C "$HELM_CHARTS_DIR" add "$VALUES_FILE"
+          git -C "$HELM_CHARTS_DIR" commit -m "chore(kube-rca): bump agent image to $NEW_TAG"
+
+          for i in 1 2 3 4 5; do
+            git -C "$HELM_CHARTS_DIR" fetch origin "$HELM_CHARTS_BRANCH"
+            git -C "$HELM_CHARTS_DIR" rebase "origin/$HELM_CHARTS_BRANCH"
+            if git -C "$HELM_CHARTS_DIR" push origin "HEAD:$HELM_CHARTS_BRANCH"; then
+              exit 0
+            fi
+            echo "Push failed (attempt $i/5). Retrying..."
+            sleep 2
+          done
+
+          echo "Failed to push helm-charts after retries."
+          exit 1
