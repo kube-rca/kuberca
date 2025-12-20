@@ -47,3 +47,6 @@ frontend:
       - secretName: kuberca-tls
         hosts:
           - kuberca.kkamji.net
+agent:
+  image:
+    tag: agent-689403b
