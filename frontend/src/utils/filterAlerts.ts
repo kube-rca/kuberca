@@ -1,4 +1,4 @@
-import { AlertItem } from '../types';
+import { RCAItem } from '../types';
 
 /**
  * 시간 범위 문자열을 밀리초로 변환
@@ -23,10 +23,10 @@ const getTimeRangeInMs = (timeRange: string): number => {
 };
 
 /**
- * 알림 시간 문자열을 Date 객체로 변환
+ * RCA 시간 문자열을 Date 객체로 변환
  * 형식: "2025/12/01 15:00"
  */
-const parseAlertTime = (timeString: string): Date => {
+const parseRCATime = (timeString: string): Date => {
   const [datePart, timePart] = timeString.split(' ');
   const [year, month, day] = datePart.split('/').map(Number);
   const [hours, minutes] = timePart.split(':').map(Number);
@@ -35,17 +35,17 @@ const parseAlertTime = (timeString: string): Date => {
 };
 
 /**
- * 시간 범위에 따라 알림 목록을 필터링
+ * 시간 범위에 따라 RCA 목록을 필터링
  */
-export const filterAlertsByTimeRange = (
-  alerts: AlertItem[],
+export const filterRCAsByTimeRange = (
+  rcas: RCAItem[],
   timeRange: string
-): AlertItem[] => {
+): RCAItem[] => {
   const cutoffTime = getTimeRangeInMs(timeRange);
   
-  return alerts.filter((alert) => {
-    const alertTime = parseAlertTime(alert.time);
-    return alertTime.getTime() >= cutoffTime;
+  return rcas.filter((rca) => {
+    const rcaTime = parseRCATime(rca.time);
+    return rcaTime.getTime() >= cutoffTime;
   });
 };
 

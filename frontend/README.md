@@ -47,6 +47,29 @@ yarn dev
 
 터미널에 표시된 URL (보통 `http://localhost:5173`)로 브라우저에서 접속하세요.
 
+## 환경 변수 설정
+
+백엔드 API URL을 설정하려면 프로젝트 루트에 `.env` 파일을 생성하세요:
+
+```bash
+# .env 파일
+VITE_API_BASE_URL=http://kube-rca-backend:8080
+```
+
+- **개발 환경**: 로컬 개발 시 `http://localhost:8080` 사용 가능
+- **프로덕션 환경 (쿠버네티스)**: `http://kube-rca-backend:8080` 사용 (기본값)
+- 환경 변수가 설정되지 않으면 기본값 `http://kube-rca-backend:8080`이 사용됩니다.
+
+## 백엔드 API 연동
+
+이 프로젝트는 백엔드 API와 연동됩니다:
+
+- **API 엔드포인트**: `/api/alerts`
+- **기본 URL**: `http://kube-rca-backend:8080` (쿠버네티스 클러스터 내부 통신)
+- **응답 형식**: `AlertItem[]` 배열 또는 `{ alerts: AlertItem[] }` 객체
+
+백엔드 API가 다른 형식으로 응답하는 경우 `src/utils/api.ts` 파일을 수정하세요.
+
 ## Docker를 사용한 실행
 
 ### 1. Docker 이미지 빌드
@@ -87,7 +110,9 @@ src/
 ├── constants/            # 상수 정의
 │   └── index.ts          # 앱 전역 상수
 └── utils/                # 유틸리티 함수
-    └── mockData.ts       # Mock 데이터 생성 함수
+    ├── api.ts            # 백엔드 API 클라이언트
+    ├── mockData.ts       # Mock 데이터 생성 함수
+    └── filterAlerts.ts  # 알림 필터링 유틸리티
 ```
 
 ## 기술 스택

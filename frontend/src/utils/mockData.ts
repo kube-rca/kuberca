@@ -1,7 +1,7 @@
-import { AlertItem } from '../types';
+import { RCAItem } from '../types';
 
-export const generateMockAlerts = (count: number = 100): AlertItem[] => {
-  const severities: AlertItem['severity'][] = ['info', 'warning', 'critical'];
+export const generateMockAlerts = (count: number = 100): RCAItem[] => {
+  const severities: RCAItem['severity'][] = ['info', 'warning', 'critical'];
   const titles = [
     'HPA Replicas ~~~',
     'node CPU ~~~',
@@ -15,7 +15,7 @@ export const generateMockAlerts = (count: number = 100): AlertItem[] => {
     'High Error Rate ~~~',
   ];
 
-  const alerts: AlertItem[] = [];
+  const alerts: RCAItem[] = [];
   const currentDate = new Date();
   
   for (let i = 0; i < count; i++) {
