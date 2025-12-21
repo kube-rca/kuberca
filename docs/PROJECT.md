@@ -7,11 +7,13 @@ LLM을 활용해 Root Cause Analysis(RCA)와 대응 가이드를 제공하는 �
 
 ## 현재 구현 범위(요약)
 
-- Backend: Alertmanager Webhook 수신 및 Slack 전송
-- Frontend: Mock 데이터 기반 대시보드 UI
+- Backend: Alertmanager Webhook 수신 및 Slack 알림 전송(스레드 처리 포함)
+- Agent: Alertmanager 분석 API(placeholder 응답, Backend 연동 미구현)
+- Frontend: `GET /api/rca` 호출 시도, 개발 환경에서 mock fallback
 - Helm: backend/frontend 배포용 `kube-rca` 차트 포함
+- DB/Vector DB/LLM 연동 및 RCA 저장/검색은 계획
 
-구체적인 런타임 흐름은 `ARCHITECTURE.md`를 참고합니다.
+구체적인 런타임 흐름(as-is)은 `ARCHITECTURE.md`, 목표(to-be)는 `diagrams/`를 참고합니다.
 
 ## 1. 프로젝트 배경
 
@@ -39,7 +41,9 @@ KubeRCA – AI 기반 Kubernetes 인시던트 알람 분석 및 RCA + 대응 가
 Prometheus/Alertmanager, Slack, 로그, 메트릭, 트레이스 데이터를 연동하여 장애 발생 시
 관련 정보를 수집하고, LLM을 활용해 원인 분석과 대응 가이드를 제공하는 것을 목표로 합니다.
 
-## 3. Core Workflow
+## 3. Core Workflow(목표, to-be)
+
+현재 구현 범위는 `ARCHITECTURE.md`를 참고합니다.
 
 1. 알람 수신 시 관련 로그, 메트릭, 이벤트를 자동 수집
 2. LLM 분석을 통해 장애 원인 후보와 추론 근거 생성
@@ -110,6 +114,7 @@ Prometheus/Alertmanager, Slack, 로그, 메트릭, 트레이스 데이터를 연
 ### 6.4 애플리케이션
 
 - Backend: Go + Gin(구현)
+- Agent: Go + Gin(구현, 분석 로직은 placeholder)
 - Frontend: React + TypeScript + Vite + Tailwind CSS(구현, 현재는 mock 기반)
 
 ### 6.5 데이터베이스 / AI
