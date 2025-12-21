@@ -28,11 +28,15 @@ spec:
           env:
             - name: AGENT_CONFIG_PATH
               value: /etc/agent/config/agent-config.yaml
-            - name: AGENT_API_KEY
+            - name: PORT
+              value: {{ .Values.agent.containerPort | quote }}
+            - name: GEMINI_MODEL_ID
+              value: {{ .Values.agent.gemini.modelId | quote }}
+            - name: GEMINI_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "kube-rca.agent.name" . }}-secret
-                  key: api-key
+                  name: {{ include "kube-rca.agent.geminiSecretName" . }}
+                  key: {{ .Values.agent.gemini.secret.key }}
           volumeMounts:
             - name: config-volume
               mountPath: /etc/agent/config

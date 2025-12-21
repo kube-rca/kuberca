@@ -10,6 +10,10 @@ Deploy kube-rca backend and frontend
 |-----|------|---------|-------------|
 | agent.affinity | object | `{}` | Affinity for agent pods assignment. |
 | agent.containerPort | int | `8082` | Agent container port. |
+| agent.gemini.modelId | string | `"gemini-3-flash-preview"` | Gemini model ID for Strands Agents. |
+| agent.gemini.secret.create | bool | `false` | Create a Secret for the Gemini API key. |
+| agent.gemini.secret.existingSecret | string | `"kube-rca-agent-secret"` | Existing Secret name for the Gemini API key. |
+| agent.gemini.secret.key | string | `"ai-studio-api-key"` | Secret key name for the Gemini API key. |
 | agent.image.pullPolicy | string | `"IfNotPresent"` | Agent image pull policy. |
 | agent.image.repository | string | `""` | Agent image repository. |
 | agent.image.tag | string | `""` | Agent image tag. |

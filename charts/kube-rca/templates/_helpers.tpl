@@ -58,6 +58,17 @@ Component names.
 {{- end -}}
 
 {{/*
+Gemini Secret name for agent.
+*/}}
+{{- define "kube-rca.agent.geminiSecretName" -}}
+{{- if .Values.agent.gemini.secret.existingSecret -}}
+{{- .Values.agent.gemini.secret.existingSecret -}}
+{{- else -}}
+{{- printf "%s-secret" (include "kube-rca.agent.name" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Slack Secret name for backend (chart-managed Secret).
 */}}
 {{- define "kube-rca.backend.slackSecretName" -}}

@@ -109,6 +109,16 @@ agent:
     tls: []
   # -- Agent resource requests/limits.
   resources: {}
+  gemini:
+    # -- Gemini model ID for Strands Agents.
+    modelId: "gemini-3-flash-preview"
+    secret:
+      # -- Create a Secret for the Gemini API key.
+      create: false
+      # -- Existing Secret name for the Gemini API key.
+      existingSecret: "kube-rca-agent-secret"
+      # -- Secret key name for the Gemini API key.
+      key: "ai-studio-api-key"
   # -- Node labels for agent pods assignment.
   nodeSelector: {}
   # -- Tolerations for agent pods assignment.
