@@ -44,6 +44,50 @@ The server listens on `:8082` by default. Set `PORT` to change it.
 - `GET /`
 - `POST /analyze/alertmanager`
 
+## Curl Test
+
+```bash
+curl -X POST http://localhost:8082/analyze/alertmanager \
+  -H 'Content-Type: application/json' \
+  -d @- <<'JSON'
+{
+  "alert": {
+    "status": "firing",
+    "labels": {
+      "alertname": "TestAlert",
+      "severity": "warning",
+      "namespace": "default",
+      "pod": "example-pod"
+    },
+    "annotations": {
+      "summary": "test summary",
+      "description": "test description"
+    },
+    "startsAt": "2024-01-01T00:00:00Z",
+    "endsAt": "0001-01-01T00:00:00Z",
+    "generatorURL": "",
+    "fingerprint": "test-fingerprint"
+  },
+  "thread_ts": "test-thread",
+  "callback_url": "http://kube-rca-backend.kube-rca.svc:8080/callback/agent"
+}
+JSON
+```
+
+Or use Makefile:
+
+```bash
+cd agent
+make curl-analyze
+```
+
+Override values if needed:
+
+```bash
+make curl-analyze ANALYZE_URL=http://localhost:8082/analyze/alertmanager \
+  THREAD_TS=test-thread ALERT_NAMESPACE=default ALERT_POD=example-pod
+```
+
 ## Example Request Payload
 
 ```json
@@ -96,7 +140,9 @@ pytest
 
 ```bash
 cd agent
+make help
 make lint
+make curl-analyze
 make test
 make run
 ```
