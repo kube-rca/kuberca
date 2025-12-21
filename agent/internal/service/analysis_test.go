@@ -6,17 +6,18 @@ import (
 	"github.com/kube-rca/agent/internal/model"
 )
 
-func TestAnalyzeWebhookMessage(t *testing.T) {
+func TestAnalyzeAlertRequestMessage(t *testing.T) {
 	service := NewAnalysisService()
-	webhook := model.AlertmanagerWebhook{
-		Alerts: []model.Alert{
-			{Status: "firing", Labels: map[string]string{"severity": "critical"}},
-			{Status: "resolved", Labels: map[string]string{"severity": "warning"}},
-			{Status: "", Labels: map[string]string{}},
+	request := model.AlertAnalysisRequest{
+		Alert: model.Alert{
+			Status: "firing",
+			Labels: map[string]string{"severity": "critical"},
 		},
+		ThreadTS:    "1234567890.123456",
+		CallbackURL: "http://kube-rca-backend.kube-rca.svc:8080/callback/agent",
 	}
 
-	got := service.AnalyzeWebhook(webhook)
+	got := service.AnalyzeAlertRequest(request)
 
 	if got != analysisCompleteMessage {
 		t.Fatalf("message = %q, want %q", got, analysisCompleteMessage)

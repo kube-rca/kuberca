@@ -11,6 +11,6 @@ func NewAnalysisService() *AnalysisService {
 // analysisCompleteMessage is a placeholder response until analysis is implemented.
 const analysisCompleteMessage = "Analysis Complete!"
 
-func (s *AnalysisService) AnalyzeWebhook(_ model.AlertmanagerWebhook) string {
+func (s *AnalysisService) AnalyzeAlertRequest(_ model.AlertAnalysisRequest) string {
 	return analysisCompleteMessage
 }

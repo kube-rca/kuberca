@@ -32,20 +32,39 @@ The server listens on `:8082` by default. Set `PORT` to change it.
 - `GET /`
 - `POST /analyze/alertmanager`
 
-## Example Request
+## Example Request Payload
 
-```bash
-curl -X POST http://localhost:8082/analyze/alertmanager \
-  -H 'Content-Type: application/json' \
-  -d '{"receiver":"backend","status":"firing","alerts":[]}'
+```json
+{
+  "alert": {
+    "status": "firing",
+    "labels": {
+      "alertname": "HighMemoryUsage",
+      "severity": "critical",
+      "namespace": "default",
+      ...
+    },
+    "annotations": {
+      "summary": "...",
+      "description": "..."
+    },
+    "startsAt": "2024-01-01T00:00:00Z",
+    "endsAt": "...",
+    "fingerprint": "abc123..."
+  },
+  "thread_ts": "1234567890.123456",
+  "callback_url": "http://kube-rca-backend.kube-rca.svc:8080/callback/agent"
+}
 ```
+
+`...`는 생략 표기입니다.
 
 ## Response Schema
 
 ```json
 {
   "status": "ok",
-  "receiver": "kube-rca-backend",
+  "thread_ts": "1234567890.123456",
   "analysis": "Analysis Complete!"
 }
 ```

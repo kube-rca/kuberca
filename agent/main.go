@@ -18,7 +18,7 @@ func main() {
 	router.GET("/ping", handler.Ping)
 	router.GET("/healthz", handler.Healthz)
 	router.GET("/", handler.Root)
-	router.POST("/analyze/alertmanager", analysisHandler.AnalyzeAlertmanager)
+	router.POST("/analyze/alertmanager", analysisHandler.AnalyzeAlertRequest)
 
 	port := os.Getenv("PORT")
 	if port == "" {

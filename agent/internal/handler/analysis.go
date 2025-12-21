@@ -17,18 +17,18 @@ func NewAnalysisHandler(analysisService *service.AnalysisService) *AnalysisHandl
 	return &AnalysisHandler{analysisService: analysisService}
 }
 
-func (h *AnalysisHandler) AnalyzeAlertmanager(c *gin.Context) {
-	var webhook model.AlertmanagerWebhook
-	if err := c.ShouldBindJSON(&webhook); err != nil {
-		log.Printf("Failed to parse webhook: %v", err)
+func (h *AnalysisHandler) AnalyzeAlertRequest(c *gin.Context) {
+	var request model.AlertAnalysisRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		log.Printf("Failed to parse alert request: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
 		return
 	}
 
-	result := h.analysisService.AnalyzeWebhook(webhook)
+	result := h.analysisService.AnalyzeAlertRequest(request)
 	c.JSON(http.StatusOK, gin.H{
-		"status":   "ok",
-		"receiver": webhook.Receiver,
-		"analysis": result,
+		"status":    "ok",
+		"thread_ts": request.ThreadTS,
+		"analysis":  result,
 	})
 }
