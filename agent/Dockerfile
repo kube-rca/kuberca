@@ -1,21 +1,17 @@
-FROM golang:1.22-alpine AS builder
+FROM python:3.12-slim
 
-ENV GO111MODULE=on \
-    CGO_ENABLED=0 \
-    GOOS=linux
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
-WORKDIR /build
+WORKDIR /app
 
-COPY go.mod ./
-RUN go mod download
+RUN pip install --no-cache-dir uv
 
-COPY . .
-RUN go build -o main .
+COPY pyproject.toml README.md /app/
+COPY app /app/app
 
-FROM scratch
-
-COPY --from=builder /build/main .
-
-ENTRYPOINT ["./main"]
+RUN uv pip install --system .
 
 EXPOSE 8082
+
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8082}"]

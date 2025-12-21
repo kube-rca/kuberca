@@ -2,28 +2,40 @@
 
 ## Overview
 
-This service receives Alertmanager webhook payloads from the backend, performs basic analysis,
+This service receives Alertmanager webhook payloads from the backend, performs
+RCA (Root Cause Analysis) using Strands Agents and in-cluster Kubernetes APIs,
 and returns the results to the backend.
 
 ## Requirements
 
-- Go 1.22+
+- Python 3.10+
+- uv
 
 ## Setup
 
 ```bash
 cd agent
-go mod tidy
+uv venv
+source .venv/bin/activate
+uv pip install -e ".[dev]"
 ```
 
 ## Run
 
 ```bash
 cd agent
-go run .
+uvicorn app.main:app --host 0.0.0.0 --port 8082
 ```
 
 The server listens on `:8082` by default. Set `PORT` to change it.
+
+## Environment Variables
+
+- `GEMINI_API_KEY`: Gemini API key (Secret-based in Helm deployment).
+- `GEMINI_MODEL_ID`: Gemini model ID (default: `gemini-3-flash-preview`).
+- `K8S_API_TIMEOUT_SECONDS`: Kubernetes API timeout in seconds (default: `5`).
+- `K8S_EVENT_LIMIT`: Maximum number of events to fetch (default: `20`).
+- `K8S_LOG_TAIL_LINES`: Number of previous log lines to fetch (default: `50`).
 
 ## Endpoints
 
@@ -42,7 +54,7 @@ The server listens on `:8082` by default. Set `PORT` to change it.
       "alertname": "HighMemoryUsage",
       "severity": "critical",
       "namespace": "default",
-      ...
+      "pod": "example-pod"
     },
     "annotations": {
       "summary": "...",
@@ -57,7 +69,7 @@ The server listens on `:8082` by default. Set `PORT` to change it.
 }
 ```
 
-`...`는 생략 표기입니다.
+`...` is omitted.
 
 ## Response Schema
 
@@ -65,10 +77,26 @@ The server listens on `:8082` by default. Set `PORT` to change it.
 {
   "status": "ok",
   "thread_ts": "1234567890.123456",
-  "analysis": "Analysis Complete!"
+  "analysis": "..."
 }
 ```
 
 ## Notes
 
-- `analysis`는 분석 기능 구현 전까지 고정 메시지를 반환합니다.
+- For Kubernetes queries, alerts should include `namespace` and `pod` labels.
+- If `GEMINI_API_KEY` is missing, the service returns a fallback summary.
+- Use `pytest` for tests:
+
+```bash
+cd agent
+pytest
+```
+
+## Makefile
+
+```bash
+cd agent
+make lint
+make test
+make run
+```
