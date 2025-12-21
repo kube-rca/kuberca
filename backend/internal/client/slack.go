@@ -151,3 +151,25 @@ func (c *SlackClient) GetThreadTS(fingerprint string) (string, bool) {
 func (c *SlackClient) DeleteThreadTS(fingerprint string) {
 	c.threadMap.Delete(fingerprint)
 }
+
+// 특정 쓰레드에 메시지 전송 (Agent 분석 결과 전송용, 일단 분리하지않음)
+func (c *SlackClient) SendToThread(threadTS, text string) error {
+	if !c.IsConfigured() {
+		return fmt.Errorf("slack bot token or channel ID not configured")
+	}
+
+	msg := SlackMessage{
+		Channel:  c.channelID,
+		ThreadTS: threadTS,
+		Attachments: []SlackAttachment{
+			{
+				Color: "#6f42c1", // purple for AI analysis
+				Title: "🤖 AI 분석 결과",
+				Text:  text,
+			},
+		},
+	}
+
+	_, err := c.send(msg)
+	return err
+}
