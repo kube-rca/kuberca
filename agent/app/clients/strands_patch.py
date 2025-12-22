@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import binascii
 from collections.abc import Callable
 from typing import Any
 
@@ -7,6 +9,30 @@ from strands.event_loop import streaming as streaming_module
 from strands.models import gemini as gemini_module
 
 _PATCH_APPLIED = False
+_SIGNATURE_B64_PREFIX = "base64:"
+
+
+def _encode_signature(signature: Any) -> str:
+    if isinstance(signature, (bytes, bytearray)):
+        try:
+            return signature.decode("utf-8")
+        except UnicodeDecodeError:
+            encoded = base64.b64encode(signature).decode("ascii")
+            return f"{_SIGNATURE_B64_PREFIX}{encoded}"
+    return str(signature)
+
+
+def _decode_signature(signature: Any) -> bytes:
+    if isinstance(signature, (bytes, bytearray)):
+        return bytes(signature)
+    signature_text = str(signature)
+    if signature_text.startswith(_SIGNATURE_B64_PREFIX):
+        encoded = signature_text[len(_SIGNATURE_B64_PREFIX) :]
+        try:
+            return base64.b64decode(encoded)
+        except (binascii.Error, ValueError):
+            return signature_text.encode("utf-8")
+    return signature_text.encode("utf-8")
 
 
 def apply_gemini_thought_signature_patch() -> None:
@@ -38,10 +64,7 @@ def _patch_gemini_format_chunk() -> None:
             part = event.get("data")
             signature = getattr(part, "thought_signature", None)
             if signature:
-                if isinstance(signature, (bytes, bytearray)):
-                    signature_text = signature.decode("utf-8")
-                else:
-                    signature_text = str(signature)
+                signature_text = _encode_signature(signature)
                 tool_use = (
                     chunk.get("contentBlockStart", {})
                     .get("start", {})
@@ -66,11 +89,7 @@ def _patch_gemini_request_formatter() -> None:
             tool_use = content["toolUse"]
             signature = tool_use.get("thoughtSignature") or tool_use.get("thought_signature")
             if signature:
-                signature_bytes = (
-                    signature
-                    if isinstance(signature, (bytes, bytearray))
-                    else str(signature).encode("utf-8")
-                )
+                signature_bytes = _decode_signature(signature)
                 return gemini_module.genai.types.Part(
                     function_call=gemini_module.genai.types.FunctionCall(
                         args=tool_use["input"],
@@ -93,10 +112,8 @@ def _patch_streaming_tool_signature() -> None:
         start = event.get("start", {})
         tool_use = start.get("toolUse")
         if tool_use and tool_use.get("thoughtSignature"):
-            signature = tool_use["thoughtSignature"]
-            if isinstance(signature, (bytes, bytearray)):
-                signature = signature.decode("utf-8")
-            current_tool_use["thoughtSignature"] = signature
+            signature_text = _encode_signature(tool_use["thoughtSignature"])
+            current_tool_use["thoughtSignature"] = signature_text
         return current_tool_use
 
     def patched_handle_content_block_stop(state: dict[str, Any]) -> dict[str, Any]:
