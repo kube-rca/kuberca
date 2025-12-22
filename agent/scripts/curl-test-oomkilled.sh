@@ -33,7 +33,6 @@ require_cmd curl
 
 require_env ANALYZE_URL
 require_env THREAD_TS
-require_env CALLBACK_URL
 require_env ALERT_STATUS
 require_env ALERT_NAME
 require_env ALERT_SEVERITY
@@ -238,8 +237,7 @@ payload=$(
     "endsAt": "$now",
     "generatorURL": ""
   },
-  "thread_ts": "$(json_escape "$THREAD_TS")",
-  "callback_url": "$(json_escape "$CALLBACK_URL")"
+  "thread_ts": "$(json_escape "$THREAD_TS")"
 }
 JSON
 )

@@ -8,7 +8,6 @@ from app.schemas.alert import Alert
 class AlertAnalysisRequest(BaseModel):
     alert: Alert
     thread_ts: str
-    callback_url: str
 
 
 class AlertAnalysisResponse(BaseModel):

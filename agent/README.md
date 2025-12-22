@@ -36,6 +36,12 @@ The server listens on `:8082` by default. Set `PORT` to change it.
 - `K8S_API_TIMEOUT_SECONDS`: Kubernetes API timeout in seconds (default: `5`).
 - `K8S_EVENT_LIMIT`: Maximum number of events to fetch (default: `20`).
 - `K8S_LOG_TAIL_LINES`: Number of previous log lines to fetch (default: `50`).
+- `PROMETHEUS_LABEL_SELECTOR`: Label selector for Prometheus Service (default:
+  `app=kube-prometheus-stack-prometheus`).
+- `PROMETHEUS_NAMESPACE_ALLOWLIST`: Comma-separated namespaces to search (default: empty = all).
+- `PROMETHEUS_PORT_NAME`: Service port name to use when multiple ports exist (default: empty).
+- `PROMETHEUS_SCHEME`: Prometheus scheme (default: `http`).
+- `PROMETHEUS_HTTP_TIMEOUT_SECONDS`: Prometheus HTTP timeout in seconds (default: `5`).
 
 ## Endpoints
 
@@ -68,8 +74,7 @@ curl -X POST http://localhost:8082/analyze \
     "generatorURL": "",
     "fingerprint": "test-fingerprint"
   },
-  "thread_ts": "test-thread",
-  "callback_url": "http://kube-rca-backend.kube-rca.svc:8080/callback/agent"
+  "thread_ts": "test-thread"
 }
 JSON
 ```
@@ -108,8 +113,7 @@ make curl-analyze ANALYZE_URL=http://localhost:8082/analyze \
     "endsAt": "...",
     "fingerprint": "abc123..."
   },
-  "thread_ts": "1234567890.123456",
-  "callback_url": "http://kube-rca-backend.kube-rca.svc:8080/callback/agent"
+  "thread_ts": "1234567890.123456"
 }
 ```
 

@@ -31,7 +31,6 @@ def _sample_request() -> AlertAnalysisRequest:
             fingerprint="abc123",
         ),
         thread_ts="1234567890.123456",
-        callback_url="http://kube-rca-backend.kube-rca.svc:8080/callback/agent",
     )
 
 

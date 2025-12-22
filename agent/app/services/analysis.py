@@ -40,14 +40,19 @@ def _build_prompt(request: AlertAnalysisRequest, k8s_context: K8sContext) -> str
     payload = {
         "alert": alert_payload,
         "thread_ts": request.thread_ts,
-        "callback_url": request.callback_url,
     }
 
     return (
         "You are kube-rca-agent. Analyze the alert using the provided Kubernetes context.\n"
         "Return a concise RCA summary in Korean with: root cause, evidence, and next action.\n"
         "If data is missing, state what is missing.\n"
-        "You may call tools (get_pod_status, list_pod_events, get_previous_pod_logs) if needed.\n\n"
+        "You may call tools if needed:\n"
+        "- get_pod_status, get_pod_spec\n"
+        "- list_pod_events, list_namespace_events, list_cluster_events\n"
+        "- get_previous_pod_logs, get_pod_logs\n"
+        "- get_workload_status, get_node_status\n"
+        "- get_pod_metrics, get_node_metrics\n"
+        "- discover_prometheus, query_prometheus\n\n"
         f"Alert payload:\n{_to_pretty_json(payload)}\n\n"
         f"Kubernetes context:\n{_to_pretty_json(k8s_context.to_dict())}\n"
     )

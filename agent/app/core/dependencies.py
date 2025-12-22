@@ -3,6 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 
 from app.clients.k8s import KubernetesClient
+from app.clients.prometheus import PrometheusClient
 from app.clients.strands_agent import AnalysisEngine, StrandsAnalysisEngine
 from app.core.config import Settings, load_settings
 from app.services.analysis import AnalysisService
@@ -24,11 +25,16 @@ def get_k8s_client() -> KubernetesClient:
 
 
 @lru_cache
+def get_prometheus_client() -> PrometheusClient:
+    return PrometheusClient(get_settings(), get_k8s_client())
+
+
+@lru_cache
 def get_analysis_engine() -> AnalysisEngine | None:
     settings = get_settings()
     if not settings.gemini_api_key:
         return None
-    return StrandsAnalysisEngine(settings, get_k8s_client())
+    return StrandsAnalysisEngine(settings, get_k8s_client(), get_prometheus_client())
 
 
 @lru_cache

@@ -7,7 +7,6 @@ HOST ?= 0.0.0.0
 PORT ?= 8082
 GEMINI_MODEL_ID ?= gemini-3-flash-preview
 ANALYZE_URL ?= http://localhost:8082/analyze
-CALLBACK_URL ?= http://kube-rca-backend.kube-rca.svc:8080/callback/agent
 THREAD_TS ?= test-thread
 ALERT_STATUS ?= firing
 ALERT_NAME ?= TestAlert
@@ -60,13 +59,12 @@ run: install ## Run API server
 
 curl-analyze: ## Call analyze endpoint with sample payload
 	@printf '%s' \
-'{"alert":{"status":"$(ALERT_STATUS)","labels":{"alertname":"$(ALERT_NAME)","severity":"$(ALERT_SEVERITY)","namespace":"$(ALERT_NAMESPACE)","pod":"$(ALERT_POD)"},"annotations":{"summary":"test summary","description":"test description"},"startsAt":"2024-01-01T00:00:00Z","endsAt":"0001-01-01T00:00:00Z","generatorURL":"","fingerprint":"test-fingerprint"},"thread_ts":"$(THREAD_TS)","callback_url":"$(CALLBACK_URL)"}' \
+'{"alert":{"status":"$(ALERT_STATUS)","labels":{"alertname":"$(ALERT_NAME)","severity":"$(ALERT_SEVERITY)","namespace":"$(ALERT_NAMESPACE)","pod":"$(ALERT_POD)"},"annotations":{"summary":"test summary","description":"test description"},"startsAt":"2024-01-01T00:00:00Z","endsAt":"0001-01-01T00:00:00Z","generatorURL":"","fingerprint":"test-fingerprint"},"thread_ts":"$(THREAD_TS)"}' \
 	| curl -sS -X POST "$(ANALYZE_URL)" -H 'Content-Type: application/json' -d @-
 
 test-analysis: ## Create OOMKilled deployment and call analyze endpoint
 	@ANALYZE_URL="$(ANALYZE_URL)" \
 	THREAD_TS="$(THREAD_TS)" \
-	CALLBACK_URL="$(CALLBACK_URL)" \
 	ALERT_STATUS="$(ALERT_STATUS)" \
 	ALERT_NAME="$(ALERT_NAME)" \
 	ALERT_SEVERITY="$(ALERT_SEVERITY)" \
