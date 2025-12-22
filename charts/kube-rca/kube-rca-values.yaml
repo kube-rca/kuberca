@@ -50,6 +50,6 @@ frontend:
 agent:
   image:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr
-    tag: agent-b0cef8c
+    tag: agent-6ac5bf6
   ingress:
     enabled: false
