@@ -1,7 +1,7 @@
 backend:
   image:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr
-    tag: backend-e5e4401
+    tag: backend-80c12a3
   postgresql:
     host: postgresql.kube-rca.svc.cluster.local
     port: 5432
