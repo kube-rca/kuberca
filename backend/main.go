@@ -26,10 +26,14 @@ func main() {
 	// 2. 외부 서비스 클라이언트 초기화
 	// Slack Bot Token과 Channel ID를 환경변수에서 읽어옴
 	slackClient := client.NewSlackClient()
+	// Agent URL을 환경변수에서 읽어옴
+	agentClient := client.NewAgentClient()
 
 	// 3. 비즈니스 로직 서비스 초기화
-	// 알림 필터링 및 Slack 전송 로직 담당
-	alertService := service.NewAlertService(slackClient)
+	// AgentService: Agent 요청 및 Slack 쓰레드 응답 처리
+	agentService := service.NewAgentService(agentClient, slackClient)
+	// AlertService: 알림 필터링 및 Slack 전송 로직 담당
+	alertService := service.NewAlertService(slackClient, agentService)
 
 	// 4. HTTP 핸들러 초기화
 	// Alertmanager 웹훅 요청 수신 및 응답 처리
