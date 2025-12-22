@@ -151,66 +151,66 @@ make test
 make run
 ```
 
-### OOMKilled 테스트
+### OOMKilled Test
 
-로컬 Kubernetes 클러스터에서 OOMKilled pod를 생성하고 analyze endpoint를 테스트합니다.
+Create an OOMKilled pod in the local Kubernetes cluster and test the analyze endpoint.
 
-#### 사전 요구사항
+#### Prerequisites
 
-- `kubectl` 설치 및 클러스터 연결
-- `kube-rca` 네임스페이스 존재 (자동 생성되지 않음)
+- `kubectl` installed and connected to a cluster
+- `kube-rca` namespace exists (not created automatically)
 
 ```bash
 kubectl create namespace kube-rca
 ```
 
-#### 타겟
+#### Targets
 
-| 타겟 | 설명 |
-|------|------|
-| `test-oom-only` | OOM pod 생성 (analyze 호출 없이) |
-| `cleanup-oom` | 테스트 deployment 정리 |
-| `test-analysis` | OOM pod 생성 + analyze 호출 |
-| `test-analysis-local` | 로컬 agent 서버 실행 + 전체 테스트 |
+| Target | Description |
+|---|---|
+| `test-oom-only` | Create OOM pod (without calling analyze) |
+| `cleanup-oom` | Cleanup test deployment |
+| `test-analysis` | Create OOM pod + call analyze |
+| `test-analysis-local` | Run local agent server + full test |
 
-#### 사용 예시
+#### Usage Examples
 
 ```bash
-# OOM pod만 생성 (analyze 호출 없이)
+# Create OOM pod only (without calling analyze)
 make test-oom-only
 
-# 테스트 후 자동 정리
+# Auto cleanup after test
 make test-oom-only CLEANUP=true
 
-# 기존 deployment 정리
+# Cleanup existing deployment
 make cleanup-oom
 
-# 특정 context 사용
+# Use specific context
 make test-oom-only KUBE_CONTEXT=my-cluster
 
-# 전체 테스트 (로컬 agent 서버 + OOM + analyze)
+# Full test (local agent server + OOM + analyze)
 GEMINI_API_KEY=xxx KUBECONFIG=~/.kube/config make test-analysis-local
 ```
 
-#### 환경변수
+#### Environment Variables
 
-| 변수 | 설명 | 기본값 |
-|------|------|--------|
+| Variable | Description | Default |
+|---|---|---|
 | `KUBE_CONTEXT` | Kubernetes context | current-context |
-| `LOCAL_OOM_NAMESPACE` | 네임스페이스 | `kube-rca` |
-| `LOCAL_OOM_DEPLOYMENT` | Deployment 이름 | `oomkilled-test` |
-| `LOCAL_OOM_IMAGE` | 컨테이너 이미지 | `python:3.11-alpine` |
-| `LOCAL_OOM_MEMORY_LIMIT` | 메모리 제한 | `64Mi` |
-| `CLEANUP` | 테스트 후 정리 여부 | `false` |
-| `WAIT_SECONDS` | OOM 대기 타임아웃 | `120` |
+| `LOCAL_OOM_NAMESPACE` | Namespace | `kube-rca` |
+| `LOCAL_OOM_DEPLOYMENT` | Deployment name | `oomkilled-test` |
+| `LOCAL_OOM_IMAGE` | Container image | `python:3.11-alpine` |
+| `LOCAL_OOM_MEMORY_LIMIT` | Memory limit | `64Mi` |
+| `CLEANUP` | Cleanup after test | `false` |
+| `WAIT_SECONDS` | OOM wait timeout | `120` |
 
-#### 스크립트 직접 실행
+#### Direct Script Execution
 
 ```bash
-# 도움말 확인
+# Check help
 bash scripts/curl-test-oomkilled.sh --help
 
-# 환경변수로 실행
+# Run with environment variables
 DEPLOYMENT_NAME=my-oom-test \
 IMAGE=python:3.11-alpine \
 OOM_COMMAND="python -c 'a=bytearray(200000000)'" \
