@@ -12,7 +12,7 @@ ALERT_STATUS ?= firing
 ALERT_NAME ?= TestAlert
 ALERT_SEVERITY ?= warning
 ALERT_NAMESPACE ?= kube-rca
-ALERT_POD ?= example-pod
+ALERT_POD ?= oomkilled-test-bf86845c6-4fr6w
 IMAGE ?=
 DEPLOYMENT_NAME ?=
 OOM_COMMAND ?=
@@ -22,15 +22,27 @@ SHELL_PATH ?= /bin/sh
 CONTAINER_NAME ?=
 WAIT_SECONDS ?= 120
 POLL_INTERVAL_SECONDS ?= 3
+# Kubernetes context (empty = use current-context)
+KUBE_CONTEXT ?=
+# Cleanup after test (true/false)
+CLEANUP ?= false
+
+# Local OOM test defaults
 LOCAL_ANALYZE_URL ?= http://localhost:$(PORT)/analyze
 LOCAL_OOM_DEPLOYMENT ?= oomkilled-test
-# Version pin for local OOM test image: python:3.11-alpine
 LOCAL_OOM_IMAGE ?= python:3.11-alpine
 LOCAL_OOM_COMMAND ?= python -c 'import os,time; a=os.urandom(200000000); time.sleep(1000)'
 LOCAL_OOM_MEMORY_LIMIT ?= 64Mi
 LOCAL_OOM_MEMORY_REQUEST ?= 64Mi
+LOCAL_OOM_NAMESPACE ?= kube-rca
 
-.PHONY: venv install lint format test run build help curl-analyze test-analysis test-analysis-local
+# Curl pod settings for in-cluster testing
+CURL_POD_IMAGE ?= curlimages/curl:8.11.1
+AGENT_SERVICE_NAME ?= kube-rca-agent
+AGENT_SERVICE_NAMESPACE ?= kube-rca
+AGENT_SERVICE_PORT ?= 8082
+
+.PHONY: venv install lint format test run build help curl-analyze curl-analyze-local test-analysis test-analysis-local test-oom-only cleanup-oom
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\\n  make <target>\\n\\nTargets:\\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-16s %s\\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -57,7 +69,24 @@ test: install ## Run tests
 run: install ## Run API server
 	. $(VENV)/bin/activate && uvicorn $(APP) --host $(HOST) --port $(PORT)
 
-curl-analyze: ## Call analyze endpoint with sample payload
+curl-analyze: ## Call analyze endpoint for OOMKilled test pod via curlpod
+	@set -euo pipefail; \
+	POD_NAME=$$(kubectl get pods -n "$(LOCAL_OOM_NAMESPACE)" -l "app=$(LOCAL_OOM_DEPLOYMENT)" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true); \
+	if [ -z "$$POD_NAME" ]; then \
+		echo "[ERROR] OOMKilled test pod not found. Run 'make test-oom-only' first."; \
+		exit 1; \
+	fi; \
+	echo "[INFO] Found OOMKilled pod: $$POD_NAME"; \
+	echo "[INFO] Calling analyze endpoint via curlpod..."; \
+	kubectl run curlpod-$$$$ --rm -i --restart=Never \
+		--namespace="$(AGENT_SERVICE_NAMESPACE)" \
+		--image="$(CURL_POD_IMAGE)" \
+		-- curl -sS -X POST \
+		"http://$(AGENT_SERVICE_NAME).$(AGENT_SERVICE_NAMESPACE).svc.cluster.local:$(AGENT_SERVICE_PORT)/analyze" \
+		-H 'Content-Type: application/json' \
+		-d "{\"alert\":{\"status\":\"$(ALERT_STATUS)\",\"labels\":{\"alertname\":\"OOMKilled\",\"severity\":\"$(ALERT_SEVERITY)\",\"namespace\":\"$(LOCAL_OOM_NAMESPACE)\",\"pod\":\"$$POD_NAME\",\"deployment\":\"$(LOCAL_OOM_DEPLOYMENT)\"},\"annotations\":{\"summary\":\"OOMKilled detected\",\"description\":\"Test OOMKilled pod\"},\"startsAt\":\"2024-01-01T00:00:00Z\",\"endsAt\":\"0001-01-01T00:00:00Z\",\"generatorURL\":\"\",\"fingerprint\":\"test-fingerprint\"},\"thread_ts\":\"$(THREAD_TS)\"}"
+
+curl-analyze-local: ## Call analyze endpoint on localhost (for local dev)
 	@printf '%s' \
 '{"alert":{"status":"$(ALERT_STATUS)","labels":{"alertname":"$(ALERT_NAME)","severity":"$(ALERT_SEVERITY)","namespace":"$(ALERT_NAMESPACE)","pod":"$(ALERT_POD)"},"annotations":{"summary":"test summary","description":"test description"},"startsAt":"2024-01-01T00:00:00Z","endsAt":"0001-01-01T00:00:00Z","generatorURL":"","fingerprint":"test-fingerprint"},"thread_ts":"$(THREAD_TS)"}' \
 	| curl -sS -X POST "$(ANALYZE_URL)" -H 'Content-Type: application/json' -d @-
@@ -78,43 +107,78 @@ test-analysis: ## Create OOMKilled deployment and call analyze endpoint
 	CONTAINER_NAME="$(CONTAINER_NAME)" \
 	WAIT_SECONDS="$(WAIT_SECONDS)" \
 	POLL_INTERVAL_SECONDS="$(POLL_INTERVAL_SECONDS)" \
+	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
+	CLEANUP="$(CLEANUP)" \
+	bash scripts/curl-test-oomkilled.sh
+
+test-oom-only: ## Create OOMKilled pod without calling analyze (for testing)
+	@ANALYZE_URL="http://dummy" \
+	THREAD_TS="test" \
+	ALERT_STATUS="firing" \
+	ALERT_NAME="OOMKilled" \
+	ALERT_SEVERITY="warning" \
+	NAMESPACE="$(LOCAL_OOM_NAMESPACE)" \
+	DEPLOYMENT_NAME="$(LOCAL_OOM_DEPLOYMENT)" \
+	IMAGE="$(LOCAL_OOM_IMAGE)" \
+	OOM_COMMAND="$(LOCAL_OOM_COMMAND)" \
+	MEMORY_LIMIT="$(LOCAL_OOM_MEMORY_LIMIT)" \
+	MEMORY_REQUEST="$(LOCAL_OOM_MEMORY_REQUEST)" \
+	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
+	CLEANUP="$(CLEANUP)" \
+	SKIP_ANALYZE=true \
+	bash scripts/curl-test-oomkilled.sh
+
+cleanup-oom: ## Cleanup OOMKilled test deployment
+	@DEPLOYMENT_NAME="$(LOCAL_OOM_DEPLOYMENT)" \
+	NAMESPACE="$(LOCAL_OOM_NAMESPACE)" \
+	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
+	CLEANUP_ONLY=true \
 	bash scripts/curl-test-oomkilled.sh
 
 test-analysis-local: install ## Run local agent w/ Gemini and test OOMKilled analyze
 	@set -euo pipefail; \
 	if [ -z "$${GEMINI_API_KEY:-}" ]; then \
-		echo "ERROR: GEMINI_API_KEY is required"; \
+		echo "[ERROR] GEMINI_API_KEY is required"; \
 		exit 1; \
 	fi; \
 	if [ -z "$${KUBECONFIG:-}" ]; then \
-		echo "ERROR: KUBECONFIG is required"; \
+		echo "[ERROR] KUBECONFIG is required"; \
 		exit 1; \
 	fi; \
+	echo "[INFO] Starting local agent server..."; \
 	. $(VENV)/bin/activate; \
 	GEMINI_API_KEY="$$GEMINI_API_KEY" \
 	GEMINI_MODEL_ID="$(GEMINI_MODEL_ID)" \
 	KUBECONFIG="$$KUBECONFIG" \
 	uvicorn $(APP) --host $(HOST) --port $(PORT) & \
 	pid=$$!; \
-	trap 'kill $$pid 2>/dev/null || true' EXIT; \
+	trap 'echo "[INFO] Stopping server..."; kill $$pid 2>/dev/null || true' EXIT; \
+	echo "[INFO] Waiting for server health check..."; \
 	code=""; \
-	for _ in {1..10}; do \
-		code=$$(curl -sS -o /dev/null -w "%{http_code}" http://localhost:$(PORT)/healthz || true); \
+	for i in $$(seq 1 15); do \
+		code=$$(curl -sS -o /dev/null -w "%{http_code}" http://localhost:$(PORT)/healthz 2>/dev/null || true); \
 		if [ "$$code" = "200" ]; then \
+			echo "[OK] Server is healthy"; \
 			break; \
 		fi; \
+		printf "."; \
 		sleep 1; \
 	done; \
+	echo ""; \
 	if [ "$$code" != "200" ]; then \
-		echo "ERROR: local server not healthy"; \
+		echo "[ERROR] Local server not healthy after 15s"; \
 		exit 1; \
 	fi; \
+	echo "[INFO] Running OOMKilled test..."; \
 	ANALYZE_URL="$(LOCAL_ANALYZE_URL)" \
 	DEPLOYMENT_NAME="$(LOCAL_OOM_DEPLOYMENT)" \
 	IMAGE="$(LOCAL_OOM_IMAGE)" \
 	OOM_COMMAND="$(LOCAL_OOM_COMMAND)" \
 	MEMORY_LIMIT="$(LOCAL_OOM_MEMORY_LIMIT)" \
 	MEMORY_REQUEST="$(LOCAL_OOM_MEMORY_REQUEST)" \
+	NAMESPACE="$(LOCAL_OOM_NAMESPACE)" \
+	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
+	CLEANUP="$(CLEANUP)" \
 	$(MAKE) --no-print-directory test-analysis
 
 build: ## Build Docker image (IMAGE required)

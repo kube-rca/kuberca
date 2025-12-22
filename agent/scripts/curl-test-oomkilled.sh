@@ -2,10 +2,36 @@
 set -euo pipefail
 IFS=$'\n\t'
 
+# =============================================================================
+# Configuration
+# =============================================================================
+CLEANUP=${CLEANUP:-false}
+CLEANUP_ONLY=${CLEANUP_ONLY:-false}
+SKIP_ANALYZE=${SKIP_ANALYZE:-false}
+
+# Color output (disabled if not tty)
+if [ -t 1 ]; then
+  RED='\033[0;31m'
+  GREEN='\033[0;32m'
+  YELLOW='\033[0;33m'
+  BLUE='\033[0;34m'
+  NC='\033[0m'
+else
+  RED='' GREEN='' YELLOW='' BLUE='' NC=''
+fi
+
+# =============================================================================
+# Helper functions
+# =============================================================================
+log_info()  { printf "${BLUE}[INFO]${NC} %s\n" "$*"; }
+log_ok()    { printf "${GREEN}[OK]${NC} %s\n" "$*"; }
+log_warn()  { printf "${YELLOW}[WARN]${NC} %s\n" >&2 "$*"; }
+log_error() { printf "${RED}[ERROR]${NC} %s\n" >&2 "$*"; }
+
 require_cmd() {
   local cmd=$1
   if ! command -v "$cmd" >/dev/null 2>&1; then
-    echo "ERROR: command not found: $cmd" >&2
+    log_error "command not found: $cmd"
     exit 1
   fi
 }
@@ -13,7 +39,7 @@ require_cmd() {
 require_env() {
   local name=$1
   if [ -z "${!name:-}" ]; then
-    echo "ERROR: $name is required" >&2
+    log_error "$name is required"
     exit 1
   fi
 }
@@ -28,72 +54,180 @@ json_escape() {
   printf '%s' "$s"
 }
 
+show_usage() {
+  cat <<EOF
+Usage: $(basename "$0") [OPTIONS]
+
+Create OOMKilled deployment and call analyze endpoint.
+
+Environment Variables (required unless CLEANUP_ONLY=true):
+  ANALYZE_URL       URL of the analyze endpoint
+  THREAD_TS         Thread timestamp for Slack
+  ALERT_STATUS      Alert status (e.g., firing)
+  ALERT_NAME        Alert name
+  ALERT_SEVERITY    Alert severity (e.g., warning, critical)
+  DEPLOYMENT_NAME   Name of the deployment to create
+  IMAGE             Container image to use
+  OOM_COMMAND       Command that will cause OOM
+  MEMORY_LIMIT      Memory limit (e.g., 64Mi)
+
+Environment Variables (optional):
+  KUBE_CONTEXT      Kubernetes context (default: current-context)
+  NAMESPACE         Namespace to deploy (default: kube-rca)
+  MEMORY_REQUEST    Memory request (default: same as MEMORY_LIMIT)
+  SHELL_PATH        Shell path (default: /bin/sh)
+  CONTAINER_NAME    Container name (default: DEPLOYMENT_NAME)
+  WAIT_SECONDS      Timeout for waiting (default: 120)
+  POLL_INTERVAL_SECONDS  Poll interval (default: 3)
+  CLEANUP           Set to 'true' to cleanup after test
+  CLEANUP_ONLY      Set to 'true' to only cleanup (skip deployment)
+  SKIP_ANALYZE      Set to 'true' to skip analyze call
+
+Examples:
+  # Basic usage
+  DEPLOYMENT_NAME=oom-test IMAGE=python:3.11-alpine ... ./curl-test-oomkilled.sh
+
+  # With cleanup after test
+  CLEANUP=true ... ./curl-test-oomkilled.sh
+
+  # Cleanup only (remove existing deployment)
+  CLEANUP_ONLY=true DEPLOYMENT_NAME=oom-test ./curl-test-oomkilled.sh
+EOF
+}
+
+# =============================================================================
+# Argument parsing
+# =============================================================================
+for arg in "$@"; do
+  case "$arg" in
+    -h|--help) show_usage; exit 0 ;;
+    --cleanup) CLEANUP=true ;;
+    --cleanup-only) CLEANUP_ONLY=true ;;
+    --skip-analyze) SKIP_ANALYZE=true ;;
+  esac
+done
+
+# =============================================================================
+# Prerequisites
+# =============================================================================
 require_cmd kubectl
 require_cmd curl
 
-require_env ANALYZE_URL
-require_env THREAD_TS
-require_env ALERT_STATUS
-require_env ALERT_NAME
-require_env ALERT_SEVERITY
-require_env DEPLOYMENT_NAME
-require_env IMAGE
-require_env OOM_COMMAND
-require_env MEMORY_LIMIT
+# CLEANUP_ONLY mode requires only DEPLOYMENT_NAME
+if [ "$CLEANUP_ONLY" = "true" ]; then
+  require_env DEPLOYMENT_NAME
+else
+  # Always required for OOM test
+  require_env DEPLOYMENT_NAME
+  require_env IMAGE
+  require_env OOM_COMMAND
+  require_env MEMORY_LIMIT
+
+  # Only required if calling analyze endpoint
+  if [ "$SKIP_ANALYZE" != "true" ]; then
+    require_env ANALYZE_URL
+    require_env THREAD_TS
+    require_env ALERT_STATUS
+    require_env ALERT_NAME
+    require_env ALERT_SEVERITY
+  fi
+fi
 
 SHELL_PATH=${SHELL_PATH:-/bin/sh}
 CONTAINER_NAME=${CONTAINER_NAME:-$DEPLOYMENT_NAME}
-MEMORY_REQUEST=${MEMORY_REQUEST:-$MEMORY_LIMIT}
+MEMORY_REQUEST=${MEMORY_REQUEST:-${MEMORY_LIMIT:-64Mi}}
 WAIT_SECONDS=${WAIT_SECONDS:-120}
 POLL_INTERVAL_SECONDS=${POLL_INTERVAL_SECONDS:-3}
-KUBE_CONTEXT="kkamji-local"
-NAMESPACE_FIXED="kube-rca"
+NAMESPACE=${NAMESPACE:-kube-rca}
 RUN_TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-default_kubeconfig=""
-if [ -n "${HOME:-}" ] && [ -f "${HOME}/.kube/config" ]; then
-  default_kubeconfig="${HOME}/.kube/config"
+# =============================================================================
+# Kubeconfig setup
+# =============================================================================
+# KUBECONFIG can contain multiple paths separated by ':' (e.g., file1:file2)
+# Let kubectl handle the validation instead of checking file existence directly
+if [ -z "${KUBECONFIG:-}" ]; then
+  if [ -n "${HOME:-}" ] && [ -f "${HOME}/.kube/config" ]; then
+    export KUBECONFIG="${HOME}/.kube/config"
+  fi
 fi
-KUBECONFIG_PATH="${KUBECONFIG:-$default_kubeconfig}"
-if [ -z "$KUBECONFIG_PATH" ]; then
-  echo "ERROR: KUBECONFIG is required for local testing" >&2
-  exit 1
-fi
-if [ ! -f "$KUBECONFIG_PATH" ]; then
-  echo "ERROR: kubeconfig not found: $KUBECONFIG_PATH" >&2
+
+# Verify kubectl can access cluster
+if ! kubectl config current-context >/dev/null 2>&1; then
+  log_error "kubectl cannot access cluster. Check KUBECONFIG or cluster connection."
   exit 1
 fi
 
-if ! kubectl --kubeconfig "$KUBECONFIG_PATH" config get-contexts "$KUBE_CONTEXT" \
-  >/dev/null 2>&1; then
-  echo "ERROR: kube context not found: $KUBE_CONTEXT" >&2
-  exit 1
+# Use provided KUBE_CONTEXT or current-context
+if [ -z "${KUBE_CONTEXT:-}" ]; then
+  KUBE_CONTEXT=$(kubectl config current-context 2>/dev/null || true)
+  if [ -z "$KUBE_CONTEXT" ]; then
+    log_error "no current kube context found. Set KUBE_CONTEXT env var."
+    exit 1
+  fi
+  log_info "Using current context: $KUBE_CONTEXT"
+else
+  if ! kubectl config get-contexts "$KUBE_CONTEXT" >/dev/null 2>&1; then
+    log_error "kube context not found: $KUBE_CONTEXT"
+    exit 1
+  fi
+  log_info "Using context: $KUBE_CONTEXT"
 fi
-
-if [ -n "${NAMESPACE:-}" ] && [ "${NAMESPACE:-}" != "$NAMESPACE_FIXED" ]; then
-  echo "WARN: NAMESPACE is fixed to ${NAMESPACE_FIXED}; ignoring ${NAMESPACE}" >&2
-fi
-NAMESPACE="$NAMESPACE_FIXED"
 
 kubectl_local() {
-  kubectl --kubeconfig "$KUBECONFIG_PATH" --context "$KUBE_CONTEXT" "$@"
+  kubectl --context "$KUBE_CONTEXT" "$@"
 }
 
+# =============================================================================
+# Cleanup function
+# =============================================================================
+cleanup_deployment() {
+  log_info "Cleaning up deployment: $DEPLOYMENT_NAME in namespace: $NAMESPACE"
+  if kubectl_local -n "$NAMESPACE" get deployment "$DEPLOYMENT_NAME" >/dev/null 2>&1; then
+    kubectl_local -n "$NAMESPACE" delete deployment "$DEPLOYMENT_NAME" --wait=false
+    log_ok "Deployment deleted: $DEPLOYMENT_NAME"
+  else
+    log_warn "Deployment not found: $DEPLOYMENT_NAME (already cleaned up?)"
+  fi
+}
+
+# Handle CLEANUP_ONLY mode
+if [ "$CLEANUP_ONLY" = "true" ]; then
+  cleanup_deployment
+  exit 0
+fi
+
+# Setup trap for cleanup on error/exit if CLEANUP=true
+if [ "$CLEANUP" = "true" ]; then
+  trap 'cleanup_deployment' EXIT
+fi
+
+# =============================================================================
+# Validation
+# =============================================================================
 case "$OOM_COMMAND" in
   *$'\n'*)
-    echo "ERROR: OOM_COMMAND must be a single line" >&2
+    log_error "OOM_COMMAND must be a single line"
     exit 1
     ;;
 esac
 
 if ! kubectl_local get namespace "$NAMESPACE" >/dev/null 2>&1; then
-  echo "ERROR: namespace not found: $NAMESPACE" >&2
+  log_error "Namespace not found: $NAMESPACE"
+  log_error "Please create the namespace first: kubectl create namespace $NAMESPACE"
   exit 1
 fi
+log_ok "Namespace exists: $NAMESPACE"
 
 oom_command_escaped=$(printf '%s' "$OOM_COMMAND" | sed "s/'/''/g")
 
-echo "Applying deployment: $DEPLOYMENT_NAME"
+# =============================================================================
+# Deploy OOMKilled test pod
+# =============================================================================
+log_info "Applying deployment: $DEPLOYMENT_NAME"
+log_info "  Namespace: $NAMESPACE"
+log_info "  Image: $IMAGE"
+log_info "  Memory Limit: $MEMORY_LIMIT"
 cat <<EOF | kubectl_local -n "$NAMESPACE" apply -f -
 apiVersion: apps/v1
 kind: Deployment
@@ -124,7 +258,12 @@ spec:
           limits:
             memory: ${MEMORY_LIMIT}
 EOF
+log_ok "Deployment applied"
 
+# =============================================================================
+# Wait for pod creation
+# =============================================================================
+log_info "Waiting for pod to be created... (timeout: ${WAIT_SECONDS}s)"
 pod_deadline=$((SECONDS + WAIT_SECONDS))
 pod_name=""
 while [ "$SECONDS" -lt "$pod_deadline" ]; do
@@ -135,15 +274,21 @@ while [ "$SECONDS" -lt "$pod_deadline" ]; do
   if [ -n "$pod_name" ]; then
     break
   fi
+  printf "."
   sleep "$POLL_INTERVAL_SECONDS"
 done
+echo ""
 
 if [ -z "$pod_name" ]; then
-  echo "ERROR: timed out waiting for pod creation: $DEPLOYMENT_NAME" >&2
+  log_error "timed out waiting for pod creation: $DEPLOYMENT_NAME"
   exit 1
 fi
+log_ok "Pod created: $pod_name"
 
-echo "Waiting for OOMKilled: pod=$pod_name"
+# =============================================================================
+# Wait for OOMKilled
+# =============================================================================
+log_info "Waiting for OOMKilled event... (timeout: ${WAIT_SECONDS}s)"
 oom_deadline=$((SECONDS + WAIT_SECONDS))
 oom_reason=""
 while [ "$SECONDS" -lt "$oom_deadline" ]; do
@@ -163,13 +308,17 @@ while [ "$SECONDS" -lt "$oom_deadline" ]; do
     oom_reason="$reason"
     break
   fi
+  printf "."
   sleep "$POLL_INTERVAL_SECONDS"
 done
+echo ""
 
 if [ -z "$oom_reason" ]; then
-  echo "ERROR: timed out waiting for OOMKilled: pod=$pod_name" >&2
+  log_error "timed out waiting for OOMKilled: pod=$pod_name"
+  kubectl_local -n "$NAMESPACE" describe pod "$pod_name" || true
   exit 1
 fi
+log_ok "OOMKilled detected!"
 
 restart_count=$(
   kubectl_local -n "$NAMESPACE" get pod "$pod_name" \
@@ -206,9 +355,27 @@ deployment_unavailable=$(
     -o jsonpath='{.status.unavailableReplicas}' 2>/dev/null || true
 )
 
+# =============================================================================
+# Collect pod info
+# =============================================================================
+log_info "Collecting pod information..."
 summary="OOMKilled detected"
 description="Deployment ${DEPLOYMENT_NAME} pod ${pod_name} was OOMKilled"
 now="$RUN_TIMESTAMP"
+
+log_info "  Pod: $pod_name"
+log_info "  Node: ${pod_node:-unknown}"
+log_info "  Restart Count: ${restart_count:-0}"
+log_info "  Exit Code: ${exit_code:-unknown}"
+
+# =============================================================================
+# Call analyze endpoint
+# =============================================================================
+if [ "$SKIP_ANALYZE" = "true" ]; then
+  log_warn "Skipping analyze call (SKIP_ANALYZE=true)"
+  log_ok "Test completed successfully (analyze skipped)"
+  exit 0
+fi
 
 payload=$(
   cat <<JSON
@@ -242,5 +409,20 @@ payload=$(
 JSON
 )
 
-printf '%s' "$payload" | curl -sS -X POST "$ANALYZE_URL" \
-  -H 'Content-Type: application/json' -d @-
+log_info "Calling analyze endpoint: $ANALYZE_URL"
+response=$(printf '%s' "$payload" | curl -sS -w "\n%{http_code}" -X POST "$ANALYZE_URL" \
+  -H 'Content-Type: application/json' -d @-)
+
+http_code=$(echo "$response" | tail -n1)
+body=$(echo "$response" | sed '$d')
+
+if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+  log_ok "Analyze call successful (HTTP $http_code)"
+  echo "$body"
+else
+  log_error "Analyze call failed (HTTP $http_code)"
+  echo "$body"
+  exit 1
+fi
+
+log_ok "Test completed successfully!"
