@@ -42,12 +42,12 @@ The server listens on `:8082` by default. Set `PORT` to change it.
 - `GET /ping`
 - `GET /healthz`
 - `GET /`
-- `POST /analyze/alertmanager`
+- `POST /analyze`
 
 ## Curl Test
 
 ```bash
-curl -X POST http://localhost:8082/analyze/alertmanager \
+curl -X POST http://localhost:8082/analyze \
   -H 'Content-Type: application/json' \
   -d @- <<'JSON'
 {
@@ -84,7 +84,7 @@ make curl-analyze
 Override values if needed:
 
 ```bash
-make curl-analyze ANALYZE_URL=http://localhost:8082/analyze/alertmanager \
+make curl-analyze ANALYZE_URL=http://localhost:8082/analyze \
   THREAD_TS=test-thread ALERT_NAMESPACE=default ALERT_POD=example-pod
 ```
 

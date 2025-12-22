@@ -9,7 +9,7 @@ from app.services.analysis import AnalysisService
 router = APIRouter()
 
 
-@router.post("/analyze/alertmanager", response_model=AlertAnalysisResponse)
+@router.post("/analyze", response_model=AlertAnalysisResponse)
 def analyze_alert(
     request: AlertAnalysisRequest,
     service: AnalysisService = Depends(get_analysis_service),  # noqa: B008
