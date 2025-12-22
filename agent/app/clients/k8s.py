@@ -257,7 +257,11 @@ class KubernetesClient:
             "taints": [taint.to_dict() for taint in node.spec.taints or []] if node.spec else [],
             "capacity": node.status.capacity if node.status else None,
             "allocatable": node.status.allocatable if node.status else None,
-            "node_info": node.status.node_info.to_dict() if node.status and node.status.node_info else None,
+            "node_info": (
+                node.status.node_info.to_dict()
+                if node.status and node.status.node_info
+                else None
+            ),
             "conditions": conditions,
         }
 
@@ -274,7 +278,12 @@ class KubernetesClient:
                 _request_timeout=self._timeout_seconds,
             )
         except Exception as exc:  # noqa: BLE001
-            self._logger.warning("Failed to read pod metrics for %s/%s: %s", namespace, pod_name, exc)
+            self._logger.warning(
+                "Failed to read pod metrics for %s/%s: %s",
+                namespace,
+                pod_name,
+                exc,
+            )
             return None
         return self._summarize_pod_metrics(response)
 
@@ -485,7 +494,10 @@ class KubernetesClient:
             "tolerations": [item.to_dict() for item in spec.tolerations or []],
             "affinity": spec.affinity.to_dict() if spec.affinity else None,
             "volumes": self._summarize_volumes(spec.volumes or []),
-            "init_containers": [self._summarize_container(item) for item in spec.init_containers or []],
+            "init_containers": [
+                self._summarize_container(item)
+                for item in spec.init_containers or []
+            ],
             "containers": [self._summarize_container(item) for item in spec.containers or []],
         }
 
@@ -520,7 +532,11 @@ class KubernetesClient:
             "args": container.args,
             "resources": container.resources.to_dict() if container.resources else None,
             "ports": [
-                {"name": port.name, "container_port": port.container_port, "protocol": port.protocol}
+                {
+                    "name": port.name,
+                    "container_port": port.container_port,
+                    "protocol": port.protocol,
+                }
                 for port in container.ports or []
             ],
             "liveness_probe": self._probe_to_dict(container.liveness_probe),
@@ -573,9 +589,16 @@ class KubernetesClient:
                     _request_timeout=self._timeout_seconds,
                 )
             except Exception as exc:  # noqa: BLE001
-                self._logger.warning("Failed to read ReplicaSet %s/%s: %s", namespace, owner_reference.name, exc)
+                self._logger.warning(
+                    "Failed to read ReplicaSet %s/%s: %s",
+                    namespace,
+                    owner_reference.name,
+                    exc,
+                )
                 return owner_reference
-            deployment_owner = self._select_owner_reference(replica_set.metadata.owner_references or [])
+            deployment_owner = self._select_owner_reference(
+                replica_set.metadata.owner_references or []
+            )
             if deployment_owner and deployment_owner.kind == "Deployment":
                 return deployment_owner
         if owner_reference.kind == "Job" and self._batch_api:
@@ -586,7 +609,12 @@ class KubernetesClient:
                     _request_timeout=self._timeout_seconds,
                 )
             except Exception as exc:  # noqa: BLE001
-                self._logger.warning("Failed to read Job %s/%s: %s", namespace, owner_reference.name, exc)
+                self._logger.warning(
+                    "Failed to read Job %s/%s: %s",
+                    namespace,
+                    owner_reference.name,
+                    exc,
+                )
                 return owner_reference
             cron_job_owner = self._select_owner_reference(job.metadata.owner_references or [])
             if cron_job_owner and cron_job_owner.kind == "CronJob":

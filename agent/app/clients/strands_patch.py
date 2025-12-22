@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from strands.event_loop import streaming as streaming_module
 from strands.models import gemini as gemini_module
@@ -26,7 +27,10 @@ def apply_gemini_thought_signature_patch() -> None:
 
 def _patch_gemini_format_chunk() -> None:
     GeminiModel = gemini_module.GeminiModel
-    original_format_chunk: Callable[[Any, dict[str, Any]], dict[str, Any]] = GeminiModel._format_chunk
+    original_format_chunk: Callable[
+        [Any, dict[str, Any]],
+        dict[str, Any],
+    ] = GeminiModel._format_chunk
 
     def patched_format_chunk(self: Any, event: dict[str, Any]) -> dict[str, Any]:
         chunk = original_format_chunk(self, event)
@@ -34,9 +38,10 @@ def _patch_gemini_format_chunk() -> None:
             part = event.get("data")
             signature = getattr(part, "thought_signature", None)
             if signature:
-                signature_text = (
-                    signature.decode("utf-8") if isinstance(signature, (bytes, bytearray)) else str(signature)
-                )
+                if isinstance(signature, (bytes, bytearray)):
+                    signature_text = signature.decode("utf-8")
+                else:
+                    signature_text = str(signature)
                 tool_use = (
                     chunk.get("contentBlockStart", {})
                     .get("start", {})
@@ -51,7 +56,10 @@ def _patch_gemini_format_chunk() -> None:
 
 def _patch_gemini_request_formatter() -> None:
     GeminiModel = gemini_module.GeminiModel
-    original_formatter: Callable[[Any, dict[str, Any]], Any] = GeminiModel._format_request_content_part
+    original_formatter: Callable[
+        [Any, dict[str, Any]],
+        Any,
+    ] = GeminiModel._format_request_content_part
 
     def patched_formatter(self: Any, content: dict[str, Any]) -> Any:
         if "toolUse" in content:

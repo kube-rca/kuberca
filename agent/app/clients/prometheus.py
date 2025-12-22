@@ -65,7 +65,11 @@ class PrometheusClient:
                 payload = response.read()
         except Exception as exc:  # noqa: BLE001
             self._logger.warning("Failed to query Prometheus: %s", exc)
-            return {"error": "failed to query Prometheus", "detail": str(exc), "endpoint": endpoint.to_dict()}
+            return {
+                "error": "failed to query Prometheus",
+                "detail": str(exc),
+                "endpoint": endpoint.to_dict(),
+            }
 
         try:
             data = json.loads(payload.decode("utf-8"))
@@ -109,7 +113,12 @@ class PrometheusClient:
         metadata = service.metadata
         name = metadata.name if metadata else ""
         namespace = metadata.namespace if metadata else ""
-        endpoint = PrometheusEndpoint(name=name, namespace=namespace, port=port, scheme=self._scheme)
+        endpoint = PrometheusEndpoint(
+            name=name,
+            namespace=namespace,
+            port=port,
+            scheme=self._scheme,
+        )
         self._endpoint = endpoint
         return endpoint, {"endpoint": endpoint.to_dict()}
 
