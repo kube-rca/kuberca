@@ -36,7 +36,7 @@ class AnalysisService:
 
 
 def _build_prompt(request: AlertAnalysisRequest, k8s_context: K8sContext) -> str:
-    alert_payload = request.alert.model_dump(by_alias=True)
+    alert_payload = request.alert.model_dump(by_alias=True, mode="json")
     payload = {
         "alert": alert_payload,
         "thread_ts": request.thread_ts,
