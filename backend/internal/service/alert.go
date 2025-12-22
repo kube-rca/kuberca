@@ -4,7 +4,8 @@
 // 처리 흐름:
 //  1. 각 알림에 대해 shouldSendToSlack으로 필터링
 //  2. 필터 통과한 알림을 SlackClient.SendAlert로 전송
-//  3. 전송 성공/실패 카운트 반환
+//  3. 모든 알림(firing, resolved)에 대해 Agent에 비동기 분석 요청
+//  4. 전송 성공/실패 카운트 반환
 
 package service
 
@@ -17,13 +18,15 @@ import (
 
 // AlertService 구조체 정의
 type AlertService struct {
-	slackClient *client.SlackClient
+	slackClient  *client.SlackClient
+	agentService *AgentService
 }
 
 // AlertService 객체 생성
-func NewAlertService(slackClient *client.SlackClient) *AlertService {
+func NewAlertService(slackClient *client.SlackClient, agentService *AgentService) *AlertService {
 	return &AlertService{
-		slackClient: slackClient,
+		slackClient:  slackClient,
+		agentService: agentService,
 	}
 }
 
@@ -39,10 +42,15 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 		if err != nil {
 			log.Printf("Failed to send alert to Slack: %v", err)
 			failed++
-		} else {
-			log.Printf("Sent alert to Slack (fingerprint=%s)", alert.Fingerprint)
-			sent++
+			continue
 		}
+
+		log.Printf("Sent alert to Slack (fingerprint=%s, status=%s)", alert.Fingerprint, alert.Status)
+		sent++
+
+		// Agent에 비동기 분석 요청 (firing, resolved)
+		threadTS, _ := s.slackClient.GetThreadTS(alert.Fingerprint)
+		go s.agentService.RequestAnalysis(alert, threadTS)
 	}
 	return sent, failed
 }
