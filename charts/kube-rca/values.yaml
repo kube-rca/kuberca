@@ -88,9 +88,9 @@ agent:
     # -- Agent service type.
     type: ClusterIP
     # -- Agent service port.
-    port: 8082
+    port: 8000
   # -- Agent container port.
-  containerPort: 8082
+  containerPort: 8000
   ingress:
     # -- Enable agent ingress.
     enabled: false

@@ -9,7 +9,7 @@ Deploy kube-rca backend and frontend
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | agent.affinity | object | `{}` | Affinity for agent pods assignment. |
-| agent.containerPort | int | `8082` | Agent container port. |
+| agent.containerPort | int | `8000` | Agent container port. |
 | agent.gemini.modelId | string | `"gemini-3-flash-preview"` | Gemini model ID for Strands Agents. |
 | agent.gemini.secret.create | bool | `false` | Create a Secret for the Gemini API key. |
 | agent.gemini.secret.existingSecret | string | `"kube-rca-agent-secret"` | Existing Secret name for the Gemini API key. |
@@ -27,7 +27,7 @@ Deploy kube-rca backend and frontend
 | agent.nodeSelector | object | `{}` | Node labels for agent pods assignment. |
 | agent.replicaCount | int | `1` | Number of agent replicas. |
 | agent.resources | object | `{}` | Agent resource requests/limits. |
-| agent.service.port | int | `8082` | Agent service port. |
+| agent.service.port | int | `8000` | Agent service port. |
 | agent.service.type | string | `"ClusterIP"` | Agent service type. |
 | agent.tolerations | list | `[]` | Tolerations for agent pods assignment. |
 | backend.affinity | object | `{}` | Affinity for backend pods assignment. |
