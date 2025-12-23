@@ -4,9 +4,9 @@ UV ?= uv
 VENV ?= .venv
 APP ?= app.main:app
 HOST ?= 0.0.0.0
-PORT ?= 8082
+PORT ?= 8000
 GEMINI_MODEL_ID ?= gemini-3-flash-preview
-ANALYZE_URL ?= http://localhost:8082/analyze
+ANALYZE_URL ?= http://localhost:8000/analyze
 THREAD_TS ?= test-thread
 ALERT_STATUS ?= firing
 ALERT_NAME ?= TestAlert
@@ -40,7 +40,7 @@ LOCAL_OOM_NAMESPACE ?= kube-rca
 CURL_POD_IMAGE ?= curlimages/curl:8.11.1
 AGENT_SERVICE_NAME ?= kube-rca-agent
 AGENT_SERVICE_NAMESPACE ?= kube-rca
-AGENT_SERVICE_PORT ?= 8082
+AGENT_SERVICE_PORT ?= 8000
 
 .PHONY: venv install lint format test run build help curl-analyze curl-analyze-local test-analysis test-analysis-local test-oom-only cleanup-oom
 

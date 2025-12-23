@@ -24,10 +24,10 @@ uv pip install -e ".[dev]"
 
 ```bash
 cd agent
-uvicorn app.main:app --host 0.0.0.0 --port 8082
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-The server listens on `:8082` by default. Set `PORT` to change it.
+The server listens on `:8000` by default. Set `PORT` to change it.
 
 ## Environment Variables
 
@@ -53,7 +53,7 @@ The server listens on `:8082` by default. Set `PORT` to change it.
 ## Curl Test
 
 ```bash
-curl -X POST http://localhost:8082/analyze \
+curl -X POST http://localhost:8000/analyze \
   -H 'Content-Type: application/json' \
   -d @- <<'JSON'
 {
@@ -89,7 +89,7 @@ make curl-analyze
 Override values if needed:
 
 ```bash
-make curl-analyze ANALYZE_URL=http://localhost:8082/analyze \
+make curl-analyze ANALYZE_URL=http://localhost:8000/analyze \
   THREAD_TS=test-thread ALERT_NAMESPACE=default ALERT_POD=example-pod
 ```
 

@@ -42,7 +42,7 @@ class Settings:
 
 def load_settings() -> Settings:
     return Settings(
-        port=_get_int_env("PORT", 8082),
+        port=_get_int_env("PORT", 8000),
         log_level=os.getenv("LOG_LEVEL", "info"),
         gemini_api_key=os.getenv("GEMINI_API_KEY", ""),
         gemini_model_id=os.getenv("GEMINI_MODEL_ID", DEFAULT_GEMINI_MODEL_ID),
