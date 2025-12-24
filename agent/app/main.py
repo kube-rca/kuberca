@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
@@ -12,11 +13,13 @@ settings = get_settings()
 configure_logging(settings.log_level)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="kube-rca-agent", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Starting kube-rca-agent on port %s", settings.port)
+    yield
+
+
+app = FastAPI(title="kube-rca-agent", version="1.0.0", lifespan=lifespan)
 app.include_router(health.router)
 app.include_router(analysis.router)
-
-
-@app.on_event("startup")
-def log_startup() -> None:
-    logger.info("Starting kube-rca-agent on port %s", settings.port)

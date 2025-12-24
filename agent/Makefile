@@ -36,13 +36,24 @@ LOCAL_OOM_MEMORY_LIMIT ?= 64Mi
 LOCAL_OOM_MEMORY_REQUEST ?= 64Mi
 LOCAL_OOM_NAMESPACE ?= kube-rca
 
+# Local CrashLoopBackOff test defaults
+LOCAL_CRASH_DEPLOYMENT ?= crashloop-test
+LOCAL_CRASH_IMAGE ?= python:3.11-alpine
+LOCAL_CRASH_COMMAND ?= /bin/sh -c 'exit 1'
+LOCAL_CRASH_NAMESPACE ?= kube-rca
+
+# Local ImagePullBackOff test defaults
+LOCAL_IMAGEPULL_DEPLOYMENT ?= imagepull-test
+LOCAL_IMAGEPULL_IMAGE ?= nginx:non-existent-tag-12345
+LOCAL_IMAGEPULL_NAMESPACE ?= kube-rca
+
 # Curl pod settings for in-cluster testing
 CURL_POD_IMAGE ?= curlimages/curl:8.11.1
 AGENT_SERVICE_NAME ?= kube-rca-agent
 AGENT_SERVICE_NAMESPACE ?= kube-rca
 AGENT_SERVICE_PORT ?= 8000
 
-.PHONY: venv install lint format test run build help curl-analyze curl-analyze-local test-analysis test-analysis-local test-oom-only cleanup-oom
+.PHONY: venv install lint format test run build help curl-analyze curl-analyze-local test-analysis test-analysis-local test-oom-only cleanup-oom test-crash-only test-analysis-crash cleanup-crash test-imagepull-only test-analysis-imagepull cleanup-imagepull
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\\n  make <target>\\n\\nTargets:\\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-16s %s\\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -134,6 +145,84 @@ cleanup-oom: ## Cleanup OOMKilled test deployment
 	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
 	CLEANUP_ONLY=true \
 	bash scripts/curl-test-oomkilled.sh
+
+test-crash-only: ## Create CrashLoopBackOff pod without calling analyze (for testing)
+	@ANALYZE_URL="http://dummy" \
+	THREAD_TS="test" \
+	ALERT_STATUS="firing" \
+	ALERT_NAME="KubePodCrashLooping" \
+	ALERT_SEVERITY="warning" \
+	NAMESPACE="$(LOCAL_CRASH_NAMESPACE)" \
+	DEPLOYMENT_NAME="$(LOCAL_CRASH_DEPLOYMENT)" \
+	IMAGE="$(LOCAL_CRASH_IMAGE)" \
+	CRASH_COMMAND="$(LOCAL_CRASH_COMMAND)" \
+	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
+	CLEANUP="$(CLEANUP)" \
+	SKIP_ANALYZE=true \
+	bash scripts/curl-test-crashloop.sh
+
+test-analysis-crash: ## Create CrashLoopBackOff deployment and call analyze endpoint
+	@ANALYZE_URL="$(ANALYZE_URL)" \
+	THREAD_TS="$(THREAD_TS)" \
+	ALERT_STATUS="$(ALERT_STATUS)" \
+	ALERT_NAME="KubePodCrashLooping" \
+	ALERT_SEVERITY="$(ALERT_SEVERITY)" \
+	NAMESPACE="$(ALERT_NAMESPACE)" \
+	DEPLOYMENT_NAME="$(LOCAL_CRASH_DEPLOYMENT)" \
+	IMAGE="$(LOCAL_CRASH_IMAGE)" \
+	CRASH_COMMAND="$(LOCAL_CRASH_COMMAND)" \
+	SHELL_PATH="$(SHELL_PATH)" \
+	CONTAINER_NAME="$(CONTAINER_NAME)" \
+	WAIT_SECONDS="$(WAIT_SECONDS)" \
+	POLL_INTERVAL_SECONDS="$(POLL_INTERVAL_SECONDS)" \
+	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
+	CLEANUP="$(CLEANUP)" \
+	bash scripts/curl-test-crashloop.sh
+
+cleanup-crash: ## Cleanup CrashLoopBackOff test deployment
+	@DEPLOYMENT_NAME="$(LOCAL_CRASH_DEPLOYMENT)" \
+	NAMESPACE="$(LOCAL_CRASH_NAMESPACE)" \
+	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
+	CLEANUP_ONLY=true \
+	bash scripts/curl-test-crashloop.sh
+
+test-imagepull-only: ## Create ImagePullBackOff pod without calling analyze (for testing)
+	@ANALYZE_URL="http://dummy" \
+	THREAD_TS="test" \
+	ALERT_STATUS="firing" \
+	ALERT_NAME="KubePodImagePullBackOff" \
+	ALERT_SEVERITY="warning" \
+	NAMESPACE="$(LOCAL_IMAGEPULL_NAMESPACE)" \
+	DEPLOYMENT_NAME="$(LOCAL_IMAGEPULL_DEPLOYMENT)" \
+	IMAGE="$(LOCAL_IMAGEPULL_IMAGE)" \
+	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
+	CLEANUP="$(CLEANUP)" \
+	SKIP_ANALYZE=true \
+	bash scripts/curl-test-imagepull.sh
+
+test-analysis-imagepull: ## Create ImagePullBackOff deployment and call analyze endpoint
+	@ANALYZE_URL="$(ANALYZE_URL)" \
+	THREAD_TS="$(THREAD_TS)" \
+	ALERT_STATUS="$(ALERT_STATUS)" \
+	ALERT_NAME="KubePodImagePullBackOff" \
+	ALERT_SEVERITY="$(ALERT_SEVERITY)" \
+	NAMESPACE="$(ALERT_NAMESPACE)" \
+	DEPLOYMENT_NAME="$(LOCAL_IMAGEPULL_DEPLOYMENT)" \
+	IMAGE="$(LOCAL_IMAGEPULL_IMAGE)" \
+	SHELL_PATH="$(SHELL_PATH)" \
+	CONTAINER_NAME="$(CONTAINER_NAME)" \
+	WAIT_SECONDS="$(WAIT_SECONDS)" \
+	POLL_INTERVAL_SECONDS="$(POLL_INTERVAL_SECONDS)" \
+	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
+	CLEANUP="$(CLEANUP)" \
+	bash scripts/curl-test-imagepull.sh
+
+cleanup-imagepull: ## Cleanup ImagePullBackOff test deployment
+	@DEPLOYMENT_NAME="$(LOCAL_IMAGEPULL_DEPLOYMENT)" \
+	NAMESPACE="$(LOCAL_IMAGEPULL_NAMESPACE)" \
+	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
+	CLEANUP_ONLY=true \
+	bash scripts/curl-test-imagepull.sh
 
 test-analysis-local: install ## Run local agent w/ Gemini and test OOMKilled analyze
 	@set -euo pipefail; \

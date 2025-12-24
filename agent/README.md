@@ -6,6 +6,24 @@ This service receives Alertmanager webhook payloads from the backend, performs
 RCA (Root Cause Analysis) using Strands Agents and in-cluster Kubernetes APIs,
 and returns the results to the backend.
 
+## Project Structure
+
+```text
+agent/
+├── app/                # Main application logic (FastAPI)
+│   ├── api/            # API routes and handlers
+│   ├── clients/        # Clients for K8s, Prometheus, and Strands/Gemini
+│   ├── core/           # Config, logging, and dependencies
+│   ├── models/         # Internal data models
+│   ├── schemas/        # Pydantic schemas for API I/O
+│   └── services/       # Business logic for RCA analysis
+├── scripts/            # Shell scripts for testing specific scenarios
+├── tests/              # Test suite
+├── Dockerfile          # Container image definition
+├── Makefile            # Development and automation tasks
+└── pyproject.toml      # Project metadata and dependencies (uv)
+```
+
 ## Requirements
 
 - Python 3.10+
