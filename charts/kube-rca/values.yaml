@@ -109,6 +109,26 @@ agent:
     tls: []
   # -- Agent resource requests/limits.
   resources: {}
+  # -- Agent log level (LOG_LEVEL).
+  logLevel: "info"
+  k8s:
+    # -- Kubernetes API timeout in seconds.
+    apiTimeoutSeconds: 5
+    # -- Kubernetes event limit.
+    eventLimit: 20
+    # -- Kubernetes log tail lines.
+    logTailLines: 50
+  prometheus:
+    # -- Prometheus service label selector.
+    labelSelector: "app=kube-prometheus-stack-prometheus"
+    # -- Prometheus namespace allowlist (empty = all).
+    namespaceAllowlist: []
+    # -- Prometheus service port name (empty = auto).
+    portName: ""
+    # -- Prometheus scheme.
+    scheme: "http"
+    # -- Prometheus HTTP timeout in seconds.
+    httpTimeoutSeconds: 5
   gemini:
     # -- Gemini model ID for Strands Agents.
     modelId: "gemini-3-flash-preview"

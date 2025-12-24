@@ -30,6 +30,8 @@ spec:
               value: /etc/agent/config/agent-config.yaml
             - name: PORT
               value: {{ .Values.agent.containerPort | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.agent.logLevel | quote }}
             - name: GEMINI_MODEL_ID
               value: {{ .Values.agent.gemini.modelId | quote }}
             - name: GEMINI_API_KEY
@@ -37,6 +39,22 @@ spec:
                 secretKeyRef:
                   name: {{ include "kube-rca.agent.geminiSecretName" . }}
                   key: {{ .Values.agent.gemini.secret.key }}
+            - name: K8S_API_TIMEOUT_SECONDS
+              value: {{ .Values.agent.k8s.apiTimeoutSeconds | quote }}
+            - name: K8S_EVENT_LIMIT
+              value: {{ .Values.agent.k8s.eventLimit | quote }}
+            - name: K8S_LOG_TAIL_LINES
+              value: {{ .Values.agent.k8s.logTailLines | quote }}
+            - name: PROMETHEUS_LABEL_SELECTOR
+              value: {{ .Values.agent.prometheus.labelSelector | quote }}
+            - name: PROMETHEUS_NAMESPACE_ALLOWLIST
+              value: {{ join "," .Values.agent.prometheus.namespaceAllowlist | quote }}
+            - name: PROMETHEUS_PORT_NAME
+              value: {{ .Values.agent.prometheus.portName | quote }}
+            - name: PROMETHEUS_SCHEME
+              value: {{ .Values.agent.prometheus.scheme | quote }}
+            - name: PROMETHEUS_HTTP_TIMEOUT_SECONDS
+              value: {{ .Values.agent.prometheus.httpTimeoutSeconds | quote }}
           volumeMounts:
             - name: config-volume
               mountPath: /etc/agent/config
