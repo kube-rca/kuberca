@@ -23,6 +23,12 @@ func main() {
 	}
 	defer dbPool.Close()
 
+	// --- 추가된 부분: RCA 관련 초기화 ---
+	// DB 구조체에 Pool 연결 (기존 db 패키지의 Postgres 구조체 사용)
+	pgRepo := &db.Postgres{Pool: dbPool}
+	rcaSvc := service.NewRcaService(pgRepo)
+	rcaHndlr := handler.NewRcaHandler(rcaSvc)
+
 	// 2. 외부 서비스 클라이언트 초기화
 	// Slack Bot Token과 Channel ID를 환경변수에서 읽어옴
 	slackClient := client.NewSlackClient()
@@ -47,6 +53,8 @@ func main() {
 	// - GET /: 루트 경로
 	router.GET("/ping", handler.Ping)
 	router.GET("/", handler.Root)
+
+	router.GET("/api/v1/incidents", rcaHndlr.GetIncidents)
 
 	// Alertmanager 웹훅 엔드포인트
 	// - POST /webhook/alertmanager: Alertmanager에서 알림 수신
