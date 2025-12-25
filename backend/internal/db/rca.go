@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kube-rca/backend/internal/model"
@@ -67,4 +68,34 @@ func (db *Postgres) GetIncidentDetail(id string) (*model.IncidentDetailResponse,
 	}
 
 	return &i, nil
+}
+
+func (db *Postgres) UpdateIncident(id string, req model.UpdateIncidentRequest) error {
+	query := `
+		UPDATE incidents 
+		SET 
+			alarm_title = $1, 
+			severity = $2, 
+			analysis_summary = $3, 
+			analysis_detail = $4,
+			updated_at = NOW()
+		WHERE incident_id = $5
+	`
+
+	commandTag, err := db.Pool.Exec(context.Background(), query,
+		req.AlarmTitle,
+		req.Severity,
+		req.AnalysisSummary,
+		req.AnalysisDetail,
+		id,
+	)
+	if err != nil {
+		return err
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		return fmt.Errorf("no incident found with id: %s", id)
+	}
+
+	return nil
 }

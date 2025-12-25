@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/kube-rca/backend/internal/model"
 	"github.com/kube-rca/backend/internal/service"
 )
 
@@ -16,6 +17,7 @@ func NewRcaHandler(svc *service.RcaService) *RcaHandler {
 	return &RcaHandler{svc: svc}
 }
 
+// 1. GET /api/v1/incidents
 func (h *RcaHandler) GetIncidents(c *gin.Context) {
 	res, err := h.svc.GetIncidentList()
 	if err != nil {
@@ -25,6 +27,7 @@ func (h *RcaHandler) GetIncidents(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 
+// 2. GET /api/v1/incidents/:id
 func (h *RcaHandler) GetIncidentDetail(c *gin.Context) {
 	id := c.Param("id")
 
@@ -42,5 +45,38 @@ func (h *RcaHandler) GetIncidentDetail(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status": "success",
 		"data":   res,
+	})
+}
+
+// 3. PUT /api/v1/incidents/:id
+func (h *RcaHandler) UpdateIncident(c *gin.Context) {
+	id := c.Param("id")
+
+	var req model.UpdateIncidentRequest
+	// JSON 파싱
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "error",
+			"message": "잘못된 요청 데이터입니다.",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// 서비스 호출
+	err := h.svc.UpdateIncident(id, req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "error",
+			"message": "업데이트 실패",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":      "success",
+		"message":     "RCA 정보가 성공적으로 수정되었습니다.",
+		"incident_id": id,
 	})
 }

@@ -20,3 +20,7 @@ func (s *RcaService) GetIncidentList() ([]model.IncidentListResponse, error) {
 func (s *RcaService) GetIncidentDetail(id string) (*model.IncidentDetailResponse, error) {
 	return s.repo.GetIncidentDetail(id)
 }
+
+func (s *RcaService) UpdateIncident(id string, req model.UpdateIncidentRequest) error {
+	return s.repo.UpdateIncident(id, req)
+}
