@@ -38,3 +38,33 @@ func (db *Postgres) GetIncidentList() ([]model.IncidentListResponse, error) {
 	}
 	return list, nil
 }
+
+func (db *Postgres) GetIncidentDetail(id string) (*model.IncidentDetailResponse, error) {
+	query := `
+		SELECT 
+			incident_id, alarm_title, severity, status, 
+			fired_at, resolved_at, analysis_summary, analysis_detail, similar_incidents
+		FROM incidents
+		WHERE incident_id = $1
+	`
+
+	var i model.IncidentDetailResponse
+
+	err := db.Pool.QueryRow(context.Background(), query, id).Scan(
+		&i.IncidentID,
+		&i.AlarmTitle,
+		&i.Severity,
+		&i.Status,
+		&i.FiredAt,
+		&i.ResolvedAt,
+		&i.AnalysisSummary,
+		&i.AnalysisDetail,
+		&i.SimilarIncidents,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &i, nil
+}

@@ -55,6 +55,7 @@ func main() {
 	router.GET("/", handler.Root)
 
 	router.GET("/api/v1/incidents", rcaHndlr.GetIncidents)
+	router.GET("/api/v1/incidents/:id", rcaHndlr.GetIncidentDetail)
 
 	// Alertmanager 웹훅 엔드포인트
 	// - POST /webhook/alertmanager: Alertmanager에서 알림 수신

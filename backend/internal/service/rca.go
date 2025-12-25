@@ -16,3 +16,7 @@ func NewRcaService(repo *db.Postgres) *RcaService {
 func (s *RcaService) GetIncidentList() ([]model.IncidentListResponse, error) {
 	return s.repo.GetIncidentList()
 }
+
+func (s *RcaService) GetIncidentDetail(id string) (*model.IncidentDetailResponse, error) {
+	return s.repo.GetIncidentDetail(id)
+}
