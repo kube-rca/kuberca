@@ -56,16 +56,16 @@ func main() {
 
 	v1 := router.Group("/api/v1")
 	{
-		// 1. 인시던트 목록 조회 (GET)
 		v1.GET("/incidents", rcaHndlr.GetIncidents)
 
-		// 2. 특정 인시던트 상세 조회 (GET)
 		// :id 부분이 handler에서 c.Param("id")로 인식됩니다.
 		v1.GET("/incidents/:id", rcaHndlr.GetIncidentDetail)
 
-		// 3. 인시던트 수정 (PUT) - 방금 추가한 기능
 		// Body에 수정할 JSON 데이터를 담아서 요청합니다.
 		v1.PUT("/incidents/:id", rcaHndlr.UpdateIncident)
+
+		// 이 주소로 요청만 보내면 Mock 데이터가 생성됩니다.
+		v1.POST("/incidents/mock", rcaHndlr.CreateMockIncident)
 	}
 
 	// Alertmanager 웹훅 엔드포인트

@@ -80,3 +80,23 @@ func (h *RcaHandler) UpdateIncident(c *gin.Context) {
 		"incident_id": id,
 	})
 }
+
+// Mock 데이터 생성 추후 삭제 에정
+func (h *RcaHandler) CreateMockIncident(c *gin.Context) {
+	newID, err := h.svc.CreateMockIncident()
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "error",
+			"message": "Mock 데이터 생성 실패",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":      "success",
+		"message":     "Mock 데이터 1개가 DB에 저장되었습니다.",
+		"incident_id": newID,
+	})
+}

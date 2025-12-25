@@ -99,3 +99,14 @@ func (db *Postgres) UpdateIncident(id string, req model.UpdateIncidentRequest) e
 
 	return nil
 }
+
+// Mock 데이터 생성 추후 삭제 에정
+func (db *Postgres) CreateIncident(id, title, severity, status string) error {
+	query := `
+		INSERT INTO incidents (incident_id, alarm_title, severity, status, fired_at, created_at, similar_incidents)
+		VALUES ($1, $2, $3, $4, NOW(), NOW(), '{}')
+	`
+
+	_, err := db.Pool.Exec(context.Background(), query, id, title, severity, status)
+	return err
+}
