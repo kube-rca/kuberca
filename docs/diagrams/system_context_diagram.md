@@ -6,9 +6,14 @@ flowchart LR
   LLM[LLM API - 계획]
 
   %% Internal
-  FE[Frontend UI - 구현: mock fallback]
-  BE[Backend API - 구현: Alertmanager->Slack]
-  AG[Agent API - 구현]
+  subgraph Core[" "]
+    direction TB
+    FE[Frontend UI - 구현: mock fallback]
+    BE[Backend API - 구현: Alertmanager->Slack]
+  end
+  style Core fill:transparent,stroke:transparent
+
+  AG[Agent API - 구현: placeholder]
   DB[(Incident Store - 계획)]
   VDB[(Vector DB - 계획)]
 
@@ -22,5 +27,5 @@ flowchart LR
   BE -->|인시던트/분석 저장 - 계획| DB
   BE -->|임베딩 저장/검색 - 계획| VDB
 
-  FE <--> |RCA API - 계획| BE
+  FE -->|RCA API - 계획| BE
 ```

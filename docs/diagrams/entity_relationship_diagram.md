@@ -9,6 +9,7 @@ erDiagram
     string alarm_title
     string severity
     string status
+    boolean disabled
     datetime fired_at
     datetime resolved_at
 
