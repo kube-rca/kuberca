@@ -19,9 +19,9 @@ type EmbeddingClient struct {
 }
 
 func NewEmbeddingClient() (*EmbeddingClient, error) {
-	apiKey := os.Getenv("GEMINI_API_KEY")
+	apiKey := os.Getenv("AI_API_KEY")
 	if apiKey == "" {
-		return nil, fmt.Errorf("missing GEMINI_API_KEY")
+		return nil, fmt.Errorf("missing AI_API_KEY")
 	}
 	cfg := EmbeddingClientConfig{APIKey: apiKey, Model: "text-embedding-004"}
 	client, err := genai.NewClient(context.Background(), &genai.ClientConfig{APIKey: cfg.APIKey})
