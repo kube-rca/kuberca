@@ -44,7 +44,12 @@ export const filterRCAsByTimeRange = (
   const cutoffTime = getTimeRangeInMs(timeRange);
   
   return rcas.filter((rca) => {
-    const rcaTime = parseRCATime(rca.time);
+
+    if (!rca.resolved_at) {
+      return true;
+    }
+
+    const rcaTime = parseRCATime(rca.resolved_at);
     return rcaTime.getTime() >= cutoffTime;
   });
 };

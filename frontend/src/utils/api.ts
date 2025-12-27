@@ -1,9 +1,6 @@
 import { RCAItem } from '../types';
 
-// 개발 환경: 프록시 사용 (빈 문자열) 또는 localhost
-// 프로덕션 환경: 쿠버네티스 서비스 이름 사용
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
-  (import.meta.env.DEV ? 'http://localhost:8080' : 'http://kube-rca-backend:8080');
+const API_BASE_URL = '';
 
 export interface ApiResponse<T> {
   data: T;
@@ -18,14 +15,22 @@ export interface RCAResponse {
 }
 
 /**
- * 백엔드에서 RCA 목록을 가져옵니다
+ * 백엔드에서 RCA(Incident) 목록을 가져옵니다
  */
 export const fetchRCAs = async (): Promise<RCAItem[]> => {
+  // 1. Basic Auth 정보 설정
+  const username = import.meta.env.VITE_API_USERNAME;
+  const password = import.meta.env.VITE_API_PASSWORD;
+  
+  // 2. 'username:password' 문자열을 Base64로 인코딩 (브라우저 내장 함수 btoa 사용)
+  const encodedCredentials = btoa(`${username}:${password}`);
+
   try {
-    const response = await fetch(`${API_BASE_URL}/api/rca`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/incidents`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Basic ${encodedCredentials}`,
       },
     });
 
@@ -33,18 +38,18 @@ export const fetchRCAs = async (): Promise<RCAItem[]> => {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const data: ApiResponse<RCAResponse> | RCAResponse | RCAItem[] = await response.json();
+    // [수정] 백엔드가 객체가 아닌 배열([])을 바로 반환하므로 바로 파싱합니다.
+    const data: RCAItem[] = await response.json();
 
-    // 응답 형식에 따라 데이터 추출
+    // 데이터가 배열인지 확인 후 반환
     if (Array.isArray(data)) {
       return data;
-    } else if ('data' in data && 'rcas' in data.data) {
-      return data.data.rcas;
-    } else if ('rcas' in data) {
-      return data.rcas;
     } else {
-      throw new Error('Unexpected response format');
+      // 배열이 아닌 경우(예: 에러 메시지 객체가 온 경우) 처리
+      console.warn('Backend response is not an array:', data);
+      throw new Error('Unexpected response format: Data is not an array');
     }
+
   } catch (error) {
     console.error('Failed to fetch RCAs:', error);
     throw error;

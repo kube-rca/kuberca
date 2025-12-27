@@ -4,7 +4,6 @@ import TimeRangeSelector from './components/TimeRangeSelector';
 import RCATable from './components/RCATable';
 import Pagination from './components/Pagination';
 import { fetchRCAs } from './utils/api';
-import { generateMockAlerts } from './utils/mockData';
 import { filterRCAsByTimeRange } from './utils/filterAlerts';
 import { ITEMS_PER_PAGE } from './constants';
 
@@ -25,15 +24,7 @@ function App() {
         setAllRCAs(rcas);
       } catch (err) {
         console.error('Failed to load RCAs:', err);
-        // 개발 환경에서 백엔드가 없을 경우 mock 데이터 사용
-        if (import.meta.env.DEV) {
-          console.warn('Using mock data as fallback');
-          const mockRCAs = generateMockAlerts(100) as RCAItem[];
-          setAllRCAs(mockRCAs);
-          setError(null);
-        } else {
-          setError(err instanceof Error ? err.message : 'RCA 데이터를 불러오는데 실패했습니다.');
-        }
+
       } finally {
         setLoading(false);
       }
@@ -41,6 +32,14 @@ function App() {
 
     loadRCAs();
   }, []);
+
+  // [추가됨] 타이틀 클릭 핸들러
+  const handleTitleClick = (incident_id: string) => {
+    // 여기에 상세 페이지 이동 로직이나 모달 띄우는 로직을 넣으세요.
+    console.log('클릭된 ID:', incident_id);
+    alert(`상세 정보 보기: ${incident_id}`); 
+    // 예: navigate(\`/rca/\${incident_id}\`);
+  };
 
   // 시간 범위에 따라 RCA 필터링
   const filteredRCAs = useMemo(() => {
@@ -100,8 +99,10 @@ function App() {
           {/* RCA Table */}
           {!loading && !error && (
             <>
-              <RCATable rcas={paginatedRCAs} />
-
+              <RCATable 
+                rcas={paginatedRCAs} 
+                onTitleClick={handleTitleClick}
+              />
               {/* Pagination */}
               <div className="mt-6 flex justify-center">
                 <Pagination
