@@ -30,12 +30,6 @@ export interface RCAResponse {
  * 백엔드에서 RCA(Incident) 목록을 가져옵니다
  */
 export const fetchRCAs = async (): Promise<RCAItem[]> => {
-  // 1. Basic Auth 정보 설정
-  const username = import.meta.env.VITE_API_USERNAME;
-  const password = import.meta.env.VITE_API_PASSWORD;
-  
-  // 2. 'username:password' 문자열을 Base64로 인코딩 (브라우저 내장 함수 btoa 사용)
-  const encodedCredentials = btoa(`${username}:${password}`);
 
   try {
     const response = await fetch(`${API_BASE_URL}/api/v1/incidents`, {
@@ -66,14 +60,9 @@ export const fetchRCAs = async (): Promise<RCAItem[]> => {
 };
 
 export const fetchRCADetail = async (id: string): Promise<RCADetail> => {
-  // 실제 API 호출 (프록시 설정에 따라 경로 조정 필요)
-  // 예: /api/v1/incidents/INC-12345
   const response = await fetch(`/api/v1/incidents/${id}`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      // 필요한 경우 Authorization 헤더 추가
-    },
+    headers: getHeaders(),
   });
 
   if (!response.ok) {
@@ -84,29 +73,14 @@ export const fetchRCADetail = async (id: string): Promise<RCADetail> => {
   return json.data; // Postman 응답 구조가 { data: { ... } } 이므로
 };
 
-/**
- * 특정 RCA를 가져옵니다
- */
-export const fetchRCAById = async (id: number): Promise<RCAItem> => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/rca/${id}`, {
-      method: 'GET',
-      headers: getHeaders(),
-    });
+export const updateRCADetail = async (id: string, data: Partial<RCADetail>): Promise<void> => {
+  const response = await fetch(`/api/v1/incidents/${id}`, {
+    method: 'PUT', 
+    headers: getHeaders(), 
+    body: JSON.stringify(data), // 수정할 데이터를 JSON 문자열로 변환
+  });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data: ApiResponse<RCAItem> | RCAItem = await response.json();
-
-    if ('data' in data) {
-      return data.data;
-    }
-    return data;
-  } catch (error) {
-    console.error(`Failed to fetch RCA ${id}:`, error);
-    throw error;
+  if (!response.ok) {
+    throw new Error('RCA 정보를 수정하는데 실패했습니다.');
   }
 };
-
