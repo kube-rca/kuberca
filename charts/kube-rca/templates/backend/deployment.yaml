@@ -81,6 +81,11 @@ spec:
                   key: {{ required "backend.slack.secret.channelIdKey (or backend.slack.secret.keys.channelId) is required" $channelIdKey | quote }}
             {{- end }}
             {{- end }}
+            - name: AI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: "kube-rca-agent-secret"
+                  key: "ai-studio-api-key"
           livenessProbe:
             httpGet:
               path: /ping
