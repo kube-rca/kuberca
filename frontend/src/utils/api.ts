@@ -1,6 +1,18 @@
-import { RCAItem } from '../types';
+import { RCAItem, RCADetail } from '../types';
 
 const API_BASE_URL = '';
+const USERNAME = import.meta.env.VITE_API_USERNAME || '';
+const PASSWORD = import.meta.env.VITE_API_PASSWORD || '';
+
+const getHeaders = () => {
+  // ID:PW를 Base64로 인코딩
+  const base64Auth = btoa(`${USERNAME}:${PASSWORD}`);
+  
+  return {
+    'Authorization': `Basic ${base64Auth}`,
+    'Content-Type': 'application/json',
+  };
+};
 
 export interface ApiResponse<T> {
   data: T;
@@ -28,10 +40,7 @@ export const fetchRCAs = async (): Promise<RCAItem[]> => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/v1/incidents`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Basic ${encodedCredentials}`,
-      },
+      headers: getHeaders(),
     });
 
     if (!response.ok) {
@@ -56,6 +65,25 @@ export const fetchRCAs = async (): Promise<RCAItem[]> => {
   }
 };
 
+export const fetchRCADetail = async (id: string): Promise<RCADetail> => {
+  // 실제 API 호출 (프록시 설정에 따라 경로 조정 필요)
+  // 예: /api/v1/incidents/INC-12345
+  const response = await fetch(`/api/v1/incidents/${id}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      // 필요한 경우 Authorization 헤더 추가
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('상세 정보를 불러오는데 실패했습니다.');
+  }
+
+  const json = await response.json();
+  return json.data; // Postman 응답 구조가 { data: { ... } } 이므로
+};
+
 /**
  * 특정 RCA를 가져옵니다
  */
@@ -63,9 +91,7 @@ export const fetchRCAById = async (id: number): Promise<RCAItem> => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/rca/${id}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getHeaders(),
     });
 
     if (!response.ok) {
