@@ -6,6 +6,7 @@
 {{- end -}}
 {{- $paths := default (list "/") $ingress.paths -}}
 {{- $pathType := default "Prefix" $ingress.pathType -}}
+{{- $apiPath := "/api" -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -26,6 +27,15 @@ spec:
     - host: {{ $host | quote }}
       http:
         paths:
+{{- if not (has $apiPath $paths) }}
+          - path: {{ $apiPath | quote }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "kube-rca.backend.name" $ }}
+                port:
+                  name: http
+{{- end }}
 {{- range $path := $paths }}
           - path: {{ $path | quote }}
             pathType: {{ $pathType }}
