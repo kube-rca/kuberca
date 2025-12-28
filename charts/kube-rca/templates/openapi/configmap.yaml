@@ -48,6 +48,18 @@ data:
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
       }
 
+      location /api/ {
+        proxy_pass http://{{ $backendService }}:{{ $backendPort }};
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+
+      location /agent/ {
+        proxy_pass http://{{ $agentService }}:{{ $agentPort }}/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+
       location $BASE_URL {
         absolute_redirect off;
         alias /usr/share/nginx/html/;
