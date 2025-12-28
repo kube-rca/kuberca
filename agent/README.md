@@ -68,6 +68,24 @@ The server listens on `:8000` by default. Set `PORT` to change it.
 - `GET /`
 - `POST /analyze`
 
+## OpenAPI
+
+OpenAPI 스펙은 `agent/docs/openapi.json`에 생성되어 Git에 포함됩니다.
+
+```bash
+cd agent
+uv run python scripts/export_openapi.py
+```
+
+### Git hook (선택)
+
+커밋 시 OpenAPI를 자동 갱신하려면 hooksPath를 설정합니다.
+
+```bash
+cd agent
+git config core.hooksPath .githooks
+```
+
 ## Curl Test
 
 ```bash
