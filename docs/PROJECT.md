@@ -8,10 +8,14 @@ LLM을 활용해 Root Cause Analysis(RCA)와 대응 가이드를 제공하는 �
 ## 현재 구현 범위(요약)
 
 - Backend: Alertmanager Webhook 수신 및 Slack 알림 전송(스레드 처리 포함)
-- Agent: Alertmanager 분석 API(placeholder 응답, Backend 연동 미구현)
-- Frontend: `GET /api/rca` 호출 시도, 개발 환경에서 mock fallback
-- Helm: backend/frontend 배포용 `kube-rca` 차트 포함
-- DB/Vector DB/LLM 연동 및 RCA 저장/검색은 계획
+  - Auth(JWT + Refresh Cookie), Incident API, Embedding API, OpenAPI 제공
+- Agent: FastAPI 기반 분석 API
+  - K8s/Prometheus 컨텍스트 + Strands Agents(Gemini) 기반 분석
+  - `GEMINI_API_KEY` 미설정 시 fallback 요약 반환
+- Frontend: 로그인/회원가입 + Incident 목록/상세 UI
+  - `/api/v1/auth/*`, `/api/v1/incidents*` 사용
+- Helm: backend/agent/frontend + OpenAPI UI(optional) 배포용 `kube-rca` 차트 포함
+- DB: PostgreSQL 연동(incident/auth/embeddings). Vector DB는 계획 단계
 
 구체적인 런타임 흐름(as-is)은 `ARCHITECTURE.md`, 목표(to-be)는 `diagrams/`를 참고합니다.
 
@@ -113,14 +117,15 @@ Prometheus/Alertmanager, Slack, 로그, 메트릭, 트레이스 데이터를 연
 
 ### 6.4 애플리케이션
 
-- Backend: Go + Gin(구현)
-- Agent: Go + Gin(구현, 분석 로직은 placeholder)
-- Frontend: React + TypeScript + Vite + Tailwind CSS(구현, 현재는 mock 기반)
+- Backend: Go + Gin(구현, Auth/Incident/Embedding API)
+- Agent: Python + FastAPI(구현, Strands Agents 기반 분석)
+- Frontend: React + TypeScript + Vite + Tailwind CSS(구현, 인증 UI 포함)
 
 ### 6.5 데이터베이스 / AI
 
-- Vector DB(계획): 유사 인시던트 검색 및 문서 임베딩 저장
-- LLM API(계획): RAG 패턴으로 RCA/요약/체크리스트 생성
+- PostgreSQL + pgvector(구현: incident/auth/embeddings)
+- LLM API(Gemini, Strands Agents/Embeddings)(구현)
+- Vector DB(계획): 유사 인시던트 검색
 
 ### 6.6 테스트 및 검증
 

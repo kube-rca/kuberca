@@ -3,29 +3,34 @@ flowchart LR
   %% External
   AM[Alertmanager - 구현]
   SL[Slack - 구현]
-  LLM[LLM API - 계획]
+  LLM[Gemini API - 구현]
+  PR[Prometheus - 구현]
+  K8S[Kubernetes API - 구현]
 
   %% Internal
   subgraph Core[" "]
     direction TB
-    FE[Frontend UI - 구현: mock fallback]
-    BE[Backend API - 구현: Alertmanager->Slack]
+    FE[Frontend UI - 구현: auth + incidents]
+    BE[Backend API - 구현: webhook + auth + rca + embedding]
   end
   style Core fill:transparent,stroke:transparent
 
-  AG[Agent API - 구현: placeholder]
-  DB[(Incident Store - 계획)]
+  AG[Agent API - 구현: Strands + K8s]
+  PG[(PostgreSQL - 구현)]
   VDB[(Vector DB - 계획)]
 
-  AM -->|Webhook Alert| BE
+  AM -->|Webhook alert| BE
   BE -->|Slack 알림 전송| SL
 
-  BE -->|POST /analyze - 구현| AG
-  AG -->|분석 결과 - 구현| BE
-  AG <--> |LLM 분석 - 계획| LLM
+  FE -->|Auth/RCA API| BE
+  BE -->|POST /analyze| AG
+  AG -->|분석 결과| BE
 
-  BE -->|인시던트/분석 저장 - 계획| DB
-  BE -->|임베딩 저장/검색 - 계획| VDB
+  AG -->|K8s 조회| K8S
+  AG -->|PromQL query| PR
+  AG -->|LLM 분석| LLM
+  BE -->|임베딩 생성| LLM
 
-  FE -->|RCA API - 계획| BE
+  BE -->|Incidents/Auth/Embeddings| PG
+  BE -->|임베딩 검색 - 계획| VDB
 ```
