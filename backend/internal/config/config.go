@@ -1,6 +1,10 @@
 package config
 
-import "os"
+import (
+	"os"
+
+	"github.com/joho/godotenv"
+)
 
 type Config struct {
 	Slack     SlackConfig
@@ -48,6 +52,7 @@ type AuthConfig struct {
 }
 
 func Load() Config {
+	_ = godotenv.Load()
 	return Config{
 		Slack: SlackConfig{
 			BotToken:  os.Getenv("SLACK_BOT_TOKEN"),
