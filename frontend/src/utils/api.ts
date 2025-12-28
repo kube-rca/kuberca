@@ -75,3 +75,17 @@ export const fetchRCADetail = async (id: string): Promise<RCADetail> => {
   const json = await response.json();
   return json.data;
 };
+
+export const updateRCADetail = async (id: string, data: Partial<RCADetail>): Promise<void> => {
+  const response = await requestWithAuth(`/api/v1/incidents/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error('RCA 정보를 수정하는데 실패했습니다.');
+  }
+};
