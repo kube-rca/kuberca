@@ -272,5 +272,10 @@
         "summary": "Ping"
       }
     }
-  }
+  },
+  "servers": [
+    {
+      "url": "/agent"
+    }
+  ]
 }
