@@ -24,7 +24,7 @@ type IncidentDetailResponse struct {
 	AnalysisDetail  *string    `json:"analysis_detail"`  // null 가능
 
 	// DB의 JSONB 컬럼을 그대로 바이트로 받아서 전달 (구조를 몰라도 됨)
-	SimilarIncidents json.RawMessage `json:"similar_incidents"`
+	SimilarIncidents json.RawMessage `json:"similar_incidents" swaggertype:"object"`
 }
 
 type UpdateIncidentRequest struct {

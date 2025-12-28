@@ -17,7 +17,14 @@ func NewRcaHandler(svc *service.RcaService) *RcaHandler {
 	return &RcaHandler{svc: svc}
 }
 
-// 1. GET /api/v1/incidents
+// GetIncidents godoc
+// @Summary List incidents
+// @Tags incidents
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} model.IncidentListResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Router /api/v1/incidents [get]
 func (h *RcaHandler) GetIncidents(c *gin.Context) {
 	res, err := h.svc.GetIncidentList()
 	if err != nil {
@@ -27,7 +34,15 @@ func (h *RcaHandler) GetIncidents(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 
-// 2. GET /api/v1/incidents/:id
+// GetIncidentDetail godoc
+// @Summary Get incident detail
+// @Tags incidents
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Incident ID"
+// @Success 200 {object} model.IncidentDetailEnvelope
+// @Failure 500 {object} model.ErrorResponse
+// @Router /api/v1/incidents/{id} [get]
 func (h *RcaHandler) GetIncidentDetail(c *gin.Context) {
 	id := c.Param("id")
 
@@ -42,13 +57,24 @@ func (h *RcaHandler) GetIncidentDetail(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"status": "success",
-		"data":   res,
+	c.JSON(http.StatusOK, model.IncidentDetailEnvelope{
+		Status: "success",
+		Data:   res,
 	})
 }
 
-// 3. PUT /api/v1/incidents/:id
+// UpdateIncident godoc
+// @Summary Update incident detail
+// @Tags incidents
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Incident ID"
+// @Param request body model.UpdateIncidentRequest true "Incident update payload"
+// @Success 200 {object} model.IncidentUpdateResponse
+// @Failure 400 {object} model.ErrorResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Router /api/v1/incidents/{id} [put]
 func (h *RcaHandler) UpdateIncident(c *gin.Context) {
 	id := c.Param("id")
 
@@ -74,14 +100,21 @@ func (h *RcaHandler) UpdateIncident(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"status":      "success",
-		"message":     "RCA 정보가 성공적으로 수정되었습니다.",
-		"incident_id": id,
+	c.JSON(http.StatusOK, model.IncidentUpdateResponse{
+		Status:     "success",
+		Message:    "RCA 정보가 성공적으로 수정되었습니다.",
+		IncidentID: id,
 	})
 }
 
-// Mock 데이터 생성 추후 삭제 에정
+// CreateMockIncident godoc
+// @Summary Create mock incident
+// @Tags incidents
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} model.MockIncidentResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Router /api/v1/incidents/mock [post]
 func (h *RcaHandler) CreateMockIncident(c *gin.Context) {
 	newID, err := h.svc.CreateMockIncident()
 
@@ -94,9 +127,9 @@ func (h *RcaHandler) CreateMockIncident(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"status":      "success",
-		"message":     "Mock 데이터 1개가 DB에 저장되었습니다.",
-		"incident_id": newID,
+	c.JSON(http.StatusOK, model.MockIncidentResponse{
+		Status:     "success",
+		Message:    "Mock 데이터 1개가 DB에 저장되었습니다.",
+		IncidentID: newID,
 	})
 }

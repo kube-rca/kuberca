@@ -1,0 +1,548 @@
+definitions:
+  model.Alert:
+    properties:
+      annotations:
+        additionalProperties:
+          type: string
+        description: |-
+          - summary: 알림 요약
+          - description: 알림 상세 설명
+          - runbook_url: 대응 매뉴얼 URL
+        type: object
+      endsAt:
+        description: |-
+          EndsAt: 알림 종료 시각 (UTC)
+          resolved 상태일 때만 유효한 값 설정
+          firing 상태일 때는 "0001-01-01T00:00:00Z"
+        type: string
+      fingerprint:
+        description: |-
+          Fingerprint: 알림 고유 식별자 (Labels의 조합으로 생성되는 해시값)
+          thread_ts 매핑에 사용하여 같은 스레드로 메시지 전송이 가능하게함
+        type: string
+      generatorURL:
+        description: 'GeneratorURL: 알림을 생성한 Prometheus 쿼리 URL'
+        type: string
+      labels:
+        additionalProperties:
+          type: string
+        description: |-
+          - alertname: 알림 이름 (예: "PodCrashLooping", "HighMemoryUsage")
+          - severity: 심각도 (예: "critical", "warning", "info")
+          - namespace: 문제 발생 네임스페이스
+          - pod: 문제 발생 파드 이름
+        type: object
+      startsAt:
+        description: 'StartsAt: 알림 발생 시각 (UTC)'
+        type: string
+      status:
+        type: string
+    type: object
+  model.AlertWebhookResponse:
+    properties:
+      alertCount:
+        type: integer
+      slackFailed:
+        type: integer
+      slackSent:
+        type: integer
+      status:
+        type: string
+    type: object
+  model.AlertmanagerWebhook:
+    properties:
+      alerts:
+        description: 개별 알림 리스트
+        items:
+          $ref: '#/definitions/model.Alert'
+        type: array
+      commonAnnotations:
+        additionalProperties:
+          type: string
+        description: 그룹 내 모든 알림에 공통으로 존재하는 어노테이션
+        type: object
+      commonLabels:
+        additionalProperties:
+          type: string
+        description: 그룹 내 모든 알림에 공통으로 존재하는 라벨
+        type: object
+      externalURL:
+        type: string
+      groupKey:
+        description: 동일한 GroupKey를 가진 알림들은 함께 그룹핑됨
+        type: string
+      groupLabels:
+        additionalProperties:
+          type: string
+        description: route.group_by 설정에 따라 결정되는 그룹핑에 사용된 라벨
+        type: object
+      receiver:
+        type: string
+      status:
+        type: string
+      truncatedAlerts:
+        description: max_alerts 설정으로 인해 생략된 알림이 있을 경우 그 개수
+        type: integer
+      version:
+        type: string
+    type: object
+  model.AuthConfigResponse:
+    properties:
+      allowSignup:
+        type: boolean
+    type: object
+  model.AuthLogoutResponse:
+    properties:
+      status:
+        type: string
+    type: object
+  model.AuthMeResponse:
+    properties:
+      loginId:
+        type: string
+      userId:
+        type: integer
+    type: object
+  model.AuthRequest:
+    properties:
+      id:
+        type: string
+      password:
+        type: string
+    type: object
+  model.AuthResponse:
+    properties:
+      accessToken:
+        type: string
+      expiresIn:
+        type: integer
+    type: object
+  model.EmbeddingRequest:
+    properties:
+      incident_id:
+        type: string
+      incident_summary:
+        type: string
+    type: object
+  model.EmbeddingResponse:
+    properties:
+      embedding_id:
+        type: integer
+      model:
+        type: string
+      status:
+        type: string
+    type: object
+  model.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  model.IncidentDetailEnvelope:
+    properties:
+      data:
+        $ref: '#/definitions/model.IncidentDetailResponse'
+      status:
+        type: string
+    type: object
+  model.IncidentDetailResponse:
+    properties:
+      alarm_title:
+        type: string
+      analysis_detail:
+        description: null 가능
+        type: string
+      analysis_summary:
+        description: null 가능
+        type: string
+      fired_at:
+        type: string
+      incident_id:
+        type: string
+      resolved_at:
+        description: null 가능
+        type: string
+      severity:
+        type: string
+      similar_incidents:
+        description: DB의 JSONB 컬럼을 그대로 바이트로 받아서 전달 (구조를 몰라도 됨)
+        type: object
+      status:
+        type: string
+    type: object
+  model.IncidentListResponse:
+    properties:
+      alarm_title:
+        type: string
+      incident_id:
+        type: string
+      resolved_at:
+        type: string
+      severity:
+        type: string
+    type: object
+  model.IncidentUpdateResponse:
+    properties:
+      incident_id:
+        type: string
+      message:
+        type: string
+      status:
+        type: string
+    type: object
+  model.MockIncidentResponse:
+    properties:
+      incident_id:
+        type: string
+      message:
+        type: string
+      status:
+        type: string
+    type: object
+  model.PingResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  model.RootResponse:
+    properties:
+      message:
+        type: string
+      status:
+        type: string
+    type: object
+  model.UpdateIncidentRequest:
+    properties:
+      alarm_title:
+        type: string
+      analysis_detail:
+        type: string
+      analysis_summary:
+        type: string
+      severity:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: Backend API for Kube-RCA services.
+  title: Kube-RCA Backend API
+  version: "1.0"
+paths:
+  /:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.RootResponse'
+      summary: Root endpoint
+      tags:
+      - health
+  /api/v1/auth/config:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AuthConfigResponse'
+      summary: Get auth config
+      tags:
+      - auth
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Login ID and password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.AuthRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      summary: Login
+      tags:
+      - auth
+  /api/v1/auth/logout:
+    post:
+      description: Revokes refresh token (if present) and clears cookie.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AuthLogoutResponse'
+      summary: Logout
+      tags:
+      - auth
+  /api/v1/auth/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AuthMeResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - auth
+  /api/v1/auth/refresh:
+    post:
+      description: Uses refresh token cookie (kube_rca_refresh).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AuthResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      summary: Refresh access token
+      tags:
+      - auth
+  /api/v1/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Sign up when ALLOW_SIGNUP is true.
+      parameters:
+      - description: Login ID and password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.AuthRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      summary: Register a new user
+      tags:
+      - auth
+  /api/v1/embeddings:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Incident embedding payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.EmbeddingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.EmbeddingResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create incident embedding
+      tags:
+      - embeddings
+  /api/v1/incidents:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.IncidentListResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List incidents
+      tags:
+      - incidents
+  /api/v1/incidents/{id}:
+    get:
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.IncidentDetailEnvelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get incident detail
+      tags:
+      - incidents
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Incident update payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateIncidentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.IncidentUpdateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update incident detail
+      tags:
+      - incidents
+  /api/v1/incidents/mock:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.MockIncidentResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create mock incident
+      tags:
+      - incidents
+  /ping:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.PingResponse'
+      summary: Health check
+      tags:
+      - health
+  /webhook/alertmanager:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Alertmanager webhook payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/model.AlertmanagerWebhook'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AlertWebhookResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      summary: Receive Alertmanager webhook
+      tags:
+      - webhook
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

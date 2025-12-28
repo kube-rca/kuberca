@@ -16,6 +16,17 @@ func NewEmbeddingHandler(svc *service.EmbeddingService) *EmbeddingHandler {
 	return &EmbeddingHandler{svc: svc}
 }
 
+// CreateEmbedding godoc
+// @Summary Create incident embedding
+// @Tags embeddings
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body model.EmbeddingRequest true "Incident embedding payload"
+// @Success 200 {object} model.EmbeddingResponse
+// @Failure 400 {object} model.ErrorResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Router /api/v1/embeddings [post]
 func (h *EmbeddingHandler) CreateEmbedding(c *gin.Context) {
 	var req model.EmbeddingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

@@ -79,6 +79,7 @@ func main() {
 	// - GET /: 루트 경로
 	router.GET("/ping", handler.Ping)
 	router.GET("/", handler.Root)
+	router.GET("/openapi.json", handler.OpenAPIDoc)
 
 	v1 := router.Group("/api/v1")
 	{

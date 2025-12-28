@@ -110,3 +110,25 @@ curl http://localhost:8080/ping
 - `POST /api/v1/auth/logout`: refresh 토큰 폐기
 - `GET /api/v1/auth/config`: `allowSignup` 반환
 - `GET /api/v1/auth/me`: 액세스 토큰으로 사용자 정보 조회
+
+### 6. OpenAPI(Swagger)
+
+OpenAPI 스펙은 `backend/docs/`에 생성되며 Git에 포함됩니다.
+
+```bash
+cd backend
+go run github.com/swaggo/swag/cmd/swag@v1.16.6 init -g openapi.go --parseInternal --output docs
+```
+
+런타임 스펙 엔드포인트:
+
+- `GET /openapi.json`
+
+#### Git hook (선택)
+
+커밋 시 OpenAPI를 자동 갱신하려면 hooksPath를 설정합니다.
+
+```bash
+cd backend
+git config core.hooksPath .githooks
+```

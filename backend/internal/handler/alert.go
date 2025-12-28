@@ -30,6 +30,15 @@ func NewAlertHandler(alertService *service.AlertService) *AlertHandler {
 	}
 }
 
+// Webhook godoc
+// @Summary Receive Alertmanager webhook
+// @Tags webhook
+// @Accept json
+// @Produce json
+// @Param payload body model.AlertmanagerWebhook true "Alertmanager webhook payload"
+// @Success 200 {object} model.AlertWebhookResponse
+// @Failure 400 {object} model.ErrorResponse
+// @Router /webhook/alertmanager [post]
 func (h *AlertHandler) Webhook(c *gin.Context) {
 	var webhook model.AlertmanagerWebhook
 
@@ -71,10 +80,10 @@ func (h *AlertHandler) Webhook(c *gin.Context) {
 	sent, failed := h.alertService.ProcessWebhook(webhook)
 
 	// 5. 응답 반환
-	c.JSON(http.StatusOK, gin.H{
-		"status":      "received",          // 수신 상태
-		"alertCount":  len(webhook.Alerts), // 수신한 알림 수
-		"slackSent":   sent,                // Slack 전송 성공 수
-		"slackFailed": failed,              // Slack 전송 실패 수
+	c.JSON(http.StatusOK, model.AlertWebhookResponse{
+		Status:      "received",          // 수신 상태
+		AlertCount:  len(webhook.Alerts), // 수신한 알림 수
+		SlackSent:   sent,                // Slack 전송 성공 수
+		SlackFailed: failed,              // Slack 전송 실패 수
 	})
 }
