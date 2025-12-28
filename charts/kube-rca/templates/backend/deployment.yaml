@@ -38,6 +38,58 @@ spec:
                   key: password
             - name: PGDATABASE
               value: {{ default "kube-rca" .Values.backend.postgresql.database | quote }}
+            {{- $auth := default (dict) .Values.backend.auth }}
+            {{- if $auth.enabled }}
+            {{- $authSecret := default (dict) $auth.secret }}
+            {{- $existingAuthSecret := default "" $authSecret.existingSecret }}
+            {{- $authSecretName := "" }}
+            {{- if $existingAuthSecret }}
+              {{- $authSecretName = $existingAuthSecret }}
+            {{- else }}
+              {{- $authSecretName = include "kube-rca.backend.authSecretName" . }}
+            {{- end }}
+            {{- $authKeys := default (dict) $authSecret.keys }}
+            {{- $adminUsernameKey := default "admin-username" $authKeys.adminUsername }}
+            {{- $adminPasswordKey := default "admin-password" $authKeys.adminPassword }}
+            {{- $jwtSecretKey := default "jwt-secret" $authKeys.jwtSecret }}
+            {{- $jwt := default (dict) $auth.jwt }}
+            {{- $cookie := default (dict) $auth.cookie }}
+            {{- $cors := default (dict) $auth.cors }}
+            - name: ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $authSecretName | quote }}
+                  key: {{ $adminUsernameKey | quote }}
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $authSecretName | quote }}
+                  key: {{ $adminPasswordKey | quote }}
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $authSecretName | quote }}
+                  key: {{ $jwtSecretKey | quote }}
+            - name: ALLOW_SIGNUP
+              value: {{ default false $auth.allowSignup | quote }}
+            - name: JWT_ACCESS_TTL
+              value: {{ default "15m" $jwt.accessTtl | quote }}
+            - name: JWT_REFRESH_TTL
+              value: {{ default "168h" $jwt.refreshTtl | quote }}
+            - name: AUTH_COOKIE_SECURE
+              value: {{ default true $cookie.secure | quote }}
+            - name: AUTH_COOKIE_SAMESITE
+              value: {{ default "Lax" $cookie.sameSite | quote }}
+            - name: AUTH_COOKIE_DOMAIN
+              value: {{ default "" $cookie.domain | quote }}
+            - name: AUTH_COOKIE_PATH
+              value: {{ default "/" $cookie.path | quote }}
+            {{- $origins := default (list) $cors.allowedOrigins }}
+            {{- if $origins }}
+            - name: CORS_ALLOWED_ORIGINS
+              value: {{ join "," $origins | quote }}
+            {{- end }}
+            {{- end }}
             {{- if .Values.backend.slack.enabled }}
             {{- $slack := default (dict) .Values.backend.slack }}
             {{- $channelId := coalesce (index $slack "channel-id") $slack.channelId }}

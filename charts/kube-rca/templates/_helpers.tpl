@@ -78,3 +78,14 @@ Slack Secret name for backend (chart-managed Secret).
 {{- printf "%s-slack" (include "kube-rca.backend.name" .) | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Auth Secret name for backend (chart-managed Secret).
+*/}}
+{{- define "kube-rca.backend.authSecretName" -}}
+{{- if .Values.backend.auth.secret.name -}}
+{{- .Values.backend.auth.secret.name -}}
+{{- else -}}
+{{- printf "%s-auth" (include "kube-rca.backend.name" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end -}}

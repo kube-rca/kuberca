@@ -40,6 +40,23 @@ Deploy kube-rca backend and frontend
 | agent.service.type | string | `"ClusterIP"` | Agent service type. |
 | agent.tolerations | list | `[]` | Tolerations for agent pods assignment. |
 | backend.affinity | object | `{}` | Affinity for backend pods assignment. |
+| backend.auth.admin.password | string | `"kube-rca"` | Admin password (default: kube-rca). |
+| backend.auth.admin.username | string | `"kube-rca"` | Admin login ID (default: kube-rca). |
+| backend.auth.allowSignup | bool | `false` | Allow user signup (ALLOW_SIGNUP). |
+| backend.auth.cookie.domain | string | `""` | Cookie domain (AUTH_COOKIE_DOMAIN). |
+| backend.auth.cookie.path | string | `"/"` | Cookie path (AUTH_COOKIE_PATH). |
+| backend.auth.cookie.sameSite | string | `"Lax"` | Cookie SameSite (AUTH_COOKIE_SAMESITE). |
+| backend.auth.cookie.secure | bool | `true` | Cookie secure flag (AUTH_COOKIE_SECURE). |
+| backend.auth.cors.allowedOrigins | list | `[]` | Allowed origins (CORS_ALLOWED_ORIGINS), comma-separated when rendered. |
+| backend.auth.enabled | bool | `true` | Enable backend auth. |
+| backend.auth.jwt.accessTtl | string | `"15m"` | Access token TTL (e.g. 15m). |
+| backend.auth.jwt.refreshTtl | string | `"168h"` | Refresh token TTL (e.g. 168h). |
+| backend.auth.jwt.secret | string | `""` | JWT secret (auto-generated when empty and no existingSecret). |
+| backend.auth.secret.existingSecret | string | `""` | Existing Secret name for auth credentials (ExternalSecret 연계 시 사용, default keys: admin-username/admin-password/kube-rca-jwt-secret). |
+| backend.auth.secret.keys.adminPassword | string | `"admin-password"` | Secret key for admin password. |
+| backend.auth.secret.keys.adminUsername | string | `"admin-username"` | Secret key for admin login ID. |
+| backend.auth.secret.keys.jwtSecret | string | `"kube-rca-jwt-secret"` | Secret key for JWT secret. |
+| backend.auth.secret.name | string | `""` | Custom Secret name for chart-managed auth Secret. |
 | backend.containerPort | int | `8080` | Backend container port. |
 | backend.image.pullPolicy | string | `"IfNotPresent"` | Backend image pull policy. |
 | backend.image.repository | string | `""` | Backend image repository. |

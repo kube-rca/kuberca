@@ -74,6 +74,48 @@ backend:
       # -- Secret key for Slack channel ID.
       channelIdKey: kube-rca-slack-channel-id
 
+  auth:
+    # -- Enable backend auth.
+    enabled: true
+    # -- Allow user signup (ALLOW_SIGNUP).
+    allowSignup: false
+    admin:
+      # -- Admin login ID (default: kube-rca).
+      username: "kube-rca"
+      # -- Admin password (default: kube-rca).
+      password: "kube-rca"
+    jwt:
+      # -- JWT secret (auto-generated when empty and no existingSecret).
+      secret: ""
+      # -- Access token TTL (e.g. 15m).
+      accessTtl: "15m"
+      # -- Refresh token TTL (e.g. 168h).
+      refreshTtl: "168h"
+    cookie:
+      # -- Cookie secure flag (AUTH_COOKIE_SECURE).
+      secure: true
+      # -- Cookie SameSite (AUTH_COOKIE_SAMESITE).
+      sameSite: "Lax"
+      # -- Cookie domain (AUTH_COOKIE_DOMAIN).
+      domain: ""
+      # -- Cookie path (AUTH_COOKIE_PATH).
+      path: "/"
+    cors:
+      # -- Allowed origins (CORS_ALLOWED_ORIGINS), comma-separated when rendered.
+      allowedOrigins: []
+    secret:
+      # -- Existing Secret name for auth credentials (ExternalSecret 연계 시 사용, default keys: admin-username/admin-password/kube-rca-jwt-secret).
+      existingSecret: ""
+      # -- Custom Secret name for chart-managed auth Secret.
+      name: ""
+      keys:
+        # -- Secret key for admin login ID.
+        adminUsername: admin-username
+        # -- Secret key for admin password.
+        adminPassword: admin-password
+        # -- Secret key for JWT secret.
+        jwtSecret: kube-rca-jwt-secret
+
 agent:
   # -- Number of agent replicas.
   replicaCount: 1

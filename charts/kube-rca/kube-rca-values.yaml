@@ -2,6 +2,12 @@ backend:
   image:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr
     tag: backend-9b2889f
+  auth:
+    secret:
+      existingSecret: kube-rca-auth
+    cors:
+      allowedOrigins:
+        - https://kuberca.kkamji.net
   postgresql:
     host: postgresql.kube-rca.svc.cluster.local
     port: 5432
@@ -13,9 +19,6 @@ backend:
     annotations:
       nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
       cert-manager.io/cluster-issuer: letsencrypt-prod
-      nginx.ingress.kubernetes.io/auth-type: "basic"
-      nginx.ingress.kubernetes.io/auth-secret: "basic-auth"
-      nginx.ingress.kubernetes.io/auth-realm: "Authentication Required"
       external-dns.alpha.kubernetes.io/target: 121.130.214.237
     hosts:
       - api-kuberca.kkamji.net
@@ -35,9 +38,6 @@ frontend:
     annotations:
       nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
       cert-manager.io/cluster-issuer: letsencrypt-prod
-      nginx.ingress.kubernetes.io/auth-type: "basic"
-      nginx.ingress.kubernetes.io/auth-secret: "basic-auth"
-      nginx.ingress.kubernetes.io/auth-realm: "Authentication Required"
       external-dns.alpha.kubernetes.io/target: 121.130.214.237
     hosts:
       - kuberca.kkamji.net
