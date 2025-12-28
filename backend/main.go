@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/kube-rca/backend/internal/client"
+	"github.com/kube-rca/backend/internal/config"
 	"github.com/kube-rca/backend/internal/db"
 	"github.com/kube-rca/backend/internal/handler"
 	"github.com/kube-rca/backend/internal/service"
@@ -15,9 +16,11 @@ func main() {
 	// 의존성: handler → service → client
 	// 초기화 순서: client → service → handler
 
+	cfg := config.Load()
+
 	// 1. DB 연결 풀 초기화
 	ctx := context.Background()
-	dbPool, err := db.NewPostgresPool(ctx)
+	dbPool, err := db.NewPostgresPool(ctx, cfg.Postgres)
 	if err != nil {
 		log.Fatalf("Failed to connect to postgres: %v", err)
 	}
@@ -29,7 +32,7 @@ func main() {
 	rcaSvc := service.NewRcaService(pgRepo)
 	rcaHndlr := handler.NewRcaHandler(rcaSvc)
 
-	embeddingClient, err := client.NewEmbeddingClient()
+	embeddingClient, err := client.NewEmbeddingClient(cfg.Embedding)
 	if err != nil {
 		log.Fatalf("Failed to initialize embedding client: %v", err)
 	}
@@ -37,10 +40,8 @@ func main() {
 	embeddingHndlr := handler.NewEmbeddingHandler(embeddingSvc)
 
 	// 2. 외부 서비스 클라이언트 초기화
-	// Slack Bot Token과 Channel ID를 환경변수에서 읽어옴
-	slackClient := client.NewSlackClient()
-	// Agent URL을 환경변수에서 읽어옴
-	agentClient := client.NewAgentClient()
+	slackClient := client.NewSlackClient(cfg.Slack)
+	agentClient := client.NewAgentClient(cfg.Agent)
 
 	// 3. 비즈니스 로직 서비스 초기화
 	// AgentService: Agent 요청 및 Slack 쓰레드 응답 처리
