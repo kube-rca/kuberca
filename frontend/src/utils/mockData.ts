@@ -30,13 +30,12 @@ export const generateMockAlerts = (count: number = 100): RCAItem[] => {
     const minutes = String(date.getMinutes()).padStart(2, '0');
     
     alerts.push({
-      id: i + 1,
-      time: `${year}/${month}/${day} ${hours}:${minutes}`,
-      title: titles[i % titles.length],
+      incident_id: `INC-${i + 1}`,
+      resolved_at: `${year}/${month}/${day} ${hours}:${minutes}`,
+      alarm_title: titles[i % titles.length],
       severity: severities[i % severities.length],
     });
   }
   
   return alerts;
 };
-
