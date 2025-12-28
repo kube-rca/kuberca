@@ -229,3 +229,70 @@ frontend:
   tolerations: []
   # -- Affinity for frontend pods assignment.
   affinity: {}
+
+openapi:
+  # -- Enable OpenAPI (Swagger UI) deployment.
+  enabled: false
+  # -- Number of OpenAPI replicas.
+  replicaCount: 1
+  image:
+    # -- OpenAPI UI image repository.
+    repository: "swaggerapi/swagger-ui"
+    # -- OpenAPI UI image tag.
+    tag: "v5.31.0"
+    # -- OpenAPI UI image pull policy.
+    pullPolicy: IfNotPresent
+  service:
+    # -- OpenAPI service type.
+    type: ClusterIP
+    # -- OpenAPI service port.
+    port: 8080
+  # -- OpenAPI container port.
+  containerPort: 8080
+  # -- Base URL for Swagger UI.
+  baseUrl: "/"
+  ingress:
+    # -- Enable OpenAPI ingress.
+    enabled: false
+    # -- IngressClass name for OpenAPI ingress.
+    ingressClassName: ""
+    # -- Annotations for OpenAPI ingress.
+    annotations: {}
+    # -- Hostnames for OpenAPI ingress.
+    hosts: []
+    # -- Paths for OpenAPI ingress.
+    paths:
+      - /
+    # -- PathType for OpenAPI ingress.
+    pathType: Prefix
+    # -- TLS configuration for OpenAPI ingress.
+    tls: []
+  specs:
+    backend:
+      # -- Display name for backend spec.
+      name: "backend"
+      # -- Backend OpenAPI path.
+      path: "/openapi.json"
+      service:
+        # -- Backend service name override (empty = chart default).
+        name: ""
+        # -- Backend service port.
+        port: 8080
+    agent:
+      # -- Display name for agent spec.
+      name: "agent"
+      # -- Agent OpenAPI path.
+      path: "/openapi.json"
+      service:
+        # -- Agent service name override (empty = chart default).
+        name: ""
+        # -- Agent service port.
+        port: 8000
+  # -- OpenAPI resource requests/limits.
+  resources: {}
+  # -- Node labels for OpenAPI pods assignment.
+  nodeSelector: {}
+  # -- Tolerations for OpenAPI pods assignment.
+  tolerations: []
+  # -- Affinity for OpenAPI pods assignment.
+  affinity: {}

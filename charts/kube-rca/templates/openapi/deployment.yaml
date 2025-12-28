@@ -1,0 +1,55 @@
+{{- if .Values.openapi.enabled -}}
+{{- $urls := list (dict "url" "/specs/backend.json" "name" .Values.openapi.specs.backend.name) (dict "url" "/specs/agent.json" "name" .Values.openapi.specs.agent.name) -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kube-rca.openapi.name" . }}
+  labels:
+    {{- include "kube-rca.labels" . | nindent 4 }}
+    app.kubernetes.io/component: openapi
+spec:
+  replicas: {{ .Values.openapi.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "kube-rca.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: openapi
+  template:
+    metadata:
+      labels:
+        {{- include "kube-rca.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: openapi
+    spec:
+      containers:
+        - name: openapi
+          image: "{{ .Values.openapi.image.repository }}:{{ .Values.openapi.image.tag }}"
+          imagePullPolicy: {{ .Values.openapi.image.pullPolicy }}
+          env:
+            - name: BASE_URL
+              value: {{ .Values.openapi.baseUrl | quote }}
+            - name: PORT
+              value: {{ .Values.openapi.containerPort | quote }}
+            - name: URLS
+              value: {{ $urls | toJson | quote }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.openapi.containerPort }}
+          volumeMounts:
+            - name: openapi-config
+              mountPath: /etc/nginx/templates/default.conf.template
+              subPath: default.conf.template
+          resources:
+            {{- toYaml .Values.openapi.resources | nindent 12 }}
+      volumes:
+        - name: openapi-config
+          configMap:
+            name: {{ include "kube-rca.openapi.name" . }}-config
+            items:
+              - key: default.conf.template
+                path: default.conf.template
+      nodeSelector:
+        {{- toYaml .Values.openapi.nodeSelector | nindent 8 }}
+      tolerations:
+        {{- toYaml .Values.openapi.tolerations | nindent 8 }}
+      affinity:
+        {{- toYaml .Values.openapi.affinity | nindent 8 }}
+{{- end -}}

@@ -89,3 +89,10 @@ Auth Secret name for backend (chart-managed Secret).
 {{- printf "%s-auth" (include "kube-rca.backend.name" .) | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+OpenAPI (Swagger UI) component name.
+*/}}
+{{- define "kube-rca.openapi.name" -}}
+{{- printf "%s-openapi" (include "kube-rca.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}

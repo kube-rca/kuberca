@@ -1,0 +1,72 @@
+{{- if .Values.openapi.enabled -}}
+{{- $backendService := default (include "kube-rca.backend.name" .) .Values.openapi.specs.backend.service.name -}}
+{{- $backendPort := default .Values.backend.service.port .Values.openapi.specs.backend.service.port -}}
+{{- $backendPath := default "/openapi.json" .Values.openapi.specs.backend.path -}}
+{{- $agentService := default (include "kube-rca.agent.name" .) .Values.openapi.specs.agent.service.name -}}
+{{- $agentPort := default .Values.agent.service.port .Values.openapi.specs.agent.service.port -}}
+{{- $agentPath := default "/openapi.json" .Values.openapi.specs.agent.path -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kube-rca.openapi.name" . }}-config
+  labels:
+    {{- include "kube-rca.labels" . | nindent 4 }}
+    app.kubernetes.io/component: openapi
+data:
+  default.conf.template: |
+    types {
+      text/plain yaml;
+      text/plain yml;
+    }
+
+    gzip on;
+    gzip_static on;
+    gzip_disable "msie6";
+
+    gzip_vary on;
+    gzip_types text/plain text/css application/javascript;
+
+    map $request_method $access_control_max_age {
+      OPTIONS 1728000; # 20 days
+    }
+    server_tokens off; # Hide Nginx version
+
+    server {
+      listen $PORT;
+      server_name localhost;
+      index index.html index.htm;
+
+      location /specs/backend.json {
+        proxy_pass http://{{ $backendService }}:{{ $backendPort }}{{ $backendPath }};
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+
+      location /specs/agent.json {
+        proxy_pass http://{{ $agentService }}:{{ $agentPort }}{{ $agentPath }};
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+
+      location $BASE_URL {
+        absolute_redirect off;
+        alias /usr/share/nginx/html/;
+        expires 1d;
+
+        location ~ swagger-initializer.js {
+          expires -1;
+          include templates/cors.conf;
+        }
+
+        location ~* \.(?:json|yml|yaml)$ {
+          #SWAGGER_ROOT
+          expires -1;
+
+          include templates/cors.conf;
+        }
+
+        include templates/cors.conf;
+        include templates/embedding.conf;
+      }
+    }
+{{- end -}}
