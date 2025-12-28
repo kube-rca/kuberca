@@ -8,6 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+.npm-cache/
 dist
 dist-ssr
 *.local
@@ -32,4 +33,3 @@ dist-ssr
 # Build outputs
 build
 *.tsbuildinfo
-
