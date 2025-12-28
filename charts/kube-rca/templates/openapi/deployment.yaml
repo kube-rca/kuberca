@@ -18,6 +18,8 @@ spec:
       labels:
         {{- include "kube-rca.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: openapi
+      annotations:
+        checksum/openapi-config: {{ include (print $.Template.BasePath "/openapi/configmap.yaml") . | sha256sum }}
     spec:
       containers:
         - name: openapi
