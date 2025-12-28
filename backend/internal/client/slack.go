@@ -18,9 +18,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"sync"
 	"time"
+
+	"github.com/kube-rca/backend/internal/config"
 )
 
 // SlackClient(메시지 메타데이터) 구조체 정의
@@ -73,10 +74,10 @@ type SlackResponse struct {
 }
 
 // SlackClient 객체 생성
-func NewSlackClient() *SlackClient {
+func NewSlackClient(cfg config.SlackConfig) *SlackClient {
 	return &SlackClient{
-		botToken:  os.Getenv("SLACK_BOT_TOKEN"),
-		channelID: os.Getenv("SLACK_CHANNEL_ID"),
+		botToken:  cfg.BotToken,
+		channelID: cfg.ChannelID,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},

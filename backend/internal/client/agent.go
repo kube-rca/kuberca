@@ -15,9 +15,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"time"
 
+	"github.com/kube-rca/backend/internal/config"
 	"github.com/kube-rca/backend/internal/model"
 )
 
@@ -41,8 +41,8 @@ type AgentAnalysisResponse struct {
 }
 
 // AgentClient 객체 생성
-func NewAgentClient() *AgentClient {
-	baseURL := os.Getenv("AGENT_URL")
+func NewAgentClient(cfg config.AgentConfig) *AgentClient {
+	baseURL := cfg.BaseURL
 	if baseURL == "" {
 		baseURL = "http://kube-rca-agent.kube-rca.svc:8000"
 	}

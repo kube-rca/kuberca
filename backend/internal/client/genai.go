@@ -3,8 +3,8 @@ package client
 import (
 	"context"
 	"fmt"
-	"os"
 
+	"github.com/kube-rca/backend/internal/config"
 	"google.golang.org/genai"
 )
 
@@ -18,17 +18,16 @@ type EmbeddingClient struct {
 	model  string
 }
 
-func NewEmbeddingClient() (*EmbeddingClient, error) {
-	apiKey := os.Getenv("AI_API_KEY")
-	if apiKey == "" {
+func NewEmbeddingClient(cfg config.EmbeddingConfig) (*EmbeddingClient, error) {
+	if cfg.APIKey == "" {
 		return nil, fmt.Errorf("missing AI_API_KEY")
 	}
-	cfg := EmbeddingClientConfig{APIKey: apiKey, Model: "text-embedding-004"}
-	client, err := genai.NewClient(context.Background(), &genai.ClientConfig{APIKey: cfg.APIKey})
+	clientCfg := EmbeddingClientConfig{APIKey: cfg.APIKey, Model: "text-embedding-004"}
+	client, err := genai.NewClient(context.Background(), &genai.ClientConfig{APIKey: clientCfg.APIKey})
 	if err != nil {
 		return nil, err
 	}
-	return &EmbeddingClient{client: client, model: cfg.Model}, nil
+	return &EmbeddingClient{client: client, model: clientCfg.Model}, nil
 }
 
 func (c *EmbeddingClient) EmbedText(ctx context.Context, text string) ([]float32, string, error) {
