@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/kube-rca/backend/internal/client"
@@ -32,6 +33,18 @@ func main() {
 	rcaSvc := service.NewRcaService(pgRepo)
 	rcaHndlr := handler.NewRcaHandler(rcaSvc)
 
+	authService, err := service.NewAuthService(pgRepo, cfg.Auth)
+	if err != nil {
+		log.Fatalf("Failed to initialize auth service: %v", err)
+	}
+	if err := authService.EnsureSchema(ctx); err != nil {
+		log.Fatalf("Failed to ensure auth schema: %v", err)
+	}
+	if err := authService.EnsureAdmin(ctx, cfg.Auth.AdminUsername, cfg.Auth.AdminPassword); err != nil {
+		log.Fatalf("Failed to ensure admin user: %v", err)
+	}
+	authHandler := handler.NewAuthHandler(authService)
+
 	embeddingClient, err := client.NewEmbeddingClient(cfg.Embedding)
 	if err != nil {
 		log.Fatalf("Failed to initialize embedding client: %v", err)
@@ -56,6 +69,11 @@ func main() {
 	// HTTP 라우터 설정
 	router := gin.Default()
 
+	corsOrigins := splitOrigins(cfg.Auth.CorsAllowedOrigins)
+	if len(corsOrigins) > 0 {
+		router.Use(handler.CORSMiddleware(corsOrigins, true))
+	}
+
 	// Health Check 엔드포인트
 	// - GET /ping: 서버 상태 확인용
 	// - GET /: 루트 경로
@@ -64,18 +82,21 @@ func main() {
 
 	v1 := router.Group("/api/v1")
 	{
-		v1.GET("/incidents", rcaHndlr.GetIncidents)
+		auth := v1.Group("/auth")
+		auth.POST("/register", authHandler.Register)
+		auth.POST("/login", authHandler.Login)
+		auth.POST("/refresh", authHandler.Refresh)
+		auth.POST("/logout", authHandler.Logout)
+		auth.GET("/config", authHandler.Config)
+		auth.GET("/me", handler.AuthMiddleware(authService), authHandler.Me)
 
-		// :id 부분이 handler에서 c.Param("id")로 인식됩니다.
-		v1.GET("/incidents/:id", rcaHndlr.GetIncidentDetail)
-
-		// Body에 수정할 JSON 데이터를 담아서 요청합니다.
-		v1.PUT("/incidents/:id", rcaHndlr.UpdateIncident)
-
-		// 이 주소로 요청만 보내면 Mock 데이터가 생성됩니다.
-		v1.POST("/incidents/mock", rcaHndlr.CreateMockIncident)
-
-		v1.POST("/embeddings", embeddingHndlr.CreateEmbedding)
+		protected := v1.Group("")
+		protected.Use(handler.AuthMiddleware(authService))
+		protected.GET("/incidents", rcaHndlr.GetIncidents)
+		protected.GET("/incidents/:id", rcaHndlr.GetIncidentDetail)
+		protected.PUT("/incidents/:id", rcaHndlr.UpdateIncident)
+		protected.POST("/incidents/mock", rcaHndlr.CreateMockIncident)
+		protected.POST("/embeddings", embeddingHndlr.CreateEmbedding)
 	}
 
 	// Alertmanager 웹훅 엔드포인트
@@ -87,4 +108,17 @@ func main() {
 	if err := router.Run(":8080"); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
+}
+
+func splitOrigins(raw string) []string {
+	parts := strings.Split(raw, ",")
+	origins := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
+			continue
+		}
+		origins = append(origins, trimmed)
+	}
+	return origins
 }
