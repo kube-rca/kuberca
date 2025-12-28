@@ -7,6 +7,7 @@ type Config struct {
 	Agent     AgentConfig
 	Embedding EmbeddingConfig
 	Postgres  PostgresConfig
+	Auth      AuthConfig
 }
 
 type SlackConfig struct {
@@ -32,6 +33,20 @@ type PostgresConfig struct {
 	SSLMode     string
 }
 
+type AuthConfig struct {
+	JWTSecret          string
+	JWTAccessTTL       string
+	JWTRefreshTTL      string
+	AllowSignup        string
+	AdminUsername      string
+	AdminPassword      string
+	CookieSecure       string
+	CookieSameSite     string
+	CookieDomain       string
+	CookiePath         string
+	CorsAllowedOrigins string
+}
+
 func Load() Config {
 	return Config{
 		Slack: SlackConfig{
@@ -52,6 +67,19 @@ func Load() Config {
 			Password:    os.Getenv("PGPASSWORD"),
 			Database:    os.Getenv("PGDATABASE"),
 			SSLMode:     getenv("PGSSLMODE", "disable"),
+		},
+		Auth: AuthConfig{
+			JWTSecret:          os.Getenv("JWT_SECRET"),
+			JWTAccessTTL:       getenv("JWT_ACCESS_TTL", "15m"),
+			JWTRefreshTTL:      getenv("JWT_REFRESH_TTL", "168h"),
+			AllowSignup:        getenv("ALLOW_SIGNUP", "false"),
+			AdminUsername:      os.Getenv("ADMIN_USERNAME"),
+			AdminPassword:      os.Getenv("ADMIN_PASSWORD"),
+			CookieSecure:       getenv("AUTH_COOKIE_SECURE", "true"),
+			CookieSameSite:     getenv("AUTH_COOKIE_SAMESITE", "Lax"),
+			CookieDomain:       os.Getenv("AUTH_COOKIE_DOMAIN"),
+			CookiePath:         getenv("AUTH_COOKIE_PATH", "/"),
+			CorsAllowedOrigins: os.Getenv("CORS_ALLOWED_ORIGINS"),
 		},
 	}
 }
