@@ -29,6 +29,13 @@ func main() {
 	rcaSvc := service.NewRcaService(pgRepo)
 	rcaHndlr := handler.NewRcaHandler(rcaSvc)
 
+	embeddingClient, err := client.NewEmbeddingClient()
+	if err != nil {
+		log.Fatalf("Failed to initialize embedding client: %v", err)
+	}
+	embeddingSvc := service.NewEmbeddingService(pgRepo, embeddingClient)
+	embeddingHndlr := handler.NewEmbeddingHandler(embeddingSvc)
+
 	// 2. 외부 서비스 클라이언트 초기화
 	// Slack Bot Token과 Channel ID를 환경변수에서 읽어옴
 	slackClient := client.NewSlackClient()
@@ -66,6 +73,8 @@ func main() {
 
 		// 이 주소로 요청만 보내면 Mock 데이터가 생성됩니다.
 		v1.POST("/incidents/mock", rcaHndlr.CreateMockIncident)
+
+		v1.POST("/embeddings", embeddingHndlr.CreateEmbedding)
 	}
 
 	// Alertmanager 웹훅 엔드포인트

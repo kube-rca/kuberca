@@ -21,6 +21,27 @@ Alertmanager 웹훅을 Slack으로 전송하려면 아래 환경 변수를 설�
 - `SLACK_BOT_TOKEN`: Slack Bot Token (xoxb-...)
 - `SLACK_CHANNEL_ID`: Slack 채널 ID (C...)
 
+Embeddings API를 사용하려면 아래 환경 변수를 설정합니다.
+
+- `GEMINI_API_KEY`: Gemini API Key
+
+Postgres에는 pgvector 확장이 필요하며, 아래 예시처럼 테이블을 생성합니다.
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE embeddings (
+  id bigserial primary key,
+  incident_id text not null,
+  incident_summary text not null,
+  embedding vector(<dim>) not null,
+  model text not null,
+  created_at timestamptz not null default now()
+);
+```
+
+`<dim>`은 사용 중인 모델의 임베딩 차원으로 교체합니다.
+
 ### 3. 서버 실행
 
 ```bash
