@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { RCADetail, SimilarIncident } from '../types';
 import { fetchRCADetail, updateRCADetail } from '../utils/api'; // [추가] update 함수 import
 
@@ -16,11 +16,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<RCADetail>>({});
 
-  useEffect(() => {
-    loadDetail();
-  }, [incidentId]);
-
-  const loadDetail = async () => {
+  const loadDetail = useCallback(async () => {
     try {
       setLoading(true);
       const detailData = await fetchRCADetail(incidentId);
@@ -32,7 +28,11 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
     } finally {
       setLoading(false);
     }
-  };
+  }, [incidentId]);
+
+  useEffect(() => {
+    loadDetail();
+  }, [loadDetail]);
 
   // [신규] 입력값 변경 핸들러
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
