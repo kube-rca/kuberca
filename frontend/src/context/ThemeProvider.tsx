@@ -1,14 +1,5 @@
-// React 임포트를 제거했습니다.
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-
-type Theme = 'light' | 'dark';
-
-interface ThemeContextType {
-  theme: Theme;
-  toggleTheme: () => void;
-}
-
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+import { useEffect, useState, ReactNode } from 'react';
+import { Theme, ThemeContext } from './ThemeContext';
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [theme, setTheme] = useState<Theme>(() => {
@@ -44,12 +35,4 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </ThemeContext.Provider>
   );
-};
-
-export const useTheme = () => {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
 };
