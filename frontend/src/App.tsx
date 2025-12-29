@@ -9,8 +9,8 @@ import { fetchRCAs } from './utils/api';
 import { fetchAuthConfig, refreshAccessToken, logout } from './utils/auth';
 import { filterRCAsByTimeRange } from './utils/filterAlerts';
 import { ITEMS_PER_PAGE } from './constants';
+import { Header } from './components/Header'; // Header 임포트 확인
 
-// 백엔드마다 시간 필드명이 달라질 수 있어 raw 응답을 확장해 둔다.
 type RawRCAItem = RCAItem & {
   created_at?: string;
   timestamp?: string;
@@ -25,13 +25,11 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [timeRange, setTimeRange] = useState('Last 1 hours');
-  // 상세 화면 전환을 위한 선택 상태
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [allowSignup, setAllowSignup] = useState(false);
 
-  // 서버 시간 필드가 없을 때 표시용 현재 시간 문자열
   const getCurrentTimeStr = () => {
     const now = new Date();
     const yyyy = now.getFullYear();
@@ -42,7 +40,6 @@ function App() {
     return `${yyyy}/${mm}/${dd} ${hh}:${min}`;
   };
 
-  // 인증 설정/토큰 초기화 (언마운트 후 setState 방지)
   useEffect(() => {
     let active = true;
 
@@ -50,28 +47,20 @@ function App() {
       try {
         const config = await fetchAuthConfig();
         const refreshed = await refreshAccessToken();
-        if (!active) {
-          return;
-        }
+        if (!active) return;
         setAllowSignup(config.allowSignup);
         setIsAuthenticated(refreshed);
       } catch (err) {
         console.error('Auth init failed:', err);
       } finally {
-        if (active) {
-          setAuthReady(true);
-        }
+        if (active) setAuthReady(true);
       }
     };
 
     initAuth();
-
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, []);
 
-  // 인증 완료 후 RCA 목록 로딩 (로그아웃/만료 시 상태 초기화)
   useEffect(() => {
     if (!isAuthenticated) {
       setAllRCAs([]);
@@ -83,13 +72,9 @@ function App() {
       try {
         setLoading(true);
         setError(null);
-
         const rawData: RawRCAItem[] = await fetchRCAs();
-
-        // 서버 시간 필드를 통합하고, 누락 시 현재 시간으로 대체
         const mappedRCAs: RCAItem[] = rawData.map((item) => {
           const serverTime = item.created_at || item.timestamp || item.time || item.start_time || item.fired_at;
-
           return {
             ...item,
             incident_id: item.incident_id,
@@ -98,7 +83,6 @@ function App() {
             time: serverTime ? String(serverTime) : getCurrentTimeStr(),
           };
         });
-
         setAllRCAs(mappedRCAs);
       } catch (err) {
         if (err instanceof Error && err.message === 'unauthorized') {
@@ -111,11 +95,9 @@ function App() {
         setLoading(false);
       }
     };
-
     loadRCAs();
   }, [isAuthenticated]);
 
-  // 리스트/상세 화면 전환 핸들러
   const handleTitleClick = (incident_id: string) => {
     setSelectedIncidentId(incident_id);
   };
@@ -124,25 +106,21 @@ function App() {
     setSelectedIncidentId(null);
   };
 
-  // 로그아웃 후 인증 상태 초기화
   const handleLogout = async () => {
     await logout();
     setIsAuthenticated(false);
   };
 
-  // 시간 범위 필터링
   const filteredRCAs = useMemo(() => {
     return filterRCAsByTimeRange(allRCAs, timeRange);
   }, [allRCAs, timeRange]);
 
-  // 시간 범위 변경 시 페이지 초기화
   useEffect(() => {
     setCurrentPage(1);
   }, [timeRange]);
 
   const totalPages = Math.ceil(filteredRCAs.length / ITEMS_PER_PAGE);
 
-  // 필터된 목록에 페이지네이션 적용
   const paginatedRCAs = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
@@ -159,7 +137,7 @@ function App() {
 
   if (!authReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 text-gray-600">
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400">
         인증 정보를 확인하는 중입니다...
       </div>
     );
@@ -170,45 +148,51 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    // 1. 전체 배경에 다크모드 적용 (dark:bg-gray-900)
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
+      
+      {/* 2. 상단 헤더 추가 */}
+      <Header />
+
+      {/* 3. 헤더 높이만큼 상단 여백 추가 (pt-20) */}
+      <div className="pt-20 pb-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        {/* 기존 로그아웃 버튼 (위치는 유지하되 스타일 조금 다듬음) */}
         <div className="mb-4 flex justify-end">
           <button
             type="button"
             onClick={handleLogout}
-            className="text-sm font-medium text-gray-600 hover:text-gray-900"
+            className="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
           >
             로그아웃
           </button>
         </div>
 
-        {/* ID 선택 여부에 따라 상세/리스트 전환 */}
         {selectedIncidentId ? (
           <RCADetailView incidentId={selectedIncidentId} onBack={handleBackToList} />
         ) : (
-          <div className="bg-white rounded-lg shadow-md p-6">
-            {/* 헤더 영역 (시간 범위 선택) */}
+          // 4. 컨텐츠 박스에도 다크모드 배경색 적용 (dark:bg-gray-800)
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors duration-300">
+            
             <div className="mb-6 flex justify-between items-center">
-              <h1 className="text-2xl font-semibold text-gray-800">RCA Dashboard</h1>
+              {/* 텍스트 색상 다크모드 대응 (dark:text-white) */}
+              <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">RCA Dashboard</h1>
               <TimeRangeSelector value={timeRange} onChange={handleTimeRangeChange} />
             </div>
 
-            {/* 로딩 상태 */}
             {loading && (
               <div className="flex justify-center items-center py-12">
-                <div className="text-gray-600">데이터를 불러오는 중...</div>
+                <div className="text-gray-600 dark:text-gray-400">데이터를 불러오는 중...</div>
               </div>
             )}
 
-            {/* 오류 상태 */}
             {error && !loading && (
-              <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
-                <div className="text-red-800 font-medium">오류 발생</div>
-                <div className="text-red-600 text-sm mt-1">{error}</div>
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-4">
+                <div className="text-red-800 dark:text-red-300 font-medium">오류 발생</div>
+                <div className="text-red-600 dark:text-red-400 text-sm mt-1">{error}</div>
               </div>
             )}
 
-            {/* 테이블 및 페이지네이션 */}
             {!loading && !error && (
               <>
                 <RCATable rcas={paginatedRCAs} onTitleClick={handleTitleClick} />
@@ -223,7 +207,7 @@ function App() {
                   </div>
                 ) : (
                   <div className="flex justify-center items-center py-12">
-                    <div className="text-gray-500">표시할 RCA가 없습니다.</div>
+                    <div className="text-gray-500 dark:text-gray-400">표시할 RCA가 없습니다.</div>
                   </div>
                 )}
               </>

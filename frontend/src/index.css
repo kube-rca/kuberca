@@ -2,3 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+    body {
+      @apply bg-white text-gray-900 transition-colors duration-300;
+    }
+    
+    /* 다크모드 활성화 시 적용될 스타일 */
+    .dark body {
+      @apply bg-gray-900 text-gray-50;
+    }
+}
