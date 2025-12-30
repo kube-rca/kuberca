@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { RCAItem } from './types';
 import TimeRangeSelector from './components/TimeRangeSelector';
 import RCATable from './components/RCATable';
@@ -114,7 +114,7 @@ function App() {
     // 1. 최초 실행 (로딩 스피너 보여줌)
     loadRCAs(false);
 
-    // 2. 5초마다 반복 실행 (setInterval)
+    // 2. 2초마다 반복 실행 (setInterval)
     const intervalId = setInterval(() => {
       // 여기선 true를 넘겨서 로딩바 없이 조용히 데이터만 갱신
       loadRCAs(true);
