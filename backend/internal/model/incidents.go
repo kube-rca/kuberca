@@ -10,7 +10,7 @@ type IncidentListResponse struct {
 	IncidentID string     `json:"incident_id"`
 	AlarmTitle string     `json:"alarm_title"`
 	Severity   string     `json:"severity"`
-	FiredAt    time.Time  `json:"fireed_at"`
+	FiredAt    time.Time  `json:"fired_at"`
 	ResolvedAt *time.Time `json:"resolved_at"`
 }
 

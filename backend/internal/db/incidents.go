@@ -18,7 +18,7 @@ func (db *Postgres) GetIncidentList() ([]model.IncidentListResponse, error) {
 	query := `
 		SELECT incident_id, alarm_title, severity, fired_at, resolved_at 
 		FROM incidents 
-		ORDER BY created_at DESC`
+		ORDER BY fired_at DESC`
 
 	rows, err := db.Pool.Query(context.Background(), query)
 	if err != nil {
