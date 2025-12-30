@@ -2,11 +2,14 @@
 // handler에서 받은 알림을 필터링하고 client를 통해 Slack으로 전송
 //
 // 처리 흐름:
-//  1. 각 알림에 대해 shouldSendToSlack으로 필터링
-//  2. 알림을 DB에 저장 (incidents 테이블)
-//  3. 필터 통과한 알림을 SlackClient.SendAlert로 전송
-//  4. 모든 알림(firing, resolved)에 대해 Agent에 비동기 분석 요청
-//  5. 전송 성공/실패 카운트 반환
+//  1. 알림을 DB에 저장 (incidents 테이블)
+//  2. resolved 상태면 resolved_at 업데이트
+//  3. shouldSendToSlack으로 필터링
+//  4. resolved 알림: DB에서 thread_ts 조회하여 메모리에 복원
+//  5. SlackClient.SendAlert로 Slack 전송
+//  6. firing 알림: thread_ts를 DB에 저장
+//  7. Agent에 비동기 분석 요청 (firing, resolved)
+//  8. 전송 성공/실패 카운트 반환
 
 package service
 
@@ -57,7 +60,15 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 			continue
 		}
 
-		// 4. Client 레이어로 해당 알림을 전달
+		// 4. resolved 알림: DB에서 thread_ts 조회하여 메모리에 복원
+		// (백엔드 재시작 시 메모리가 초기화되므로 DB에서 복원 필요)
+		if alert.Status == "resolved" {
+			if threadTS, ok := s.db.GetThreadTS(ctx, alert.Fingerprint); ok {
+				s.slackClient.StoreThreadTS(alert.Fingerprint, threadTS)
+			}
+		}
+
+		// 5. Client 레이어로 해당 알림을 전달
 		err := s.slackClient.SendAlert(alert, alert.Status)
 		if err != nil {
 			log.Printf("Failed to send alert to Slack: %v", err)
@@ -68,9 +79,18 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 		log.Printf("Sent alert to Slack (fingerprint=%s, status=%s)", alert.Fingerprint, alert.Status)
 		sent++
 
-		// 5. Agent에 비동기 분석 요청 (firing, resolved)
-		// 메모리에서 thread_ts 조회
-		threadTS, _ := s.slackClient.GetThreadTS(alert.Fingerprint)
+		// 5. thread_ts를 DB에 저장 (firing 알림일 때)
+		if alert.Status == "firing" {
+			if threadTS, ok := s.slackClient.GetThreadTS(alert.Fingerprint); ok {
+				if err := s.db.UpdateThreadTS(ctx, alert.Fingerprint, threadTS); err != nil {
+					log.Printf("Failed to save thread_ts to DB: %v", err)
+				}
+			}
+		}
+
+		// 6. Agent에 비동기 분석 요청 (firing, resolved)
+		// DB에서 thread_ts 조회 (메모리 대신 DB 사용)
+		threadTS, _ := s.db.GetThreadTS(ctx, alert.Fingerprint)
 		go s.agentService.RequestAnalysis(alert, threadTS)
 	}
 	return sent, failed

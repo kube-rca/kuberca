@@ -193,6 +193,32 @@ func (db *Postgres) SaveAlertAsIncident(ctx context.Context, alert model.Alert) 
 	return err
 }
 
+// incident에 Slack thread_ts 저장
+func (db *Postgres) UpdateThreadTS(ctx context.Context, fingerprint, threadTS string) error {
+	query := `
+		UPDATE incidents
+		SET thread_ts = $2, updated_at = NOW()
+		WHERE incident_id = $1
+	`
+	_, err := db.Pool.Exec(ctx, query, fingerprint, threadTS)
+	return err
+}
+
+// fingerprint로 thread_ts 조회
+func (db *Postgres) GetThreadTS(ctx context.Context, fingerprint string) (string, bool) {
+	query := `
+		SELECT thread_ts FROM incidents
+		WHERE incident_id = $1 AND thread_ts != ''
+	`
+
+	var threadTS string
+	err := db.Pool.QueryRow(ctx, query, fingerprint).Scan(&threadTS)
+	if err != nil || threadTS == "" {
+		return "", false
+	}
+	return threadTS, true
+}
+
 // resolved 상태로 업데이트
 func (db *Postgres) UpdateIncidentResolved(ctx context.Context, fingerprint string, resolvedAt time.Time) error {
 	query := `
