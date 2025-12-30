@@ -7,9 +7,10 @@ import RCADetailView from './components/RCADetailView';
 import AuthPanel from './components/AuthPanel';
 import { fetchRCAs } from './utils/api';
 import { fetchAuthConfig, refreshAccessToken, logout } from './utils/auth';
-import { filterRCAsByTimeRange } from './utils/filterAlerts';
+// [변경 1] 새로 만든 필터 함수와 타입 임포트
+import { filterRCAs, RCAStatusFilter } from './utils/filterAlerts'; 
 import { ITEMS_PER_PAGE } from './constants';
-import { Header } from './components/Header'; // Header 임포트 확인
+import { Header } from './components/Header';
 
 type RawRCAItem = RCAItem & {
   created_at?: string;
@@ -24,7 +25,11 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [timeRange, setTimeRange] = useState('Last 1 hours');
+  
+  // [변경 2] 상태 필터 State 추가 (기본값: 'all')
+  const [timeRange, setTimeRange] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<RCAStatusFilter>('all'); 
+  
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -111,13 +116,15 @@ function App() {
     setIsAuthenticated(false);
   };
 
+  // [변경 3] useMemo에서 filterRCAs 호출 (timeRange + statusFilter 둘 다 적용)
   const filteredRCAs = useMemo(() => {
-    return filterRCAsByTimeRange(allRCAs, timeRange);
-  }, [allRCAs, timeRange]);
+    return filterRCAs(allRCAs, timeRange, statusFilter);
+  }, [allRCAs, timeRange, statusFilter]);
 
+  // [변경 4] 필터 조건(시간 or 상태)이 바뀌면 1페이지로 리셋
   useEffect(() => {
     setCurrentPage(1);
-  }, [timeRange]);
+  }, [timeRange, statusFilter]);
 
   const totalPages = Math.ceil(filteredRCAs.length / ITEMS_PER_PAGE);
 
@@ -148,16 +155,12 @@ function App() {
   }
 
   return (
-    // 1. 전체 배경에 다크모드 적용 (dark:bg-gray-900)
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
       
-      {/* 2. 상단 헤더 추가 */}
       <Header />
 
-      {/* 3. 헤더 높이만큼 상단 여백 추가 (pt-20) */}
       <div className="pt-20 pb-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {/* 기존 로그아웃 버튼 (위치는 유지하되 스타일 조금 다듬음) */}
         <div className="mb-4 flex justify-end">
           <button
             type="button"
@@ -171,13 +174,53 @@ function App() {
         {selectedIncidentId ? (
           <RCADetailView incidentId={selectedIncidentId} onBack={handleBackToList} />
         ) : (
-          // 4. 컨텐츠 박스에도 다크모드 배경색 적용 (dark:bg-gray-800)
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors duration-300">
             
-            <div className="mb-6 flex justify-between items-center">
-              {/* 텍스트 색상 다크모드 대응 (dark:text-white) */}
+            {/* [변경 5] 필터 영역 레이아웃 수정 */}
+            <div className="mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
               <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">RCA Dashboard</h1>
-              <TimeRangeSelector value={timeRange} onChange={handleTimeRangeChange} />
+              
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                {/* [변경 6] 상태 필터 버튼 그룹 추가 */}
+                <div className="inline-flex rounded-md shadow-sm" role="group">
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('all')}
+                    className={`px-4 py-2 text-sm font-medium border border-gray-200 dark:border-gray-600 rounded-l-lg 
+                      ${statusFilter === 'all' 
+                        ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' 
+                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600'
+                      }`}
+                  >
+                    All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('ongoing')}
+                    className={`px-4 py-2 text-sm font-medium border-t border-b border-gray-200 dark:border-gray-600
+                      ${statusFilter === 'ongoing' 
+                        ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' 
+                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600'
+                      }`}
+                  >
+                    Ongoing
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('resolved')}
+                    className={`px-4 py-2 text-sm font-medium border border-gray-200 dark:border-gray-600 rounded-r-lg
+                      ${statusFilter === 'resolved' 
+                        ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' 
+                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600'
+                      }`}
+                  >
+                    Resolved
+                  </button>
+                </div>
+
+                {/* 시간 필터 선택기 */}
+                <TimeRangeSelector value={timeRange} onChange={handleTimeRangeChange} />
+              </div>
             </div>
 
             {loading && (
