@@ -33,6 +33,11 @@ func main() {
 	rcaSvc := service.NewRcaService(pgRepo)
 	rcaHndlr := handler.NewRcaHandler(rcaSvc)
 
+	// Incident 스키마 확장 (fingerprint, thread_ts, labels, annotations 컬럼 추가)
+	if err := pgRepo.EnsureIncidentSchema(ctx); err != nil {
+		log.Fatalf("Failed to ensure incident schema: %v", err)
+	}
+
 	authService, err := service.NewAuthService(pgRepo, cfg.Auth)
 	if err != nil {
 		log.Fatalf("Failed to initialize auth service: %v", err)
@@ -57,10 +62,10 @@ func main() {
 	agentClient := client.NewAgentClient(cfg.Agent)
 
 	// 3. 비즈니스 로직 서비스 초기화
-	// AgentService: Agent 요청 및 Slack 쓰레드 응답 처리
-	agentService := service.NewAgentService(agentClient, slackClient)
-	// AlertService: 알림 필터링 및 Slack 전송 로직 담당
-	alertService := service.NewAlertService(slackClient, agentService)
+	// AgentService: Agent 요청 및 Slack 쓰레드 응답 처리 + DB 저장
+	agentService := service.NewAgentService(agentClient, slackClient, pgRepo)
+	// AlertService: 알림 필터링 및 Slack 전송 로직 담당 + DB 저장
+	alertService := service.NewAlertService(slackClient, agentService, pgRepo)
 
 	// 4. HTTP 핸들러 초기화
 	// Alertmanager 웹훅 요청 수신 및 응답 처리
