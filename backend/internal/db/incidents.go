@@ -16,7 +16,7 @@ type Postgres struct {
 
 func (db *Postgres) GetIncidentList() ([]model.IncidentListResponse, error) {
 	query := `
-		SELECT incident_id, alarm_title, severity, resolved_at 
+		SELECT incident_id, alarm_title, severity, fired_at, resolved_at 
 		FROM incidents 
 		ORDER BY created_at DESC`
 
