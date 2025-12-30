@@ -1,18 +1,26 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { RCADetail, SimilarIncident } from '../types';
-import { fetchRCADetail, updateRCADetail } from '../utils/api'; // [추가] update 함수 import
+import { fetchRCADetail, updateRCADetail } from '../utils/api';
 
 interface RCADetailViewProps {
   incidentId: string;
   onBack: () => void;
 }
 
+// 텍스트 포맷팅 함수 (예: "warning" -> "Warning")
+const formatSeverity = (text?: string) => {
+  if (!text) return '';
+  return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+};
+
 const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => {
   const [data, setData] = useState<RCADetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // [신규] 편집 모드 상태 관리
+  // 편집 모드 상태 관리
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<RCADetail>>({});
 
@@ -21,7 +29,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
       setLoading(true);
       const detailData = await fetchRCADetail(incidentId);
       setData(detailData);
-      setEditForm(detailData); // 편집을 대비해 폼 데이터 초기화
+      setEditForm(detailData);
     } catch (err) {
       setError('데이터를 불러오지 못했습니다.');
       console.error(err);
@@ -34,20 +42,18 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
     loadDetail();
   }, [loadDetail]);
 
-  // [신규] 입력값 변경 핸들러
+  // 입력값 변경 핸들러
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setEditForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // [신규] 저장 버튼 클릭 핸들러
+  // 저장 핸들러
   const handleSave = async () => {
     if (!data) return;
     try {
-      // API 호출하여 서버 업데이트
       await updateRCADetail(incidentId, editForm);
-      
-      // 성공 시 로컬 데이터 업데이트 및 편집 모드 종료
+      // 성공 시 로컬 데이터 업데이트
       setData({ ...data, ...editForm } as RCADetail);
       setIsEditing(false);
       alert('성공적으로 수정되었습니다.');
@@ -57,53 +63,91 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
     }
   };
 
-  // [신규] 취소 버튼 클릭 핸들러
+  // 취소 핸들러
   const handleCancel = () => {
-    setEditForm(data!); // 원래 데이터로 복구
+    if (data) {
+      setEditForm(data); // 원래 데이터로 복구
+    }
     setIsEditing(false);
   };
 
-  if (loading) return <div className="p-8 text-center text-gray-500">상세 정보를 불러오는 중...</div>;
-  if (error || !data) return <div className="p-8 text-center text-red-500">{error}</div>;
+  // 날짜 포맷팅 헬퍼
+  const formatTime = (isoString?: string | null) => {
+    if (!isoString) return '-';
+    return isoString.replace('T', ' ').split('.')[0];
+  };
+
+  // 뱃지 색상 결정 (소문자 기준 매칭)
+  const getBadgeColor = (severity?: string, resolvedAt?: string | null) => {
+
+    if (resolvedAt) return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-200 dark:border-green-700';
+
+    const s = severity?.toLowerCase() || 'info';
+    if (s === 'critical') return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-200 dark:border-red-700';
+    if (s === 'warning') return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-200 dark:border-yellow-700';
+    if (s === 'resolved') return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-200 dark:border-green-700';
+    return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-700';
+  };
+
+  const getDisplaySeverity = (severity?: string, resolvedAt?: string | null) => {
+    if (resolvedAt) return 'Resolved';
+    return formatSeverity(severity);
+  };
+
+  if (loading) return <div className="p-12 text-center text-gray-500 dark:text-gray-400">상세 정보를 불러오는 중...</div>;
+  if (error || !data) return <div className="p-12 text-center text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg m-4">{error}</div>;
 
   const similarList: SimilarIncident[] = data.similar_incidents || [];
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 max-w-4xl mx-auto">
-      {/* 1. 상단 헤더 (Back 버튼, 제목, 저장/취소 버튼) */}
-      <div className="flex items-center justify-between mb-6 border-b pb-4">
-        <div className="flex items-center gap-4 flex-1">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-5xl mx-auto transition-colors duration-300">
+      
+      {/* 1. 상단 헤더 영역 */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 border-b border-gray-200 dark:border-gray-700 pb-6 gap-4">
+        
+        <div className="flex items-start md:items-center gap-4 flex-1 w-full">
           <button 
             onClick={onBack}
-            className="text-gray-500 hover:text-gray-700 font-medium px-3 py-1 border rounded hover:bg-gray-50 transition"
+            className="text-sm text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 font-medium px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition flex-shrink-0"
           >
             ← Back
           </button>
           
-          {/* 제목: 편집 모드일 때 Input, 아닐 때 텍스트 */}
-          {isEditing ? (
-            <input
-              type="text"
-              name="alarm_title"
-              value={editForm.alarm_title || ''}
-              onChange={handleInputChange}
-              className="text-xl font-bold text-gray-900 border border-blue-300 rounded px-2 py-1 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          ) : (
-            <h1 className="text-xl font-bold text-gray-900">{data.alarm_title}</h1>
-          )}
+          <div className="flex-1">
+            {/* ID 표시 (제목 위) */}
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500 uppercase tracking-wider border border-gray-200 dark:border-gray-700 px-1.5 rounded">
+                ID: {data.incident_id}
+              </span>
+            </div>
+
+            {isEditing ? (
+              <div className="flex flex-col gap-1">
+                <input
+                  type="text"
+                  name="alarm_title"
+                  value={editForm.alarm_title || ''}
+                  onChange={handleInputChange}
+                  className="text-lg font-bold text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-blue-400 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            ) : (
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white leading-tight">
+                {data.alarm_title}
+              </h1>
+            )}
+          </div>
         </div>
         
-        {/* 우측 버튼 그룹 */}
-        <div className="flex items-center gap-3 ml-4">
+        {/* 우측 버튼 및 상태 뱃지 */}
+        <div className="flex items-center gap-3 self-end md:self-auto">
           {isEditing ? (
-            <>
-              {/* Severity 선택 (편집 모드) */}
+            <div className="flex items-center gap-2">
               <select
                 name="severity"
                 value={editForm.severity}
                 onChange={handleInputChange}
-                className="px-3 py-1 rounded border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="Resolved">Resolved</option>
                 <option value="Critical">Critical</option>
@@ -113,114 +157,165 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
 
               <button 
                 onClick={handleSave}
-                className="px-4 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded hover:bg-blue-700 transition"
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded hover:bg-blue-700 transition shadow-sm"
               >
                 Save
               </button>
               <button 
                 onClick={handleCancel}
-                className="px-4 py-1.5 bg-gray-200 text-gray-700 text-sm font-semibold rounded hover:bg-gray-300 transition"
+                className="px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-sm font-semibold rounded hover:bg-gray-50 dark:hover:bg-gray-600 transition shadow-sm"
               >
                 Cancel
               </button>
-            </>
+            </div>
           ) : (
-            <>
-              {/* 뱃지 (조회 모드) */}
-              <div className="flex gap-2">
-                <span className="px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800">
-                  {data.severity}
-                </span>
-                <span className="px-3 py-1 rounded-full text-sm font-semibold bg-gray-100 text-gray-800">
-                  {data.status}
-                </span>
-              </div>
+            <div className="flex items-center gap-3">
+              <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getBadgeColor(data.severity, data.resolved_at)}`}>
+                {getDisplaySeverity(data.severity, data.resolved_at)}
+              </span>
               
-              {/* Edit 버튼 */}
               <button 
                 onClick={() => setIsEditing(true)}
-                className="ml-2 px-4 py-1.5 border border-blue-600 text-blue-600 text-sm font-semibold rounded hover:bg-blue-50 transition"
+                className="px-4 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-semibold rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition"
               >
                 Edit
               </button>
-            </>
+            </div>
           )}
         </div>
       </div>
 
-      {/* 2. 상세 정보 그리드 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+      {/* 2. 본문 컨텐츠 그리드 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
-        {/* ID & Time (수정 불가 - Read Only) */}
-        <div className="bg-gray-50 p-4 rounded-md">
-          <div className="text-sm text-gray-500 mb-1">Incident ID</div>
-          <div className="font-mono text-gray-900 font-medium">{data.incident_id}</div>
-        </div>
-        <div className="bg-gray-50 p-4 rounded-md">
-          <div className="text-sm text-gray-500 mb-1">발생 시간 (Fired At)</div>
-          <div className="text-gray-900">
-            {data.fired_at ? data.fired_at.replace('T', ' ').split('.')[0] : '-'}
+        {/* 발생 시간 (Fired At) */}
+        <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
+          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide flex items-center gap-1">
+             🔥 발생 시간
+          </div>
+          <div className="text-gray-900 dark:text-gray-100 font-medium font-mono">
+            {formatTime(data.fired_at)}
           </div>
         </div>
 
-        {/* 분석 요약 (수정 가능) */}
-        <div className="md:col-span-2 border border-gray-200 rounded-md p-5">
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">📋 분석 요약</h3>
+        {/* 해결 시간 (Resolved At) */}
+        <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
+          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide flex items-center gap-1">
+             ✅ 해결 시간
+          </div>
+          <div className="text-gray-900 dark:text-gray-100 font-medium font-mono">
+            {data.resolved_at ? formatTime(data.resolved_at) : <span className="text-blue-500 font-bold">Ongoing</span>}
+          </div>
+        </div>
+
+        {/* --- 인시던트 요약 (Markdown) --- */}
+        <div className="md:col-span-2">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
+            📋 인시던트 요약
+          </h3>
+          
           {isEditing ? (
             <textarea
               name="analysis_summary"
               value={editForm.analysis_summary || ''}
               onChange={handleInputChange}
-              rows={3}
-              className="w-full p-3 border border-blue-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              rows={5}
+              placeholder="여기에 마크다운 형식으로 요약을 작성하세요..."
+              className="w-full p-4 border border-blue-400 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow shadow-sm"
             />
           ) : (
-            <div className="text-gray-700 bg-yellow-50 p-3 rounded border-l-4 border-yellow-400 min-h-[60px]">
-              {data.analysis_summary || "분석 요약 정보가 없습니다."}
+            <div className="bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800/30 rounded-lg p-5">
+              <div className="prose prose-sm prose-yellow dark:prose-invert max-w-none text-gray-800 dark:text-gray-200">
+                <ReactMarkdown 
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    strong: ({node, ...props}) => <span className="font-bold text-gray-900 dark:text-white" {...props} />,
+                    ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1 my-2" {...props} />,
+                    code: ({node, ...props}) => (
+                      <code className="bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 px-1.5 py-0.5 rounded text-xs font-mono" {...props} />
+                    ),
+                  }}
+                >
+                  {data.analysis_summary || "*요약 정보가 없습니다.*"}
+                </ReactMarkdown>
+              </div>
             </div>
           )}
         </div>
 
-        {/* 상세 리포트 (수정 가능) */}
-        <div className="md:col-span-2 border border-gray-200 rounded-md p-5">
-          <h3 className="text-lg font-semibold text-gray-800 mb-3">📝 상세 분석 리포트</h3>
+        {/* --- 상세 분석 리포트 (Markdown + Dark Theme) --- */}
+        <div className="md:col-span-2">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
+            📝 상세 분석 리포트
+          </h3>
+
           {isEditing ? (
             <textarea
               name="analysis_detail"
               value={editForm.analysis_detail || ''}
               onChange={handleInputChange}
-              rows={10}
-              className="w-full p-3 border border-blue-300 rounded bg-white text-gray-900 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              rows={15}
+              placeholder="여기에 상세 분석 내용을 마크다운으로 작성하세요..."
+              className="w-full p-4 border border-blue-400 rounded-lg bg-gray-900 text-gray-100 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow shadow-sm"
             />
           ) : (
-            <div className="bg-gray-900 text-gray-100 p-4 rounded-md font-mono text-sm leading-relaxed whitespace-pre-wrap min-h-[100px]">
-              {data.analysis_detail || "상세 분석 내용이 없습니다."}
+            <div className="bg-gray-900 border border-gray-700 rounded-lg overflow-hidden shadow-sm">
+              <div className="p-6 overflow-x-auto">
+                <div className="prose prose-sm prose-invert max-w-none font-mono leading-relaxed">
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      h1: ({node, ...props}) => <h1 className="text-xl font-bold text-blue-400 mt-6 mb-4 border-b border-gray-700 pb-2" {...props} />,
+                      h2: ({node, ...props}) => <h2 className="text-lg font-bold text-blue-300 mt-5 mb-3" {...props} />,
+                      h3: ({node, ...props}) => <h3 className="text-md font-bold text-blue-200 mt-4 mb-2" {...props} />,
+                      strong: ({node, ...props}) => <span className="font-bold text-yellow-400" {...props} />,
+                      ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1 my-2 text-gray-300" {...props} />,
+                      code: ({node, ...props}) => (
+                        <code className="bg-gray-800 text-green-400 px-1 py-0.5 rounded text-xs" {...props} />
+                      ),
+                      p: ({node, ...props}) => <p className="mb-4 text-gray-300" {...props} />,
+                      a: ({node, ...props}) => <a className="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
+                    }}
+                  >
+                    {data.analysis_detail || "*상세 분석 내용이 없습니다.*"}
+                  </ReactMarkdown>
+                </div>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Top 3 유사 인시던트 (수정 불가) */}
-        <div className="md:col-span-2 border border-gray-200 rounded-md p-5">
-          <h3 className="text-lg font-semibold text-gray-800 mb-3">🔗 Top 3 유사 인시던트</h3>
-          <div className="bg-gray-50 p-4 rounded-md">
-            {similarList.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {similarList.map((item, idx) => (
-                  <div key={idx} className="bg-white border border-gray-200 p-4 rounded shadow-sm">
-                    <div className="mb-2 flex justify-between">
-                       <span className="text-xs font-mono text-gray-500 bg-gray-100 px-1 rounded">{item.incident_id}</span>
-                       {item.score && <span className="text-xs font-bold text-blue-600">{item.score}% 유사</span>}
-                    </div>
-                    <div className="text-sm font-medium text-gray-800 line-clamp-2">{item.alarm_title}</div>
+        {/* --- 유사 인시던트 (Read Only) --- */}
+        <div className="md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-6 mt-2">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
+            🔗 Top 3 유사 인시던트
+          </h3>
+          
+          {similarList.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {similarList.map((item, idx) => (
+                <div key={idx} className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                  <div className="mb-2 flex justify-between items-center">
+                      <span className="text-xs font-mono text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
+                        {item.incident_id}
+                      </span>
+                      {item.score && (
+                        <span className="text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">
+                          {item.score}% 유사
+                        </span>
+                      )}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-                <span>유사한 인시던트 내역이 없습니다.</span>
-              </div>
-            )}
-          </div>
+                  <div className="text-sm font-medium text-gray-800 dark:text-gray-200 line-clamp-2" title={item.alarm_title}>
+                    {item.alarm_title}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-8 text-center border border-dashed border-gray-300 dark:border-gray-600">
+              <p className="text-gray-500 dark:text-gray-400">유사한 인시던트 내역이 없습니다.</p>
+            </div>
+          )}
         </div>
 
       </div>
