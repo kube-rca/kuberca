@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { RCAItem } from './types';
 import TimeRangeSelector from './components/TimeRangeSelector';
 import RCATable from './components/RCATable';
@@ -7,8 +7,7 @@ import RCADetailView from './components/RCADetailView';
 import AuthPanel from './components/AuthPanel';
 import { fetchRCAs } from './utils/api';
 import { fetchAuthConfig, refreshAccessToken, logout } from './utils/auth';
-// [변경 1] 새로 만든 필터 함수와 타입 임포트
-import { filterRCAs, RCAStatusFilter } from './utils/filterAlerts'; 
+import { filterRCAs, RCAStatusFilter } from './utils/filterAlerts';
 import { ITEMS_PER_PAGE } from './constants';
 import { Header } from './components/Header';
 
@@ -26,9 +25,9 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   
-  // [변경 2] 상태 필터 State 추가 (기본값: 'all')
-  const [timeRange, setTimeRange] = useState('all');
-  const [statusFilter, setStatusFilter] = useState<RCAStatusFilter>('all'); 
+  // 초기값을 'All Time'으로 설정 (이전 요청 반영)
+  const [timeRange, setTimeRange] = useState('All Time');
+  const [statusFilter, setStatusFilter] = useState<RCAStatusFilter>('all');
   
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
@@ -47,7 +46,6 @@ function App() {
 
   useEffect(() => {
     let active = true;
-
     const initAuth = async () => {
       try {
         const config = await fetchAuthConfig();
@@ -61,11 +59,11 @@ function App() {
         if (active) setAuthReady(true);
       }
     };
-
     initAuth();
     return () => { active = false; };
   }, []);
 
+  // [핵심 변경] 데이터 로딩 + 5초 자동 새로고침 로직
   useEffect(() => {
     if (!isAuthenticated) {
       setAllRCAs([]);
@@ -73,10 +71,15 @@ function App() {
       return;
     }
 
-    const loadRCAs = async () => {
+    // 데이터 가져오는 함수 (isBackground가 true면 로딩 스피너 안 보여줌)
+    const loadRCAs = async (isBackground = false) => {
       try {
-        setLoading(true);
+        // 백그라운드 업데이트가 아닐 때만 로딩바 표시 (깜빡임 방지)
+        if (!isBackground) {
+          setLoading(true);
+        }
         setError(null);
+
         const rawData: RawRCAItem[] = await fetchRCAs();
         const mappedRCAs: RCAItem[] = rawData.map((item) => {
           const serverTime = item.created_at || item.timestamp || item.time || item.start_time || item.fired_at;
@@ -88,6 +91,8 @@ function App() {
             time: serverTime ? String(serverTime) : getCurrentTimeStr(),
           };
         });
+        
+        // 데이터 업데이트 (React가 알아서 변경된 부분만 리렌더링함)
         setAllRCAs(mappedRCAs);
       } catch (err) {
         if (err instanceof Error && err.message === 'unauthorized') {
@@ -95,13 +100,30 @@ function App() {
           return;
         }
         console.error('Failed to load RCAs:', err);
-        setError('데이터를 불러오는데 실패했습니다.');
+        // 백그라운드 에러는 사용자에게 크게 알리지 않거나 로그만 남김
+        if (!isBackground) {
+          setError('데이터를 불러오는데 실패했습니다.');
+        }
       } finally {
-        setLoading(false);
+        if (!isBackground) {
+          setLoading(false);
+        }
       }
     };
-    loadRCAs();
-  }, [isAuthenticated]);
+
+    // 1. 최초 실행 (로딩 스피너 보여줌)
+    loadRCAs(false);
+
+    // 2. 5초마다 반복 실행 (setInterval)
+    const intervalId = setInterval(() => {
+      // 여기선 true를 넘겨서 로딩바 없이 조용히 데이터만 갱신
+      loadRCAs(true);
+    }, 2000);
+
+    // 3. 컴포넌트가 꺼지거나 로그아웃 시 타이머 정리 (메모리 누수 방지)
+    return () => clearInterval(intervalId);
+
+  }, [isAuthenticated]); // 인증 상태가 바뀌면 타이머도 재설정
 
   const handleTitleClick = (incident_id: string) => {
     setSelectedIncidentId(incident_id);
@@ -116,12 +138,10 @@ function App() {
     setIsAuthenticated(false);
   };
 
-  // [변경 3] useMemo에서 filterRCAs 호출 (timeRange + statusFilter 둘 다 적용)
   const filteredRCAs = useMemo(() => {
     return filterRCAs(allRCAs, timeRange, statusFilter);
   }, [allRCAs, timeRange, statusFilter]);
 
-  // [변경 4] 필터 조건(시간 or 상태)이 바뀌면 1페이지로 리셋
   useEffect(() => {
     setCurrentPage(1);
   }, [timeRange, statusFilter]);
@@ -156,9 +176,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
-      
       <Header />
-
       <div className="pt-20 pb-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         <div className="mb-4 flex justify-end">
@@ -176,12 +194,10 @@ function App() {
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors duration-300">
             
-            {/* [변경 5] 필터 영역 레이아웃 수정 */}
             <div className="mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
               <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">RCA Dashboard</h1>
               
               <div className="flex flex-col sm:flex-row items-center gap-3">
-                {/* [변경 6] 상태 필터 버튼 그룹 추가 */}
                 <div className="inline-flex rounded-md shadow-sm" role="group">
                   <button
                     type="button"
@@ -218,7 +234,6 @@ function App() {
                   </button>
                 </div>
 
-                {/* 시간 필터 선택기 */}
                 <TimeRangeSelector value={timeRange} onChange={handleTimeRangeChange} />
               </div>
             </div>
