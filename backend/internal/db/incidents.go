@@ -29,7 +29,7 @@ func (db *Postgres) GetIncidentList() ([]model.IncidentListResponse, error) {
 	var list []model.IncidentListResponse
 	for rows.Next() {
 		var i model.IncidentListResponse
-		if err := rows.Scan(&i.IncidentID, &i.AlarmTitle, &i.Severity, &i.ResolvedAt); err != nil {
+		if err := rows.Scan(&i.IncidentID, &i.AlarmTitle, &i.Severity, &i.FiredAt, &i.ResolvedAt); err != nil {
 			return nil, err
 		}
 		list = append(list, i)
