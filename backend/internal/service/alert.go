@@ -104,6 +104,9 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 // Returns:
 //   - bool: true면 Slack으로 전송, false면 무시
 func (s *AlertService) shouldSendToSlack(alert model.Alert) bool {
-	// 현재는 모든 알림 전송
+	// info severity는 필터링 (warning, critical만 전송)
+	if alert.Labels["severity"] == "info" {
+		return false
+	}
 	return true
 }
