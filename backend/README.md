@@ -23,7 +23,8 @@ Alertmanager 웹훅을 Slack으로 전송하려면 아래 환경 변수를 설�
 
 Embeddings API를 사용하려면 아래 환경 변수를 설정합니다.
 
-- `AI_API_KEY`: Gemini API Key
+- `EMBEDDING_API_KEY`: Gemini API Key
+- `EMBEDDING_MODEL`: Embedding Model Name (default: "text-embedding-004")
 
 Postgres에는 pgvector 확장이 필요하며, 아래 예시처럼 테이블을 생성합니다.
 

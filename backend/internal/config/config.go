@@ -24,7 +24,9 @@ type AgentConfig struct {
 }
 
 type EmbeddingConfig struct {
-	APIKey string
+	Provider string
+	APIKey   string
+	Model    string
 }
 
 type PostgresConfig struct {
@@ -62,7 +64,9 @@ func Load() Config {
 			BaseURL: getenv("AGENT_URL", "http://kube-rca-agent.kube-rca.svc:8000"),
 		},
 		Embedding: EmbeddingConfig{
-			APIKey: os.Getenv("AI_API_KEY"),
+			Provider: getenv("EMBEDDING_PROVIDER", "google"),
+			APIKey:   os.Getenv("EMBEDDING_API_KEY"),
+			Model:    getenv("EMBEDDING_MODEL", "text-embedding-004"),
 		},
 		Postgres: PostgresConfig{
 			DatabaseURL: os.Getenv("DATABASE_URL"),
