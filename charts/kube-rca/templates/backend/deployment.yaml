@@ -140,8 +140,8 @@ spec:
             - name: EMBEDDING_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "backend.embedding.apiKey.existingSecret" . | quote }}
-                  key: {{ include "backend.embedding.apiKey.key" . | quote }}
+                  name: {{ .Values.backend.embedding.apiKey.existingSecret | quote }}
+                  key: {{ .Values.backend.embedding.apiKey.key | quote }}
           livenessProbe:
             httpGet:
               path: /ping
