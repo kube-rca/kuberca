@@ -21,7 +21,6 @@ func main() {
 
 	log.Printf("Embedding API Key: %s", cfg.Embedding.APIKey)
 
-	
 	// 1. DB 연결 풀 초기화
 	ctx := context.Background()
 	dbPool, err := db.NewPostgresPool(ctx, cfg.Postgres)
