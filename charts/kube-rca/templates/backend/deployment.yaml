@@ -133,11 +133,15 @@ spec:
                   key: {{ required "backend.slack.secret.channelIdKey (or backend.slack.secret.keys.channelId) is required" $channelIdKey | quote }}
             {{- end }}
             {{- end }}
-            - name: AI_API_KEY
+            - name: EMBEDDING_PROVIDER
+              value: {{ default "gemini" .Values.backend.embedding.provider | quote }}
+            - name: EMBEDDING_MODEL
+              value: {{ default "gemini-embedding-001" .Values.backend.embedding.model | quote }}
+            - name: EMBEDDING_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: "kube-rca-agent-secret"
-                  key: "ai-studio-api-key"
+                  name: {{ include "backend.embedding.apiKey.existingSecret" . | quote }}
+                  key: {{ include "backend.embedding.apiKey.key" . | quote }}
           livenessProbe:
             httpGet:
               path: /ping

@@ -47,6 +47,12 @@ backend:
   tolerations: []
   # -- Affinity for backend pods assignment.
   affinity: {}
+  embedding:
+    provider: "gemini"
+    model: "gemini-embedding-001"
+    apiKey:
+      existingSecret: "kube-rca-embedding-secret"
+      key: "gemini-api-key"
 
   postgresql:
     # -- PostgreSQL host.
