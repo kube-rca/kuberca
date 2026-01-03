@@ -31,11 +31,12 @@ spec:
               value: {{ default 5432 .Values.backend.postgresql.port | quote }}
             - name: PGUSER
               value: {{ default "kube-rca" .Values.backend.postgresql.user | quote }}
+            {{- $pgSecret := default (dict) .Values.backend.postgresql.secret }}
             - name: PGPASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: postgresql
-                  key: password
+                  name: {{ default "postgresql" $pgSecret.existingSecret | quote }}
+                  key: {{ default "password" $pgSecret.key | quote }}
             - name: PGDATABASE
               value: {{ default "kube-rca" .Values.backend.postgresql.database | quote }}
             {{- $auth := default (dict) .Values.backend.auth }}

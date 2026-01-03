@@ -55,6 +55,31 @@ spec:
               value: {{ .Values.agent.prometheus.scheme | quote }}
             - name: PROMETHEUS_HTTP_TIMEOUT_SECONDS
               value: {{ .Values.agent.prometheus.httpTimeoutSeconds | quote }}
+            {{- $cache := default (dict) .Values.agent.cache }}
+            {{- $cacheSize := default 128 $cache.size }}
+            {{- $cacheTtl := default 0 $cache.ttlSeconds }}
+            - name: AGENT_CACHE_SIZE
+              value: {{ $cacheSize | quote }}
+            - name: AGENT_CACHE_TTL_SECONDS
+              value: {{ $cacheTtl | quote }}
+            {{- $sessionDB := default (dict) .Values.agent.sessionDB }}
+            {{- $sessionDBHost := default "" $sessionDB.host }}
+            {{- if $sessionDBHost }}
+            - name: SESSION_DB_HOST
+              value: {{ $sessionDBHost | quote }}
+            - name: SESSION_DB_PORT
+              value: {{ default 5432 $sessionDB.port | quote }}
+            - name: SESSION_DB_NAME
+              value: {{ default "" $sessionDB.name | quote }}
+            - name: SESSION_DB_USER
+              value: {{ default "" $sessionDB.user | quote }}
+            {{- $sessionSecret := default (dict) $sessionDB.secret }}
+            - name: SESSION_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default "postgresql" $sessionSecret.existingSecret | quote }}
+                  key: {{ default "password" $sessionSecret.key | quote }}
+            {{- end }}
           volumeMounts:
             - name: config-volume
               mountPath: /etc/agent/config

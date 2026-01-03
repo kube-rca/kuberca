@@ -11,7 +11,7 @@ backend:
   replicaCount: 1
   image:
     # -- Backend image repository.
-    repository: ""
+    repository: "public.ecr.aws/r5b7j2e4/kube-rca-ecr"
     # -- Backend image tag.
     tag: ""
     # -- Backend image pull policy.
@@ -63,6 +63,11 @@ backend:
     user: "kube-rca"
     # -- PostgreSQL database.
     database: "kube-rca"
+    secret:
+      # -- Existing Secret name for PostgreSQL password.
+      existingSecret: "postgresql"
+      # -- Secret key for PostgreSQL password.
+      key: "password"
 
   slack:
     # -- Enable Slack notifications.
@@ -127,7 +132,7 @@ agent:
   replicaCount: 1
   image:
     # -- Agent image repository.
-    repository: ""
+    repository: "public.ecr.aws/r5b7j2e4/kube-rca-ecr"
     # -- Agent image tag.
     tag: ""
     # -- Agent image pull policy.
@@ -187,6 +192,25 @@ agent:
       existingSecret: "kube-rca-ai"
       # -- Secret key name for the Gemini API key.
       key: "ai-studio-api-key"
+  sessionDB:
+    # -- PostgreSQL host for Strands session persistence.
+    host: ""
+    # -- PostgreSQL port.
+    port: 5432
+    # -- PostgreSQL database name.
+    name: ""
+    # -- PostgreSQL user.
+    user: ""
+    secret:
+      # -- Existing Secret name for session DB password.
+      existingSecret: "postgresql"
+      # -- Secret key for session DB password.
+      key: "password"
+  cache:
+    # -- Max number of cached agents (AGENT_CACHE_SIZE).
+    size: 128
+    # -- Cache TTL in seconds (AGENT_CACHE_TTL_SECONDS, 0 = disable).
+    ttlSeconds: 0
   # -- Node labels for agent pods assignment.
   nodeSelector: {}
   # -- Tolerations for agent pods assignment.
@@ -199,7 +223,7 @@ frontend:
   replicaCount: 1
   image:
     # -- Frontend image repository.
-    repository: ""
+    repository: "public.ecr.aws/r5b7j2e4/kube-rca-ecr"
     # -- Frontend image tag.
     tag: ""
     # -- Frontend image pull policy.
