@@ -29,8 +29,9 @@ type AgentClient struct {
 
 // AgentAnalysisRequest 구조체 정의
 type AgentAnalysisRequest struct {
-	Alert    model.Alert `json:"alert"`
-	ThreadTS string      `json:"thread_ts"`
+	Alert      model.Alert `json:"alert"`
+	ThreadTS   string      `json:"thread_ts"`
+	IncidentID string      `json:"incident_id,omitempty"`
 }
 
 // AgentAnalysisResponse 구조체 정의
@@ -63,8 +64,9 @@ func (c *AgentClient) IsConfigured() bool {
 // POST /analyze 분석 요청하고 분석 결과 반환 (동기)
 func (c *AgentClient) RequestAnalysis(alert model.Alert, threadTS string) (*AgentAnalysisResponse, error) {
 	req := AgentAnalysisRequest{
-		Alert:    alert,
-		ThreadTS: threadTS,
+		Alert:      alert,
+		ThreadTS:   threadTS,
+		IncidentID: alert.Fingerprint,
 	}
 
 	payload, err := json.Marshal(req)
