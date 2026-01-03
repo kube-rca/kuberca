@@ -71,9 +71,7 @@ class KubernetesClient:
             return []
         return self._list_pod_events(namespace, pod_name, [])
 
-    def get_previous_logs(
-        self, namespace: str, pod_name: str
-    ) -> list[PodLogSnippet]:
+    def get_previous_logs(self, namespace: str, pod_name: str) -> list[PodLogSnippet]:
         if self._core_api is None:
             return []
         pod = self._read_pod(namespace, pod_name, [])
@@ -206,9 +204,7 @@ class KubernetesClient:
                     _request_timeout=self._timeout_seconds,
                 )
             except Exception as exc:  # noqa: BLE001
-                self._logger.warning(
-                    "Failed to read Job %s/%s: %s", namespace, owner_ref.name, exc
-                )
+                self._logger.warning("Failed to read Job %s/%s: %s", namespace, owner_ref.name, exc)
                 return None
             return self._summarize_job(job)
         if owner_ref.kind == "CronJob" and self._batch_api:
@@ -258,9 +254,7 @@ class KubernetesClient:
             "capacity": node.status.capacity if node.status else None,
             "allocatable": node.status.allocatable if node.status else None,
             "node_info": (
-                node.status.node_info.to_dict()
-                if node.status and node.status.node_info
-                else None
+                node.status.node_info.to_dict() if node.status and node.status.node_info else None
             ),
             "conditions": conditions,
         }
@@ -495,8 +489,7 @@ class KubernetesClient:
             "affinity": spec.affinity.to_dict() if spec.affinity else None,
             "volumes": self._summarize_volumes(spec.volumes or []),
             "init_containers": [
-                self._summarize_container(item)
-                for item in spec.init_containers or []
+                self._summarize_container(item) for item in spec.init_containers or []
             ],
             "containers": [self._summarize_container(item) for item in spec.containers or []],
         }

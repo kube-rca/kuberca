@@ -65,11 +65,7 @@ def _patch_gemini_format_chunk() -> None:
             signature = getattr(part, "thought_signature", None)
             if signature:
                 signature_text = _encode_signature(signature)
-                tool_use = (
-                    chunk.get("contentBlockStart", {})
-                    .get("start", {})
-                    .get("toolUse")
-                )
+                tool_use = chunk.get("contentBlockStart", {}).get("start", {}).get("toolUse")
                 if tool_use is not None:
                     tool_use["thoughtSignature"] = signature_text
         return chunk

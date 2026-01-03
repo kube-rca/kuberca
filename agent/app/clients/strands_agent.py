@@ -1,18 +1,31 @@
 from __future__ import annotations
 
+import time
+from collections import OrderedDict
+from dataclasses import dataclass
+from threading import Lock
 from typing import Protocol
 
 from strands import Agent, tool
 from strands.models.gemini import GeminiModel
+from strands.session import RepositorySessionManager
 
 from app.clients.k8s import KubernetesClient
 from app.clients.prometheus import PrometheusClient
+from app.clients.session_repository import PostgresSessionRepository
 from app.clients.strands_patch import apply_gemini_thought_signature_patch
 from app.core.config import Settings
 
 
+@dataclass
+class _AgentCacheEntry:
+    agent: Agent
+    lock: Lock
+    last_access: float
+
+
 class AnalysisEngine(Protocol):
-    def analyze(self, prompt: str) -> str:
+    def analyze(self, prompt: str, incident_id: str | None = None) -> str:
         raise NotImplementedError
 
 
@@ -24,14 +37,71 @@ class StrandsAnalysisEngine:
         prometheus_client: PrometheusClient | None = None,
     ) -> None:
         apply_gemini_thought_signature_patch()
-        model = GeminiModel(
-            client_args={"api_key": settings.gemini_api_key},
-            model_id=settings.gemini_model_id,
-        )
-        self._agent = Agent(model=model, tools=_build_tools(k8s_client, prometheus_client))
+        if not settings.session_store_dsn:
+            raise ValueError(
+                "SESSION_DB_HOST, SESSION_DB_USER, SESSION_DB_NAME are required "
+                "for Postgres session storage"
+            )
+        self._settings = settings
+        self._tools = _build_tools(k8s_client, prometheus_client)
+        self._cache_lock = Lock()
+        self._agent_cache: OrderedDict[str, _AgentCacheEntry] = OrderedDict()
+        self._cache_size = max(settings.agent_cache_size, 1)
+        self._cache_ttl_seconds = settings.agent_cache_ttl_seconds
+        self._session_repo = PostgresSessionRepository(settings.session_store_dsn)
 
-    def analyze(self, prompt: str) -> str:
-        return str(self._agent(prompt))
+    def analyze(self, prompt: str, incident_id: str | None = None) -> str:
+        entry = self._get_cache_entry(incident_id)
+        with entry.lock:
+            return str(entry.agent(prompt))
+
+    def _get_cache_entry(self, incident_id: str | None) -> _AgentCacheEntry:
+        cache_key = incident_id.strip() if incident_id else ""
+        if not cache_key:
+            cache_key = "default"
+
+        with self._cache_lock:
+            now = time.time()
+            self._evict_expired_entries(now)
+            entry = self._agent_cache.get(cache_key)
+            if entry is not None:
+                entry.last_access = now
+                self._agent_cache.move_to_end(cache_key)
+                return entry
+
+            entry = _AgentCacheEntry(
+                agent=self._build_agent(cache_key),
+                lock=Lock(),
+                last_access=now,
+            )
+            self._agent_cache[cache_key] = entry
+            if len(self._agent_cache) > self._cache_size:
+                self._agent_cache.popitem(last=False)
+            return entry
+
+    def _evict_expired_entries(self, now: float) -> None:
+        if self._cache_ttl_seconds <= 0:
+            return
+
+        expired_keys: list[str] = []
+        for key, entry in self._agent_cache.items():
+            if now - entry.last_access > self._cache_ttl_seconds:
+                expired_keys.append(key)
+            else:
+                break
+        for key in expired_keys:
+            self._agent_cache.pop(key, None)
+
+    def _build_agent(self, session_id: str) -> Agent:
+        model = GeminiModel(
+            client_args={"api_key": self._settings.gemini_api_key},
+            model_id=self._settings.gemini_model_id,
+        )
+        session_manager = RepositorySessionManager(
+            session_id=session_id,
+            session_repository=self._session_repo,
+        )
+        return Agent(model=model, tools=self._tools, session_manager=session_manager)
 
 
 def _build_tools(
@@ -75,9 +145,7 @@ def _build_tools(
         pod_name: str,
     ) -> list[dict[str, object]]:
         """Return previous container logs (tail)."""
-        return [
-            snippet.to_dict() for snippet in k8s_client.get_previous_logs(namespace, pod_name)
-        ]
+        return [snippet.to_dict() for snippet in k8s_client.get_previous_logs(namespace, pod_name)]
 
     @tool
     def get_pod_logs(
