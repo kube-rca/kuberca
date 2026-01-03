@@ -136,6 +136,7 @@ func (db *Postgres) EnsureIncidentSchema(ctx context.Context) error {
 			thread_ts TEXT NOT NULL DEFAULT '',
 			labels JSONB NOT NULL DEFAULT '{}',
 			annotations JSONB NOT NULL DEFAULT '{}',
+			is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
 			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		)
@@ -145,6 +146,7 @@ func (db *Postgres) EnsureIncidentSchema(ctx context.Context) error {
 		`ALTER TABLE incidents ADD COLUMN IF NOT EXISTS thread_ts TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE incidents ADD COLUMN IF NOT EXISTS labels JSONB NOT NULL DEFAULT '{}'`,
 		`ALTER TABLE incidents ADD COLUMN IF NOT EXISTS annotations JSONB NOT NULL DEFAULT '{}'`,
+		`ALTER TABLE incidents ADD COLUMN IF NOT EXISTS is_enabled BOOLEAN NOT NULL DEFAULT TRUE`,
 		// 인덱스 생성
 		`CREATE INDEX IF NOT EXISTS incidents_fingerprint_idx ON incidents(fingerprint) WHERE fingerprint != ''`,
 		`CREATE INDEX IF NOT EXISTS incidents_thread_ts_idx ON incidents(thread_ts) WHERE thread_ts != ''`,
