@@ -19,8 +19,7 @@ func main() {
 
 	cfg := config.Load()
 
-	log.Printf("Embedding API Key: %s", cfg.Embedding.APIKey)
-	
+	log.Printf("check embedding model: %s", cfg.Embedding.Model)
 
 	// 1. DB 연결 풀 초기화
 	ctx := context.Background()

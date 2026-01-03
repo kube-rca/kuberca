@@ -22,7 +22,7 @@ func NewEmbeddingClient(cfg config.EmbeddingConfig) (*EmbeddingClient, error) {
 	if cfg.APIKey == "" {
 		return nil, fmt.Errorf("missing EMBEDDING_API_KEY")
 	}
-	clientCfg := EmbeddingClientConfig{APIKey: cfg.APIKey, Model: cfg.Model}
+	clientCfg := EmbeddingClientConfig{APIKey: cfg.APIKey}
 	client, err := genai.NewClient(context.Background(), &genai.ClientConfig{APIKey: clientCfg.APIKey})
 	if err != nil {
 		return nil, err
@@ -31,7 +31,10 @@ func NewEmbeddingClient(cfg config.EmbeddingConfig) (*EmbeddingClient, error) {
 }
 
 func (c *EmbeddingClient) EmbedText(ctx context.Context, text string) ([]float32, string, error) {
-	res, err := c.client.Models.EmbedContent(ctx, c.model, genai.Text(text), nil)
+	contents := []*genai.Content{
+					genai.NewContentFromText(text, genai.RoleUser),
+				}	
+	res, err := c.client.Models.EmbedContent(ctx, c.model, contents, nil)
 	if err != nil {
 		return nil, c.model, err
 	}
