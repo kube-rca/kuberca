@@ -567,7 +567,7 @@ paths:
       - webhook
 securityDefinitions:
   BearerAuth:
-    description: Type 'Bearer ' followed by a space and your JWT token.
+    description: 'JWT Bearer token. Format: Bearer {your_token}'
     in: header
     name: Authorization
     type: apiKey
