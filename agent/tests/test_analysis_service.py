@@ -18,7 +18,7 @@ class FakeAnalysisEngine:
     def __init__(self, result: str) -> None:
         self._result = result
 
-    def analyze(self, prompt: str) -> str:
+    def analyze(self, prompt: str, incident_id: str | None = None) -> str:
         return self._result
 
 

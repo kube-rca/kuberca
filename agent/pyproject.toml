@@ -11,6 +11,7 @@ requires-python = ">=3.10"  # Strands Agents supports Python 3.10+.
 dependencies = [
   "fastapi>=0.115.12,<1.0.0",
   "pydantic>=2.4.0,<3.0.0",
+  "psycopg[binary]>=3.2.0,<4.0.0",
   "strands-agents[gemini]>=1.20.0,<2.0.0",
   "kubernetes>=34.0.0,<35.0.0",  # Latest checked: 34.1.0.
   "uvicorn[standard]>=0.34.2,<1.0.0",

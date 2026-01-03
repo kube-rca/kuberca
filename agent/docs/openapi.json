@@ -79,6 +79,17 @@
           "alert": {
             "$ref": "#/components/schemas/Alert"
           },
+          "incident_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incident Id"
+          },
           "thread_ts": {
             "title": "Thread Ts",
             "type": "string"
