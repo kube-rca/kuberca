@@ -51,8 +51,8 @@ backend:
     provider: "gemini"
     model: "gemini-embedding-001"
     apiKey:
-      existingSecret: "kube-rca-agent-secret"
-      key: "ai-studio-api-key"
+      existingSecret: "kube-rca-embedding-secret"
+      key: "embedding-api-key"
 
   postgresql:
     # -- PostgreSQL host.
