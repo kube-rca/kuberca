@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'; // [1] useNavigate 임포트
 import { RCAItem } from '../types';
 
 interface RCATableProps {
@@ -5,7 +6,7 @@ interface RCATableProps {
   onTitleClick: (incident_id: string) => void;
 }
 
-// [추가] 텍스트 포맷팅 함수 (예: "warning" -> "Warning")
+// 텍스트 포맷팅 함수 (예: "warning" -> "Warning")
 const formatSeverity = (text: string) => {
   if (!text) return '';
   return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
@@ -24,6 +25,14 @@ const severityStyles: Record<string, string> = {
 };
 
 function RCATable({ rcas, onTitleClick }: RCATableProps) {
+  const navigate = useNavigate(); // [2] Hook 초기화
+
+  // Edit 버튼 클릭 핸들러
+  const handleEditClick = (id: string) => {
+    // 상세 페이지로 이동하면서 'autoEdit' 상태를 true로 전달
+    navigate(`/incidents/${id}`, { state: { autoEdit: true } });
+  };
+
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full border-collapse border border-gray-300 dark:border-gray-700">
@@ -51,9 +60,8 @@ function RCATable({ rcas, onTitleClick }: RCATableProps) {
             const isResolved = !!rca.resolved_at; 
             const effectiveSeverity = isResolved ? 'Resolved' : rca.severity;
 
-            // [로직 추가] 스타일용 소문자와 표시용 대문자 변환
-            const normalizedSeverity = effectiveSeverity.toLowerCase(); // "warning"
-            const displaySeverity = formatSeverity(normalizedSeverity); // "Warning"
+            const normalizedSeverity = effectiveSeverity.toLowerCase();
+            const displaySeverity = formatSeverity(normalizedSeverity);
 
             return (
               <tr key={rca.incident_id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
@@ -81,7 +89,7 @@ function RCATable({ rcas, onTitleClick }: RCATableProps) {
                   {rca.alarm_title}
                 </td>
 
-                {/* Severity: 계산된 값 적용 */}
+                {/* Severity */}
                 <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm text-center">
                   <span
                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${
@@ -97,8 +105,8 @@ function RCATable({ rcas, onTitleClick }: RCATableProps) {
                   <button
                     className="px-3 py-1 text-xs font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-500 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
                     onClick={(e) => {
-                      e.stopPropagation();
-                      console.log('Edit RCA:', rca.incident_id);
+                      e.stopPropagation(); // 행 클릭 이벤트(onTitleClick) 방지
+                      handleEditClick(rca.incident_id); // [3] 핸들러 연결
                     }}
                   >
                     edit
