@@ -55,8 +55,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize embedding client: %v", err)
 	}
-	embeddingSvc := service.NewEmbeddingService(pgRepo, embeddingClient)
-	embeddingHndlr := handler.NewEmbeddingHandler(embeddingSvc)
+	embeddingService := service.NewEmbeddingService(pgRepo, embeddingClient)
+	embeddingHandler := handler.NewEmbeddingHandler(embeddingService)
 
 	// 2. 외부 서비스 클라이언트 초기화
 	slackClient := client.NewSlackClient(cfg.Slack)
@@ -103,7 +103,7 @@ func main() {
 		protected.GET("/incidents/:id", rcaHndlr.GetIncidentDetail)
 		protected.PUT("/incidents/:id", rcaHndlr.UpdateIncident)
 		protected.POST("/incidents/mock", rcaHndlr.CreateMockIncident)
-		protected.POST("/embeddings", embeddingHndlr.CreateEmbedding)
+		protected.POST("/embeddings", embeddingHandler.CreateEmbedding)
 	}
 
 	// Alertmanager 웹훅 엔드포인트
