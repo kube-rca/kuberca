@@ -39,6 +39,11 @@ func main() {
 		log.Fatalf("Failed to ensure incident schema: %v", err)
 	}
 
+	// Embedding 스키마 생성 (pgvector 확장 및 embeddings 테이블)
+	if err := pgRepo.EnsureEmbeddingSchema(ctx); err != nil {
+		log.Fatalf("Failed to ensure embedding schema: %v", err)
+	}
+
 	authService, err := service.NewAuthService(pgRepo, cfg.Auth)
 	if err != nil {
 		log.Fatalf("Failed to initialize auth service: %v", err)
