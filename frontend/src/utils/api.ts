@@ -89,3 +89,15 @@ export const updateRCADetail = async (id: string, data: Partial<RCADetail>): Pro
     throw new Error('RCA 정보를 수정하는데 실패했습니다.');
   }
 };
+
+export const hideIncident = async (id: string): Promise<void> => {
+  const response = await requestWithAuth(`/api/v1/incidents/${id}`, {
+    method: 'PATCH',
+  });
+
+  if (!response.ok) {
+    throw new Error('리포트를 숨기는데 실패했습니다.');
+  }
+
+  return response.json(); 
+};

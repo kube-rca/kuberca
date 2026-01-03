@@ -1,15 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useLocation } from 'react-router-dom';
 import { RCADetail, SimilarIncident } from '../types';
-import { fetchRCADetail, updateRCADetail } from '../utils/api';
+import { fetchRCADetail, updateRCADetail, hideIncident } from '../utils/api';
 
 interface RCADetailViewProps {
   incidentId: string;
   onBack: () => void;
 }
 
-// 텍스트 포맷팅 함수 (예: "warning" -> "Warning")
 const formatSeverity = (text?: string) => {
   if (!text) return '';
   return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
@@ -20,9 +20,11 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 편집 모드 상태 관리
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<RCADetail>>({});
+
+  // 리스트에서 넘어온 state(autoEdit) 확인용
+  const location = useLocation();
 
   const loadDetail = useCallback(async () => {
     try {
@@ -42,18 +44,24 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
     loadDetail();
   }, [loadDetail]);
 
-  // 입력값 변경 핸들러
+  // [자동 편집 모드] 리스트에서 'Edit' 버튼 누르고 들어왔을 때 실행
+  useEffect(() => {
+    if (location.state && (location.state as any).autoEdit) {
+      setIsEditing(true);
+      // 상태 초기화 (새로고침 시 재실행 방지)
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setEditForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // 저장 핸들러
   const handleSave = async () => {
     if (!data) return;
     try {
       await updateRCADetail(incidentId, editForm);
-      // 성공 시 로컬 데이터 업데이트
       setData({ ...data, ...editForm } as RCADetail);
       setIsEditing(false);
       alert('성공적으로 수정되었습니다.');
@@ -63,23 +71,34 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
     }
   };
 
-  // 취소 핸들러
   const handleCancel = () => {
     if (data) {
-      setEditForm(data); // 원래 데이터로 복구
+      setEditForm(data);
     }
     setIsEditing(false);
   };
 
-  // 날짜 포맷팅 헬퍼
+  const handleHide = async () => {
+    if (!window.confirm("정말 이 리포트를 목록에서 숨기시겠습니까?")) {
+      return;
+    }
+
+    try {
+      await hideIncident(incidentId);
+      alert("성공적으로 숨겨졌습니다.");
+      onBack(); // 목록으로 돌아가기 (props로 받은 함수 실행)
+    } catch (error) {
+      console.error("숨기기 실패:", error);
+      alert("오류가 발생했습니다. 다시 시도해주세요.");
+    }
+  };
+
   const formatTime = (isoString?: string | null) => {
     if (!isoString) return '-';
     return isoString.replace('T', ' ').split('.')[0];
   };
 
-  // 뱃지 색상 결정 (소문자 기준 매칭)
   const getBadgeColor = (severity?: string, resolvedAt?: string | null) => {
-
     if (resolvedAt) return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-200 dark:border-green-700';
 
     const s = severity?.toLowerCase() || 'info';
@@ -102,9 +121,10 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-5xl mx-auto transition-colors duration-300">
       
-      {/* 1. 상단 헤더 영역 */}
+      {/* 헤더 영역 */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 border-b border-gray-200 dark:border-gray-700 pb-6 gap-4">
         
+        {/* [왼쪽 그룹] Back 버튼 + ID + 제목 */}
         <div className="flex items-start md:items-center gap-4 flex-1 w-full">
           <button 
             onClick={onBack}
@@ -114,7 +134,6 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
           </button>
           
           <div className="flex-1">
-            {/* ID 표시 (제목 위) */}
             <div className="flex items-center gap-2 mb-1">
               <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500 uppercase tracking-wider border border-gray-200 dark:border-gray-700 px-1.5 rounded">
                 ID: {data.incident_id}
@@ -139,7 +158,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
           </div>
         </div>
         
-        {/* 우측 버튼 및 상태 뱃지 */}
+        {/* [오른쪽 그룹] 버튼들 */}
         <div className="flex items-center gap-3 self-end md:self-auto">
           {isEditing ? (
             <div className="flex items-center gap-2">
@@ -169,11 +188,22 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-3">
-              <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getBadgeColor(data.severity, data.resolved_at)}`}>
+            <div className="flex items-center gap-2">
+              
+              {/* [위치: 우측 그룹] 뱃지 */}
+              <span className={`px-3 py-1.5 rounded-full text-xs font-bold border flex-shrink-0 ${getBadgeColor(data.severity, data.resolved_at)}`}>
                 {getDisplaySeverity(data.severity, data.resolved_at)}
               </span>
-              
+
+              {/* 숨기기 버튼 */}
+              <button 
+                onClick={handleHide}
+                className="px-4 py-1.5 text-sm text-red-600 dark:text-red-400 border border-red-600 dark:border-red-400 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              >
+                숨기기
+              </button>
+
+              {/* Edit 버튼 */}
               <button 
                 onClick={() => setIsEditing(true)}
                 className="px-4 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-semibold rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition"
@@ -185,10 +215,10 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
         </div>
       </div>
 
-      {/* 2. 본문 컨텐츠 그리드 */}
+      {/* 나머지 본문 영역 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
-        {/* 발생 시간 (Fired At) */}
+        {/* 발생 시간 */}
         <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide flex items-center gap-1">
              🔥 발생 시간
@@ -198,7 +228,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
           </div>
         </div>
 
-        {/* 해결 시간 (Resolved At) */}
+        {/* 해결 시간 */}
         <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide flex items-center gap-1">
              ✅ 해결 시간
@@ -208,7 +238,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
           </div>
         </div>
 
-        {/* --- 인시던트 요약 (Markdown) --- */}
+        {/* 요약 */}
         <div className="md:col-span-2">
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
             📋 인시던트 요약
@@ -243,7 +273,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
           )}
         </div>
 
-        {/* --- 상세 분석 리포트 (Markdown + Dark Theme) --- */}
+        {/* 상세 리포트 */}
         <div className="md:col-span-2">
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
             📝 상세 분석 리포트
@@ -285,7 +315,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
           )}
         </div>
 
-        {/* --- 유사 인시던트 (Read Only) --- */}
+        {/* 유사 인시던트 */}
         <div className="md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-6 mt-2">
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
             🔗 Top 3 유사 인시던트
