@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import { RCAItem } from './types';
 import TimeRangeSelector from './components/TimeRangeSelector';
 import RCATable from './components/RCATable';
@@ -19,17 +20,32 @@ type RawRCAItem = RCAItem & {
   fired_at?: string;
 };
 
+const IncidentDetailRoute = () => {
+  const { id } = useParams(); 
+  const navigate = useNavigate();
+
+  if (!id) return null;
+
+  return (
+    <RCADetailView 
+      incidentId={id} 
+      onBack={() => navigate('/')} // 뒤로가기 누르면 목록('/')으로 이동
+    />
+  );
+};
+
 function App() {
+  const navigate = useNavigate();
+
   const [allRCAs, setAllRCAs] = useState<RCAItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  
-  // 초기값을 'All Time'으로 설정 (이전 요청 반영)
   const [timeRange, setTimeRange] = useState('All Time');
   const [statusFilter, setStatusFilter] = useState<RCAStatusFilter>('all');
   
-  const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
+  // [중요] selectedIncidentId 상태 변수는 이제 필요 없어서 삭제됨 (URL로 대체)
+
   const [authReady, setAuthReady] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [allowSignup, setAllowSignup] = useState(false);
@@ -63,21 +79,15 @@ function App() {
     return () => { active = false; };
   }, []);
 
-  // [핵심 변경] 데이터 로딩 + 5초 자동 새로고침 로직
   useEffect(() => {
     if (!isAuthenticated) {
       setAllRCAs([]);
-      setSelectedIncidentId(null);
       return;
     }
 
-    // 데이터 가져오는 함수 (isBackground가 true면 로딩 스피너 안 보여줌)
     const loadRCAs = async (isBackground = false) => {
       try {
-        // 백그라운드 업데이트가 아닐 때만 로딩바 표시 (깜빡임 방지)
-        if (!isBackground) {
-          setLoading(true);
-        }
+        if (!isBackground) setLoading(true);
         setError(null);
 
         const rawData: RawRCAItem[] = await fetchRCAs();
@@ -92,7 +102,6 @@ function App() {
           };
         });
         
-        // 데이터 업데이트 (React가 알아서 변경된 부분만 리렌더링함)
         setAllRCAs(mappedRCAs);
       } catch (err) {
         if (err instanceof Error && err.message === 'unauthorized') {
@@ -100,38 +109,21 @@ function App() {
           return;
         }
         console.error('Failed to load RCAs:', err);
-        // 백그라운드 에러는 사용자에게 크게 알리지 않거나 로그만 남김
-        if (!isBackground) {
-          setError('데이터를 불러오는데 실패했습니다.');
-        }
+        if (!isBackground) setError('데이터를 불러오는데 실패했습니다.');
       } finally {
-        if (!isBackground) {
-          setLoading(false);
-        }
+        if (!isBackground) setLoading(false);
       }
     };
 
-    // 1. 최초 실행 (로딩 스피너 보여줌)
     loadRCAs(false);
 
-    // 2. 2초마다 반복 실행 (setInterval)
     const intervalId = setInterval(() => {
-      // 여기선 true를 넘겨서 로딩바 없이 조용히 데이터만 갱신
       loadRCAs(true);
     }, 2000);
 
-    // 3. 컴포넌트가 꺼지거나 로그아웃 시 타이머 정리 (메모리 누수 방지)
     return () => clearInterval(intervalId);
 
-  }, [isAuthenticated]); // 인증 상태가 바뀌면 타이머도 재설정
-
-  const handleTitleClick = (incident_id: string) => {
-    setSelectedIncidentId(incident_id);
-  };
-
-  const handleBackToList = () => {
-    setSelectedIncidentId(null);
-  };
+  }, [isAuthenticated]);
 
   const handleLogout = async () => {
     await logout();
@@ -162,6 +154,11 @@ function App() {
     setTimeRange(newTimeRange);
   };
 
+  // [2] 제목 클릭 시 실행될 함수 (단순 이동)
+  const handleTitleClick = (incident_id: string) => {
+    navigate(`/incidents/${incident_id}`);
+  };
+
   if (!authReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400">
@@ -189,89 +186,93 @@ function App() {
           </button>
         </div>
 
-        {selectedIncidentId ? (
-          <RCADetailView incidentId={selectedIncidentId} onBack={handleBackToList} />
-        ) : (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors duration-300">
-            
-            <div className="mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
-              <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">RCA Dashboard</h1>
-              
-              <div className="flex flex-col sm:flex-row items-center gap-3">
-                <div className="inline-flex rounded-md shadow-sm" role="group">
-                  <button
-                    type="button"
-                    onClick={() => setStatusFilter('all')}
-                    className={`px-4 py-2 text-sm font-medium border border-gray-200 dark:border-gray-600 rounded-l-lg 
-                      ${statusFilter === 'all' 
-                        ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' 
-                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600'
-                      }`}
-                  >
-                    All
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStatusFilter('ongoing')}
-                    className={`px-4 py-2 text-sm font-medium border-t border-b border-gray-200 dark:border-gray-600
-                      ${statusFilter === 'ongoing' 
-                        ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' 
-                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600'
-                      }`}
-                  >
-                    Ongoing
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStatusFilter('resolved')}
-                    className={`px-4 py-2 text-sm font-medium border border-gray-200 dark:border-gray-600 rounded-r-lg
-                      ${statusFilter === 'resolved' 
-                        ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' 
-                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600'
-                      }`}
-                  >
-                    Resolved
-                  </button>
+        {/* [3] Routes: 여기가 핵심! URL에 따라 보여줄 컴포넌트를 스위칭합니다 */}
+        <Routes>
+          {/* 상세 페이지 (/incidents/아이디) */}
+          <Route path="/incidents/:id" element={<IncidentDetailRoute />} />
+
+          {/* 메인 리스트 (/) */}
+          <Route path="/" element={
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors duration-300">
+              <div className="mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+                <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">RCA Dashboard</h1>
+                
+                <div className="flex flex-col sm:flex-row items-center gap-3">
+                  <div className="inline-flex rounded-md shadow-sm" role="group">
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter('all')}
+                      className={`px-4 py-2 text-sm font-medium border border-gray-200 dark:border-gray-600 rounded-l-lg 
+                        ${statusFilter === 'all' 
+                          ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' 
+                          : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600'
+                        }`}
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter('ongoing')}
+                      className={`px-4 py-2 text-sm font-medium border-t border-b border-gray-200 dark:border-gray-600
+                        ${statusFilter === 'ongoing' 
+                          ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' 
+                          : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600'
+                        }`}
+                    >
+                      Ongoing
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter('resolved')}
+                      className={`px-4 py-2 text-sm font-medium border border-gray-200 dark:border-gray-600 rounded-r-lg
+                        ${statusFilter === 'resolved' 
+                          ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' 
+                          : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600'
+                        }`}
+                    >
+                      Resolved
+                    </button>
+                  </div>
+
+                  <TimeRangeSelector value={timeRange} onChange={handleTimeRangeChange} />
                 </div>
-
-                <TimeRangeSelector value={timeRange} onChange={handleTimeRangeChange} />
               </div>
+
+              {loading && (
+                <div className="flex justify-center items-center py-12">
+                  <div className="text-gray-600 dark:text-gray-400">데이터를 불러오는 중...</div>
+                </div>
+              )}
+
+              {error && !loading && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-4">
+                  <div className="text-red-800 dark:text-red-300 font-medium">오류 발생</div>
+                  <div className="text-red-600 dark:text-red-400 text-sm mt-1">{error}</div>
+                </div>
+              )}
+
+              {!loading && !error && (
+                <>
+                  <RCATable rcas={paginatedRCAs} onTitleClick={handleTitleClick} />
+
+                  {filteredRCAs.length > 0 ? (
+                    <div className="mt-6 flex justify-center">
+                      <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={handlePageChange}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex justify-center items-center py-12">
+                      <div className="text-gray-500 dark:text-gray-400">표시할 RCA가 없습니다.</div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
-
-            {loading && (
-              <div className="flex justify-center items-center py-12">
-                <div className="text-gray-600 dark:text-gray-400">데이터를 불러오는 중...</div>
-              </div>
-            )}
-
-            {error && !loading && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-4">
-                <div className="text-red-800 dark:text-red-300 font-medium">오류 발생</div>
-                <div className="text-red-600 dark:text-red-400 text-sm mt-1">{error}</div>
-              </div>
-            )}
-
-            {!loading && !error && (
-              <>
-                <RCATable rcas={paginatedRCAs} onTitleClick={handleTitleClick} />
-
-                {filteredRCAs.length > 0 ? (
-                  <div className="mt-6 flex justify-center">
-                    <Pagination
-                      currentPage={currentPage}
-                      totalPages={totalPages}
-                      onPageChange={handlePageChange}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex justify-center items-center py-12">
-                    <div className="text-gray-500 dark:text-gray-400">표시할 RCA가 없습니다.</div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
+          } />
+        </Routes>
       </div>
     </div>
   );
