@@ -126,9 +126,12 @@ go run github.com/swaggo/swag/cmd/swag@v1.16.6 init -g openapi.go --parseInterna
 
 #### Git hook (선택)
 
-커밋 시 OpenAPI를 자동 갱신하려면 hooksPath를 설정합니다.
+커밋 시 OpenAPI를 자동 갱신하려면 pre-commit을 사용합니다.
+pre-commit 설치 후 아래 명령을 실행합니다.
 
 ```bash
 cd backend
-git config core.hooksPath .githooks
+pre-commit install
 ```
+
+커밋 과정에서 docs가 변경되면 `git add docs` 후 커밋을 다시 실행합니다.
