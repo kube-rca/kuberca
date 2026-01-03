@@ -174,6 +174,8 @@ definitions:
     properties:
       alarm_title:
         type: string
+      fired_at:
+        type: string
       incident_id:
         type: string
       resolved_at:
@@ -448,6 +450,29 @@ paths:
       security:
       - BearerAuth: []
       summary: Get incident detail
+      tags:
+      - incidents
+    patch:
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.IncidentUpdateResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Hide incident
       tags:
       - incidents
     put:

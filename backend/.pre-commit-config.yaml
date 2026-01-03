@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: update-openapi
+        name: Update OpenAPI docs
+        entry: go run github.com/swaggo/swag/cmd/swag@v1.16.6 init -g openapi.go --parseInternal --output docs
+        language: system
+        pass_filenames: false
+        always_run: true
