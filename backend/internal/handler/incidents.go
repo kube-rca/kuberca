@@ -107,6 +107,29 @@ func (h *RcaHandler) UpdateIncident(c *gin.Context) {
 	})
 }
 
+// HideIncident godoc
+// @Summary Hide incident
+// @Tags incidents
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Incident ID"
+// @Success 200 {object} model.IncidentUpdateResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Router /api/v1/incidents/{id} [patch]
+func (h *RcaHandler) HideIncident(c *gin.Context) {
+	id := c.Param("id")
+
+	if err := h.svc.HideIncident(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "Incident hidden successfully",
+	})
+}
+
 // CreateMockIncident godoc
 // @Summary Create mock incident
 // @Tags incidents

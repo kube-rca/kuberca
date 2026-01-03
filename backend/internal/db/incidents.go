@@ -17,7 +17,8 @@ type Postgres struct {
 func (db *Postgres) GetIncidentList() ([]model.IncidentListResponse, error) {
 	query := `
 		SELECT incident_id, alarm_title, severity, fired_at, resolved_at 
-		FROM incidents 
+		FROM incidents
+		WHERE is_enabled = TRUE
 		ORDER BY fired_at DESC`
 
 	rows, err := db.Pool.Query(context.Background(), query)
@@ -90,6 +91,24 @@ func (db *Postgres) UpdateIncident(id string, req model.UpdateIncidentRequest) e
 		req.AnalysisDetail,
 		id,
 	)
+	if err != nil {
+		return err
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		return fmt.Errorf("no incident found with id: %s", id)
+	}
+
+	return nil
+}
+
+func (db *Postgres) HideIncident(id string) error {
+	query := `
+        UPDATE incidents 
+        SET is_enabled = false 
+        WHERE incident_id = $1
+    `
+	commandTag, err := db.Pool.Exec(context.Background(), query, id)
 	if err != nil {
 		return err
 	}

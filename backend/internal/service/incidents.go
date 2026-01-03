@@ -28,6 +28,10 @@ func (s *RcaService) UpdateIncident(id string, req model.UpdateIncidentRequest) 
 	return s.repo.UpdateIncident(id, req)
 }
 
+func (s *RcaService) HideIncident(id string) error {
+	return s.repo.HideIncident(id)
+}
+
 // Mock 데이터 생성 추후 삭제 에정
 func (s *RcaService) CreateMockIncident() (string, error) {
 	// 1. 고유 ID 생성 (예: INC-1703501234)
