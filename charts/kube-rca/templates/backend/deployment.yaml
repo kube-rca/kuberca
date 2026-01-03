@@ -137,7 +137,7 @@ spec:
               value: {{ default "gemini" .Values.backend.embedding.provider | quote }}
             - name: EMBEDDING_MODEL
               value: {{ default "gemini-embedding-001" .Values.backend.embedding.model | quote }}
-            - name: EMBEDDING_API_KEY
+            - name: AI_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.backend.embedding.apiKey.existingSecret | quote }}

@@ -51,8 +51,8 @@ backend:
     provider: "gemini"
     model: "gemini-embedding-001"
     apiKey:
-      existingSecret: "kube-rca-embedding-secret"
-      key: "embedding-api-key"
+      existingSecret: "kube-rca-ai"
+      key: "ai-studio-api-key"
 
   postgresql:
     # -- PostgreSQL host.
@@ -184,7 +184,7 @@ agent:
       # -- Create a Secret for the Gemini API key.
       create: false
       # -- Existing Secret name for the Gemini API key.
-      existingSecret: "kube-rca-agent-secret"
+      existingSecret: "kube-rca-ai"
       # -- Secret key name for the Gemini API key.
       key: "ai-studio-api-key"
   # -- Node labels for agent pods assignment.

@@ -12,7 +12,7 @@ Deploy kube-rca backend and frontend
 | agent.containerPort | int | `8000` | Agent container port. |
 | agent.gemini.modelId | string | `"gemini-3-flash-preview"` | Gemini model ID for Strands Agents. |
 | agent.gemini.secret.create | bool | `false` | Create a Secret for the Gemini API key. |
-| agent.gemini.secret.existingSecret | string | `"kube-rca-agent-secret"` | Existing Secret name for the Gemini API key. |
+| agent.gemini.secret.existingSecret | string | `"kube-rca-ai"` | Existing Secret name for the Gemini API key. |
 | agent.gemini.secret.key | string | `"ai-studio-api-key"` | Secret key name for the Gemini API key. |
 | agent.image.pullPolicy | string | `"IfNotPresent"` | Agent image pull policy. |
 | agent.image.repository | string | `""` | Agent image repository. |
@@ -58,6 +58,10 @@ Deploy kube-rca backend and frontend
 | backend.auth.secret.keys.jwtSecret | string | `"kube-rca-jwt-secret"` | Secret key for JWT secret. |
 | backend.auth.secret.name | string | `""` | Custom Secret name for chart-managed auth Secret. |
 | backend.containerPort | int | `8080` | Backend container port. |
+| backend.embedding.apiKey.existingSecret | string | `"kube-rca-ai"` |  |
+| backend.embedding.apiKey.key | string | `"ai-studio-api-key"` |  |
+| backend.embedding.model | string | `"gemini-embedding-001"` |  |
+| backend.embedding.provider | string | `"gemini"` |  |
 | backend.image.pullPolicy | string | `"IfNotPresent"` | Backend image pull policy. |
 | backend.image.repository | string | `""` | Backend image repository. |
 | backend.image.tag | string | `""` | Backend image tag. |
