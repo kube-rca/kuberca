@@ -18,7 +18,6 @@ func main() {
 	// 초기화 순서: client → service → handler
 
 	cfg := config.Load()
-
 	log.Printf("check embedding model: %s", cfg.Embedding.Model)
 
 	// 1. DB 연결 풀 초기화
