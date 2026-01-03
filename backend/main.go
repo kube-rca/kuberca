@@ -44,6 +44,7 @@ func main() {
 	// if err := pgRepo.EnsureEmbeddingSchema(ctx); err != nil {
 	// 	log.Fatalf("Failed to ensure embedding schema: %v", err)
 	// }
+	
 
 	authService, err := service.NewAuthService(pgRepo, cfg.Auth)
 	if err != nil {
