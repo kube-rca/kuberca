@@ -62,9 +62,6 @@ openapi:
       nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
       cert-manager.io/cluster-issuer: letsencrypt-prod
       external-dns.alpha.kubernetes.io/target: 121.130.214.237
-      nginx.ingress.kubernetes.io/auth-type: basic
-      nginx.ingress.kubernetes.io/auth-secret: basic-auth
-      nginx.ingress.kubernetes.io/auth-realm: "Authentication Required"
     hosts:
       - docs-kuberca.kkamji.net
     paths:
