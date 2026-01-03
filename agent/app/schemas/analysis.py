@@ -8,6 +8,7 @@ from app.schemas.alert import Alert
 class AlertAnalysisRequest(BaseModel):
     alert: Alert
     thread_ts: str
+    incident_id: str | None = None
 
 
 class AlertAnalysisResponse(BaseModel):

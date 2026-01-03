@@ -29,7 +29,7 @@ class AnalysisService:
 
         prompt = _build_prompt(request, k8s_context)
         try:
-            return self._analysis_engine.analyze(prompt)
+            return self._analysis_engine.analyze(prompt, request.incident_id)
         except Exception as exc:  # noqa: BLE001
             self._logger.exception("Strands analysis failed")
             return _fallback_summary(request, k8s_context, f"analysis failed: {exc}")
@@ -41,6 +41,8 @@ def _build_prompt(request: AlertAnalysisRequest, k8s_context: K8sContext) -> str
         "alert": alert_payload,
         "thread_ts": request.thread_ts,
     }
+    if request.incident_id:
+        payload["incident_id"] = request.incident_id
 
     return (
         "You are kube-rca-agent. Analyze the alert using the provided Kubernetes context.\n"
