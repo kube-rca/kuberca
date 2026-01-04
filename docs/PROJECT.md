@@ -12,6 +12,7 @@ LLM을 활용해 Root Cause Analysis(RCA)와 대응 가이드를 제공하는 �
 - Agent: FastAPI 기반 분석 API
   - K8s/Prometheus 컨텍스트 + Strands Agents(Gemini) 기반 분석
   - `GEMINI_API_KEY` 미설정 시 fallback 요약 반환
+  - SESSION_DB 설정 시 Postgres 세션 저장
 - Frontend: 로그인/회원가입 + Incident 목록/상세 UI
   - `/api/v1/auth/*`, `/api/v1/incidents*` 사용
 - Helm: backend/agent/frontend + OpenAPI UI(optional) 배포용 `kube-rca` 차트 포함
@@ -124,6 +125,7 @@ Prometheus/Alertmanager, Slack, 로그, 메트릭, 트레이스 데이터를 연
 ### 6.5 데이터베이스 / AI
 
 - PostgreSQL + pgvector(구현: incident/auth/embeddings)
+- Agent 세션 저장소(PostgreSQL, 구현 옵션)
 - LLM API(Gemini, Strands Agents/Embeddings)(구현)
 - Vector DB(계획): 유사 인시던트 검색
 

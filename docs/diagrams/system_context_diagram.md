@@ -16,7 +16,8 @@ flowchart LR
   style Core fill:transparent,stroke:transparent
 
   AG[Agent API - 구현: Strands + K8s]
-  PG[(PostgreSQL - 구현)]
+  PG[(PostgreSQL - 구현: incidents/auth/embeddings)]
+  SDB[(Session DB - 구현)]
   VDB[(Vector DB - 계획)]
 
   AM -->|Webhook alert| BE
@@ -31,6 +32,7 @@ flowchart LR
   AG -->|LLM 분석| LLM
   BE -->|임베딩 생성| LLM
 
-  BE -->|Incidents/Auth/Embeddings| PG
+  BE -->|Incidents/Auth/Embeddings 저장| PG
+  AG -->|세션 저장| SDB
   BE -->|임베딩 검색 - 계획| VDB
 ```
