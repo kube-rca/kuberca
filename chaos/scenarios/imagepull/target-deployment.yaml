@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chaos-imagepull-target
+  labels:
+    app: chaos-imagepull-target
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chaos-imagepull-target
+  template:
+    metadata:
+      labels:
+        app: chaos-imagepull-target
+    spec:
+      containers:
+      - name: app
+        image: nginx:non-existent-tag-12345
+        imagePullPolicy: Always

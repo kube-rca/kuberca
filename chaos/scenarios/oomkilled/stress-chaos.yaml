@@ -1,0 +1,15 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: chaos-oom-stress
+spec:
+  mode: one
+  selector:
+    labelSelectors:
+      app: chaos-oom-target
+  stressors:
+    memory:
+      workers: 1
+      size: 128Mi
+      oomScoreAdj: -1000
+  duration: "30s"
