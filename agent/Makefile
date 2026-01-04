@@ -7,6 +7,7 @@ HOST ?= 0.0.0.0
 PORT ?= 8000
 GEMINI_MODEL_ID ?= gemini-3-flash-preview
 ANALYZE_URL ?= http://localhost:8000/analyze
+CHAOS_SCRIPTS_DIR ?= ../chaos/scripts/agent
 THREAD_TS ?= test-thread
 ALERT_STATUS ?= firing
 ALERT_NAME ?= TestAlert
@@ -120,7 +121,7 @@ test-analysis: ## Create OOMKilled deployment and call analyze endpoint
 	POLL_INTERVAL_SECONDS="$(POLL_INTERVAL_SECONDS)" \
 	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
 	CLEANUP="$(CLEANUP)" \
-	bash scripts/curl-test-oomkilled.sh
+	bash $(CHAOS_SCRIPTS_DIR)/curl-test-oomkilled.sh
 
 test-oom-only: ## Create OOMKilled pod without calling analyze (for testing)
 	@ANALYZE_URL="http://dummy" \
@@ -137,14 +138,14 @@ test-oom-only: ## Create OOMKilled pod without calling analyze (for testing)
 	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
 	CLEANUP="$(CLEANUP)" \
 	SKIP_ANALYZE=true \
-	bash scripts/curl-test-oomkilled.sh
+	bash $(CHAOS_SCRIPTS_DIR)/curl-test-oomkilled.sh
 
 cleanup-oom: ## Cleanup OOMKilled test deployment
 	@DEPLOYMENT_NAME="$(LOCAL_OOM_DEPLOYMENT)" \
 	NAMESPACE="$(LOCAL_OOM_NAMESPACE)" \
 	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
 	CLEANUP_ONLY=true \
-	bash scripts/curl-test-oomkilled.sh
+	bash $(CHAOS_SCRIPTS_DIR)/curl-test-oomkilled.sh
 
 test-crash-only: ## Create CrashLoopBackOff pod without calling analyze (for testing)
 	@ANALYZE_URL="http://dummy" \
@@ -159,7 +160,7 @@ test-crash-only: ## Create CrashLoopBackOff pod without calling analyze (for tes
 	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
 	CLEANUP="$(CLEANUP)" \
 	SKIP_ANALYZE=true \
-	bash scripts/curl-test-crashloop.sh
+	bash $(CHAOS_SCRIPTS_DIR)/curl-test-crashloop.sh
 
 test-analysis-crash: ## Create CrashLoopBackOff deployment and call analyze endpoint
 	@ANALYZE_URL="$(ANALYZE_URL)" \
@@ -177,14 +178,14 @@ test-analysis-crash: ## Create CrashLoopBackOff deployment and call analyze endp
 	POLL_INTERVAL_SECONDS="$(POLL_INTERVAL_SECONDS)" \
 	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
 	CLEANUP="$(CLEANUP)" \
-	bash scripts/curl-test-crashloop.sh
+	bash $(CHAOS_SCRIPTS_DIR)/curl-test-crashloop.sh
 
 cleanup-crash: ## Cleanup CrashLoopBackOff test deployment
 	@DEPLOYMENT_NAME="$(LOCAL_CRASH_DEPLOYMENT)" \
 	NAMESPACE="$(LOCAL_CRASH_NAMESPACE)" \
 	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
 	CLEANUP_ONLY=true \
-	bash scripts/curl-test-crashloop.sh
+	bash $(CHAOS_SCRIPTS_DIR)/curl-test-crashloop.sh
 
 test-imagepull-only: ## Create ImagePullBackOff pod without calling analyze (for testing)
 	@ANALYZE_URL="http://dummy" \
@@ -198,7 +199,7 @@ test-imagepull-only: ## Create ImagePullBackOff pod without calling analyze (for
 	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
 	CLEANUP="$(CLEANUP)" \
 	SKIP_ANALYZE=true \
-	bash scripts/curl-test-imagepull.sh
+	bash $(CHAOS_SCRIPTS_DIR)/curl-test-imagepull.sh
 
 test-analysis-imagepull: ## Create ImagePullBackOff deployment and call analyze endpoint
 	@ANALYZE_URL="$(ANALYZE_URL)" \
@@ -215,14 +216,14 @@ test-analysis-imagepull: ## Create ImagePullBackOff deployment and call analyze 
 	POLL_INTERVAL_SECONDS="$(POLL_INTERVAL_SECONDS)" \
 	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
 	CLEANUP="$(CLEANUP)" \
-	bash scripts/curl-test-imagepull.sh
+	bash $(CHAOS_SCRIPTS_DIR)/curl-test-imagepull.sh
 
 cleanup-imagepull: ## Cleanup ImagePullBackOff test deployment
 	@DEPLOYMENT_NAME="$(LOCAL_IMAGEPULL_DEPLOYMENT)" \
 	NAMESPACE="$(LOCAL_IMAGEPULL_NAMESPACE)" \
 	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
 	CLEANUP_ONLY=true \
-	bash scripts/curl-test-imagepull.sh
+	bash $(CHAOS_SCRIPTS_DIR)/curl-test-imagepull.sh
 
 test-analysis-local: install ## Run local agent w/ Gemini and test OOMKilled analyze
 	@set -euo pipefail; \

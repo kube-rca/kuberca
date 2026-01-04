@@ -244,7 +244,7 @@ GEMINI_API_KEY=xxx KUBECONFIG=~/.kube/config make test-analysis-local
 
 ```bash
 # Check help
-bash scripts/curl-test-oomkilled.sh --help
+bash ../chaos/scripts/agent/curl-test-oomkilled.sh --help
 
 # Run with environment variables
 DEPLOYMENT_NAME=my-oom-test \
@@ -253,5 +253,5 @@ OOM_COMMAND="python -c 'a=bytearray(200000000)'" \
 MEMORY_LIMIT=64Mi \
 NAMESPACE=kube-rca \
 SKIP_ANALYZE=true \
-bash scripts/curl-test-oomkilled.sh
+bash ../chaos/scripts/agent/curl-test-oomkilled.sh
 ```
