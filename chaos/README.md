@@ -28,6 +28,8 @@ make oomkilled
 make crashloop
 make imagepull
 make incident   # alias for oomkilled
+make incident NO_CHAOS_MESH=1   # run without Chaos Mesh
+./scripts/run-oomkilled.sh --no-chaos-mesh
 ```
 
 ## Environment
@@ -36,5 +38,6 @@ make incident   # alias for oomkilled
 - `KUBE_CONTEXT`: kubectl context (optional)
 - `WAIT_SECONDS`: wait timeout (default: `120`)
 - `POLL_INTERVAL_SECONDS`: polling interval (default: `3`)
+- `NO_CHAOS_MESH`: set to `1/true` to run oomkilled without Chaos Mesh
 
 Each scenario runs until you press Enter (or Ctrl+C), then cleans up.
