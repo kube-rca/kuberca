@@ -10,9 +10,11 @@ interface RCADetailViewProps {
   onBack: () => void;
 }
 
-const formatSeverity = (text?: string) => {
-  if (!text) return '';
-  return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+// Severity에 따른 색상 스타일 매핑 (백엔드 값 그대로 매칭)
+const severityStyles: Record<string, string> = {
+  warning: 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-200 dark:border-yellow-700',
+  critical: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-200 dark:border-red-700',
+  info: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-700',
 };
 
 const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => {
@@ -23,7 +25,6 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<RCADetail>>({});
 
-  // 리스트에서 넘어온 state(autoEdit) 확인용
   const location = useLocation();
 
   const loadDetail = useCallback(async () => {
@@ -44,11 +45,9 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
     loadDetail();
   }, [loadDetail]);
 
-  // [자동 편집 모드] 리스트에서 'Edit' 버튼 누르고 들어왔을 때 실행
   useEffect(() => {
     if (location.state && (location.state as any).autoEdit) {
       setIsEditing(true);
-      // 상태 초기화 (새로고침 시 재실행 방지)
       window.history.replaceState({}, document.title);
     }
   }, [location]);
@@ -86,7 +85,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
     try {
       await hideIncident(incidentId);
       alert("성공적으로 숨겨졌습니다.");
-      onBack(); // 목록으로 돌아가기 (props로 받은 함수 실행)
+      onBack();
     } catch (error) {
       console.error("숨기기 실패:", error);
       alert("오류가 발생했습니다. 다시 시도해주세요.");
@@ -98,25 +97,13 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
     return isoString.replace('T', ' ').split('.')[0];
   };
 
-  const getBadgeColor = (severity?: string, resolvedAt?: string | null) => {
-    if (resolvedAt) return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-200 dark:border-green-700';
-
-    const s = severity?.toLowerCase() || 'info';
-    if (s === 'critical') return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-200 dark:border-red-700';
-    if (s === 'warning') return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-200 dark:border-yellow-700';
-    if (s === 'resolved') return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-200 dark:border-green-700';
-    return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-700';
-  };
-
-  const getDisplaySeverity = (severity?: string, resolvedAt?: string | null) => {
-    if (resolvedAt) return 'Resolved';
-    return formatSeverity(severity);
-  };
-
   if (loading) return <div className="p-12 text-center text-gray-500 dark:text-gray-400">상세 정보를 불러오는 중...</div>;
   if (error || !data) return <div className="p-12 text-center text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg m-4">{error}</div>;
 
   const similarList: SimilarIncident[] = data.similar_incidents || [];
+  
+  // 상태(Resolved/Ongoing) 판별
+  const isResolved = !!data.resolved_at;
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-5xl mx-auto transition-colors duration-300">
@@ -168,10 +155,9 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                 onChange={handleInputChange}
                 className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="Resolved">Resolved</option>
-                <option value="Critical">Critical</option>
-                <option value="Warning">Warning</option>
-                <option value="Info">Info</option>
+                <option value="critical">critical</option>
+                <option value="warning">warning</option>
+                <option value="info">info</option>
               </select>
 
               <button 
@@ -190,12 +176,26 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
           ) : (
             <div className="flex items-center gap-2">
               
-              {/* [위치: 우측 그룹] 뱃지 */}
-              <span className={`px-3 py-1.5 rounded-full text-xs font-bold border flex-shrink-0 ${getBadgeColor(data.severity, data.resolved_at)}`}>
-                {getDisplaySeverity(data.severity, data.resolved_at)}
+              {/* [1] Status Pin: Resolved (Green) or Ongoing (Red) */}
+              <span 
+                className={`px-3 py-1.5 rounded-full text-xs font-bold border flex-shrink-0 
+                  ${isResolved 
+                    ? 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-200 dark:border-green-700' 
+                    : 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-200 dark:border-red-700'
+                  }`}
+              >
+                {isResolved ? 'Resolved' : 'Ongoing'}
               </span>
 
-              {/* 숨기기 버튼 */}
+              {/* [2] Severity Pin: Status와 숨기기 버튼 사이에 위치 */}
+              <span 
+                className={`px-3 py-1.5 rounded-full text-xs font-bold border flex-shrink-0 
+                  ${severityStyles[data.severity || 'info'] || severityStyles.info}`}
+              >
+                {data.severity}
+              </span>
+
+              {/* [3] 숨기기 버튼 */}
               <button 
                 onClick={handleHide}
                 className="px-4 py-1.5 text-sm text-red-600 dark:text-red-400 border border-red-600 dark:border-red-400 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
@@ -203,7 +203,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                 숨기기
               </button>
 
-              {/* Edit 버튼 */}
+              {/* [4] Edit 버튼 */}
               <button 
                 onClick={() => setIsEditing(true)}
                 className="px-4 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-semibold rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition"
@@ -215,7 +215,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
         </div>
       </div>
 
-      {/* 나머지 본문 영역 */}
+      {/* 나머지 본문 영역 (변경 없음) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
         {/* 발생 시간 */}
@@ -234,7 +234,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
              ✅ 해결 시간
           </div>
           <div className="text-gray-900 dark:text-gray-100 font-medium font-mono">
-            {data.resolved_at ? formatTime(data.resolved_at) : <span className="text-blue-500 font-bold">Ongoing</span>}
+            {data.resolved_at ? formatTime(data.resolved_at) : <span className="text-red-500 font-bold">Ongoing</span>}
           </div>
         </div>
 
@@ -273,7 +273,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
           )}
         </div>
 
-        {/* 상세 리포트 */}
+        {/* 상세 분석 리포트 */}
         <div className="md:col-span-2">
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
             📝 상세 분석 리포트
