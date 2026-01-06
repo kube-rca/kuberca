@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
+import { Routes, Route, useNavigate, useParams, useSearchParams } from 'react-router-dom'; // [1] useSearchParams 추가
 import { RCAItem } from './types';
 import TimeRangeSelector from './components/TimeRangeSelector';
 import RCATable from './components/RCATable';
@@ -29,27 +29,39 @@ const IncidentDetailRoute = () => {
   return (
     <RCADetailView 
       incidentId={id} 
-      onBack={() => navigate('/')} 
+      onBack={() => navigate(-1)} // 뒤로가기 시 필터 유지된 이전 URL로 이동
     />
   );
 };
 
 function App() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams(); // [2] URL 파라미터 훅 사용
 
   const [allRCAs, setAllRCAs] = useState<RCAItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   
-  // 필터 상태들
-  const [timeRange, setTimeRange] = useState('All Time');
-  const [statusFilter, setStatusFilter] = useState<RCAStatusFilter>('all');
-  const [severityFilter, setSeverityFilter] = useState<string>('all'); 
+  // [3] 필터 상태 초기화: URL 파라미터가 있으면 그것을 우선 사용, 없으면 기본값
+  const [timeRange, setTimeRange] = useState(() => searchParams.get('time') || 'All Time');
+  const [statusFilter, setStatusFilter] = useState<RCAStatusFilter>(() => (searchParams.get('status') as RCAStatusFilter) || 'all');
+  const [severityFilter, setSeverityFilter] = useState(() => searchParams.get('severity') || 'all'); 
 
   const [authReady, setAuthReady] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [allowSignup, setAllowSignup] = useState(false);
+
+  // [4] 필터 변경 시 URL 업데이트 (동기화)
+  useEffect(() => {
+    const params: Record<string, string> = {};
+    if (statusFilter !== 'all') params.status = statusFilter;
+    if (severityFilter !== 'all') params.severity = severityFilter;
+    if (timeRange !== 'All Time') params.time = timeRange;
+    
+    // 현재 필터 상태를 URL 쿼리 스트링으로 반영 (replace: true로 히스토리 오염 방지)
+    setSearchParams(params, { replace: true });
+  }, [statusFilter, severityFilter, timeRange, setSearchParams]);
 
   const getCurrentTimeStr = () => {
     const now = new Date();
@@ -155,10 +167,6 @@ function App() {
     setCurrentPage(page);
   };
 
-  const handleTimeRangeChange = (newTimeRange: string) => {
-    setTimeRange(newTimeRange);
-  };
-
   const handleTitleClick = (incident_id: string) => {
     navigate(`/incidents/${incident_id}`);
   };
@@ -175,7 +183,7 @@ function App() {
     return <AuthPanel allowSignup={allowSignup} onAuthenticated={() => setIsAuthenticated(true)} />;
   }
 
-  // 공통 스타일 정의 (Dropdown용)
+  // 공통 스타일 정의
   const selectStyle = "px-4 py-2 text-sm font-medium border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm cursor-pointer";
 
   return (
@@ -203,7 +211,7 @@ function App() {
                 
                 <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
                   
-                  {/* 1. Status Filter (Dropdown) */}
+                  {/* Status Filter */}
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value as RCAStatusFilter)}
@@ -214,7 +222,7 @@ function App() {
                     <option value="resolved">Resolved</option>
                   </select>
 
-                  {/* 2. Severity Filter (Dropdown) */}
+                  {/* Severity Filter */}
                   <select
                     value={severityFilter}
                     onChange={(e) => setSeverityFilter(e.target.value)}
@@ -226,8 +234,8 @@ function App() {
                     <option value="info">Info</option>
                   </select>
 
-                  {/* 3. Time Filter (Existing) */}
-                  <TimeRangeSelector value={timeRange} onChange={handleTimeRangeChange} />
+                  {/* Time Filter */}
+                  <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
                 </div>
               </div>
 
