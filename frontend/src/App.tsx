@@ -29,7 +29,7 @@ const IncidentDetailRoute = () => {
   return (
     <RCADetailView 
       incidentId={id} 
-      onBack={() => navigate('/')} // 뒤로가기 누르면 목록('/')으로 이동
+      onBack={() => navigate('/')} 
     />
   );
 };
@@ -41,10 +41,11 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  
+  // 필터 상태들
   const [timeRange, setTimeRange] = useState('All Time');
   const [statusFilter, setStatusFilter] = useState<RCAStatusFilter>('all');
-  
-  // [중요] selectedIncidentId 상태 변수는 이제 필요 없어서 삭제됨 (URL로 대체)
+  const [severityFilter, setSeverityFilter] = useState<string>('all'); 
 
   const [authReady, setAuthReady] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -131,12 +132,16 @@ function App() {
   };
 
   const filteredRCAs = useMemo(() => {
-    return filterRCAs(allRCAs, timeRange, statusFilter);
-  }, [allRCAs, timeRange, statusFilter]);
+    const baseFiltered = filterRCAs(allRCAs, timeRange, statusFilter);
+    if (severityFilter === 'all') {
+      return baseFiltered;
+    }
+    return baseFiltered.filter((item) => item.severity === severityFilter);
+  }, [allRCAs, timeRange, statusFilter, severityFilter]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [timeRange, statusFilter]);
+  }, [timeRange, statusFilter, severityFilter]);
 
   const totalPages = Math.ceil(filteredRCAs.length / ITEMS_PER_PAGE);
 
@@ -154,7 +159,6 @@ function App() {
     setTimeRange(newTimeRange);
   };
 
-  // [2] 제목 클릭 시 실행될 함수 (단순 이동)
   const handleTitleClick = (incident_id: string) => {
     navigate(`/incidents/${incident_id}`);
   };
@@ -171,6 +175,9 @@ function App() {
     return <AuthPanel allowSignup={allowSignup} onAuthenticated={() => setIsAuthenticated(true)} />;
   }
 
+  // 공통 스타일 정의 (Dropdown용)
+  const selectStyle = "px-4 py-2 text-sm font-medium border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm cursor-pointer";
+
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
       <Header />
@@ -186,54 +193,40 @@ function App() {
           </button>
         </div>
 
-        {/* [3] Routes: 여기가 핵심! URL에 따라 보여줄 컴포넌트를 스위칭합니다 */}
         <Routes>
-          {/* 상세 페이지 (/incidents/아이디) */}
           <Route path="/incidents/:id" element={<IncidentDetailRoute />} />
 
-          {/* 메인 리스트 (/) */}
           <Route path="/" element={
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors duration-300">
-              <div className="mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="mb-6 flex flex-col xl:flex-row justify-between items-center gap-4">
                 <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">RCA Dashboard</h1>
                 
-                <div className="flex flex-col sm:flex-row items-center gap-3">
-                  <div className="inline-flex rounded-md shadow-sm" role="group">
-                    <button
-                      type="button"
-                      onClick={() => setStatusFilter('all')}
-                      className={`px-4 py-2 text-sm font-medium border border-gray-200 dark:border-gray-600 rounded-l-lg 
-                        ${statusFilter === 'all' 
-                          ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' 
-                          : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600'
-                        }`}
-                    >
-                      All
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStatusFilter('ongoing')}
-                      className={`px-4 py-2 text-sm font-medium border-t border-b border-gray-200 dark:border-gray-600
-                        ${statusFilter === 'ongoing' 
-                          ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' 
-                          : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600'
-                        }`}
-                    >
-                      Ongoing
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStatusFilter('resolved')}
-                      className={`px-4 py-2 text-sm font-medium border border-gray-200 dark:border-gray-600 rounded-r-lg
-                        ${statusFilter === 'resolved' 
-                          ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' 
-                          : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600'
-                        }`}
-                    >
-                      Resolved
-                    </button>
-                  </div>
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                  
+                  {/* 1. Status Filter (Dropdown) */}
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as RCAStatusFilter)}
+                    className={selectStyle}
+                  >
+                    <option value="all">All Status</option>
+                    <option value="ongoing">Ongoing</option>
+                    <option value="resolved">Resolved</option>
+                  </select>
 
+                  {/* 2. Severity Filter (Dropdown) */}
+                  <select
+                    value={severityFilter}
+                    onChange={(e) => setSeverityFilter(e.target.value)}
+                    className={selectStyle}
+                  >
+                    <option value="all">All Severities</option>
+                    <option value="critical">Critical</option>
+                    <option value="warning">Warning</option>
+                    <option value="info">Info</option>
+                  </select>
+
+                  {/* 3. Time Filter (Existing) */}
                   <TimeRangeSelector value={timeRange} onChange={handleTimeRangeChange} />
                 </div>
               </div>
