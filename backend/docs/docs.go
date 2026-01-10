@@ -294,6 +294,56 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/embeddings/search": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "embeddings"
+                ],
+                "summary": "Search similar incidents by vector similarity",
+                "parameters": [
+                    {
+                        "description": "Vector search payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.VectorSearchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.VectorSearchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/incidents": {
             "get": {
                 "security": [
@@ -865,6 +915,45 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "severity": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.VectorSearchRequest": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string"
+                },
+                "limit": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.VectorSearchResult": {
+            "type": "object",
+            "properties": {
+                "incident_id": {
+                    "type": "string"
+                },
+                "incident_summary": {
+                    "type": "string"
+                },
+                "similarity": {
+                    "type": "number"
+                }
+            }
+        },
+        "model.VectorSearchResponse": {
+            "type": "object",
+            "properties": {
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.VectorSearchResult"
+                    }
+                },
+                "model": {
                     "type": "string"
                 }
             }
