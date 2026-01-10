@@ -41,9 +41,9 @@ func main() {
 
 	// Embedding 스키마 생성 (pgvector 확장 및 embeddings 테이블)
 	// todo: pgvector 확장 먼저 db에 설치해아함
-	// if err := pgRepo.EnsureEmbeddingSchema(ctx); err != nil {d
-	// 	log.Fatalf("Failed to ensure embedding schema: %v", err)
-	// }
+	if err := pgRepo.EnsureEmbeddingSchema(ctx); err != nil {
+		log.Fatalf("Failed to ensure embedding schema: %v", err)
+	}
 
 	authService, err := service.NewAuthService(pgRepo, cfg.Auth)
 	if err != nil {
