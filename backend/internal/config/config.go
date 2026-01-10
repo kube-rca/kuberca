@@ -65,7 +65,7 @@ func Load() Config {
 		},
 		Embedding: EmbeddingConfig{
 			Provider: getenv("EMBEDDING_PROVIDER", "google"),
-			APIKey:   os.Getenv("EMBEDDING_API_KEY"),
+			APIKey:   os.Getenv("AI_API_KEY"),
 			Model:    getenv("EMBEDDING_MODEL", "text-embedding-004"),
 		},
 		Postgres: PostgresConfig{
