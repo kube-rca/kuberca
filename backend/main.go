@@ -18,6 +18,7 @@ func main() {
 	// 초기화 순서: client → service → handler
 
 	cfg := config.Load()
+	log.Printf("check embedding model: %s", cfg.Embedding.Model)
 
 	// 1. DB 연결 풀 초기화
 	ctx := context.Background()
@@ -38,6 +39,13 @@ func main() {
 		log.Fatalf("Failed to ensure incident schema: %v", err)
 	}
 
+	// Embedding 스키마 생성 (pgvector 확장 및 embeddings 테이블)
+	// todo: pgvector 확장 먼저 db에 설치해아함
+	// if err := pgRepo.EnsureEmbeddingSchema(ctx); err != nil {
+	// 	log.Fatalf("Failed to ensure embedding schema: %v", err)
+	// }
+	
+
 	authService, err := service.NewAuthService(pgRepo, cfg.Auth)
 	if err != nil {
 		log.Fatalf("Failed to initialize auth service: %v", err)
@@ -54,8 +62,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize embedding client: %v", err)
 	}
-	embeddingSvc := service.NewEmbeddingService(pgRepo, embeddingClient)
-	embeddingHndlr := handler.NewEmbeddingHandler(embeddingSvc)
+	embeddingService := service.NewEmbeddingService(pgRepo, embeddingClient)
+	embeddingHandler := handler.NewEmbeddingHandler(embeddingService)
 
 	// 2. 외부 서비스 클라이언트 초기화
 	slackClient := client.NewSlackClient(cfg.Slack)
@@ -103,7 +111,7 @@ func main() {
 		protected.PUT("/incidents/:id", rcaHndlr.UpdateIncident)
 		protected.PATCH("/incidents/:id", rcaHndlr.HideIncident)
 		protected.POST("/incidents/mock", rcaHndlr.CreateMockIncident)
-		protected.POST("/embeddings", embeddingHndlr.CreateEmbedding)
+		protected.POST("/embeddings", embeddingHandler.CreateEmbedding)
 	}
 
 	// Alertmanager 웹훅 엔드포인트

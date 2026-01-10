@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 )
 
 type EmbeddingRepo interface {
@@ -28,6 +29,7 @@ func (s *EmbeddingService) CreateEmbedding(ctx context.Context, incidentID, summ
 	}
 	vector, model, err := s.client.EmbedText(ctx, summary)
 	if err != nil {
+		log.Printf("Failed to embed text: %v", err)
 		return 0, model, err
 	}
 	id, err := s.repo.InsertEmbedding(ctx, incidentID, summary, model, vector)

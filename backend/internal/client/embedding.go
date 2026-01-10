@@ -8,30 +8,30 @@ import (
 	"google.golang.org/genai"
 )
 
-type EmbeddingClientConfig struct {
-	APIKey string
-	Model  string
-}
-
 type EmbeddingClient struct {
 	client *genai.Client
 	model  string
 }
 
 func NewEmbeddingClient(cfg config.EmbeddingConfig) (*EmbeddingClient, error) {
+	fmt.Printf("api key: %s\n", cfg.APIKey)
+	fmt.Printf("model: %s\n", cfg.Model)
 	if cfg.APIKey == "" {
-		return nil, fmt.Errorf("missing AI_API_KEY")
+		return nil, fmt.Errorf("missing EMBEDDING_API_KEY")
 	}
-	clientCfg := EmbeddingClientConfig{APIKey: cfg.APIKey, Model: "text-embedding-004"}
-	client, err := genai.NewClient(context.Background(), &genai.ClientConfig{APIKey: clientCfg.APIKey})
+	clientConfig := genai.ClientConfig{APIKey: cfg.APIKey, Backend: genai.BackendGeminiAPI}
+	client, err := genai.NewClient(context.Background(), &clientConfig)
 	if err != nil {
 		return nil, err
 	}
-	return &EmbeddingClient{client: client, model: clientCfg.Model}, nil
+	return &EmbeddingClient{client: client, model: cfg.Model}, nil
 }
 
 func (c *EmbeddingClient) EmbedText(ctx context.Context, text string) ([]float32, string, error) {
-	res, err := c.client.Models.EmbedContent(ctx, c.model, genai.Text(text), nil)
+	contents := []*genai.Content{
+		genai.NewContentFromText(text, genai.RoleUser),
+	}
+	res, err := c.client.Models.EmbedContent(ctx, c.model, contents, nil)
 	if err != nil {
 		return nil, c.model, err
 	}
