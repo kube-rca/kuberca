@@ -224,6 +224,31 @@ definitions:
       severity:
         type: string
     type: object
+  model.VectorSearchRequest:
+    properties:
+      query:
+        type: string
+      limit:
+        type: integer
+    type: object
+  model.VectorSearchResult:
+    properties:
+      incident_id:
+        type: string
+      incident_summary:
+        type: string
+      similarity:
+        type: number
+    type: object
+  model.VectorSearchResponse:
+    properties:
+      results:
+        items:
+          $ref: '#/definitions/model.VectorSearchResult'
+        type: array
+      model:
+        type: string
+    type: object
 info:
   contact: {}
   description: Backend API for Kube-RCA services.
@@ -406,6 +431,37 @@ paths:
       security:
       - BearerAuth: []
       summary: Create incident embedding
+      tags:
+      - embeddings
+  /api/v1/embeddings/search:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Vector search payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.VectorSearchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.VectorSearchResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Search similar incidents by vector similarity
       tags:
       - embeddings
   /api/v1/incidents:
