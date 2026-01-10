@@ -46,3 +46,38 @@ func (db *Postgres) InsertEmbedding(ctx context.Context, incidentID, summary, mo
 	err := db.Pool.QueryRow(ctx, query, incidentID, summary, pgvector.NewVector(vector), model).Scan(&id)
 	return id, err
 }
+
+// EmbeddingSearchResult represents a search result with similarity score
+type EmbeddingSearchResult struct {
+	IncidentID      string
+	IncidentSummary string
+	Similarity      float64
+}
+
+// SearchEmbeddings finds similar embeddings using cosine distance
+func (db *Postgres) SearchEmbeddings(ctx context.Context, vector []float32, limit int) ([]EmbeddingSearchResult, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	query := `
+		SELECT incident_id, incident_summary, 1 - (embedding <=> $1) AS similarity
+		FROM embeddings
+		ORDER BY embedding <=> $1
+		LIMIT $2
+	`
+	rows, err := db.Pool.Query(ctx, query, pgvector.NewVector(vector), limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []EmbeddingSearchResult
+	for rows.Next() {
+		var r EmbeddingSearchResult
+		if err := rows.Scan(&r.IncidentID, &r.IncidentSummary, &r.Similarity); err != nil {
+			return nil, err
+		}
+		results = append(results, r)
+	}
+	return results, rows.Err()
+}

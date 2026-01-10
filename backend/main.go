@@ -41,10 +41,9 @@ func main() {
 
 	// Embedding 스키마 생성 (pgvector 확장 및 embeddings 테이블)
 	// todo: pgvector 확장 먼저 db에 설치해아함
-	// if err := pgRepo.EnsureEmbeddingSchema(ctx); err != nil {
+	// if err := pgRepo.EnsureEmbeddingSchema(ctx); err != nil {d
 	// 	log.Fatalf("Failed to ensure embedding schema: %v", err)
 	// }
-	
 
 	authService, err := service.NewAuthService(pgRepo, cfg.Auth)
 	if err != nil {
@@ -112,6 +111,7 @@ func main() {
 		protected.PATCH("/incidents/:id", rcaHndlr.HideIncident)
 		protected.POST("/incidents/mock", rcaHndlr.CreateMockIncident)
 		protected.POST("/embeddings", embeddingHandler.CreateEmbedding)
+		protected.POST("/embeddings/search", embeddingHandler.SearchEmbeddings)
 	}
 
 	// Alertmanager 웹훅 엔드포인트
