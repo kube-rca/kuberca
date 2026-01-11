@@ -34,9 +34,14 @@ func main() {
 	rcaSvc := service.NewRcaService(pgRepo)
 	rcaHndlr := handler.NewRcaHandler(rcaSvc)
 
-	// Incident 스키마 확장 (fingerprint, thread_ts, labels, annotations 컬럼 추가)
+	// Incident 스키마 생성 (장애 단위)
 	if err := pgRepo.EnsureIncidentSchema(ctx); err != nil {
 		log.Fatalf("Failed to ensure incident schema: %v", err)
+	}
+
+	// Alert 스키마 생성 (개별 알람 단위)
+	if err := pgRepo.EnsureAlertSchema(ctx); err != nil {
+		log.Fatalf("Failed to ensure alert schema: %v", err)
 	}
 
 	// Embedding 스키마 생성 (pgvector 확장 및 embeddings 테이블)
@@ -109,7 +114,14 @@ func main() {
 		protected.GET("/incidents/:id", rcaHndlr.GetIncidentDetail)
 		protected.PUT("/incidents/:id", rcaHndlr.UpdateIncident)
 		protected.PATCH("/incidents/:id", rcaHndlr.HideIncident)
+		protected.POST("/incidents/:id/resolve", rcaHndlr.ResolveIncident)
+		protected.GET("/incidents/:id/alerts", rcaHndlr.GetIncidentAlerts)
 		protected.POST("/incidents/mock", rcaHndlr.CreateMockIncident)
+
+		// Alert 엔드포인트
+		protected.GET("/alerts", rcaHndlr.GetAlerts)
+		protected.GET("/alerts/:id", rcaHndlr.GetAlertDetail)
+
 		protected.POST("/embeddings", embeddingHandler.CreateEmbedding)
 		protected.POST("/embeddings/search", embeddingHandler.SearchEmbeddings)
 	}

@@ -35,7 +35,7 @@ func (h *RcaHandler) GetIncidents(c *gin.Context) {
 }
 
 // GetIncidentDetail godoc
-// @Summary Get incident detail
+// @Summary Get incident detail with alerts
 // @Tags incidents
 // @Produce json
 // @Security BearerAuth
@@ -102,7 +102,7 @@ func (h *RcaHandler) UpdateIncident(c *gin.Context) {
 
 	c.JSON(http.StatusOK, model.IncidentUpdateResponse{
 		Status:     "success",
-		Message:    "RCA 정보가 성공적으로 수정되었습니다.",
+		Message:    "Incident 정보가 성공적으로 수정되었습니다.",
 		IncidentID: id,
 	})
 }
@@ -130,6 +130,66 @@ func (h *RcaHandler) HideIncident(c *gin.Context) {
 	})
 }
 
+// ResolveIncident godoc
+// @Summary Resolve incident (사용자가 장애 종료)
+// @Tags incidents
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Incident ID"
+// @Param request body model.ResolveIncidentRequest true "Resolve incident payload"
+// @Success 200 {object} model.IncidentUpdateResponse
+// @Failure 400 {object} model.ErrorResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Router /api/v1/incidents/{id}/resolve [post]
+func (h *RcaHandler) ResolveIncident(c *gin.Context) {
+	id := c.Param("id")
+
+	var req model.ResolveIncidentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		// resolvedBy가 없으면 빈 문자열로 처리
+		req.ResolvedBy = ""
+	}
+
+	// 서비스 호출
+	err := h.svc.ResolveIncident(id, req.ResolvedBy)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "error",
+			"message": "장애 종료 실패",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, model.IncidentUpdateResponse{
+		Status:     "success",
+		Message:    "장애가 성공적으로 종료되었습니다.",
+		IncidentID: id,
+	})
+}
+
+// GetIncidentAlerts godoc
+// @Summary Get alerts for incident
+// @Tags incidents
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Incident ID"
+// @Success 200 {array} model.AlertListResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Router /api/v1/incidents/{id}/alerts [get]
+func (h *RcaHandler) GetIncidentAlerts(c *gin.Context) {
+	id := c.Param("id")
+
+	alerts, err := h.svc.GetAlertsByIncidentID(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, alerts)
+}
+
 // CreateMockIncident godoc
 // @Summary Create mock incident
 // @Tags incidents
@@ -155,4 +215,50 @@ func (h *RcaHandler) CreateMockIncident(c *gin.Context) {
 		Message:    "Mock 데이터 1개가 DB에 저장되었습니다.",
 		IncidentID: newID,
 	})
+}
+
+// ============================================================================
+// Alert 관련 핸들러
+// ============================================================================
+
+// GetAlerts godoc
+// @Summary List all alerts
+// @Tags alerts
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} model.AlertListResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Router /api/v1/alerts [get]
+func (h *RcaHandler) GetAlerts(c *gin.Context) {
+	res, err := h.svc.GetAlertList()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+// GetAlertDetail godoc
+// @Summary Get alert detail
+// @Tags alerts
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Alert ID"
+// @Success 200 {object} model.AlertDetailResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Router /api/v1/alerts/{id} [get]
+func (h *RcaHandler) GetAlertDetail(c *gin.Context) {
+	id := c.Param("id")
+
+	res, err := h.svc.GetAlertDetail(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "error",
+			"message": "데이터를 찾을 수 없거나 DB 오류입니다.",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, res)
 }
