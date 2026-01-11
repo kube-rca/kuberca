@@ -42,7 +42,7 @@ uv pip install -e ".[dev]"
 
 ```bash
 cd agent
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+WEB_CONCURRENCY=4 uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers ${WEB_CONCURRENCY:-1}
 ```
 
 The server listens on `:8000` by default. Set `PORT` to change it.
@@ -60,6 +60,7 @@ The server listens on `:8000` by default. Set `PORT` to change it.
 - `PROMETHEUS_PORT_NAME`: Service port name to use when multiple ports exist (default: empty).
 - `PROMETHEUS_SCHEME`: Prometheus scheme (default: `http`).
 - `PROMETHEUS_HTTP_TIMEOUT_SECONDS`: Prometheus HTTP timeout in seconds (default: `5`).
+- `WEB_CONCURRENCY`: Uvicorn worker count (default: `1`).
 
 ## Endpoints
 

@@ -5,6 +5,7 @@ VENV ?= .venv
 APP ?= app.main:app
 HOST ?= 0.0.0.0
 PORT ?= 8000
+WEB_CONCURRENCY ?= 1
 GEMINI_MODEL_ID ?= gemini-3-flash-preview
 ANALYZE_URL ?= http://localhost:8000/analyze
 CHAOS_SCRIPTS_DIR ?= ../chaos/scripts/agent
@@ -79,7 +80,7 @@ test: install ## Run tests
 	. $(VENV)/bin/activate && pytest
 
 run: install ## Run API server
-	. $(VENV)/bin/activate && uvicorn $(APP) --host $(HOST) --port $(PORT)
+	. $(VENV)/bin/activate && uvicorn $(APP) --host $(HOST) --port $(PORT) --workers $(WEB_CONCURRENCY)
 
 curl-analyze: ## Call analyze endpoint for OOMKilled test pod via curlpod
 	@set -euo pipefail; \
