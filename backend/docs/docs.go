@@ -407,6 +407,78 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/alerts": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "List all alerts",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.AlertListResponse"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/alerts/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Get alert detail",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Alert ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.AlertDetailResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/incidents/{id}": {
             "get": {
                 "security": [
@@ -538,6 +610,99 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/incidents/{id}/alerts": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Get alerts by incident ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Incident ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.AlertListResponse"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/incidents/{id}/resolve": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Resolve incident",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Incident ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Resolve incident request",
+                        "name": "request",
+                        "in": "body",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/definitions/model.ResolveIncidentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.IncidentUpdateResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/ping": {
             "get": {
                 "produces": [
@@ -633,6 +798,76 @@ const docTemplate = `{
                 },
                 "status": {
                     "type": "string"
+                }
+            }
+        },
+        "model.AlertListResponse": {
+            "type": "object",
+            "properties": {
+                "alert_id": {
+                    "type": "string"
+                },
+                "incident_id": {
+                    "type": "string"
+                },
+                "alarm_title": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "fired_at": {
+                    "type": "string"
+                },
+                "resolved_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.AlertDetailResponse": {
+            "type": "object",
+            "properties": {
+                "alert_id": {
+                    "type": "string"
+                },
+                "incident_id": {
+                    "type": "string"
+                },
+                "alarm_title": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "fired_at": {
+                    "type": "string"
+                },
+                "resolved_at": {
+                    "type": "string"
+                },
+                "analysis_summary": {
+                    "type": "string"
+                },
+                "analysis_detail": {
+                    "type": "string"
+                },
+                "fingerprint": {
+                    "type": "string"
+                },
+                "thread_ts": {
+                    "type": "string"
+                },
+                "labels": {
+                    "type": "object"
+                },
+                "annotations": {
+                    "type": "object"
                 }
             }
         },
@@ -802,56 +1037,73 @@ const docTemplate = `{
         "model.IncidentDetailResponse": {
             "type": "object",
             "properties": {
-                "alarm_title": {
-                    "type": "string"
-                },
-                "analysis_detail": {
-                    "description": "null 가능",
-                    "type": "string"
-                },
-                "analysis_summary": {
-                    "description": "null 가능",
-                    "type": "string"
-                },
-                "fired_at": {
-                    "type": "string"
-                },
                 "incident_id": {
                     "type": "string"
                 },
-                "resolved_at": {
-                    "description": "null 가능",
+                "title": {
                     "type": "string"
                 },
                 "severity": {
                     "type": "string"
                 },
+                "status": {
+                    "type": "string",
+                    "description": "firing or resolved"
+                },
+                "fired_at": {
+                    "type": "string"
+                },
+                "resolved_at": {
+                    "type": "string"
+                },
+                "analysis_summary": {
+                    "type": "string"
+                },
+                "analysis_detail": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "resolved_by": {
+                    "type": "string"
+                },
                 "similar_incidents": {
-                    "description": "DB의 JSONB 컬럼을 그대로 바이트로 받아서 전달 (구조를 몰라도 됨)",
                     "type": "object"
                 },
-                "status": {
-                    "type": "string"
+                "alerts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.AlertListResponse"
+                    }
                 }
             }
         },
         "model.IncidentListResponse": {
             "type": "object",
             "properties": {
-                "alarm_title": {
+                "incident_id": {
                     "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "description": "firing or resolved"
                 },
                 "fired_at": {
-                    "type": "string"
-                },
-                "incident_id": {
                     "type": "string"
                 },
                 "resolved_at": {
                     "type": "string"
                 },
-                "severity": {
-                    "type": "string"
+                "alert_count": {
+                    "type": "integer",
+                    "description": "Number of alerts linked to this incident"
                 }
             }
         },
@@ -891,6 +1143,14 @@ const docTemplate = `{
                 }
             }
         },
+        "model.ResolveIncidentRequest": {
+            "type": "object",
+            "properties": {
+                "resolved_by": {
+                    "type": "string"
+                }
+            }
+        },
         "model.RootResponse": {
             "type": "object",
             "properties": {
@@ -905,16 +1165,16 @@ const docTemplate = `{
         "model.UpdateIncidentRequest": {
             "type": "object",
             "properties": {
-                "alarm_title": {
+                "title": {
                     "type": "string"
                 },
-                "analysis_detail": {
+                "severity": {
                     "type": "string"
                 },
                 "analysis_summary": {
                     "type": "string"
                 },
-                "severity": {
+                "analysis_detail": {
                     "type": "string"
                 }
             }
