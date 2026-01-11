@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kube-rca/backend/internal/model"
 )
@@ -14,12 +15,55 @@ type Postgres struct {
 	Pool *pgxpool.Pool
 }
 
+// EnsureIncidentSchema - incidents 테이블 생성 (장애 단위)
+func (db *Postgres) EnsureIncidentSchema(ctx context.Context) error {
+	queries := []string{
+		`
+		CREATE TABLE IF NOT EXISTS incidents (
+			incident_id TEXT PRIMARY KEY,
+			title TEXT NOT NULL DEFAULT '',
+			severity TEXT NOT NULL DEFAULT 'warning',
+			status TEXT NOT NULL DEFAULT 'firing',
+			fired_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			resolved_at TIMESTAMPTZ,
+			analysis_summary TEXT NOT NULL DEFAULT '',
+			analysis_detail TEXT NOT NULL DEFAULT '',
+			similar_incidents JSONB NOT NULL DEFAULT '[]',
+			created_by TEXT NOT NULL DEFAULT 'system',
+			resolved_by TEXT,
+			is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)
+		`,
+		`CREATE INDEX IF NOT EXISTS incidents_status_idx ON incidents(status)`,
+		`CREATE INDEX IF NOT EXISTS incidents_fired_at_idx ON incidents(fired_at DESC)`,
+	}
+
+	for _, query := range queries {
+		if _, err := db.Pool.Exec(ctx, query); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// GetIncidentList - Incident 목록 조회 (Alert 개수 포함)
 func (db *Postgres) GetIncidentList() ([]model.IncidentListResponse, error) {
 	query := `
-		SELECT incident_id, alarm_title, severity, fired_at, resolved_at 
-		FROM incidents
-		WHERE is_enabled = TRUE
-		ORDER BY fired_at DESC`
+		SELECT
+			i.incident_id,
+			i.title,
+			i.severity,
+			i.status,
+			i.fired_at,
+			i.resolved_at,
+			COUNT(a.alert_id) as alert_count
+		FROM incidents i
+		LEFT JOIN alerts a ON i.incident_id = a.incident_id AND a.is_enabled = TRUE
+		WHERE i.is_enabled = TRUE
+		GROUP BY i.incident_id, i.title, i.severity, i.status, i.fired_at, i.resolved_at
+		ORDER BY i.fired_at DESC`
 
 	rows, err := db.Pool.Query(context.Background(), query)
 	if err != nil {
@@ -30,7 +74,7 @@ func (db *Postgres) GetIncidentList() ([]model.IncidentListResponse, error) {
 	var list []model.IncidentListResponse
 	for rows.Next() {
 		var i model.IncidentListResponse
-		if err := rows.Scan(&i.IncidentID, &i.AlarmTitle, &i.Severity, &i.FiredAt, &i.ResolvedAt); err != nil {
+		if err := rows.Scan(&i.IncidentID, &i.Title, &i.Severity, &i.Status, &i.FiredAt, &i.ResolvedAt, &i.AlertCount); err != nil {
 			return nil, err
 		}
 		list = append(list, i)
@@ -42,20 +86,21 @@ func (db *Postgres) GetIncidentList() ([]model.IncidentListResponse, error) {
 	return list, nil
 }
 
+// GetIncidentDetail - Incident 상세 조회
 func (db *Postgres) GetIncidentDetail(id string) (*model.IncidentDetailResponse, error) {
 	query := `
-		SELECT 
-			incident_id, alarm_title, severity, status, 
-			fired_at, resolved_at, analysis_summary, analysis_detail, similar_incidents
+		SELECT
+			incident_id, title, severity, status,
+			fired_at, resolved_at, analysis_summary, analysis_detail, similar_incidents,
+			created_by, resolved_by
 		FROM incidents
 		WHERE incident_id = $1
 	`
 
 	var i model.IncidentDetailResponse
-
 	err := db.Pool.QueryRow(context.Background(), query, id).Scan(
 		&i.IncidentID,
-		&i.AlarmTitle,
+		&i.Title,
 		&i.Severity,
 		&i.Status,
 		&i.FiredAt,
@@ -63,6 +108,8 @@ func (db *Postgres) GetIncidentDetail(id string) (*model.IncidentDetailResponse,
 		&i.AnalysisSummary,
 		&i.AnalysisDetail,
 		&i.SimilarIncidents,
+		&i.CreatedBy,
+		&i.ResolvedBy,
 	)
 
 	if err != nil {
@@ -72,20 +119,21 @@ func (db *Postgres) GetIncidentDetail(id string) (*model.IncidentDetailResponse,
 	return &i, nil
 }
 
+// UpdateIncident - Incident 수정
 func (db *Postgres) UpdateIncident(id string, req model.UpdateIncidentRequest) error {
 	query := `
-		UPDATE incidents 
-		SET 
-			alarm_title = $1, 
-			severity = $2, 
-			analysis_summary = $3, 
+		UPDATE incidents
+		SET
+			title = $1,
+			severity = $2,
+			analysis_summary = $3,
 			analysis_detail = $4,
 			updated_at = NOW()
 		WHERE incident_id = $5
 	`
 
 	commandTag, err := db.Pool.Exec(context.Background(), query,
-		req.AlarmTitle,
+		req.Title,
 		req.Severity,
 		req.AnalysisSummary,
 		req.AnalysisDetail,
@@ -102,12 +150,13 @@ func (db *Postgres) UpdateIncident(id string, req model.UpdateIncidentRequest) e
 	return nil
 }
 
+// HideIncident - Incident 숨기기
 func (db *Postgres) HideIncident(id string) error {
 	query := `
-        UPDATE incidents 
-        SET is_enabled = false 
-        WHERE incident_id = $1
-    `
+		UPDATE incidents
+		SET is_enabled = false, updated_at = NOW()
+		WHERE incident_id = $1
+	`
 	commandTag, err := db.Pool.Exec(context.Background(), query, id)
 	if err != nil {
 		return err
@@ -120,149 +169,119 @@ func (db *Postgres) HideIncident(id string) error {
 	return nil
 }
 
-// Mock 데이터 생성 추후 삭제 에정
-func (db *Postgres) CreateIncident(id, title, severity, status string) error {
+// ResolveIncident - Incident 종료 (사용자가 수동으로 종료)
+func (db *Postgres) ResolveIncident(ctx context.Context, id string, resolvedBy string) error {
 	query := `
-		INSERT INTO incidents (incident_id, alarm_title, severity, status, fired_at, created_at, similar_incidents)
-		VALUES ($1, $2, $3, $4, NOW(), NOW(), '{}')
+		UPDATE incidents
+		SET status = 'resolved', resolved_at = NOW(), resolved_by = $2, updated_at = NOW()
+		WHERE incident_id = $1 AND status = 'firing'
 	`
-
-	_, err := db.Pool.Exec(context.Background(), query, id, title, severity, status)
-	return err
-}
-
-// ============================================================================
-// Alertmanager/Agent 통합용 메서드
-// ============================================================================
-
-// EnsureIncidentSchema - incidents 테이블에 새 컬럼 추가 (fingerprint, thread_ts, labels, annotations)
-// 기존 테이블이 있으면 컬럼만 추가, 없으면 전체 생성
-func (db *Postgres) EnsureIncidentSchema(ctx context.Context) error {
-	queries := []string{
-		// 기존 테이블이 없으면 생성
-		`
-		CREATE TABLE IF NOT EXISTS incidents (
-			incident_id TEXT PRIMARY KEY,
-			alarm_title TEXT NOT NULL DEFAULT '',
-			severity TEXT NOT NULL DEFAULT 'warning',
-			status TEXT NOT NULL DEFAULT 'firing',
-			fired_at TIMESTAMPTZ,
-			resolved_at TIMESTAMPTZ,
-			analysis_summary TEXT NOT NULL DEFAULT '',
-			analysis_detail TEXT NOT NULL DEFAULT '',
-			similar_incidents JSONB NOT NULL DEFAULT '[]',
-			fingerprint TEXT NOT NULL DEFAULT '',
-			thread_ts TEXT NOT NULL DEFAULT '',
-			labels JSONB NOT NULL DEFAULT '{}',
-			annotations JSONB NOT NULL DEFAULT '{}',
-			is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-		)
-		`,
-		// 기존 테이블에 새 컬럼 추가 (이미 있으면 무시)
-		`ALTER TABLE incidents ADD COLUMN IF NOT EXISTS fingerprint TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE incidents ADD COLUMN IF NOT EXISTS thread_ts TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE incidents ADD COLUMN IF NOT EXISTS labels JSONB NOT NULL DEFAULT '{}'`,
-		`ALTER TABLE incidents ADD COLUMN IF NOT EXISTS annotations JSONB NOT NULL DEFAULT '{}'`,
-		`ALTER TABLE incidents ADD COLUMN IF NOT EXISTS is_enabled BOOLEAN NOT NULL DEFAULT TRUE`,
-		// 인덱스 생성
-		`CREATE INDEX IF NOT EXISTS incidents_fingerprint_idx ON incidents(fingerprint) WHERE fingerprint != ''`,
-		`CREATE INDEX IF NOT EXISTS incidents_thread_ts_idx ON incidents(thread_ts) WHERE thread_ts != ''`,
-		`CREATE INDEX IF NOT EXISTS incidents_status_idx ON incidents(status)`,
-		`CREATE INDEX IF NOT EXISTS incidents_fired_at_idx ON incidents(fired_at DESC)`,
+	commandTag, err := db.Pool.Exec(ctx, query, id, resolvedBy)
+	if err != nil {
+		return err
 	}
 
-	for _, query := range queries {
-		if _, err := db.Pool.Exec(ctx, query); err != nil {
-			return err
-		}
+	if commandTag.RowsAffected() == 0 {
+		return fmt.Errorf("no firing incident found with id: %s", id)
 	}
+
 	return nil
 }
 
-// Alertmanager 알림을 incidents 테이블에 저장
-// fingerprint를 incident_id로 사용
-func (db *Postgres) SaveAlertAsIncident(ctx context.Context, alert model.Alert) error {
-	alertName := alert.Labels["alertname"]
-	severity := alert.Labels["severity"]
-	if severity == "" {
-		severity = "warning"
-	}
-
+// GetFiringIncident - 현재 firing 상태인 Incident 조회
+func (db *Postgres) GetFiringIncident(ctx context.Context) (*model.IncidentDetailResponse, error) {
 	query := `
-		INSERT INTO incidents (
-			incident_id, alarm_title, severity, status, fired_at,
-			fingerprint, labels, annotations, created_at, updated_at
-		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-		ON CONFLICT (incident_id) DO UPDATE SET
-			status = EXCLUDED.status,
-			updated_at = NOW()
+		SELECT
+			incident_id, title, severity, status,
+			fired_at, resolved_at, analysis_summary, analysis_detail, similar_incidents,
+			created_by, resolved_by
+		FROM incidents
+		WHERE status = 'firing' AND is_enabled = TRUE
+		ORDER BY fired_at DESC
+		LIMIT 1
 	`
 
-	_, err := db.Pool.Exec(ctx, query,
-		alert.Fingerprint, // incident_id == fingerprint
-		alertName,
-		severity,
-		alert.Status,
-		alert.StartsAt,
-		alert.Fingerprint,
-		alert.Labels,
-		alert.Annotations,
+	var i model.IncidentDetailResponse
+	err := db.Pool.QueryRow(ctx, query).Scan(
+		&i.IncidentID,
+		&i.Title,
+		&i.Severity,
+		&i.Status,
+		&i.FiredAt,
+		&i.ResolvedAt,
+		&i.AnalysisSummary,
+		&i.AnalysisDetail,
+		&i.SimilarIncidents,
+		&i.CreatedBy,
+		&i.ResolvedBy,
 	)
-	return err
-}
 
-// incident에 Slack thread_ts 저장
-func (db *Postgres) UpdateThreadTS(ctx context.Context, fingerprint, threadTS string) error {
-	query := `
-		UPDATE incidents
-		SET thread_ts = $2, updated_at = NOW()
-		WHERE incident_id = $1
-	`
-	_, err := db.Pool.Exec(ctx, query, fingerprint, threadTS)
-	return err
-}
-
-// fingerprint로 thread_ts 조회
-func (db *Postgres) GetThreadTS(ctx context.Context, fingerprint string) (string, bool) {
-	query := `
-		SELECT thread_ts FROM incidents
-		WHERE incident_id = $1 AND thread_ts != ''
-	`
-
-	var threadTS string
-	err := db.Pool.QueryRow(ctx, query, fingerprint).Scan(&threadTS)
-	if err != nil || threadTS == "" {
-		return "", false
+	if err != nil {
+		return nil, err
 	}
-	return threadTS, true
+
+	return &i, nil
 }
 
-// resolved 상태로 업데이트
-func (db *Postgres) UpdateIncidentResolved(ctx context.Context, fingerprint string, resolvedAt time.Time) error {
+// CreateIncident - 새 Incident 생성
+func (db *Postgres) CreateIncident(ctx context.Context, title, severity string, firedAt time.Time) (string, error) {
+	incidentID := "INC-" + uuid.New().String()[:8]
+
+	query := `
+		INSERT INTO incidents (incident_id, title, severity, status, fired_at, created_at, updated_at)
+		VALUES ($1, $2, $3, 'firing', $4, NOW(), NOW())
+	`
+
+	_, err := db.Pool.Exec(ctx, query, incidentID, title, severity, firedAt)
+	if err != nil {
+		return "", err
+	}
+
+	return incidentID, nil
+}
+
+// UpdateIncidentSeverity - Incident severity 업데이트 (가장 높은 severity로)
+func (db *Postgres) UpdateIncidentSeverity(ctx context.Context, incidentID, severity string) error {
+	// critical > warning > info 순으로 높은 severity만 업데이트
 	query := `
 		UPDATE incidents
-		SET status = 'resolved', resolved_at = $2, updated_at = NOW()
+		SET severity = $2, updated_at = NOW()
 		WHERE incident_id = $1
+		AND (
+			(severity = 'info') OR
+			(severity = 'warning' AND $2 = 'critical')
+		)
 	`
-	_, err := db.Pool.Exec(ctx, query, fingerprint, resolvedAt)
+	_, err := db.Pool.Exec(ctx, query, incidentID, severity)
 	return err
 }
 
-// Agent 분석 결과 저장
-func (db *Postgres) UpdateAnalysis(ctx context.Context, fingerprint, summary, detail string) error {
+// UpdateIncidentAnalysis - Incident 분석 결과 저장
+func (db *Postgres) UpdateIncidentAnalysis(ctx context.Context, incidentID, summary, detail string) error {
 	query := `
 		UPDATE incidents
 		SET analysis_summary = $2, analysis_detail = $3, updated_at = NOW()
 		WHERE incident_id = $1
 	`
-	_, err := db.Pool.Exec(ctx, query, fingerprint, summary, detail)
+	_, err := db.Pool.Exec(ctx, query, incidentID, summary, detail)
 	return err
 }
 
-// fingerprint로 incident 조회
-func (db *Postgres) GetIncidentByFingerprint(ctx context.Context, fingerprint string) (*model.IncidentDetailResponse, error) {
-	return db.GetIncidentDetail(fingerprint)
+// CreateMockIncident - Mock 데이터 생성 (테스트용)
+func (db *Postgres) CreateMockIncident() (string, error) {
+	timestamp := time.Now().Unix()
+	id := fmt.Sprintf("INC-%d", timestamp)
+	title := fmt.Sprintf("테스트용 장애 (생성시간: %d)", timestamp)
+
+	query := `
+		INSERT INTO incidents (incident_id, title, severity, status, fired_at, created_at, updated_at)
+		VALUES ($1, $2, 'warning', 'firing', NOW(), NOW(), NOW())
+	`
+
+	_, err := db.Pool.Exec(context.Background(), query, id, title)
+	if err != nil {
+		return "", err
+	}
+
+	return id, nil
 }
