@@ -1,8 +1,7 @@
 package service
 
 import (
-	"fmt"
-	"time"
+	"context"
 
 	"github.com/kube-rca/backend/internal/db"
 	"github.com/kube-rca/backend/internal/model"
@@ -21,7 +20,22 @@ func (s *RcaService) GetIncidentList() ([]model.IncidentListResponse, error) {
 }
 
 func (s *RcaService) GetIncidentDetail(id string) (*model.IncidentDetailResponse, error) {
-	return s.repo.GetIncidentDetail(id)
+	ctx := context.Background()
+
+	// Incident 상세 조회
+	incident, err := s.repo.GetIncidentDetail(id)
+	if err != nil {
+		return nil, err
+	}
+
+	// 연결된 Alert 목록 조회
+	alerts, err := s.repo.GetAlertsByIncidentID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	incident.Alerts = alerts
+	return incident, nil
 }
 
 func (s *RcaService) UpdateIncident(id string, req model.UpdateIncidentRequest) error {
@@ -32,22 +46,34 @@ func (s *RcaService) HideIncident(id string) error {
 	return s.repo.HideIncident(id)
 }
 
-// Mock 데이터 생성 추후 삭제 에정
+func (s *RcaService) ResolveIncident(id string, resolvedBy string) error {
+	ctx := context.Background()
+	return s.repo.ResolveIncident(ctx, id, resolvedBy)
+}
+
+// GetAlertsByIncidentID - Incident에 속한 Alert 목록 조회
+func (s *RcaService) GetAlertsByIncidentID(incidentID string) ([]model.AlertListResponse, error) {
+	ctx := context.Background()
+	return s.repo.GetAlertsByIncidentID(ctx, incidentID)
+}
+
+// ============================================================================
+// Alert 관련 메서드
+// ============================================================================
+
+// GetAlertList - 전체 Alert 목록 조회
+func (s *RcaService) GetAlertList() ([]model.AlertListResponse, error) {
+	ctx := context.Background()
+	return s.repo.GetAlertList(ctx)
+}
+
+// GetAlertDetail - Alert 상세 조회
+func (s *RcaService) GetAlertDetail(id string) (*model.AlertDetailResponse, error) {
+	ctx := context.Background()
+	return s.repo.GetAlertDetail(ctx, id)
+}
+
+// Mock 데이터 생성 (테스트용)
 func (s *RcaService) CreateMockIncident() (string, error) {
-	// 1. 고유 ID 생성 (예: INC-1703501234)
-	timestamp := time.Now().Unix()
-	id := fmt.Sprintf("INC-%d", timestamp)
-
-	// 2. 테스트 데이터 생성
-	title := fmt.Sprintf("테스트용 알람 (생성시간: %d)", timestamp)
-	severity := "Warning"
-	status := "Firing"
-
-	// 3. DB 저장 요청
-	err := s.repo.CreateIncident(id, title, severity, status)
-	if err != nil {
-		return "", err
-	}
-
-	return id, nil
+	return s.repo.CreateMockIncident()
 }

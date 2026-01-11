@@ -2,14 +2,16 @@
 // handler에서 받은 알림을 필터링하고 client를 통해 Slack으로 전송
 //
 // 처리 흐름:
-//  1. 알림을 DB에 저장 (incidents 테이블)
-//  2. resolved 상태면 resolved_at 업데이트
-//  3. shouldSendToSlack으로 필터링
-//  4. resolved 알림: DB에서 thread_ts 조회하여 메모리에 복원
-//  5. SlackClient.SendAlert로 Slack 전송
-//  6. firing 알림: thread_ts를 DB에 저장
-//  7. Agent에 비동기 분석 요청 (firing, resolved)
-//  8. 전송 성공/실패 카운트 반환
+//  1. 현재 firing 상태인 Incident가 있는지 확인
+//     - 없으면: 새 Incident 생성
+//  2. Alert를 DB에 저장 (alerts 테이블) + Incident 연결
+//  3. resolved 상태면 resolved_at 업데이트
+//  4. shouldSendToSlack으로 필터링
+//  5. resolved 알림: DB에서 thread_ts 조회하여 메모리에 복원
+//  6. SlackClient.SendAlert로 Slack 전송
+//  7. firing 알림: thread_ts를 DB에 저장
+//  8. Agent에 비동기 분석 요청 (firing, resolved)
+//  9. 전송 성공/실패 카운트 반환
 
 package service
 
@@ -17,6 +19,7 @@ import (
 	"context"
 	"log"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/kube-rca/backend/internal/client"
 	"github.com/kube-rca/backend/internal/db"
 	"github.com/kube-rca/backend/internal/model"
@@ -42,58 +45,99 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 	ctx := context.Background()
 
 	for _, alert := range webhook.Alerts {
-		// 1. DB에 알림 저장 (incidents 테이블)
-		if err := s.db.SaveAlertAsIncident(ctx, alert); err != nil {
+		// 1. 현재 firing 상태인 Incident 확인/생성
+		incidentID, err := s.getOrCreateIncident(ctx, alert)
+		if err != nil {
+			log.Printf("Failed to get or create incident: %v", err)
+			// Incident 처리 실패해도 Alert 저장 및 Slack 전송은 계속 진행
+			incidentID = ""
+		}
+
+		// 2. Alert를 DB에 저장 (alerts 테이블)
+		if err := s.db.SaveAlert(ctx, alert, incidentID); err != nil {
 			log.Printf("Failed to save alert to DB: %v", err)
 			// DB 저장 실패해도 Slack 전송은 계속 진행
 		}
 
-		// 2. resolved 상태면 resolved_at 업데이트
+		// 3. resolved 상태면 resolved_at 업데이트
 		if alert.Status == "resolved" {
-			if err := s.db.UpdateIncidentResolved(ctx, alert.Fingerprint, alert.EndsAt); err != nil {
-				log.Printf("Failed to update incident resolved status: %v", err)
+			if err := s.db.UpdateAlertResolved(ctx, alert.Fingerprint, alert.EndsAt); err != nil {
+				log.Printf("Failed to update alert resolved status: %v", err)
 			}
 		}
 
-		// 3. 필터링: Slack으로 전송할 알림인지 확인
+		// 4. 필터링: Slack으로 전송할 알림인지 확인
 		if !s.shouldSendToSlack(alert) {
 			continue
 		}
 
-		// 4. resolved 알림: DB에서 thread_ts 조회하여 메모리에 복원
+		// 5. resolved 알림: DB에서 thread_ts 조회하여 메모리에 복원
 		// (백엔드 재시작 시 메모리가 초기화되므로 DB에서 복원 필요)
 		if alert.Status == "resolved" {
-			if threadTS, ok := s.db.GetThreadTS(ctx, alert.Fingerprint); ok {
+			if threadTS, ok := s.db.GetAlertThreadTS(ctx, alert.Fingerprint); ok {
 				s.slackClient.StoreThreadTS(alert.Fingerprint, threadTS)
 			}
 		}
 
-		// 5. Client 레이어로 해당 알림을 전달
-		err := s.slackClient.SendAlert(alert, alert.Status)
+		// 6. Client 레이어로 해당 알림을 전달
+		err = s.slackClient.SendAlert(alert, alert.Status)
 		if err != nil {
 			log.Printf("Failed to send alert to Slack: %v", err)
 			failed++
 			continue
 		}
 
-		log.Printf("Sent alert to Slack (fingerprint=%s, status=%s)", alert.Fingerprint, alert.Status)
+		log.Printf("Sent alert to Slack (alert_id=%s, status=%s, incident_id=%s)", alert.Fingerprint, alert.Status, incidentID)
 		sent++
 
-		// 5. thread_ts를 DB에 저장 (firing 알림일 때)
+		// 7. thread_ts를 DB에 저장 (firing 알림일 때)
 		if alert.Status == "firing" {
 			if threadTS, ok := s.slackClient.GetThreadTS(alert.Fingerprint); ok {
-				if err := s.db.UpdateThreadTS(ctx, alert.Fingerprint, threadTS); err != nil {
+				if err := s.db.UpdateAlertThreadTS(ctx, alert.Fingerprint, threadTS); err != nil {
 					log.Printf("Failed to save thread_ts to DB: %v", err)
 				}
 			}
 		}
 
-		// 6. Agent에 비동기 분석 요청 (firing, resolved)
+		// 8. Agent에 비동기 분석 요청 (firing, resolved)
 		// DB에서 thread_ts 조회 (메모리 대신 DB 사용)
-		threadTS, _ := s.db.GetThreadTS(ctx, alert.Fingerprint)
+		threadTS, _ := s.db.GetAlertThreadTS(ctx, alert.Fingerprint)
 		go s.agentService.RequestAnalysis(alert, threadTS)
 	}
 	return sent, failed
+}
+
+// getOrCreateIncident - 현재 firing 상태인 Incident를 조회하거나 새로 생성
+func (s *AlertService) getOrCreateIncident(ctx context.Context, alert model.Alert) (string, error) {
+	// firing 상태인 Incident 조회
+	incident, err := s.db.GetFiringIncident(ctx)
+	if err == nil && incident != nil {
+		// 기존 Incident에 연결 + severity 업데이트
+		severity := alert.Labels["severity"]
+		if severity != "" {
+			_ = s.db.UpdateIncidentSeverity(ctx, incident.IncidentID, severity)
+		}
+		return incident.IncidentID, nil
+	}
+
+	// firing Incident가 없으면 새로 생성 (pgx.ErrNoRows인 경우)
+	if err != nil && err != pgx.ErrNoRows {
+		return "", err
+	}
+
+	alertName := alert.Labels["alertname"]
+	severity := alert.Labels["severity"]
+	if severity == "" {
+		severity = "warning"
+	}
+
+	incidentID, err := s.db.CreateIncident(ctx, alertName, severity, alert.StartsAt)
+	if err != nil {
+		return "", err
+	}
+
+	log.Printf("Created new incident: %s (triggered by alert: %s)", incidentID, alert.Fingerprint)
+	return incidentID, nil
 }
 
 // 필터링 로직 예시:

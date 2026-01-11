@@ -2,7 +2,7 @@
 //
 // 처리 흐름:
 //  1. RequestAnalysis: Agent에 분석 요청 (goroutine에서 호출)
-//  2. Agent 응답을 DB에 저장 (incidents.analysis_summary, analysis_detail)
+//  2. Agent 응답을 DB에 저장 (alerts.analysis_summary, analysis_detail)
 //  3. Agent 응답을 Slack 쓰레드에 전송
 
 package service
@@ -34,11 +34,11 @@ func NewAgentService(agentClient *client.AgentClient, slackClient *client.SlackC
 
 func (s *AgentService) RequestAnalysis(alert model.Alert, threadTS string) {
 	if threadTS == "" {
-		log.Printf("No thread_ts for alert (fingerprint=%s), skipping agent request", alert.Fingerprint)
+		log.Printf("No thread_ts for alert (alert_id=%s), skipping agent request", alert.Fingerprint)
 		return
 	}
 
-	log.Printf("Requesting agent analysis (fingerprint=%s, status=%s, thread_ts=%s)", alert.Fingerprint, alert.Status, threadTS)
+	log.Printf("Requesting agent analysis (alert_id=%s, status=%s, thread_ts=%s)", alert.Fingerprint, alert.Status, threadTS)
 
 	// Agent에 분석 요청 (동기)
 	resp, err := s.agentClient.RequestAnalysis(alert, threadTS)
@@ -47,13 +47,13 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, threadTS string) {
 		return
 	}
 
-	// 분석 결과를 DB에 저장 (incidents.analysis_summary, analysis_detail)
+	// 분석 결과를 DB에 저장 (alerts.analysis_summary, analysis_detail)
 	ctx := context.Background()
-	if err := s.db.UpdateAnalysis(ctx, alert.Fingerprint, resp.Analysis, resp.Analysis); err != nil {
+	if err := s.db.UpdateAlertAnalysis(ctx, alert.Fingerprint, resp.Analysis, resp.Analysis); err != nil {
 		log.Printf("Failed to save analysis to DB: %v", err)
 		// DB 저장 실패해도 Slack 전송은 계속 진행
 	} else {
-		log.Printf("Saved analysis to DB (fingerprint=%s)", alert.Fingerprint)
+		log.Printf("Saved analysis to DB (alert_id=%s)", alert.Fingerprint)
 	}
 
 	// 분석 결과를 Slack 쓰레드에 전송
