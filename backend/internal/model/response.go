@@ -26,23 +26,6 @@ type AuthMeResponse struct {
 	LoginID string `json:"loginId"`
 }
 
-type IncidentDetailEnvelope struct {
-	Status string                  `json:"status"`
-	Data   *IncidentDetailResponse `json:"data"`
-}
-
-type IncidentUpdateResponse struct {
-	Status     string `json:"status"`
-	Message    string `json:"message"`
-	IncidentID string `json:"incident_id"`
-}
-
-type MockIncidentResponse struct {
-	Status     string `json:"status"`
-	Message    string `json:"message"`
-	IncidentID string `json:"incident_id"`
-}
-
 type AlertWebhookResponse struct {
 	Status      string `json:"status"`
 	AlertCount  int    `json:"alertCount"`
