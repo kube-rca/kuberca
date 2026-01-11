@@ -1,10 +1,9 @@
 .PHONY: help incident oomkilled crashloop imagepull
 
-NAMESPACE ?= kube-rca
+NAMESPACE ?= microservices-demo
 KUBE_CONTEXT ?=
 WAIT_SECONDS ?= 120
 POLL_INTERVAL_SECONDS ?= 3
-OOMKILLED_FLAGS ?=
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make <target>\n\nTargets:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-16s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -16,7 +15,7 @@ oomkilled: ## Run OOMKilled scenario (Chaos Mesh)
 	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
 	WAIT_SECONDS="$(WAIT_SECONDS)" \
 	POLL_INTERVAL_SECONDS="$(POLL_INTERVAL_SECONDS)" \
-	./scripts/run-oomkilled.sh $(OOMKILLED_FLAGS)
+	./scripts/run-oomkilled.sh
 
 crashloop: ## Run CrashLoopBackOff scenario
 	@NAMESPACE="$(NAMESPACE)" \

@@ -3,19 +3,15 @@ set -euo pipefail
 
 show_usage() {
   cat <<EOF
-Usage: $(basename "$0") [--no-chaos-mesh]
+Usage: $(basename "$0")
 
 Options:
-  --no-chaos-mesh, -no-chaos-mesh  Run without Chaos Mesh (self-oom target)
+  -h, --help  Show this help message
 EOF
 }
 
-NO_CHAOS_MESH="${NO_CHAOS_MESH:-}"
 for arg in "$@"; do
   case "$arg" in
-    --no-chaos-mesh|-no-chaos-mesh)
-      NO_CHAOS_MESH=1
-      ;;
     -h|--help)
       show_usage
       exit 0
@@ -28,6 +24,5 @@ for arg in "$@"; do
   esac
 done
 
-export NO_CHAOS_MESH
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 exec "${SCRIPT_DIR}/run_scenario.sh" oomkilled

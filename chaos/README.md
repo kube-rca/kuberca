@@ -6,7 +6,7 @@ and generating alerts.
 ## Prerequisites
 
 - Chaos Mesh installed in the cluster (CRDs available).
-- `kubectl` access to the target namespace (default: `kube-rca`).
+- `kubectl` access to the target namespace (default: `microservices-demo`).
 
 ## Layout
 
@@ -17,8 +17,9 @@ and generating alerts.
 - `scripts/run-*.sh`: Scenario entrypoints.
 - `scripts/agent/`: Agent analyze test helpers.
 
-OOMKilled uses Chaos Mesh. CrashLoopBackOff and ImagePullBackOff use plain deployments
-for deterministic failure states.
+All scenarios run in `microservices-demo` by default. OOMKilled uses Chaos Mesh and
+targets the `adservice` workload. CrashLoopBackOff and ImagePullBackOff use plain
+deployments for deterministic failure states.
 
 ## Quick Start
 
@@ -28,16 +29,13 @@ make oomkilled
 make crashloop
 make imagepull
 make incident   # alias for oomkilled
-make incident NO_CHAOS_MESH=1   # run without Chaos Mesh
-./scripts/run-oomkilled.sh --no-chaos-mesh
 ```
 
 ## Environment
 
-- `NAMESPACE`: target namespace (default: `kube-rca`)
+- `NAMESPACE`: target namespace (default: `microservices-demo`)
 - `KUBE_CONTEXT`: kubectl context (optional)
 - `WAIT_SECONDS`: wait timeout (default: `120`)
 - `POLL_INTERVAL_SECONDS`: polling interval (default: `3`)
-- `NO_CHAOS_MESH`: set to `1/true` to run oomkilled without Chaos Mesh
 
 Each scenario runs until you press Enter (or Ctrl+C), then cleans up.

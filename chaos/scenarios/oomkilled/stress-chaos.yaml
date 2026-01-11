@@ -6,10 +6,10 @@ spec:
   mode: one
   selector:
     labelSelectors:
-      app: chaos-oom-target
+      app: adservice
   stressors:
     memory:
       workers: 1
-      size: 128Mi
+      size: 128MiB
       oomScoreAdj: -1000
   duration: "30s"

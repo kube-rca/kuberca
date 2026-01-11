@@ -14,11 +14,10 @@ Scenarios:
   imagepull   Create a deployment with invalid image
 
 Environment:
-  NAMESPACE              Target namespace (default: kube-rca)
+  NAMESPACE              Target namespace (default: microservices-demo)
   KUBE_CONTEXT           Kubernetes context (optional)
   WAIT_SECONDS           Wait timeout (default: 120)
   POLL_INTERVAL_SECONDS  Poll interval (default: 3)
-  NO_CHAOS_MESH          Use self-oom target (oomkilled only)
 EOF
 }
 
@@ -27,7 +26,6 @@ if [ -z "$SCENARIO" ] || [ "$SCENARIO" = "-h" ] || [ "$SCENARIO" = "--help" ]; t
   exit 0
 fi
 
-NAMESPACE=${NAMESPACE:-kube-rca}
 KUBE_CONTEXT=${KUBE_CONTEXT:-}
 WAIT_SECONDS=${WAIT_SECONDS:-120}
 POLL_INTERVAL_SECONDS=${POLL_INTERVAL_SECONDS:-3}
@@ -40,12 +38,7 @@ log_ok() { printf "[OK] %s\n" "$*"; }
 log_warn() { printf "[WARN] %s\n" "$*" >&2; }
 log_error() { printf "[ERROR] %s\n" "$*" >&2; }
 
-is_truthy() {
-  case "${1:-}" in
-    1|true|TRUE|yes|YES|y|Y) return 0 ;;
-    *) return 1 ;;
-  esac
-}
+DEFAULT_NAMESPACE="microservices-demo"
 
 require_cmd() {
   local cmd=$1
@@ -89,11 +82,6 @@ kubectl_local() {
   fi
 }
 
-if ! kubectl_local get namespace "$NAMESPACE" >/dev/null 2>&1; then
-  log_error "namespace not found: $NAMESPACE"
-  exit 1
-fi
-
 TARGET_MANIFEST=""
 CHAOS_MANIFEST=""
 LABEL_SELECTOR=""
@@ -103,19 +91,11 @@ REASON_MODE="waiting"
 
 case "$SCENARIO" in
   oomkilled)
-    if is_truthy "${NO_CHAOS_MESH:-}"; then
-      TARGET_MANIFEST="${SCENARIOS_DIR}/oomkilled/target-deployment-no-chaos.yaml"
-      LABEL_SELECTOR="app=chaos-oom-target"
-      EXPECTED_REASON="OOMKilled"
-      REASON_MODE="oom"
-      log_info "NO_CHAOS_MESH enabled; using self-oom target"
-    else
-      TARGET_MANIFEST="${SCENARIOS_DIR}/oomkilled/target-deployment.yaml"
-      CHAOS_MANIFEST="${SCENARIOS_DIR}/oomkilled/stress-chaos.yaml"
-      LABEL_SELECTOR="app=chaos-oom-target"
-      EXPECTED_REASON="OOMKilled"
-      REASON_MODE="oom"
-    fi
+    TARGET_MANIFEST="${SCENARIOS_DIR}/oomkilled/target-deployment.yaml"
+    CHAOS_MANIFEST="${SCENARIOS_DIR}/oomkilled/stress-chaos.yaml"
+    LABEL_SELECTOR="app=adservice"
+    EXPECTED_REASON="OOMKilled"
+    REASON_MODE="oom"
     ;;
   crashloop)
     TARGET_MANIFEST="${SCENARIOS_DIR}/crashloop/target-deployment.yaml"
@@ -134,6 +114,15 @@ case "$SCENARIO" in
     exit 1
     ;;
 esac
+
+if [ -z "${NAMESPACE:-}" ]; then
+  NAMESPACE="$DEFAULT_NAMESPACE"
+fi
+
+if ! kubectl_local get namespace "$NAMESPACE" >/dev/null 2>&1; then
+  log_error "namespace not found: $NAMESPACE"
+  exit 1
+fi
 
 require_file "$TARGET_MANIFEST"
 if [ -n "$CHAOS_MANIFEST" ]; then
