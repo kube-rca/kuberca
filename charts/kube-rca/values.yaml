@@ -164,6 +164,8 @@ agent:
   resources: {}
   # -- Agent log level (LOG_LEVEL).
   logLevel: "info"
+  # -- Uvicorn worker count (WEB_CONCURRENCY).
+  workers: 1
   k8s:
     # -- Kubernetes API timeout in seconds.
     apiTimeoutSeconds: 5

@@ -30,6 +30,8 @@ spec:
               value: /etc/agent/config/agent-config.yaml
             - name: PORT
               value: {{ .Values.agent.containerPort | quote }}
+            - name: WEB_CONCURRENCY
+              value: {{ default 1 .Values.agent.workers | quote }}
             - name: LOG_LEVEL
               value: {{ .Values.agent.logLevel | quote }}
             - name: GEMINI_MODEL_ID

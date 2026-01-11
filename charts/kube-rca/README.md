@@ -47,6 +47,7 @@ Deploy kube-rca backend and frontend
 | agent.sessionDB.secret.key | string | `"password"` | Secret key for session DB password. |
 | agent.sessionDB.user | string | `""` | PostgreSQL user. |
 | agent.tolerations | list | `[]` | Tolerations for agent pods assignment. |
+| agent.workers | int | `1` | Uvicorn worker count (WEB_CONCURRENCY). |
 | backend.affinity | object | `{}` | Affinity for backend pods assignment. |
 | backend.auth.admin.password | string | `"kube-rca"` | Admin password (default: kube-rca). |
 | backend.auth.admin.username | string | `"kube-rca"` | Admin login ID (default: kube-rca). |
