@@ -122,6 +122,7 @@ func main() {
 		// Alert 엔드포인트
 		protected.GET("/alerts", rcaHndlr.GetAlerts)
 		protected.GET("/alerts/:id", rcaHndlr.GetAlertDetail)
+		protected.PUT("/alerts/:id/incident", rcaHndlr.UpdateAlertIncident)
 
 		protected.POST("/embeddings", embeddingHandler.CreateEmbedding)
 		protected.POST("/embeddings/search", embeddingHandler.SearchEmbeddings)

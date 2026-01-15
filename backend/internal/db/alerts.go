@@ -260,3 +260,13 @@ func (db *Postgres) UpdateAlertAnalysis(alertID, summary, detail string) error {
 	return err
 }
 
+// UpdateAlertIncidentID - Alert의 Incident ID 변경
+func (db *Postgres) UpdateAlertIncidentID(alertID, incidentID string) error {
+	query := `
+		UPDATE alerts
+		SET incident_id = $2, updated_at = NOW()
+		WHERE alert_id = $1
+	`
+	_, err := db.Pool.Exec(context.Background(), query, alertID, incidentID)
+	return err
+}

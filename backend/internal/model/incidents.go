@@ -108,3 +108,15 @@ type MockIncidentResponse struct {
 	Message    string `json:"message"`
 	IncidentID string `json:"incident_id"`
 }
+
+// UpdateAlertIncidentRequest - Alert의 Incident ID 변경 요청 구조체
+type UpdateAlertIncidentRequest struct {
+	IncidentID string `json:"incident_id" binding:"required"`
+}
+
+// AlertUpdateResponse - Alert 수정 API 응답 구조체
+type AlertUpdateResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	AlertID string `json:"alert_id"`
+}

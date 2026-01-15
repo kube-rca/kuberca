@@ -262,3 +262,45 @@ func (h *RcaHandler) GetAlertDetail(c *gin.Context) {
 
 	c.JSON(http.StatusOK, res)
 }
+
+// UpdateAlertIncident godoc
+// @Summary Update alert's incident ID
+// @Description 사용자가 Alert을 다른 Incident에 연결할 때 사용
+// @Tags alerts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Alert ID"
+// @Param request body model.UpdateAlertIncidentRequest true "Update alert incident payload"
+// @Success 200 {object} model.AlertUpdateResponse
+// @Failure 400 {object} model.ErrorResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Router /api/v1/alerts/{id}/incident [put]
+func (h *RcaHandler) UpdateAlertIncident(c *gin.Context) {
+	alertID := c.Param("id")
+
+	var req model.UpdateAlertIncidentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "error",
+			"message": "잘못된 요청 데이터입니다.",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	if err := h.svc.UpdateAlertIncidentID(alertID, req.IncidentID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "error",
+			"message": "Alert Incident 변경 실패",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, model.AlertUpdateResponse{
+		Status:  "success",
+		Message: "Alert이 성공적으로 다른 Incident에 연결되었습니다.",
+		AlertID: alertID,
+	})
+}

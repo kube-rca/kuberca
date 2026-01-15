@@ -108,6 +108,11 @@ func (s *RcaService) GetAlertDetail(id string) (*model.AlertDetailResponse, erro
 	return s.repo.GetAlertDetail(id)
 }
 
+// UpdateAlertIncidentID - Alert의 Incident ID 변경
+func (s *RcaService) UpdateAlertIncidentID(alertID, incidentID string) error {
+	return s.repo.UpdateAlertIncidentID(alertID, incidentID)
+}
+
 // Mock 데이터 생성 (테스트용)
 func (s *RcaService) CreateMockIncident() (string, error) {
 	return s.repo.CreateMockIncident()
