@@ -33,7 +33,7 @@ func main() {
 	pgRepo := &db.Postgres{Pool: dbPool}
 
 	// Incident 스키마 생성 (장애 단위)
-	if err := pgRepo.EnsureIncidentSchema(ctx); err != nil {
+	if err := pgRepo.EnsureIncidentSchema(); err != nil {
 		log.Fatalf("Failed to ensure incident schema: %v", err)
 	}
 
