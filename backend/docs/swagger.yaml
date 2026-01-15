@@ -84,6 +84,22 @@ definitions:
       annotations:
         type: object
     type: object
+  model.AlertUpdateResponse:
+    properties:
+      status:
+        type: string
+      message:
+        type: string
+      alert_id:
+        type: string
+    type: object
+  model.UpdateAlertIncidentRequest:
+    required:
+      - incident_id
+    properties:
+      incident_id:
+        type: string
+    type: object
   model.AlertWebhookResponse:
     properties:
       alertCount:
@@ -371,6 +387,43 @@ paths:
       security:
       - BearerAuth: []
       summary: Get alert detail
+      tags:
+      - alerts
+  /api/v1/alerts/{id}/incident:
+    put:
+      consumes:
+      - application/json
+      description: 사용자가 Alert을 다른 Incident에 연결할 때 사용
+      parameters:
+      - description: Alert ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update alert incident payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateAlertIncidentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AlertUpdateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update alert's incident ID
       tags:
       - alerts
   /api/v1/auth/config:

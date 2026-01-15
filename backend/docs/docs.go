@@ -479,6 +479,64 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/alerts/{id}/incident": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "사용자가 Alert을 다른 Incident에 연결할 때 사용",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Update alert's incident ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Alert ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update alert incident payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UpdateAlertIncidentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.AlertUpdateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/incidents/{id}": {
             "get": {
                 "security": [
@@ -871,6 +929,20 @@ const docTemplate = `{
                 }
             }
         },
+        "model.AlertUpdateResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "alert_id": {
+                    "type": "string"
+                }
+            }
+        },
         "model.AlertWebhookResponse": {
             "type": "object",
             "properties": {
@@ -1158,6 +1230,15 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UpdateAlertIncidentRequest": {
+            "type": "object",
+            "required": ["incident_id"],
+            "properties": {
+                "incident_id": {
                     "type": "string"
                 }
             }
