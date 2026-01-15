@@ -41,6 +41,33 @@ type AgentAnalysisResponse struct {
 	Analysis string `json:"analysis"`
 }
 
+// IncidentSummaryRequest - Incident 최종 분석 요청
+type IncidentSummaryRequest struct {
+	IncidentID string              `json:"incident_id"`
+	Title      string              `json:"title"`
+	Severity   string              `json:"severity"`
+	FiredAt    string              `json:"fired_at"`
+	ResolvedAt string              `json:"resolved_at"`
+	Alerts     []AlertSummaryInput `json:"alerts"`
+}
+
+// AlertSummaryInput - 개별 Alert 분석 내용 (Agent에 전달)
+type AlertSummaryInput struct {
+	Fingerprint     string `json:"fingerprint"`
+	AlertName       string `json:"alert_name"`
+	Severity        string `json:"severity"`
+	Status          string `json:"status"`
+	AnalysisSummary string `json:"analysis_summary"`
+	AnalysisDetail  string `json:"analysis_detail"`
+}
+
+// IncidentSummaryResponse - Incident 최종 분석 응답
+type IncidentSummaryResponse struct {
+	Status  string `json:"status"`
+	Summary string `json:"summary"`
+	Detail  string `json:"detail"`
+}
+
 // AgentClient 객체 생성
 func NewAgentClient(cfg config.AgentConfig) *AgentClient {
 	baseURL := cfg.BaseURL
@@ -102,4 +129,42 @@ func (c *AgentClient) RequestAnalysis(alert model.Alert, threadTS string) (*Agen
 	}
 
 	return &analysisResp, nil
+}
+
+// POST /summarize-incident - Incident 최종 분석 요청
+func (c *AgentClient) RequestIncidentSummary(req IncidentSummaryRequest) (*IncidentSummaryResponse, error) {
+	payload, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal incident summary request: %w", err)
+	}
+
+	httpReq, err := http.NewRequest("POST", c.baseURL+"/summarize-incident", bytes.NewBuffer(payload))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request to agent: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("agent returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var summaryResp IncidentSummaryResponse
+	if err := json.Unmarshal(body, &summaryResp); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &summaryResp, nil
 }

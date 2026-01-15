@@ -8,7 +8,7 @@ import (
 )
 
 // EnsureAlertSchema - alerts 테이블 생성
-func (db *Postgres) EnsureAlertSchema(ctx context.Context) error {
+func (db *Postgres) EnsureAlertSchema() error {
 	queries := []string{
 		`
 		CREATE TABLE IF NOT EXISTS alerts (
@@ -38,7 +38,7 @@ func (db *Postgres) EnsureAlertSchema(ctx context.Context) error {
 	}
 
 	for _, query := range queries {
-		if _, err := db.Pool.Exec(ctx, query); err != nil {
+		if _, err := db.Pool.Exec(context.Background(), query); err != nil {
 			return err
 		}
 	}
@@ -46,7 +46,7 @@ func (db *Postgres) EnsureAlertSchema(ctx context.Context) error {
 }
 
 // SaveAlert - Alertmanager 알림을 alerts 테이블에 저장
-func (db *Postgres) SaveAlert(ctx context.Context, alert model.Alert, incidentID string) error {
+func (db *Postgres) SaveAlert(alert model.Alert, incidentID string) error {
 	alertName := alert.Labels["alertname"]
 	severity := alert.Labels["severity"]
 	if severity == "" {
@@ -70,7 +70,7 @@ func (db *Postgres) SaveAlert(ctx context.Context, alert model.Alert, incidentID
 			updated_at = NOW()
 	`
 
-	_, err := db.Pool.Exec(ctx, query,
+	_, err := db.Pool.Exec(context.Background(), query,
 		alert.Fingerprint, // alert_id == fingerprint
 		incidentIDPtr,
 		alertName,
@@ -85,14 +85,14 @@ func (db *Postgres) SaveAlert(ctx context.Context, alert model.Alert, incidentID
 }
 
 // GetAlertList - Alert 목록 조회
-func (db *Postgres) GetAlertList(ctx context.Context) ([]model.AlertListResponse, error) {
+func (db *Postgres) GetAlertList() ([]model.AlertListResponse, error) {
 	query := `
 		SELECT alert_id, incident_id, alarm_title, severity, status, fired_at, resolved_at
 		FROM alerts
 		WHERE is_enabled = TRUE
 		ORDER BY fired_at DESC`
 
-	rows, err := db.Pool.Query(ctx, query)
+	rows, err := db.Pool.Query(context.Background(), query)
 	if err != nil {
 		return nil, err
 	}
@@ -114,14 +114,14 @@ func (db *Postgres) GetAlertList(ctx context.Context) ([]model.AlertListResponse
 }
 
 // GetAlertsByIncidentID - 특정 Incident에 속한 Alert 목록 조회
-func (db *Postgres) GetAlertsByIncidentID(ctx context.Context, incidentID string) ([]model.AlertListResponse, error) {
+func (db *Postgres) GetAlertsByIncidentID(incidentID string) ([]model.AlertListResponse, error) {
 	query := `
 		SELECT alert_id, incident_id, alarm_title, severity, status, fired_at, resolved_at
 		FROM alerts
 		WHERE incident_id = $1 AND is_enabled = TRUE
 		ORDER BY fired_at DESC`
 
-	rows, err := db.Pool.Query(ctx, query, incidentID)
+	rows, err := db.Pool.Query(context.Background(), query, incidentID)
 	if err != nil {
 		return nil, err
 	}
@@ -142,8 +142,44 @@ func (db *Postgres) GetAlertsByIncidentID(ctx context.Context, incidentID string
 	return list, nil
 }
 
+// GetAlertsWithAnalysisByIncidentID - 특정 Incident에 속한 Alert 목록 조회 (분석 내용 포함)
+func (db *Postgres) GetAlertsWithAnalysisByIncidentID(incidentID string) ([]model.AlertDetailResponse, error) {
+	query := `
+		SELECT
+			alert_id, incident_id, alarm_title, severity, status,
+			fired_at, resolved_at, analysis_summary, analysis_detail,
+			fingerprint, thread_ts, labels, annotations
+		FROM alerts
+		WHERE incident_id = $1 AND is_enabled = TRUE
+		ORDER BY fired_at DESC`
+
+	rows, err := db.Pool.Query(context.Background(), query, incidentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []model.AlertDetailResponse
+	for rows.Next() {
+		var a model.AlertDetailResponse
+		if err := rows.Scan(
+			&a.AlertID, &a.IncidentID, &a.AlarmTitle, &a.Severity, &a.Status,
+			&a.FiredAt, &a.ResolvedAt, &a.AnalysisSummary, &a.AnalysisDetail,
+			&a.Fingerprint, &a.ThreadTS, &a.Labels, &a.Annotations,
+		); err != nil {
+			return nil, err
+		}
+		list = append(list, a)
+	}
+
+	if list == nil {
+		list = []model.AlertDetailResponse{}
+	}
+	return list, nil
+}
+
 // GetAlertDetail - Alert 상세 조회
-func (db *Postgres) GetAlertDetail(ctx context.Context, alertID string) (*model.AlertDetailResponse, error) {
+func (db *Postgres) GetAlertDetail(alertID string) (*model.AlertDetailResponse, error) {
 	query := `
 		SELECT
 			alert_id, incident_id, alarm_title, severity, status,
@@ -154,7 +190,7 @@ func (db *Postgres) GetAlertDetail(ctx context.Context, alertID string) (*model.
 	`
 
 	var a model.AlertDetailResponse
-	err := db.Pool.QueryRow(ctx, query, alertID).Scan(
+	err := db.Pool.QueryRow(context.Background(), query, alertID).Scan(
 		&a.AlertID,
 		&a.IncidentID,
 		&a.AlarmTitle,
@@ -177,25 +213,25 @@ func (db *Postgres) GetAlertDetail(ctx context.Context, alertID string) (*model.
 }
 
 // UpdateAlertThreadTS - Alert에 Slack thread_ts 저장
-func (db *Postgres) UpdateAlertThreadTS(ctx context.Context, alertID, threadTS string) error {
+func (db *Postgres) UpdateAlertThreadTS(alertID, threadTS string) error {
 	query := `
 		UPDATE alerts
 		SET thread_ts = $2, updated_at = NOW()
 		WHERE alert_id = $1
 	`
-	_, err := db.Pool.Exec(ctx, query, alertID, threadTS)
+	_, err := db.Pool.Exec(context.Background(), query, alertID, threadTS)
 	return err
 }
 
 // GetAlertThreadTS - Alert의 thread_ts 조회
-func (db *Postgres) GetAlertThreadTS(ctx context.Context, alertID string) (string, bool) {
+func (db *Postgres) GetAlertThreadTS(alertID string) (string, bool) {
 	query := `
 		SELECT thread_ts FROM alerts
 		WHERE alert_id = $1 AND thread_ts != ''
 	`
 
 	var threadTS string
-	err := db.Pool.QueryRow(ctx, query, alertID).Scan(&threadTS)
+	err := db.Pool.QueryRow(context.Background(), query, alertID).Scan(&threadTS)
 	if err != nil || threadTS == "" {
 		return "", false
 	}
@@ -203,34 +239,24 @@ func (db *Postgres) GetAlertThreadTS(ctx context.Context, alertID string) (strin
 }
 
 // UpdateAlertResolved - Alert resolved 상태로 업데이트
-func (db *Postgres) UpdateAlertResolved(ctx context.Context, alertID string, resolvedAt time.Time) error {
+func (db *Postgres) UpdateAlertResolved(alertID string, resolvedAt time.Time) error {
 	query := `
 		UPDATE alerts
 		SET status = 'resolved', resolved_at = $2, updated_at = NOW()
 		WHERE alert_id = $1
 	`
-	_, err := db.Pool.Exec(ctx, query, alertID, resolvedAt)
+	_, err := db.Pool.Exec(context.Background(), query, alertID, resolvedAt)
 	return err
 }
 
 // UpdateAlertAnalysis - Alert 분석 결과 저장
-func (db *Postgres) UpdateAlertAnalysis(ctx context.Context, alertID, summary, detail string) error {
+func (db *Postgres) UpdateAlertAnalysis(alertID, summary, detail string) error {
 	query := `
 		UPDATE alerts
 		SET analysis_summary = $2, analysis_detail = $3, updated_at = NOW()
 		WHERE alert_id = $1
 	`
-	_, err := db.Pool.Exec(ctx, query, alertID, summary, detail)
+	_, err := db.Pool.Exec(context.Background(), query, alertID, summary, detail)
 	return err
 }
 
-// UpdateAlertIncidentID - Alert에 Incident ID 연결
-func (db *Postgres) UpdateAlertIncidentID(ctx context.Context, alertID, incidentID string) error {
-	query := `
-		UPDATE alerts
-		SET incident_id = $2, updated_at = NOW()
-		WHERE alert_id = $1
-	`
-	_, err := db.Pool.Exec(ctx, query, alertID, incidentID)
-	return err
-}

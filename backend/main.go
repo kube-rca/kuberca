@@ -31,8 +31,6 @@ func main() {
 	// --- 추가된 부분: RCA 관련 초기화 ---
 	// DB 구조체에 Pool 연결 (기존 db 패키지의 Postgres 구조체 사용)
 	pgRepo := &db.Postgres{Pool: dbPool}
-	rcaSvc := service.NewRcaService(pgRepo)
-	rcaHndlr := handler.NewRcaHandler(rcaSvc)
 
 	// Incident 스키마 생성 (장애 단위)
 	if err := pgRepo.EnsureIncidentSchema(ctx); err != nil {
@@ -40,7 +38,7 @@ func main() {
 	}
 
 	// Alert 스키마 생성 (개별 알람 단위)
-	if err := pgRepo.EnsureAlertSchema(ctx); err != nil {
+	if err := pgRepo.EnsureAlertSchema(); err != nil {
 		log.Fatalf("Failed to ensure alert schema: %v", err)
 	}
 
@@ -78,10 +76,13 @@ func main() {
 	agentService := service.NewAgentService(agentClient, slackClient, pgRepo)
 	// AlertService: 알림 필터링 및 Slack 전송 로직 담당 + DB 저장
 	alertService := service.NewAlertService(slackClient, agentService, pgRepo)
+	// RcaService: Incident/Alert 조회 및 종료 처리 + Agent 최종 분석 요청
+	rcaSvc := service.NewRcaService(pgRepo, agentService)
 
 	// 4. HTTP 핸들러 초기화
 	// Alertmanager 웹훅 요청 수신 및 응답 처리
 	alertHandler := handler.NewAlertHandler(alertService)
+	rcaHndlr := handler.NewRcaHandler(rcaSvc)
 
 	// HTTP 라우터 설정
 	router := gin.Default()

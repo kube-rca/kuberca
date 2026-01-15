@@ -16,7 +16,7 @@ type Postgres struct {
 }
 
 // EnsureIncidentSchema - incidents 테이블 생성 (장애 단위)
-func (db *Postgres) EnsureIncidentSchema(ctx context.Context) error {
+func (db *Postgres) EnsureIncidentSchema() error {
 	queries := []string{
 		`
 		CREATE TABLE IF NOT EXISTS incidents (
@@ -41,7 +41,7 @@ func (db *Postgres) EnsureIncidentSchema(ctx context.Context) error {
 	}
 
 	for _, query := range queries {
-		if _, err := db.Pool.Exec(ctx, query); err != nil {
+		if _, err := db.Pool.Exec(context.Background(), query); err != nil {
 			return err
 		}
 	}
@@ -170,13 +170,13 @@ func (db *Postgres) HideIncident(id string) error {
 }
 
 // ResolveIncident - Incident 종료 (사용자가 수동으로 종료)
-func (db *Postgres) ResolveIncident(ctx context.Context, id string, resolvedBy string) error {
+func (db *Postgres) ResolveIncident(id string, resolvedBy string) error {
 	query := `
 		UPDATE incidents
 		SET status = 'resolved', resolved_at = NOW(), resolved_by = $2, updated_at = NOW()
 		WHERE incident_id = $1 AND status = 'firing'
 	`
-	commandTag, err := db.Pool.Exec(ctx, query, id, resolvedBy)
+	commandTag, err := db.Pool.Exec(context.Background(), query, id, resolvedBy)
 	if err != nil {
 		return err
 	}
@@ -189,7 +189,7 @@ func (db *Postgres) ResolveIncident(ctx context.Context, id string, resolvedBy s
 }
 
 // GetFiringIncident - 현재 firing 상태인 Incident 조회
-func (db *Postgres) GetFiringIncident(ctx context.Context) (*model.IncidentDetailResponse, error) {
+func (db *Postgres) GetFiringIncident() (*model.IncidentDetailResponse, error) {
 	query := `
 		SELECT
 			incident_id, title, severity, status,
@@ -202,7 +202,7 @@ func (db *Postgres) GetFiringIncident(ctx context.Context) (*model.IncidentDetai
 	`
 
 	var i model.IncidentDetailResponse
-	err := db.Pool.QueryRow(ctx, query).Scan(
+	err := db.Pool.QueryRow(context.Background(), query).Scan(
 		&i.IncidentID,
 		&i.Title,
 		&i.Severity,
@@ -224,7 +224,7 @@ func (db *Postgres) GetFiringIncident(ctx context.Context) (*model.IncidentDetai
 }
 
 // CreateIncident - 새 Incident 생성
-func (db *Postgres) CreateIncident(ctx context.Context, title, severity string, firedAt time.Time) (string, error) {
+func (db *Postgres) CreateIncident(title, severity string, firedAt time.Time) (string, error) {
 	incidentID := "INC-" + uuid.New().String()[:8]
 
 	query := `
@@ -232,7 +232,7 @@ func (db *Postgres) CreateIncident(ctx context.Context, title, severity string, 
 		VALUES ($1, $2, $3, 'firing', $4, NOW(), NOW())
 	`
 
-	_, err := db.Pool.Exec(ctx, query, incidentID, title, severity, firedAt)
+	_, err := db.Pool.Exec(context.Background(), query, incidentID, title, severity, firedAt)
 	if err != nil {
 		return "", err
 	}
@@ -241,7 +241,7 @@ func (db *Postgres) CreateIncident(ctx context.Context, title, severity string, 
 }
 
 // UpdateIncidentSeverity - Incident severity 업데이트 (가장 높은 severity로)
-func (db *Postgres) UpdateIncidentSeverity(ctx context.Context, incidentID, severity string) error {
+func (db *Postgres) UpdateIncidentSeverity(incidentID, severity string) error {
 	// critical > warning > info 순으로 높은 severity만 업데이트
 	query := `
 		UPDATE incidents
@@ -252,18 +252,18 @@ func (db *Postgres) UpdateIncidentSeverity(ctx context.Context, incidentID, seve
 			(severity = 'warning' AND $2 = 'critical')
 		)
 	`
-	_, err := db.Pool.Exec(ctx, query, incidentID, severity)
+	_, err := db.Pool.Exec(context.Background(), query, incidentID, severity)
 	return err
 }
 
 // UpdateIncidentAnalysis - Incident 분석 결과 저장
-func (db *Postgres) UpdateIncidentAnalysis(ctx context.Context, incidentID, summary, detail string) error {
+func (db *Postgres) UpdateIncidentAnalysis(incidentID, summary, detail string) error {
 	query := `
 		UPDATE incidents
 		SET analysis_summary = $2, analysis_detail = $3, updated_at = NOW()
 		WHERE incident_id = $1
 	`
-	_, err := db.Pool.Exec(ctx, query, incidentID, summary, detail)
+	_, err := db.Pool.Exec(context.Background(), query, incidentID, summary, detail)
 	return err
 }
 

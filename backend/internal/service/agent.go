@@ -8,7 +8,6 @@
 package service
 
 import (
-	"context"
 	"log"
 
 	"github.com/kube-rca/backend/internal/client"
@@ -48,8 +47,7 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, threadTS string) {
 	}
 
 	// 분석 결과를 DB에 저장 (alerts.analysis_summary, analysis_detail)
-	ctx := context.Background()
-	if err := s.db.UpdateAlertAnalysis(ctx, alert.Fingerprint, resp.Analysis, resp.Analysis); err != nil {
+	if err := s.db.UpdateAlertAnalysis(alert.Fingerprint, resp.Analysis, resp.Analysis); err != nil {
 		log.Printf("Failed to save analysis to DB: %v", err)
 		// DB 저장 실패해도 Slack 전송은 계속 진행
 	} else {
@@ -61,4 +59,56 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, threadTS string) {
 	if err := s.slackClient.SendToThread(threadTS, resp.Analysis); err != nil {
 		log.Printf("Failed to send analysis to Slack: %v", err)
 	}
+}
+
+// RequestIncidentSummary - Incident 종료 시 전체 Alert 분석을 기반으로 최종 요약 요청
+func (s *AgentService) RequestIncidentSummary(incident *model.IncidentDetailResponse, alerts []model.AlertDetailResponse) (*client.IncidentSummaryResponse, error) {
+	// Alert 분석 내용을 Agent 요청 포맷으로 변환
+	alertInputs := make([]client.AlertSummaryInput, 0, len(alerts))
+	for _, alert := range alerts {
+		// *string -> string 변환 (nil이면 빈 문자열)
+		summary := ""
+		if alert.AnalysisSummary != nil {
+			summary = *alert.AnalysisSummary
+		}
+		detail := ""
+		if alert.AnalysisDetail != nil {
+			detail = *alert.AnalysisDetail
+		}
+
+		alertInputs = append(alertInputs, client.AlertSummaryInput{
+			Fingerprint:     alert.Fingerprint,
+			AlertName:       alert.AlarmTitle,
+			Severity:        alert.Severity,
+			Status:          alert.Status,
+			AnalysisSummary: summary,
+			AnalysisDetail:  detail,
+		})
+	}
+
+	// resolved_at 포맷팅
+	resolvedAt := ""
+	if incident.ResolvedAt != nil {
+		resolvedAt = incident.ResolvedAt.Format("2006-01-02T15:04:05Z")
+	}
+
+	req := client.IncidentSummaryRequest{
+		IncidentID: incident.IncidentID,
+		Title:      incident.Title,
+		Severity:   incident.Severity,
+		FiredAt:    incident.FiredAt.Format("2006-01-02T15:04:05Z"),
+		ResolvedAt: resolvedAt,
+		Alerts:     alertInputs,
+	}
+
+	log.Printf("Requesting incident summary (incident_id=%s, alert_count=%d)", incident.IncidentID, len(alerts))
+
+	resp, err := s.agentClient.RequestIncidentSummary(req)
+	if err != nil {
+		log.Printf("Failed to request incident summary: %v", err)
+		return nil, err
+	}
+
+	log.Printf("Received incident summary (incident_id=%s)", incident.IncidentID)
+	return resp, nil
 }

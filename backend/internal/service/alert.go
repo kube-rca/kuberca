@@ -16,7 +16,6 @@
 package service
 
 import (
-	"context"
 	"log"
 
 	"github.com/jackc/pgx/v5"
@@ -42,11 +41,9 @@ func NewAlertService(slackClient *client.SlackClient, agentService *AgentService
 }
 
 func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, failed int) {
-	ctx := context.Background()
-
 	for _, alert := range webhook.Alerts {
 		// 1. 현재 firing 상태인 Incident 확인/생성
-		incidentID, err := s.getOrCreateIncident(ctx, alert)
+		incidentID, err := s.getOrCreateIncident(alert)
 		if err != nil {
 			log.Printf("Failed to get or create incident: %v", err)
 			// Incident 처리 실패해도 Alert 저장 및 Slack 전송은 계속 진행
@@ -54,14 +51,14 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 		}
 
 		// 2. Alert를 DB에 저장 (alerts 테이블)
-		if err := s.db.SaveAlert(ctx, alert, incidentID); err != nil {
+		if err := s.db.SaveAlert(alert, incidentID); err != nil {
 			log.Printf("Failed to save alert to DB: %v", err)
 			// DB 저장 실패해도 Slack 전송은 계속 진행
 		}
 
 		// 3. resolved 상태면 resolved_at 업데이트
 		if alert.Status == "resolved" {
-			if err := s.db.UpdateAlertResolved(ctx, alert.Fingerprint, alert.EndsAt); err != nil {
+			if err := s.db.UpdateAlertResolved(alert.Fingerprint, alert.EndsAt); err != nil {
 				log.Printf("Failed to update alert resolved status: %v", err)
 			}
 		}
@@ -74,7 +71,7 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 		// 5. resolved 알림: DB에서 thread_ts 조회하여 메모리에 복원
 		// (백엔드 재시작 시 메모리가 초기화되므로 DB에서 복원 필요)
 		if alert.Status == "resolved" {
-			if threadTS, ok := s.db.GetAlertThreadTS(ctx, alert.Fingerprint); ok {
+			if threadTS, ok := s.db.GetAlertThreadTS(alert.Fingerprint); ok {
 				s.slackClient.StoreThreadTS(alert.Fingerprint, threadTS)
 			}
 		}
@@ -93,7 +90,7 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 		// 7. thread_ts를 DB에 저장 (firing 알림일 때)
 		if alert.Status == "firing" {
 			if threadTS, ok := s.slackClient.GetThreadTS(alert.Fingerprint); ok {
-				if err := s.db.UpdateAlertThreadTS(ctx, alert.Fingerprint, threadTS); err != nil {
+				if err := s.db.UpdateAlertThreadTS(alert.Fingerprint, threadTS); err != nil {
 					log.Printf("Failed to save thread_ts to DB: %v", err)
 				}
 			}
@@ -101,21 +98,21 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 
 		// 8. Agent에 비동기 분석 요청 (firing, resolved)
 		// DB에서 thread_ts 조회 (메모리 대신 DB 사용)
-		threadTS, _ := s.db.GetAlertThreadTS(ctx, alert.Fingerprint)
+		threadTS, _ := s.db.GetAlertThreadTS(alert.Fingerprint)
 		go s.agentService.RequestAnalysis(alert, threadTS)
 	}
 	return sent, failed
 }
 
 // getOrCreateIncident - 현재 firing 상태인 Incident를 조회하거나 새로 생성
-func (s *AlertService) getOrCreateIncident(ctx context.Context, alert model.Alert) (string, error) {
+func (s *AlertService) getOrCreateIncident(alert model.Alert) (string, error) {
 	// firing 상태인 Incident 조회
-	incident, err := s.db.GetFiringIncident(ctx)
+	incident, err := s.db.GetFiringIncident()
 	if err == nil && incident != nil {
 		// 기존 Incident에 연결 + severity 업데이트
 		severity := alert.Labels["severity"]
 		if severity != "" {
-			_ = s.db.UpdateIncidentSeverity(ctx, incident.IncidentID, severity)
+			_ = s.db.UpdateIncidentSeverity(incident.IncidentID, severity)
 		}
 		return incident.IncidentID, nil
 	}
@@ -131,7 +128,7 @@ func (s *AlertService) getOrCreateIncident(ctx context.Context, alert model.Aler
 		severity = "warning"
 	}
 
-	incidentID, err := s.db.CreateIncident(ctx, alertName, severity, alert.StartsAt)
+	incidentID, err := s.db.CreateIncident(alertName, severity, alert.StartsAt)
 	if err != nil {
 		return "", err
 	}
