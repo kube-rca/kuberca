@@ -102,6 +102,20 @@ export const hideIncident = async (id: string): Promise<void> => {
   return response.json();
 };
 
+/**
+ * 인시던트를 종료(resolved) 상태로 변경합니다.
+ * 백엔드에서 Agent로 최종 분석 요청을 보내고, 분석 결과가 DB에 저장됩니다.
+ */
+export const resolveIncident = async (id: string): Promise<void> => {
+  const response = await requestWithAuth(`/api/v1/incidents/${id}/resolve`, {
+    method: 'POST',
+  });
+
+  if (!response.ok) {
+    throw new Error('인시던트 종료에 실패했습니다.');
+  }
+};
+
 // ============================================================================
 // Alert API
 // ============================================================================

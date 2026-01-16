@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useLocation } from 'react-router-dom';
 import { RCADetail, SimilarIncident } from '../types';
-import { fetchRCADetail, updateRCADetail, hideIncident } from '../utils/api';
+import { fetchRCADetail, updateRCADetail, hideIncident, resolveIncident } from '../utils/api';
 
 interface RCADetailViewProps {
   incidentId: string;
@@ -88,6 +88,21 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
       onBack();
     } catch (error) {
       console.error("숨기기 실패:", error);
+      alert("오류가 발생했습니다. 다시 시도해주세요.");
+    }
+  };
+
+  const handleResolve = async () => {
+    if (!window.confirm("이 인시던트를 종료하시겠습니까?\n종료 후 AI가 최종 분석을 수행합니다.")) {
+      return;
+    }
+
+    try {
+      await resolveIncident(incidentId);
+      alert("인시던트가 종료되었습니다.\nAI 분석이 완료되면 결과가 업데이트됩니다.");
+      await loadDetail();
+    } catch (error) {
+      console.error("종료 실패:", error);
       alert("오류가 발생했습니다. 다시 시도해주세요.");
     }
   };
@@ -195,15 +210,25 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                 {data.severity}
               </span>
 
-              {/* [3] 숨기기 버튼 */}
-              <button 
+              {/* [3] 종료 버튼 (Ongoing일 때만 표시) */}
+              {!isResolved && (
+                <button
+                  onClick={handleResolve}
+                  className="px-4 py-1.5 text-sm text-green-600 dark:text-green-400 border border-green-600 dark:border-green-400 rounded hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors font-medium"
+                >
+                  종료
+                </button>
+              )}
+
+              {/* [4] 숨기기 버튼 */}
+              <button
                 onClick={handleHide}
                 className="px-4 py-1.5 text-sm text-red-600 dark:text-red-400 border border-red-600 dark:border-red-400 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
               >
                 숨기기
               </button>
 
-              {/* [4] Edit 버튼 */}
+              {/* [5] Edit 버튼 */}
               <button 
                 onClick={() => setIsEditing(true)}
                 className="px-4 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-semibold rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition"
