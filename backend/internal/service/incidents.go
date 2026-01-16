@@ -80,8 +80,8 @@ func (s *RcaService) requestIncidentSummary(incidentID string) {
 		return
 	}
 
-	// DB에 분석 결과 저장
-	if err := s.repo.UpdateIncidentAnalysis(incidentID, resp.Summary, resp.Detail); err != nil {
+	// DB에 분석 결과 저장 (title 포함)
+	if err := s.repo.UpdateIncidentAnalysis(incidentID, resp.Title, resp.Summary, resp.Detail); err != nil {
 		log.Printf("Failed to save incident analysis: %v", err)
 		return
 	}

@@ -256,14 +256,14 @@ func (db *Postgres) UpdateIncidentSeverity(incidentID, severity string) error {
 	return err
 }
 
-// UpdateIncidentAnalysis - Incident 분석 결과 저장
-func (db *Postgres) UpdateIncidentAnalysis(incidentID, summary, detail string) error {
+// UpdateIncidentAnalysis - Incident 분석 결과 저장 (title 포함)
+func (db *Postgres) UpdateIncidentAnalysis(incidentID, title, summary, detail string) error {
 	query := `
 		UPDATE incidents
-		SET analysis_summary = $2, analysis_detail = $3, updated_at = NOW()
+		SET title = $2, analysis_summary = $3, analysis_detail = $4, updated_at = NOW()
 		WHERE incident_id = $1
 	`
-	_, err := db.Pool.Exec(context.Background(), query, incidentID, summary, detail)
+	_, err := db.Pool.Exec(context.Background(), query, incidentID, title, summary, detail)
 	return err
 }
 

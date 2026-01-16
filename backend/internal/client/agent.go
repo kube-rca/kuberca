@@ -64,6 +64,7 @@ type AlertSummaryInput struct {
 // IncidentSummaryResponse - Incident 최종 분석 응답
 type IncidentSummaryResponse struct {
 	Status  string `json:"status"`
+	Title   string `json:"title"`
 	Summary string `json:"summary"`
 	Detail  string `json:"detail"`
 }
