@@ -99,5 +99,71 @@ export const hideIncident = async (id: string): Promise<void> => {
     throw new Error('리포트를 숨기는데 실패했습니다.');
   }
 
-  return response.json(); 
+  return response.json();
+};
+
+// ============================================================================
+// Alert API
+// ============================================================================
+
+export interface AlertItem {
+  alert_id: string;
+  incident_id: string | null;
+  alarm_title: string;
+  severity: string;
+  status: string;
+  fired_at: string;
+  resolved_at: string | null;
+}
+
+export interface AlertDetail {
+  alert_id: string;
+  incident_id: string | null;
+  alarm_title: string;
+  severity: string;
+  status: string;
+  fired_at: string;
+  resolved_at: string | null;
+  analysis_summary: string;
+  analysis_detail: string;
+  fingerprint: string;
+  thread_ts: string;
+  labels: Record<string, string>;
+  annotations: Record<string, string>;
+}
+
+/**
+ * 백엔드에서 Alert 목록을 가져옵니다.
+ */
+export const fetchAlerts = async (): Promise<AlertItem[]> => {
+  const response = await requestWithAuth('/api/v1/alerts', {
+    method: 'GET',
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const data: AlertItem[] = await response.json();
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  console.warn('Backend response is not an array:', data);
+  throw new Error('Unexpected response format: Data is not an array');
+};
+
+/**
+ * Alert 단건 상세를 가져옵니다.
+ */
+export const fetchAlertDetail = async (id: string): Promise<AlertDetail> => {
+  const response = await requestWithAuth(`/api/v1/alerts/${id}`, {
+    method: 'GET',
+  });
+
+  if (!response.ok) {
+    throw new Error('Alert 상세 정보를 불러오는데 실패했습니다.');
+  }
+
+  return response.json();
 };

@@ -1,19 +1,37 @@
 import { useTheme } from '../context/ThemeContext';
+import { NavLink } from 'react-router-dom';
 
 export const Header = () => {
   const { theme, toggleTheme } = useTheme();
 
+  const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+    `px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+      isActive
+        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200'
+        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+    }`;
+
   return (
-    <header className="fixed top-0 left-0 w-full h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-6 z-50 transition-colors duration-300">
-      {/* 로고 영역 */}
+    <header className="fixed top-0 left-0 w-full h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center px-6 z-50 transition-colors duration-300">
+      {/* 로고 영역 (좌측) */}
       <h1 className="text-xl font-bold text-gray-800 dark:text-white">
         Kube-RCA
       </h1>
 
-      {/* 다크모드 토글 버튼 */}
+      {/* 네비게이션 (중앙) */}
+      <nav className="absolute left-1/2 transform -translate-x-1/2 flex items-center gap-2">
+        <NavLink to="/" end className={navLinkClass}>
+          Incident Dashboard
+        </NavLink>
+        <NavLink to="/alerts" className={navLinkClass}>
+          Alert Dashboard
+        </NavLink>
+      </nav>
+
+      {/* 다크모드 토글 버튼 (우측) */}
       <button
         onClick={toggleTheme}
-        className="p-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 focus:outline-none ring-2 ring-transparent focus:ring-blue-500"
+        className="ml-auto p-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 focus:outline-none ring-2 ring-transparent focus:ring-blue-500"
         aria-label="Toggle Dark Mode"
       >
         {theme === 'light' ? (

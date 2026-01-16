@@ -1,12 +1,14 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Routes, Route, useNavigate, useParams, useSearchParams } from 'react-router-dom'; // [1] useSearchParams 추가
+import { Routes, Route, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { RCAItem } from './types';
 import TimeRangeSelector from './components/TimeRangeSelector';
 import RCATable from './components/RCATable';
+import AlertTable from './components/AlertTable';
 import Pagination from './components/Pagination';
 import RCADetailView from './components/RCADetailView';
+import AlertDetailView from './components/AlertDetailView';
 import AuthPanel from './components/AuthPanel';
-import { fetchRCAs } from './utils/api';
+import { fetchRCAs, fetchAlerts, AlertItem } from './utils/api';
 import { fetchAuthConfig, refreshAccessToken, logout } from './utils/auth';
 import { filterRCAs, RCAStatusFilter } from './utils/filterAlerts';
 import { ITEMS_PER_PAGE } from './constants';
@@ -21,15 +23,29 @@ type RawRCAItem = RCAItem & {
 };
 
 const IncidentDetailRoute = () => {
-  const { id } = useParams(); 
+  const { id } = useParams();
   const navigate = useNavigate();
 
   if (!id) return null;
 
   return (
-    <RCADetailView 
-      incidentId={id} 
-      onBack={() => navigate(-1)} // 뒤로가기 시 필터 유지된 이전 URL로 이동
+    <RCADetailView
+      incidentId={id}
+      onBack={() => navigate(-1)}
+    />
+  );
+};
+
+const AlertDetailRoute = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  if (!id) return null;
+
+  return (
+    <AlertDetailView
+      alertId={id}
+      onBack={() => navigate(-1)}
     />
   );
 };
@@ -39,9 +55,13 @@ function App() {
   const [searchParams, setSearchParams] = useSearchParams(); // [2] URL 파라미터 훅 사용
 
   const [allRCAs, setAllRCAs] = useState<RCAItem[]>([]);
+  const [allAlerts, setAllAlerts] = useState<AlertItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [alertLoading, setAlertLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [alertError, setAlertError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [alertCurrentPage, setAlertCurrentPage] = useState(1);
   
   // [3] 필터 상태 초기화: URL 파라미터가 있으면 그것을 우선 사용, 없으면 기본값
   const [timeRange, setTimeRange] = useState(() => searchParams.get('time') || 'All Time');
@@ -138,6 +158,42 @@ function App() {
 
   }, [isAuthenticated]);
 
+  // Alert 데이터 로딩
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setAllAlerts([]);
+      return;
+    }
+
+    const loadAlerts = async (isBackground = false) => {
+      try {
+        if (!isBackground) setAlertLoading(true);
+        setAlertError(null);
+
+        const data = await fetchAlerts();
+        setAllAlerts(data);
+      } catch (err) {
+        if (err instanceof Error && err.message === 'unauthorized') {
+          setIsAuthenticated(false);
+          return;
+        }
+        console.error('Failed to load Alerts:', err);
+        if (!isBackground) setAlertError('Alert 데이터를 불러오는데 실패했습니다.');
+      } finally {
+        if (!isBackground) setAlertLoading(false);
+      }
+    };
+
+    loadAlerts(false);
+
+    const intervalId = setInterval(() => {
+      loadAlerts(true);
+    }, 2000);
+
+    return () => clearInterval(intervalId);
+
+  }, [isAuthenticated]);
+
   const handleLogout = async () => {
     await logout();
     setIsAuthenticated(false);
@@ -169,6 +225,35 @@ function App() {
 
   const handleTitleClick = (incident_id: string) => {
     navigate(`/incidents/${incident_id}`);
+  };
+
+  const handleAlertTitleClick = (alert_id: string) => {
+    navigate(`/alerts/${alert_id}`);
+  };
+
+  // Alert 필터링 및 페이지네이션
+  const filteredAlerts = useMemo(() => {
+    let filtered = allAlerts;
+    if (statusFilter !== 'all') {
+      const statusValue = statusFilter === 'ongoing' ? 'firing' : 'resolved';
+      filtered = filtered.filter((item) => item.status === statusValue);
+    }
+    if (severityFilter !== 'all') {
+      filtered = filtered.filter((item) => item.severity === severityFilter);
+    }
+    return filtered;
+  }, [allAlerts, statusFilter, severityFilter]);
+
+  const alertTotalPages = Math.ceil(filteredAlerts.length / ITEMS_PER_PAGE);
+
+  const paginatedAlerts = useMemo(() => {
+    const startIndex = (alertCurrentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return filteredAlerts.slice(startIndex, endIndex);
+  }, [filteredAlerts, alertCurrentPage]);
+
+  const handleAlertPageChange = (page: number) => {
+    setAlertCurrentPage(page);
   };
 
   if (!authReady) {
@@ -203,6 +288,7 @@ function App() {
 
         <Routes>
           <Route path="/incidents/:id" element={<IncidentDetailRoute />} />
+          <Route path="/alerts/:id" element={<AlertDetailRoute />} />
 
           <Route path="/" element={
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors duration-300">
@@ -267,6 +353,73 @@ function App() {
                   ) : (
                     <div className="flex justify-center items-center py-12">
                       <div className="text-gray-500 dark:text-gray-400">표시할 RCA가 없습니다.</div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          } />
+
+          <Route path="/alerts" element={
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors duration-300">
+              <div className="mb-6 flex flex-col xl:flex-row justify-between items-center gap-4">
+                <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">Alert Dashboard</h1>
+
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+
+                  {/* Status Filter */}
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as RCAStatusFilter)}
+                    className={selectStyle}
+                  >
+                    <option value="all">All Status</option>
+                    <option value="ongoing">Firing</option>
+                    <option value="resolved">Resolved</option>
+                  </select>
+
+                  {/* Severity Filter */}
+                  <select
+                    value={severityFilter}
+                    onChange={(e) => setSeverityFilter(e.target.value)}
+                    className={selectStyle}
+                  >
+                    <option value="all">All Severities</option>
+                    <option value="critical">Critical</option>
+                    <option value="warning">Warning</option>
+                    <option value="info">Info</option>
+                  </select>
+                </div>
+              </div>
+
+              {alertLoading && (
+                <div className="flex justify-center items-center py-12">
+                  <div className="text-gray-600 dark:text-gray-400">데이터를 불러오는 중...</div>
+                </div>
+              )}
+
+              {alertError && !alertLoading && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-4">
+                  <div className="text-red-800 dark:text-red-300 font-medium">오류 발생</div>
+                  <div className="text-red-600 dark:text-red-400 text-sm mt-1">{alertError}</div>
+                </div>
+              )}
+
+              {!alertLoading && !alertError && (
+                <>
+                  <AlertTable alerts={paginatedAlerts} onTitleClick={handleAlertTitleClick} />
+
+                  {filteredAlerts.length > 0 ? (
+                    <div className="mt-6 flex justify-center">
+                      <Pagination
+                        currentPage={alertCurrentPage}
+                        totalPages={alertTotalPages}
+                        onPageChange={handleAlertPageChange}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex justify-center items-center py-12">
+                      <div className="text-gray-500 dark:text-gray-400">표시할 Alert이 없습니다.</div>
                     </div>
                   )}
                 </>
