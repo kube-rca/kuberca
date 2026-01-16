@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { RCADetail, SimilarIncident, AlertItem } from '../types';
-import { fetchRCADetail, updateRCADetail, hideIncident, resolveIncident } from '../utils/api';
+import { RCADetail, AlertItem } from '../types';
+import { fetchRCADetail, updateRCADetail, hideIncident, resolveIncident, searchSimilarIncidents, EmbeddingSearchResult } from '../utils/api';
 
 interface RCADetailViewProps {
   incidentId: string;
@@ -21,6 +21,8 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
   const [data, setData] = useState<RCADetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [similarIncidents, setSimilarIncidents] = useState<EmbeddingSearchResult[]>([]);
+  const [similarLoading, setSimilarLoading] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<RCADetail>>({});
@@ -34,6 +36,21 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
       const detailData = await fetchRCADetail(incidentId);
       setData(detailData);
       setEditForm(detailData);
+
+      // analysis_summary가 있으면 유사 인시던트 검색
+      if (detailData.analysis_summary) {
+        setSimilarLoading(true);
+        try {
+          const searchResult = await searchSimilarIncidents(detailData.analysis_summary, 4);
+          // 현재 인시던트 제외
+          const filtered = searchResult.results.filter(r => r.incident_id !== incidentId);
+          setSimilarIncidents(filtered.slice(0, 3));
+        } catch (searchErr) {
+          console.error('유사 인시던트 검색 실패:', searchErr);
+        } finally {
+          setSimilarLoading(false);
+        }
+      }
     } catch (err) {
       setError('데이터를 불러오지 못했습니다.');
       console.error(err);
@@ -116,8 +133,6 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
   if (loading) return <div className="p-12 text-center text-gray-500 dark:text-gray-400">상세 정보를 불러오는 중...</div>;
   if (error || !data) return <div className="p-12 text-center text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg m-4">{error}</div>;
 
-  const similarList: SimilarIncident[] = data.similar_incidents || [];
-  
   // 상태(Resolved/Ongoing) 판별
   const isResolved = !!data.resolved_at;
 
@@ -406,31 +421,36 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
         <div className="md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-6 mt-2">
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
             🔗 Top 3 유사 인시던트
+            {similarLoading && <span className="ml-2 text-sm font-normal text-gray-500">(검색 중...)</span>}
           </h3>
-          
-          {similarList.length > 0 ? (
+
+          {similarIncidents.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {similarList.map((item, idx) => (
-                <div key={idx} className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+              {similarIncidents.map((item: EmbeddingSearchResult, idx: number) => (
+                <div
+                  key={idx}
+                  className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => navigate(`/incidents/${item.incident_id}`)}
+                >
                   <div className="mb-2 flex justify-between items-center">
-                      <span className="text-xs font-mono text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
-                        {item.incident_id}
-                      </span>
-                      {item.score && (
-                        <span className="text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">
-                          {item.score}% 유사
-                        </span>
-                      )}
+                    <span className="text-xs font-mono text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
+                      {item.incident_id}
+                    </span>
+                    <span className="text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">
+                      {Math.round(item.similarity * 100)}% 유사
+                    </span>
                   </div>
-                  <div className="text-sm font-medium text-gray-800 dark:text-gray-200 line-clamp-2" title={item.title}>
-                    {item.title}
+                  <div className="text-sm font-medium text-gray-800 dark:text-gray-200 line-clamp-3" title={item.incident_summary}>
+                    {item.incident_summary}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
             <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-8 text-center border border-dashed border-gray-300 dark:border-gray-600">
-              <p className="text-gray-500 dark:text-gray-400">유사한 인시던트 내역이 없습니다.</p>
+              <p className="text-gray-500 dark:text-gray-400">
+                {!data.analysis_summary ? '분석 요약이 없어 유사 인시던트를 검색할 수 없습니다.' : '유사한 인시던트 내역이 없습니다.'}
+              </p>
             </div>
           )}
         </div>

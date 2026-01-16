@@ -198,3 +198,37 @@ export const updateAlertIncident = async (alertId: string, incidentId: string): 
     throw new Error('Alert의 Incident 연결을 변경하는데 실패했습니다.');
   }
 };
+
+// ============================================================================
+// Embedding API
+// ============================================================================
+
+export interface EmbeddingSearchResult {
+  incident_id: string;
+  incident_summary: string;
+  similarity: number;
+}
+
+export interface EmbeddingSearchResponse {
+  results: EmbeddingSearchResult[];
+  model: string;
+}
+
+/**
+ * 임베딩 벡터로 유사한 인시던트를 검색합니다.
+ */
+export const searchSimilarIncidents = async (query: string, limit: number = 5): Promise<EmbeddingSearchResponse> => {
+  const response = await requestWithAuth('/api/v1/embeddings/search', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ query, limit }),
+  });
+
+  if (!response.ok) {
+    throw new Error('유사 인시던트 검색에 실패했습니다.');
+  }
+
+  return response.json();
+};
