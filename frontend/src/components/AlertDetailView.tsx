@@ -290,21 +290,22 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
           </div>
         </div>
 
-        {/* 분석 요약 */}
+        {/* 분석 요약 (Blue Tone + High Contrast Code) */}
         {data.analysis_summary && (
           <div className="md:col-span-2">
             <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
               📋 분석 요약
             </h3>
-            <div className="bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800/30 rounded-lg p-5">
-              <div className="prose prose-sm prose-yellow dark:prose-invert max-w-none text-gray-800 dark:text-gray-200">
+            <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-lg p-5 transition-colors">
+              <div className="prose prose-sm prose-slate dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
-                    strong: ({node, ...props}) => <span className="font-bold text-gray-900 dark:text-white" {...props} />,
+                    strong: ({node, ...props}) => <span className="font-bold text-blue-800 dark:text-blue-300" {...props} />,
                     ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1 my-2" {...props} />,
+                    // [핵심] 흰 배경에 진한 파랑 글씨로 코드 블록 강조
                     code: ({node, ...props}) => (
-                      <code className="bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 px-1.5 py-0.5 rounded text-xs font-mono" {...props} />
+                      <code className="bg-white dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded text-xs font-mono font-bold shadow-sm" {...props} />
                     ),
                   }}
                 >
@@ -315,7 +316,7 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
           </div>
         )}
 
-        {/* 상세 분석 */}
+        {/* 상세 분석 (DarkMode Visibility Fix) */}
         {data.analysis_detail && (
           <div className="md:col-span-2">
             <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">

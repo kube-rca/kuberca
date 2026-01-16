@@ -67,7 +67,6 @@ const MuteDetailView: React.FC<MuteDetailViewProps> = ({ incidentId, onBack }) =
 
     try {
       await unhideIncident(incidentId);
-      // alert("숨김이 해제되었습니다. Incident Dashboard로 이동합니다.");
       navigate('/', { 
         state: { newlyUnmutedId: incidentId } 
       });
@@ -90,7 +89,6 @@ const MuteDetailView: React.FC<MuteDetailViewProps> = ({ incidentId, onBack }) =
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-5xl mx-auto transition-colors duration-300 border border-gray-200 dark:border-gray-700">
       
-      {/* 헤더 영역 */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 border-b border-gray-200 dark:border-gray-700 pb-6 gap-4">
         
         <div className="flex items-start md:items-center gap-4 flex-1 w-full">
@@ -117,6 +115,7 @@ const MuteDetailView: React.FC<MuteDetailViewProps> = ({ incidentId, onBack }) =
         </div>
         
         <div className="flex items-center gap-3 self-end md:self-auto">
+          
           <span 
             className={`px-3 py-1.5 rounded-full text-xs font-bold border flex-shrink-0 
               ${isResolved 
@@ -171,15 +170,16 @@ const MuteDetailView: React.FC<MuteDetailViewProps> = ({ incidentId, onBack }) =
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
             📋 인시던트 요약
           </h3>
-          <div className="bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800/30 rounded-lg p-5">
-            <div className="prose prose-sm prose-yellow dark:prose-invert max-w-none text-gray-800 dark:text-gray-200">
+          {/* [수정 포인트] 가독성을 위해 Blue 톤으로 변경 */}
+          <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-lg p-5">
+            <div className="prose prose-sm prose-slate dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed">
               <ReactMarkdown 
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  strong: ({node, ...props}) => <span className="font-bold text-gray-900 dark:text-white" {...props} />,
+                  strong: ({node, ...props}) => <span className="font-bold text-blue-800 dark:text-blue-300" {...props} />,
                   ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1 my-2" {...props} />,
                   code: ({node, ...props}) => (
-                    <code className="bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 px-1.5 py-0.5 rounded text-xs font-mono" {...props} />
+                    <code className="bg-white dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded text-xs font-mono font-bold shadow-sm" {...props} />
                   ),
                 }}
               >
@@ -189,7 +189,6 @@ const MuteDetailView: React.FC<MuteDetailViewProps> = ({ incidentId, onBack }) =
           </div>
         </div>
 
-        {/* 상세 분석 리포트 */}
         <div className="md:col-span-2">
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
             📝 상세 분석 리포트
@@ -200,16 +199,15 @@ const MuteDetailView: React.FC<MuteDetailViewProps> = ({ incidentId, onBack }) =
                 <ReactMarkdown 
                   remarkPlugins={[remarkGfm]}
                   components={{
-                    // [수정] 아래 컴포넌트 스타일 정의들을 추가하여 글씨 색상 복구
                     h1: ({node, ...props}) => <h1 className="text-xl font-bold text-blue-400 mt-6 mb-4 border-b border-gray-700 pb-2" {...props} />,
                     h2: ({node, ...props}) => <h2 className="text-lg font-bold text-blue-300 mt-5 mb-3" {...props} />,
-                    h3: ({node, ...props}) => <h3 className="text-md font-bold text-blue-200 mt-4 mb-2" {...props} />, // 추가됨
+                    h3: ({node, ...props}) => <h3 className="text-md font-bold text-blue-200 mt-4 mb-2" {...props} />,
                     strong: ({node, ...props}) => <span className="font-bold text-yellow-400" {...props} />,
-                    ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1 my-2 text-gray-300" {...props} />, // 추가됨
+                    ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1 my-2 text-gray-300" {...props} />,
                     code: ({node, ...props}) => (
-                      <code className="bg-gray-800 text-green-400 px-1 py-0.5 rounded text-xs" {...props} /> // 추가됨
+                      <code className="bg-gray-800 text-green-400 px-1 py-0.5 rounded text-xs" {...props} />
                     ),
-                    p: ({node, ...props}) => <p className="mb-4 text-gray-300" {...props} />, // 추가됨 (본문 색상)
+                    p: ({node, ...props}) => <p className="mb-4 text-gray-300" {...props} />,
                     a: ({node, ...props}) => <a className="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
                   }}
                 >

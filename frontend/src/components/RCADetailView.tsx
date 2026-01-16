@@ -100,7 +100,6 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
     setIsEditing(false);
   };
 
-  // [수정됨] 숨기기 성공 시 Mute Dashboard(/muted)로 이동
   const handleHide = async () => {
     if (!window.confirm("정말 이 리포트를 목록에서 숨기시겠습니까?")) {
       return;
@@ -323,15 +322,17 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
               className="w-full p-4 border border-blue-400 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow shadow-sm"
             />
           ) : (
-            <div className="bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800/30 rounded-lg p-5">
-              <div className="prose prose-sm prose-yellow dark:prose-invert max-w-none text-gray-800 dark:text-gray-200">
+            // [수정 포인트] 노란색 -> 깔끔한 블루/그레이 톤으로 변경 + 코드 블록 고대비 적용
+            <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-lg p-5 transition-colors">
+              <div className="prose prose-sm prose-slate dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed">
                 <ReactMarkdown 
                   remarkPlugins={[remarkGfm]}
                   components={{
-                    strong: ({node, ...props}) => <span className="font-bold text-gray-900 dark:text-white" {...props} />,
+                    strong: ({node, ...props}) => <span className="font-bold text-blue-800 dark:text-blue-300" {...props} />,
                     ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1 my-2" {...props} />,
+                    // [핵심] 코드는 흰 배경에 파란 글씨 + 테두리 = 가독성 최적화
                     code: ({node, ...props}) => (
-                      <code className="bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 px-1.5 py-0.5 rounded text-xs font-mono" {...props} />
+                      <code className="bg-white dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded text-xs font-mono font-bold shadow-sm" {...props} />
                     ),
                   }}
                 >
