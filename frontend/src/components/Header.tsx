@@ -26,6 +26,9 @@ export const Header = () => {
         <NavLink to="/alerts" className={navLinkClass}>
           Alert Dashboard
         </NavLink>
+        <NavLink to="/muted" className={navLinkClass}>
+          Mute Dashboard
+        </NavLink>
       </nav>
 
       {/* 다크모드 토글 버튼 (우측) */}

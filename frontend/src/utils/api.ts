@@ -60,6 +60,24 @@ export const fetchRCAs = async (): Promise<RCAItem[]> => {
   throw new Error('Unexpected response format: Data is not an array');
 };
 
+export const fetchMutedIncidents = async (): Promise<RCAItem[]> => {
+  const response = await requestWithAuth('/api/v1/incidents/hidden', {
+    method: 'GET',
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const data: RCAItem[] = await response.json();
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  console.warn('Backend response is not an array:', data);
+  throw new Error('Unexpected response format: Data is not an array');
+};
+
 /**
  * RCA 단건 상세를 가져옵니다. 응답은 { data: RCADetail } 형태를 기대합니다.
  */
@@ -98,8 +116,19 @@ export const hideIncident = async (id: string): Promise<void> => {
   if (!response.ok) {
     throw new Error('리포트를 숨기는데 실패했습니다.');
   }
+  
+  // response body가 없는 경우를 대비해 return response.json() 대신 void 처리
+  // 만약 백엔드가 json을 준다면 return response.json() 유지
+};
 
-  return response.json();
+export const unhideIncident = async (id: string): Promise<void> => {
+  const response = await requestWithAuth(`/api/v1/incidents/${id}/unhide`, {
+    method: 'PATCH',
+  });
+
+  if (!response.ok) {
+    throw new Error('인시던트 숨김 해제에 실패했습니다.');
+  }
 };
 
 /**

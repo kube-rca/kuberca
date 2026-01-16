@@ -1,14 +1,16 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Routes, Route, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Routes, Route, useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom';
 import { RCAItem } from './types';
 import TimeRangeSelector from './components/TimeRangeSelector';
 import RCATable from './components/RCATable';
+import MuteTable from './components/MuteTable'; 
 import AlertTable from './components/AlertTable';
 import Pagination from './components/Pagination';
 import RCADetailView from './components/RCADetailView';
 import AlertDetailView from './components/AlertDetailView';
+import MuteDetailView from './components/MuteDetailView'; // [Import 확인]
 import AuthPanel from './components/AuthPanel';
-import { fetchRCAs, fetchAlerts, AlertItem } from './utils/api';
+import { fetchRCAs, fetchAlerts, fetchMutedIncidents, AlertItem } from './utils/api';
 import { fetchAuthConfig, refreshAccessToken, logout } from './utils/auth';
 import { filterRCAs, filterAlerts, RCAStatusFilter } from './utils/filterAlerts';
 import { ITEMS_PER_PAGE } from './constants';
@@ -22,6 +24,8 @@ type RawRCAItem = RCAItem & {
   fired_at?: string;
 };
 
+// --- Route Wrapper Components ---
+
 const IncidentDetailRoute = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -34,6 +38,14 @@ const IncidentDetailRoute = () => {
       onBack={() => navigate(-1)}
     />
   );
+};
+
+const MuteDetailRoute = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  if (!id) return null;
+  // onBack 시 목록(/muted)으로 돌아가도록 설정
+  return <MuteDetailView incidentId={id} onBack={() => navigate('/muted')} />;
 };
 
 const AlertDetailRoute = () => {
@@ -50,36 +62,49 @@ const AlertDetailRoute = () => {
   );
 };
 
+// --- Main App Component ---
+
 function App() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams(); // [2] URL 파라미터 훅 사용
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
 
+  // Data States
   const [allRCAs, setAllRCAs] = useState<RCAItem[]>([]);
   const [allAlerts, setAllAlerts] = useState<AlertItem[]>([]);
+  const [mutedIncidents, setMutedIncidents] = useState<RCAItem[]>([]); 
+
+  // Loading & Error States
   const [loading, setLoading] = useState(true);
   const [alertLoading, setAlertLoading] = useState(true);
+  const [muteLoading, setMuteLoading] = useState(true);
+  
   const [error, setError] = useState<string | null>(null);
   const [alertError, setAlertError] = useState<string | null>(null);
+  const [muteError, setMuteError] = useState<string | null>(null); 
+
+  // Pagination States
   const [currentPage, setCurrentPage] = useState(1);
   const [alertCurrentPage, setAlertCurrentPage] = useState(1);
+  const [muteCurrentPage, setMuteCurrentPage] = useState(1); 
   
-  // [3] 필터 상태 초기화: URL 파라미터가 있으면 그것을 우선 사용, 없으면 기본값
+  // Filter States
   const [timeRange, setTimeRange] = useState(() => searchParams.get('time') || 'All Time');
   const [statusFilter, setStatusFilter] = useState<RCAStatusFilter>(() => (searchParams.get('status') as RCAStatusFilter) || 'all');
   const [severityFilter, setSeverityFilter] = useState(() => searchParams.get('severity') || 'all'); 
 
+  // Auth States
   const [authReady, setAuthReady] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [allowSignup, setAllowSignup] = useState(false);
 
-  // [4] 필터 변경 시 URL 업데이트 (동기화)
+  // URL Query Sync
   useEffect(() => {
     const params: Record<string, string> = {};
     if (statusFilter !== 'all') params.status = statusFilter;
     if (severityFilter !== 'all') params.severity = severityFilter;
     if (timeRange !== 'All Time') params.time = timeRange;
     
-    // 현재 필터 상태를 URL 쿼리 스트링으로 반영 (replace: true로 히스토리 오염 방지)
     setSearchParams(params, { replace: true });
   }, [statusFilter, severityFilter, timeRange, setSearchParams]);
 
@@ -93,6 +118,7 @@ function App() {
     return `${yyyy}/${mm}/${dd} ${hh}:${min}`;
   };
 
+  // Auth Initialization
   useEffect(() => {
     let active = true;
     const initAuth = async () => {
@@ -112,83 +138,96 @@ function App() {
     return () => { active = false; };
   }, []);
 
+// 페이지 이동으로 전달받은 state가 있다면, 리스트에서 즉시 제거하여 반응 속도를 높임
+  useEffect(() => {
+    if (location.state) {
+      const state = location.state as { newlyMutedId?: string; newlyUnmutedId?: string };
+
+      // 1. 숨기기(Mute) 되어 넘어온 경우 -> Incident 목록에서 즉시 제거
+      if (state.newlyMutedId) {
+        setAllRCAs((prev) => prev.filter((item) => item.incident_id !== state.newlyMutedId));
+        
+        // (선택) state를 한 번 썼으면 지워주는 것이 좋음 (history replace)
+        // window.history.replaceState({}, document.title); 
+      }
+
+      // 2. 숨기기 해제(Unmute) 되어 넘어온 경우 -> Mute 목록에서 즉시 제거
+      if (state.newlyUnmutedId) {
+        setMutedIncidents((prev) => prev.filter((item) => item.incident_id !== state.newlyUnmutedId));
+      }
+    }
+  }, [location]);  
+
+  // Data Fetching Logic (Main RCA, Alerts, Muted RCAs)
   useEffect(() => {
     if (!isAuthenticated) {
       setAllRCAs([]);
+      setAllAlerts([]);
+      setMutedIncidents([]);
       return;
     }
 
-    const loadRCAs = async (isBackground = false) => {
+    const loadData = async (isBackground = false) => {
+      // 1. Load Main RCAs
       try {
         if (!isBackground) setLoading(true);
         setError(null);
-
         const rawData: RawRCAItem[] = await fetchRCAs();
-        const mappedRCAs: RCAItem[] = rawData.map((item) => {
+        const mappedRCAs = rawData.map((item) => {
           const serverTime = item.created_at || item.timestamp || item.time || item.start_time || item.fired_at;
           return {
             ...item,
-            incident_id: item.incident_id,
-            title: item.title,
-            severity: item.severity,
             time: serverTime ? String(serverTime) : getCurrentTimeStr(),
           };
         });
-        
         setAllRCAs(mappedRCAs);
       } catch (err) {
         if (err instanceof Error && err.message === 'unauthorized') {
           setIsAuthenticated(false);
           return;
         }
-        console.error('Failed to load RCAs:', err);
         if (!isBackground) setError('데이터를 불러오는데 실패했습니다.');
       } finally {
         if (!isBackground) setLoading(false);
       }
-    };
 
-    loadRCAs(false);
-
-    const intervalId = setInterval(() => {
-      loadRCAs(true);
-    }, 2000);
-
-    return () => clearInterval(intervalId);
-
-  }, [isAuthenticated]);
-
-  // Alert 데이터 로딩
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setAllAlerts([]);
-      return;
-    }
-
-    const loadAlerts = async (isBackground = false) => {
+      // 2. Load Alerts
       try {
         if (!isBackground) setAlertLoading(true);
         setAlertError(null);
-
         const data = await fetchAlerts();
         setAllAlerts(data);
       } catch (err) {
-        if (err instanceof Error && err.message === 'unauthorized') {
-          setIsAuthenticated(false);
-          return;
-        }
-        console.error('Failed to load Alerts:', err);
         if (!isBackground) setAlertError('Alert 데이터를 불러오는데 실패했습니다.');
       } finally {
         if (!isBackground) setAlertLoading(false);
       }
+
+      // 3. Load Muted RCAs 
+      try {
+        if (!isBackground) setMuteLoading(true);
+        setMuteError(null);
+        const rawMuted: RawRCAItem[] = await fetchMutedIncidents();
+        const mappedMuted = rawMuted.map((item) => {
+          const serverTime = item.created_at || item.timestamp || item.time || item.start_time || item.fired_at;
+          return {
+            ...item,
+            time: serverTime ? String(serverTime) : getCurrentTimeStr(),
+          };
+        });
+        setMutedIncidents(mappedMuted);
+      } catch (err) {
+        if (!isBackground) setMuteError('Mute 데이터를 불러오는데 실패했습니다.');
+      } finally {
+        if (!isBackground) setMuteLoading(false);
+      }
     };
 
-    loadAlerts(false);
+    loadData(false);
 
     const intervalId = setInterval(() => {
-      loadAlerts(true);
-    }, 2000);
+      loadData(true);
+    }, 1000);
 
     return () => clearInterval(intervalId);
 
@@ -199,58 +238,66 @@ function App() {
     setIsAuthenticated(false);
   };
 
-  const filteredRCAs = useMemo(() => {
-    const baseFiltered = filterRCAs(allRCAs, timeRange, statusFilter);
-    if (severityFilter === 'all') {
-      return baseFiltered;
-    }
-    return baseFiltered.filter((item) => item.severity === severityFilter);
-  }, [allRCAs, timeRange, statusFilter, severityFilter]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [timeRange, statusFilter, severityFilter]);
-
-  const totalPages = Math.ceil(filteredRCAs.length / ITEMS_PER_PAGE);
-
-  const paginatedRCAs = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    return filteredRCAs.slice(startIndex, endIndex);
-  }, [filteredRCAs, currentPage]);
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
+  // --- Navigation Handlers ---
 
   const handleTitleClick = (incident_id: string) => {
     navigate(`/incidents/${incident_id}`);
+  };
+
+  // [추가] Muted Incident 상세 페이지 이동 핸들러
+  const handleMuteTitleClick = (incident_id: string) => {
+    navigate(`/muted/${incident_id}`);
   };
 
   const handleAlertTitleClick = (alert_id: string) => {
     navigate(`/alerts/${alert_id}`);
   };
 
-  // Alert 필터링 및 페이지네이션
+  // --- Filtering & Pagination Logic ---
+
+  // 1. Incident Dashboard Logic
+  const filteredRCAs = useMemo(() => {
+    const baseFiltered = filterRCAs(allRCAs, timeRange, statusFilter);
+    if (severityFilter === 'all') return baseFiltered;
+    return baseFiltered.filter((item) => item.severity === severityFilter);
+  }, [allRCAs, timeRange, statusFilter, severityFilter]);
+
+  const paginatedRCAs = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredRCAs.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredRCAs, currentPage]);
+
+  // 2. Alert Dashboard Logic
   const filteredAlerts = useMemo(() => {
     const baseFiltered = filterAlerts(allAlerts, timeRange, statusFilter);
-    if (severityFilter === 'all') {
-      return baseFiltered;
-    }
+    if (severityFilter === 'all') return baseFiltered;
     return baseFiltered.filter((item) => item.severity === severityFilter);
   }, [allAlerts, timeRange, statusFilter, severityFilter]);
 
-  const alertTotalPages = Math.ceil(filteredAlerts.length / ITEMS_PER_PAGE);
-
   const paginatedAlerts = useMemo(() => {
     const startIndex = (alertCurrentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    return filteredAlerts.slice(startIndex, endIndex);
+    return filteredAlerts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [filteredAlerts, alertCurrentPage]);
 
-  const handleAlertPageChange = (page: number) => {
-    setAlertCurrentPage(page);
-  };
+  // 3. Mute Dashboard Logic
+  const filteredMutedIncidents = useMemo(() => {
+    const baseFiltered = filterRCAs(mutedIncidents, timeRange, statusFilter);
+    if (severityFilter === 'all') return baseFiltered;
+    return baseFiltered.filter((item) => item.severity === severityFilter);
+  }, [mutedIncidents, timeRange, statusFilter, severityFilter]);
+
+  const paginatedMutedIncidents = useMemo(() => {
+    const startIndex = (muteCurrentPage - 1) * ITEMS_PER_PAGE;
+    return filteredMutedIncidents.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredMutedIncidents, muteCurrentPage]);
+
+  // Reset pagination on filter change
+  useEffect(() => {
+    setCurrentPage(1);
+    setAlertCurrentPage(1);
+    setMuteCurrentPage(1);
+  }, [timeRange, statusFilter, severityFilter]);
+
 
   if (!authReady) {
     return (
@@ -264,7 +311,6 @@ function App() {
     return <AuthPanel allowSignup={allowSignup} onAuthenticated={() => setIsAuthenticated(true)} />;
   }
 
-  // 공통 스타일 정의
   const selectStyle = "px-4 py-2 text-sm font-medium border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm cursor-pointer";
 
   return (
@@ -285,139 +331,125 @@ function App() {
         <Routes>
           <Route path="/incidents/:id" element={<IncidentDetailRoute />} />
           <Route path="/alerts/:id" element={<AlertDetailRoute />} />
+          
+          {/* [추가] Muted 상세 페이지 라우트 연결 */}
+          <Route path="/muted/:id" element={<MuteDetailRoute />} />
 
+          {/* Incident Dashboard */}
           <Route path="/" element={
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors duration-300">
               <div className="mb-6 flex flex-col xl:flex-row justify-between items-center gap-4">
-                <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">RCA Dashboard</h1>
-                
+                <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">Incident Dashboard</h1>
                 <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-                  
-                  {/* Status Filter */}
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value as RCAStatusFilter)}
-                    className={selectStyle}
-                  >
+                  <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as RCAStatusFilter)} className={selectStyle}>
                     <option value="all">All Status</option>
                     <option value="ongoing">Firing</option>
                     <option value="resolved">Resolved</option>
                   </select>
-
-                  {/* Severity Filter */}
-                  <select
-                    value={severityFilter}
-                    onChange={(e) => setSeverityFilter(e.target.value)}
-                    className={selectStyle}
-                  >
+                  <select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)} className={selectStyle}>
                     <option value="all">All Severities</option>
                     <option value="warning">Warning</option>
                     <option value="critical">Critical</option>
                   </select>
-
-                  {/* Time Filter */}
                   <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
                 </div>
               </div>
 
-              {loading && (
-                <div className="flex justify-center items-center py-12">
-                  <div className="text-gray-600 dark:text-gray-400">데이터를 불러오는 중...</div>
-                </div>
-              )}
-
-              {error && !loading && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-4">
-                  <div className="text-red-800 dark:text-red-300 font-medium">오류 발생</div>
-                  <div className="text-red-600 dark:text-red-400 text-sm mt-1">{error}</div>
-                </div>
-              )}
-
-              {!loading && !error && (
+              {loading ? (
+                <div className="flex justify-center items-center py-12 text-gray-600 dark:text-gray-400">데이터를 불러오는 중...</div>
+              ) : error ? (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-4 text-red-600 dark:text-red-400">{error}</div>
+              ) : (
                 <>
                   <RCATable rcas={paginatedRCAs} onTitleClick={handleTitleClick} />
-
-                  {filteredRCAs.length > 0 ? (
+                  {filteredRCAs.length > 0 && (
                     <div className="mt-6 flex justify-center">
-                      <Pagination
-                        currentPage={currentPage}
-                        totalPages={totalPages}
-                        onPageChange={handlePageChange}
-                      />
+                      <Pagination currentPage={currentPage} totalPages={Math.ceil(filteredRCAs.length / ITEMS_PER_PAGE)} onPageChange={setCurrentPage} />
                     </div>
-                  ) : (
-                    <div className="flex justify-center items-center py-12">
-                      <div className="text-gray-500 dark:text-gray-400">표시할 RCA가 없습니다.</div>
-                    </div>
+                  )}
+                  {filteredRCAs.length === 0 && (
+                    <div className="flex justify-center items-center py-12 text-gray-500 dark:text-gray-400">표시할 데이터가 없습니다.</div>
                   )}
                 </>
               )}
             </div>
           } />
 
-          <Route path="/alerts" element={
+          {/* Mute Dashboard */}
+          <Route path="/muted" element={
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors duration-300">
               <div className="mb-6 flex flex-col xl:flex-row justify-between items-center gap-4">
-                <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">Alert Dashboard</h1>
-
+                <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">Mute Dashboard</h1>
                 <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-
-                  {/* Status Filter */}
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value as RCAStatusFilter)}
-                    className={selectStyle}
-                  >
+                  <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as RCAStatusFilter)} className={selectStyle}>
                     <option value="all">All Status</option>
                     <option value="ongoing">Firing</option>
                     <option value="resolved">Resolved</option>
                   </select>
-
-                  {/* Severity Filter */}
-                  <select
-                    value={severityFilter}
-                    onChange={(e) => setSeverityFilter(e.target.value)}
-                    className={selectStyle}
-                  >
+                  <select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)} className={selectStyle}>
                     <option value="all">All Severities</option>
                     <option value="warning">Warning</option>
                     <option value="critical">Critical</option>
                   </select>
-
-                  {/* Time Filter */}
                   <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
                 </div>
               </div>
 
-              {alertLoading && (
-                <div className="flex justify-center items-center py-12">
-                  <div className="text-gray-600 dark:text-gray-400">데이터를 불러오는 중...</div>
-                </div>
+              {muteLoading ? (
+                <div className="flex justify-center items-center py-12 text-gray-600 dark:text-gray-400">데이터를 불러오는 중...</div>
+              ) : muteError ? (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-4 text-red-600 dark:text-red-400">{muteError}</div>
+              ) : (
+                <>
+                  {/* [수정] onTitleClick에 handleMuteTitleClick 전달 */}
+                  <MuteTable rcas={paginatedMutedIncidents} onTitleClick={handleMuteTitleClick} />
+                  {filteredMutedIncidents.length > 0 && (
+                    <div className="mt-6 flex justify-center">
+                      <Pagination currentPage={muteCurrentPage} totalPages={Math.ceil(filteredMutedIncidents.length / ITEMS_PER_PAGE)} onPageChange={setMuteCurrentPage} />
+                    </div>
+                  )}
+                  {filteredMutedIncidents.length === 0 && (
+                    <div className="flex justify-center items-center py-12 text-gray-500 dark:text-gray-400">숨겨진 항목이 없습니다.</div>
+                  )}
+                </>
               )}
+            </div>
+          } />
 
-              {alertError && !alertLoading && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-4">
-                  <div className="text-red-800 dark:text-red-300 font-medium">오류 발생</div>
-                  <div className="text-red-600 dark:text-red-400 text-sm mt-1">{alertError}</div>
+          {/* Alert Dashboard */}
+          <Route path="/alerts" element={
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors duration-300">
+              <div className="mb-6 flex flex-col xl:flex-row justify-between items-center gap-4">
+                <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">Alert Dashboard</h1>
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                  <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as RCAStatusFilter)} className={selectStyle}>
+                    <option value="all">All Status</option>
+                    <option value="ongoing">Firing</option>
+                    <option value="resolved">Resolved</option>
+                  </select>
+                  <select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)} className={selectStyle}>
+                    <option value="all">All Severities</option>
+                    <option value="warning">Warning</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                  <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
                 </div>
-              )}
+              </div>
 
-              {!alertLoading && !alertError && (
+              {alertLoading ? (
+                <div className="flex justify-center items-center py-12 text-gray-600 dark:text-gray-400">데이터를 불러오는 중...</div>
+              ) : alertError ? (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-4 text-red-600 dark:text-red-400">{alertError}</div>
+              ) : (
                 <>
                   <AlertTable alerts={paginatedAlerts} onTitleClick={handleAlertTitleClick} />
-
-                  {filteredAlerts.length > 0 ? (
+                  {filteredAlerts.length > 0 && (
                     <div className="mt-6 flex justify-center">
-                      <Pagination
-                        currentPage={alertCurrentPage}
-                        totalPages={alertTotalPages}
-                        onPageChange={handleAlertPageChange}
-                      />
+                      <Pagination currentPage={alertCurrentPage} totalPages={Math.ceil(filteredAlerts.length / ITEMS_PER_PAGE)} onPageChange={setAlertCurrentPage} />
                     </div>
-                  ) : (
-                    <div className="flex justify-center items-center py-12">
-                      <div className="text-gray-500 dark:text-gray-400">표시할 Alert이 없습니다.</div>
-                    </div>
+                  )}
+                  {filteredAlerts.length === 0 && (
+                    <div className="flex justify-center items-center py-12 text-gray-500 dark:text-gray-400">표시할 Alert이 없습니다.</div>
                   )}
                 </>
               )}

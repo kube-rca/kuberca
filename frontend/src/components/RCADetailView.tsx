@@ -3,14 +3,21 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { RCADetail, AlertItem } from '../types';
-import { fetchRCADetail, updateRCADetail, hideIncident, resolveIncident, searchSimilarIncidents, EmbeddingSearchResult } from '../utils/api';
+import { 
+  fetchRCADetail, 
+  updateRCADetail, 
+  hideIncident, 
+  unhideIncident,
+  resolveIncident, 
+  searchSimilarIncidents, 
+  EmbeddingSearchResult 
+} from '../utils/api';
 
 interface RCADetailViewProps {
   incidentId: string;
   onBack: () => void;
 }
 
-// Severity에 따른 색상 스타일 매핑 (백엔드 값 그대로 매칭)
 const severityStyles: Record<string, string> = {
   warning: 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-200 dark:border-yellow-700',
   critical: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-200 dark:border-red-700',
@@ -37,12 +44,10 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
       setData(detailData);
       setEditForm(detailData);
 
-      // analysis_summary가 있으면 유사 인시던트 검색
       if (detailData.analysis_summary) {
         setSimilarLoading(true);
         try {
           const searchResult = await searchSimilarIncidents(detailData.analysis_summary, 4);
-          // 현재 인시던트 제외
           const filtered = searchResult.results.filter(r => r.incident_id !== incidentId);
           setSimilarIncidents(filtered.slice(0, 3));
         } catch (searchErr) {
@@ -95,6 +100,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
     setIsEditing(false);
   };
 
+  // [수정됨] 숨기기 성공 시 Mute Dashboard(/muted)로 이동
   const handleHide = async () => {
     if (!window.confirm("정말 이 리포트를 목록에서 숨기시겠습니까?")) {
       return;
@@ -102,10 +108,27 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
 
     try {
       await hideIncident(incidentId);
-      alert("성공적으로 숨겨졌습니다.");
-      onBack();
+      alert("성공적으로 숨겨졌습니다. Mute Dashboard로 이동합니다.");
+      navigate('/muted', { 
+        state: { newlyMutedId: incidentId } 
+      });
     } catch (error) {
       console.error("숨기기 실패:", error);
+      alert("오류가 발생했습니다. 다시 시도해주세요.");
+    }
+  };
+
+  const handleUnhide = async () => {
+    if (!window.confirm("이 리포트의 숨김을 해제하시겠습니까?")) {
+      return;
+    }
+
+    try {
+      await unhideIncident(incidentId);
+      alert("숨김이 해제되었습니다.");
+      loadDetail(); 
+    } catch (error) {
+      console.error("숨기기 해제 실패:", error);
       alert("오류가 발생했습니다. 다시 시도해주세요.");
     }
   };
@@ -133,8 +156,8 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
   if (loading) return <div className="p-12 text-center text-gray-500 dark:text-gray-400">상세 정보를 불러오는 중...</div>;
   if (error || !data) return <div className="p-12 text-center text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg m-4">{error}</div>;
 
-  // 상태(Resolved/Ongoing) 판별
   const isResolved = !!data.resolved_at;
+  const isHidden = (data as any).is_hidden; 
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-5xl mx-auto transition-colors duration-300">
@@ -142,7 +165,6 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
       {/* 헤더 영역 */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 border-b border-gray-200 dark:border-gray-700 pb-6 gap-4">
         
-        {/* [왼쪽 그룹] Back 버튼 + ID + 제목 */}
         <div className="flex items-start md:items-center gap-4 flex-1 w-full">
           <button 
             onClick={onBack}
@@ -156,6 +178,11 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
               <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500 uppercase tracking-wider border border-gray-200 dark:border-gray-700 px-1.5 rounded">
                 ID: {data.incident_id}
               </span>
+              {isHidden && (
+                <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 rounded">
+                  HIDDEN
+                </span>
+              )}
             </div>
 
             {isEditing ? (
@@ -176,7 +203,6 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
           </div>
         </div>
         
-        {/* [오른쪽 그룹] 버튼들 */}
         <div className="flex items-center gap-3 self-end md:self-auto">
           {isEditing ? (
             <div className="flex items-center gap-2">
@@ -207,7 +233,6 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
           ) : (
             <div className="flex items-center gap-2">
               
-              {/* [1] Status Pin: Resolved (Green) or Ongoing (Red) */}
               <span 
                 className={`px-3 py-1.5 rounded-full text-xs font-bold border flex-shrink-0 
                   ${isResolved 
@@ -218,7 +243,6 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                 {isResolved ? 'Resolved' : 'Ongoing'}
               </span>
 
-              {/* [2] Severity Pin: Status와 숨기기 버튼 사이에 위치 */}
               <span 
                 className={`px-3 py-1.5 rounded-full text-xs font-bold border flex-shrink-0 
                   ${severityStyles[data.severity || 'info'] || severityStyles.info}`}
@@ -226,7 +250,6 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                 {data.severity}
               </span>
 
-              {/* [3] 종료 버튼 (Ongoing일 때만 표시) */}
               {!isResolved && (
                 <button
                   onClick={handleResolve}
@@ -236,30 +259,37 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                 </button>
               )}
 
-              {/* [4] 숨기기 버튼 */}
-              <button
-                onClick={handleHide}
-                className="px-4 py-1.5 text-sm text-red-600 dark:text-red-400 border border-red-600 dark:border-red-400 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-              >
-                숨기기
-              </button>
-
-              {/* [5] Edit 버튼 */}
-              <button 
-                onClick={() => setIsEditing(true)}
-                className="px-4 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-semibold rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition"
-              >
-                Edit
-              </button>
+              {isHidden ? (
+                <button
+                  onClick={handleUnhide}
+                  className="px-4 py-1.5 text-sm text-blue-600 dark:text-blue-400 border border-blue-600 dark:border-blue-400 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors font-medium"
+                >
+                  숨기기 해제
+                </button>
+              ) : (
+                <button
+                  onClick={handleHide}
+                  className="px-4 py-1.5 text-sm text-red-600 dark:text-red-400 border border-red-600 dark:border-red-400 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                >
+                  숨기기
+                </button>
+              )}
+              
+              {!isHidden && (
+                <button 
+                  onClick={() => setIsEditing(true)}
+                  className="px-4 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-semibold rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                >
+                  Edit
+                </button>
+              )}
             </div>
           )}
         </div>
       </div>
 
-      {/* 나머지 본문 영역 (변경 없음) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
-        {/* 발생 시간 */}
         <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide flex items-center gap-1">
              🔥 발생 시간
@@ -269,7 +299,6 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
           </div>
         </div>
 
-        {/* 해결 시간 */}
         <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide flex items-center gap-1">
              ✅ 해결 시간
@@ -279,7 +308,6 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
           </div>
         </div>
 
-        {/* 요약 */}
         <div className="md:col-span-2">
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
             📋 인시던트 요약
@@ -314,7 +342,6 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
           )}
         </div>
 
-        {/* 상세 분석 리포트 */}
         <div className="md:col-span-2">
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
             📝 상세 분석 리포트
@@ -356,7 +383,6 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
           )}
         </div>
 
-        {/* 연결된 Alert 목록 */}
         <div className="md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-6 mt-2">
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
             🚨 연결된 Alert ({data.alerts?.length || 0}개)
@@ -417,7 +443,6 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
           )}
         </div>
 
-        {/* 유사 인시던트 */}
         <div className="md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-6 mt-2">
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
             🔗 Top 3 유사 인시던트
