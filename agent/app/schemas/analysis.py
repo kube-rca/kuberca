@@ -38,5 +38,6 @@ class IncidentSummaryRequest(BaseModel):
 
 class IncidentSummaryResponse(BaseModel):
     status: str
+    title: str
     summary: str
     detail: str

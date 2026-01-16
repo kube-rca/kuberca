@@ -34,11 +34,11 @@ class AnalysisService:
             self._logger.exception("Strands analysis failed")
             return _fallback_summary(request, k8s_context, f"analysis failed: {exc}")
 
-    def summarize_incident(self, request: IncidentSummaryRequest) -> tuple[str, str]:
+    def summarize_incident(self, request: IncidentSummaryRequest) -> tuple[str, str, str]:
         """Synthesize final RCA summary for a resolved incident.
 
         Returns:
-            tuple[str, str]: (summary, detail) - summary is 1-2 sentences, detail is full analysis
+            tuple[str, str, str]: (title, summary, detail)
         """
         if self._analysis_engine is None:
             return _fallback_incident_summary(request, "analysis engine not configured")
@@ -46,7 +46,7 @@ class AnalysisService:
         prompt = _build_incident_summary_prompt(request)
         try:
             result = self._analysis_engine.analyze(prompt, request.incident_id)
-            return _parse_incident_summary(result)
+            return _parse_incident_summary(result, request.title)
         except Exception as exc:  # noqa: BLE001
             self._logger.exception("Incident summary analysis failed")
             return _fallback_incident_summary(request, f"analysis failed: {exc}")
@@ -100,9 +100,12 @@ def _to_pretty_json(payload: dict[str, Any]) -> str:
     return json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True)
 
 
-def _fallback_incident_summary(request: IncidentSummaryRequest, reason: str) -> tuple[str, str]:
+def _fallback_incident_summary(
+    request: IncidentSummaryRequest, reason: str
+) -> tuple[str, str, str]:
     """Generate fallback summary when analysis engine is unavailable."""
     alert_names = [a.alert_name for a in request.alerts]
+    title = request.title  # Keep original title
     summary = f"인시던트 분석 불가: {reason}"
     detail_lines = [
         f"인시던트 ID: {request.incident_id}",
@@ -114,37 +117,57 @@ def _fallback_incident_summary(request: IncidentSummaryRequest, reason: str) -> 
         "",
         f"분석 엔진 오류: {reason}",
     ]
-    return summary, "\n".join(detail_lines)
+    return title, summary, "\n".join(detail_lines)
 
 
-def _parse_incident_summary(result: str) -> tuple[str, str]:
-    """Parse AI response into summary and detail.
+def _parse_incident_summary(result: str, original_title: str) -> tuple[str, str, str]:
+    """Parse AI response into title, summary and detail.
 
-    The AI is instructed to return structured content with 요약 and 상세 분석 sections.
-    We extract the summary (first meaningful paragraph) and use the full result as detail.
+    The AI is instructed to return structured content with 제목, 요약 and 상세 분석 sections.
+    We extract each section and use the full result as detail.
     """
     lines = result.strip().split("\n")
 
-    # Try to extract summary from the response
+    title = ""
     summary = ""
-    for line in lines:
-        line = line.strip()
-        # Skip empty lines and headers
-        if not line or line.startswith("#") or line.startswith("**"):
-            continue
-        # First non-empty, non-header line is likely the summary
-        if "요약" in line.lower() or "summary" in line.lower():
-            continue
-        summary = line[:200]  # Limit summary length
-        break
 
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        # Extract title
+        if "제목" in stripped or "title" in stripped.lower():
+            # Try to get the content after colon or on the next meaningful line
+            if ":" in stripped:
+                title = stripped.split(":", 1)[1].strip().strip("'\"")[:50]
+            continue
+
+        # Extract summary
+        if "요약" in stripped or "summary" in stripped.lower():
+            if ":" in stripped:
+                summary = stripped.split(":", 1)[1].strip()[:200]
+            continue
+
+        # If we haven't found title yet and this looks like content, use it
+        if not title and not stripped.startswith(("*", "#", "-")):
+            title = stripped[:50]
+            continue
+
+        # If we have title but no summary and this looks like content
+        if title and not summary and not stripped.startswith(("*", "#", "-", "상세", "근본", "영향", "해결", "재발")):
+            summary = stripped[:200]
+            break
+
+    # Fallbacks
+    if not title:
+        title = original_title
     if not summary:
-        # Fallback: use first 200 chars of result
         summary = result[:200].replace("\n", " ").strip()
         if len(result) > 200:
             summary += "..."
 
-    return summary, result
+    return title, summary, result
 
 
 def _build_incident_summary_prompt(request: IncidentSummaryRequest) -> str:
@@ -174,8 +197,10 @@ def _build_incident_summary_prompt(request: IncidentSummaryRequest) -> str:
         "You are kube-rca-agent. An incident has been resolved and you need to provide a final RCA summary.\n"
         "Analyze all the alerts and their individual analyses to synthesize a comprehensive incident summary.\n\n"
         "Return your response in Korean with the following structure:\n"
-        "1. **요약 (Summary)**: 1-2 sentences describing the root cause and resolution\n"
-        "2. **상세 분석 (Detail)**:\n"
+        "1. **제목 (Title)**: A concise incident title (max 50 chars) describing the root cause\n"
+        "   - Example: 'nginx-pod ImagePullBackOff로 인한 서비스 장애'\n"
+        "2. **요약 (Summary)**: 1-2 sentences describing the root cause and resolution\n"
+        "3. **상세 분석 (Detail)**:\n"
         "   - 근본 원인 (Root Cause)\n"
         "   - 영향 범위 (Impact)\n"
         "   - 해결 과정 (Resolution)\n"

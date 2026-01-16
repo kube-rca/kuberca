@@ -29,5 +29,5 @@ def summarize_incident(
     service: AnalysisService = Depends(get_analysis_service),  # noqa: B008
 ) -> IncidentSummaryResponse:
     """Generate final RCA summary for a resolved incident."""
-    summary, detail = service.summarize_incident(request)
-    return IncidentSummaryResponse(status="ok", summary=summary, detail=detail)
+    title, summary, detail = service.summarize_incident(request)
+    return IncidentSummaryResponse(status="ok", title=title, summary=summary, detail=detail)
