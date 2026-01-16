@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"log"
 
 	"github.com/kube-rca/backend/internal/db"
@@ -8,12 +9,13 @@ import (
 )
 
 type RcaService struct {
-	repo         *db.Postgres
-	agentService *AgentService
+	repo             *db.Postgres
+	agentService     *AgentService
+	embeddingService *EmbeddingService
 }
 
-func NewRcaService(repo *db.Postgres, agentService *AgentService) *RcaService {
-	return &RcaService{repo: repo, agentService: agentService}
+func NewRcaService(repo *db.Postgres, agentService *AgentService, embeddingService *EmbeddingService) *RcaService {
+	return &RcaService{repo: repo, agentService: agentService, embeddingService: embeddingService}
 }
 
 func (s *RcaService) GetIncidentList() ([]model.IncidentListResponse, error) {
@@ -87,6 +89,16 @@ func (s *RcaService) requestIncidentSummary(incidentID string) {
 	}
 
 	log.Printf("Incident summary saved (incident_id=%s)", incidentID)
+
+	// 임베딩 생성 (유사 인시던트 검색용)
+	if s.embeddingService != nil && resp.Summary != "" {
+		embeddingID, model, err := s.embeddingService.CreateEmbedding(context.Background(), incidentID, resp.Summary)
+		if err != nil {
+			log.Printf("Failed to create embedding for incident %s: %v", incidentID, err)
+		} else {
+			log.Printf("Embedding created (incident_id=%s, embedding_id=%d, model=%s)", incidentID, embeddingID, model)
+		}
+	}
 }
 
 // GetAlertsByIncidentID - Incident에 속한 Alert 목록 조회

@@ -76,8 +76,8 @@ func main() {
 	agentService := service.NewAgentService(agentClient, slackClient, pgRepo)
 	// AlertService: 알림 필터링 및 Slack 전송 로직 담당 + DB 저장
 	alertService := service.NewAlertService(slackClient, agentService, pgRepo)
-	// RcaService: Incident/Alert 조회 및 종료 처리 + Agent 최종 분석 요청
-	rcaSvc := service.NewRcaService(pgRepo, agentService)
+	// RcaService: Incident/Alert 조회 및 종료 처리 + Agent 최종 분석 요청 + 임베딩 생성
+	rcaSvc := service.NewRcaService(pgRepo, agentService, embeddingService)
 
 	// 4. HTTP 핸들러 초기화
 	// Alertmanager 웹훅 요청 수신 및 응답 처리
