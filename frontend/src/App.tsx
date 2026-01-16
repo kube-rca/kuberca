@@ -408,9 +408,6 @@ function App() {
                       <Pagination currentPage={muteCurrentPage} totalPages={Math.ceil(filteredMutedIncidents.length / ITEMS_PER_PAGE)} onPageChange={setMuteCurrentPage} />
                     </div>
                   )}
-                  {filteredMutedIncidents.length === 0 && (
-                    <div className="flex justify-center items-center py-12 text-gray-500 dark:text-gray-400">숨겨진 항목이 없습니다.</div>
-                  )}
                 </>
               )}
             </div>
