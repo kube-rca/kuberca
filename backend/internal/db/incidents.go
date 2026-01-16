@@ -207,6 +207,25 @@ func (db *Postgres) HideIncident(id string) error {
 	return nil
 }
 
+// UnhideIncident - Incident 숨기기 해제 (is_enabled = true)
+func (db *Postgres) UnhideIncident(id string) error {
+	query := `
+        UPDATE incidents
+        SET is_enabled = true, updated_at = NOW()
+        WHERE incident_id = $1
+    `
+	commandTag, err := db.Pool.Exec(context.Background(), query, id)
+	if err != nil {
+		return err
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		return fmt.Errorf("no incident found with id: %s", id)
+	}
+
+	return nil
+}
+
 // ResolveIncident - Incident 종료 (사용자가 수동으로 종료)
 func (db *Postgres) ResolveIncident(id string, resolvedBy string) error {
 	query := `

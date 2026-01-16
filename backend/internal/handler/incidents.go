@@ -148,6 +148,30 @@ func (h *RcaHandler) GetHiddenIncidents(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 
+// UnhideIncident godoc
+// @Summary Unhide incident (restore)
+// @Description 숨김 처리된 Incident를 다시 활성화합니다.
+// @Tags incidents
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Incident ID"
+// @Success 200 {object} model.IncidentUpdateResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Router /api/v1/incidents/{id}/unhide [patch]
+func (h *RcaHandler) UnhideIncident(c *gin.Context) {
+	id := c.Param("id")
+
+	if err := h.svc.UnhideIncident(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "Incident unhidden successfully",
+	})
+}
+
 // ResolveIncident godoc
 // @Summary Resolve incident (사용자가 장애 종료)
 // @Tags incidents
