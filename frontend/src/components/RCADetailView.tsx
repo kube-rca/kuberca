@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useLocation } from 'react-router-dom';
-import { RCADetail, SimilarIncident } from '../types';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { RCADetail, SimilarIncident, AlertItem } from '../types';
 import { fetchRCADetail, updateRCADetail, hideIncident, resolveIncident } from '../utils/api';
 
 interface RCADetailViewProps {
@@ -26,6 +26,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
   const [editForm, setEditForm] = useState<Partial<RCADetail>>({});
 
   const location = useLocation();
+  const navigate = useNavigate();
 
   const loadDetail = useCallback(async () => {
     try {
@@ -336,6 +337,67 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                   </ReactMarkdown>
                 </div>
               </div>
+            </div>
+          )}
+        </div>
+
+        {/* 연결된 Alert 목록 */}
+        <div className="md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-6 mt-2">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
+            🚨 연결된 Alert ({data.alerts?.length || 0}개)
+          </h3>
+
+          {data.alerts && data.alerts.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-gray-700">
+                    <th className="text-left py-3 px-4 font-semibold text-gray-600 dark:text-gray-300">Alert</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-600 dark:text-gray-300">Severity</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-600 dark:text-gray-300">Status</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-600 dark:text-gray-300">발생 시간</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-600 dark:text-gray-300">해결 시간</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.alerts.map((alert: AlertItem) => (
+                    <tr
+                      key={alert.alert_id}
+                      onClick={() => navigate(`/alerts/${alert.alert_id}`)}
+                      className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+                    >
+                      <td className="py-3 px-4">
+                        <div className="font-medium text-blue-600 dark:text-blue-400 hover:underline">{alert.alarm_title}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 font-mono mt-0.5">{alert.alert_id}</div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold border ${severityStyles[alert.severity] || severityStyles.info}`}>
+                          {alert.severity}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                          alert.status === 'resolved'
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                        }`}>
+                          {alert.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 font-mono text-xs text-gray-600 dark:text-gray-300">
+                        {formatTime(alert.fired_at)}
+                      </td>
+                      <td className="py-3 px-4 font-mono text-xs text-gray-600 dark:text-gray-300">
+                        {alert.resolved_at ? formatTime(alert.resolved_at) : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-8 text-center border border-dashed border-gray-300 dark:border-gray-600">
+              <p className="text-gray-500 dark:text-gray-400">연결된 Alert가 없습니다.</p>
             </div>
           )}
         </div>
