@@ -6,13 +6,14 @@ sequenceDiagram
   participant SL as Slack
   participant AG as Agent - 구현
   participant LLM as Gemini API - 구현
-  participant DB as PostgreSQL - 구현
+  participant DB as PostgreSQL + pgvector - 구현
   participant SDB as Session DB - 구현
   participant FE as Frontend - 구현
-  participant VDB as Vector DB - 계획
 
+  Note over AM,BE: Alert 수신 및 Incident 연결
   AM->>BE: Webhook alert
-  BE->>DB: incidents 저장
+  BE->>DB: getOrCreateIncident - firing Incident 조회 또는 생성
+  BE->>DB: alerts 저장 - incident_id FK 연결
   opt resolved
     BE->>DB: resolved_at 업데이트
   end
@@ -20,24 +21,31 @@ sequenceDiagram
   opt firing
     BE->>DB: thread_ts 저장
   end
-  BE->>AG: POST /analyze incident_id=fingerprint
+
+  Note over BE,AG: 개별 Alert 실시간 분석
+  BE->>AG: POST /analyze - goroutine 비동기
   AG->>SDB: 세션 조회 및 저장
   AG->>LLM: LLM 분석
   LLM-->>AG: 분석 결과
   AG-->>BE: 분석 결과
-  BE->>DB: analysis_summary/detail 업데이트
+  BE->>DB: alerts.analysis_summary/detail 업데이트
   BE->>SL: 분석 결과 스레드 전송
-  Note over BE,AG: 현재 구현
 
-  opt 인증된 인시던트 조회
-    FE->>BE: GET /api/v1/incidents
-    BE->>DB: incidents 조회
-    DB-->>BE: incident list
-    BE-->>FE: incident list
-  end
+  Note over FE,BE: Incident 종료 및 최종 분석
+  FE->>BE: POST /api/v1/incidents/:id/resolve
+  BE->>DB: incidents.status = resolved
+  BE->>AG: POST /summarize-incident - goroutine 비동기
+  AG->>LLM: 연결된 Alert 분석 종합
+  LLM-->>AG: title + summary + detail
+  AG-->>BE: 최종 분석 결과
+  BE->>DB: incidents.analysis_summary/detail 저장
+  BE->>LLM: 임베딩 생성 - text-embedding-004
+  BE->>DB: embeddings 테이블 저장
 
-  opt 계획
-    BE->>VDB: 임베딩 검색
-    VDB-->>BE: 유사 인시던트
-  end
+  Note over FE,DB: 유사 인시던트 검색 - 구현
+  FE->>BE: POST /api/v1/embeddings/search
+  BE->>LLM: 쿼리 임베딩 생성
+  BE->>DB: pgvector cosine similarity 검색
+  DB-->>BE: 유사 인시던트 목록
+  BE-->>FE: similarity 점수와 함께 반환
 ```

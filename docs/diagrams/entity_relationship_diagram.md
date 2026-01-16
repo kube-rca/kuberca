@@ -1,12 +1,13 @@
 아래 ERD는 현재 구현과 계획을 함께 표현합니다.
 - users/refresh_tokens: 구현 (AuthService에서 스키마 생성)
-- incidents/embeddings: 구현 (알림 저장/분석 결과/임베딩)
+- incidents/alerts/embeddings: 구현 (Incident-Alert 1:N 관계, 분석 결과, 임베딩)
 - strands_sessions/strands_agents/strands_messages: 구현 (Agent 세션 저장)
 - RCA_DOCUMENT: 계획
 
 ```mermaid
 erDiagram
   USER ||--o{ REFRESH_TOKEN : issues
+  INCIDENT ||--o{ ALERT : contains
   INCIDENT ||--o{ EMBEDDING : references
   INCIDENT ||--|| RCA_DOCUMENT : has
   STRANDS_SESSION ||--o{ STRANDS_AGENT : owns
@@ -31,6 +32,22 @@ erDiagram
 
   INCIDENT {
     string incident_id PK
+    string title
+    string severity
+    string status
+    datetime fired_at
+    datetime resolved_at
+    string resolved_by
+    text analysis_summary
+    text analysis_detail
+    boolean is_enabled
+    datetime created_at
+    datetime updated_at
+  }
+
+  ALERT {
+    string alert_id PK
+    string incident_id FK
     string alarm_title
     string severity
     string status
@@ -38,19 +55,17 @@ erDiagram
     datetime resolved_at
     text analysis_summary
     text analysis_detail
-    jsonb similar_incidents
     string fingerprint
     string thread_ts
     jsonb labels
     jsonb annotations
-    boolean is_enabled
     datetime created_at
     datetime updated_at
   }
 
   EMBEDDING {
     bigint id PK
-    string incident_id
+    string incident_id FK
     text incident_summary
     vector embedding
     string model
