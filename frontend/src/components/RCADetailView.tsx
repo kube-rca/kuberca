@@ -131,15 +131,15 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
               <div className="flex flex-col gap-1">
                 <input
                   type="text"
-                  name="alarm_title"
-                  value={editForm.alarm_title || ''}
+                  name="title"
+                  value={editForm.title || ''}
                   onChange={handleInputChange}
                   className="text-lg font-bold text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-blue-400 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             ) : (
               <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white leading-tight">
-                {data.alarm_title}
+                {data.title}
               </h1>
             )}
           </div>
@@ -335,8 +335,8 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                         </span>
                       )}
                   </div>
-                  <div className="text-sm font-medium text-gray-800 dark:text-gray-200 line-clamp-2" title={item.alarm_title}>
-                    {item.alarm_title}
+                  <div className="text-sm font-medium text-gray-800 dark:text-gray-200 line-clamp-2" title={item.title}>
+                    {item.title}
                   </div>
                 </div>
               ))}

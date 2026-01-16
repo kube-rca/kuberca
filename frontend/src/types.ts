@@ -1,16 +1,16 @@
 export type Severity = 'Warning' | 'Critical' | 'Resolved';
 
 export interface RCAItem {
-  incident_id: string;  
-  alarm_title: string; 
+  incident_id: string;
+  title: string;
   fired_at: string;
-  resolved_at: string | null;      
+  resolved_at: string | null;
   severity: Severity;
 }
 
 export interface RCADetail {
   incident_id: string;
-  alarm_title: string;
+  title: string;
   severity: Severity;
   status: string;     // 예: "Firing"
   fired_at: string;
@@ -23,6 +23,6 @@ export interface RCADetail {
 // 유사 인시던트 객체 타입 정의
 export interface SimilarIncident {
   incident_id: string;
-  alarm_title: string;
+  title: string;
   score?: number; // 유사도
 }

@@ -129,7 +129,7 @@ function App() {
           return {
             ...item,
             incident_id: item.incident_id,
-            alarm_title: item.alarm_title,
+            title: item.title,
             severity: item.severity,
             time: serverTime ? String(serverTime) : getCurrentTimeStr(),
           };

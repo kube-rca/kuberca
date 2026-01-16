@@ -77,7 +77,7 @@ function RCATable({ rcas, onTitleClick }: RCATableProps) {
                   className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm font-medium text-gray-700 dark:text-white cursor-pointer hover:underline hover:text-black dark:hover:text-gray-200 text-center"
                   onClick={() => onTitleClick(rca.incident_id)}
                 >
-                  {rca.alarm_title}
+                  {rca.title}
                 </td>
 
                 {/* Severity: 가운데 정렬, Raw Data 출력 */}
