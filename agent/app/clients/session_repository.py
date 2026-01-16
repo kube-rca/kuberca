@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any
 
 import psycopg
@@ -60,6 +62,24 @@ class PostgresSessionRepository(SessionRepository):
             with conn.cursor() as cur:
                 for statement in statements:
                     cur.execute(statement)
+
+    @contextmanager
+    def session_lock(self, session_id: str) -> Iterator[None]:
+        lock_key = f"strands:{session_id}"
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT pg_advisory_lock(hashtext(%s)::bigint)",
+                    (lock_key,),
+                )
+            try:
+                yield
+            finally:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT pg_advisory_unlock(hashtext(%s)::bigint)",
+                        (lock_key,),
+                    )
 
     def create_session(self, session: Session, **kwargs: Any) -> Session:
         try:

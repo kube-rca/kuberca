@@ -51,14 +51,18 @@ class StrandsAnalysisEngine:
         self._session_repo = PostgresSessionRepository(settings.session_store_dsn)
 
     def analyze(self, prompt: str, incident_id: str | None = None) -> str:
-        entry = self._get_cache_entry(incident_id)
-        with entry.lock:
-            return str(entry.agent(prompt))
+        session_id = self._resolve_session_id(incident_id)
+        entry = self._get_cache_entry(session_id)
+        with self._session_repo.session_lock(session_id):
+            with entry.lock:
+                return str(entry.agent(prompt))
 
-    def _get_cache_entry(self, incident_id: str | None) -> _AgentCacheEntry:
+    def _resolve_session_id(self, incident_id: str | None) -> str:
         cache_key = incident_id.strip() if incident_id else ""
-        if not cache_key:
-            cache_key = "default"
+        return cache_key or "default"
+
+    def _get_cache_entry(self, session_id: str) -> _AgentCacheEntry:
+        cache_key = session_id
 
         with self._cache_lock:
             now = time.time()
