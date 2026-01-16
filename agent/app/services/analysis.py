@@ -155,7 +155,8 @@ def _parse_incident_summary(result: str, original_title: str) -> tuple[str, str,
             continue
 
         # If we have title but no summary and this looks like content
-        if title and not summary and not stripped.startswith(("*", "#", "-", "상세", "근본", "영향", "해결", "재발")):
+        skip_prefixes = ("*", "#", "-", "상세", "근본", "영향", "해결", "재발")
+        if title and not summary and not stripped.startswith(skip_prefixes):
             summary = stripped[:200]
             break
 
@@ -194,8 +195,10 @@ def _build_incident_summary_prompt(request: IncidentSummaryRequest) -> str:
     }
 
     return (
-        "You are kube-rca-agent. An incident has been resolved and you need to provide a final RCA summary.\n"
-        "Analyze all the alerts and their individual analyses to synthesize a comprehensive incident summary.\n\n"
+        "You are kube-rca-agent. An incident has been resolved and you need to "
+        "provide a final RCA summary.\n"
+        "Analyze all the alerts and their individual analyses to synthesize a "
+        "comprehensive incident summary.\n\n"
         "Return your response in Korean with the following structure:\n"
         "1. **제목 (Title)**: A concise incident title (max 50 chars) that includes:\n"
         "   - The specific service/pod/namespace affected\n"
