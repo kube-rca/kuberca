@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useNavigate } from 'react-router-dom';
-import { fetchAlertDetail } from '../utils/api';
+import { fetchAlertDetail, fetchRCAs, updateAlertIncident } from '../utils/api';
+import { RCAItem } from '../types';
 
 export interface AlertDetail {
   alert_id: string;
@@ -35,13 +36,21 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
   const [data, setData] = useState<AlertDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isEditingIncident, setIsEditingIncident] = useState(false);
+  const [incidents, setIncidents] = useState<RCAItem[]>([]);
+  const [selectedIncidentId, setSelectedIncidentId] = useState<string>('');
+  const [incidentLoading, setIncidentLoading] = useState(false);
   const navigate = useNavigate();
 
   const loadDetail = useCallback(async () => {
     try {
       setLoading(true);
-      const detailData = await fetchAlertDetail(alertId);
+      const [detailData, rcaList] = await Promise.all([
+        fetchAlertDetail(alertId),
+        fetchRCAs()
+      ]);
       setData(detailData);
+      setIncidents(rcaList);
     } catch (err) {
       setError('데이터를 불러오지 못했습니다.');
       console.error(err);
@@ -54,9 +63,51 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
     loadDetail();
   }, [loadDetail]);
 
+  const getIncidentTitle = (incidentId: string | null) => {
+    if (!incidentId) return null;
+    const incident = incidents.find(i => i.incident_id === incidentId);
+    return incident?.title || null;
+  };
+
   const formatTime = (isoString?: string | null) => {
     if (!isoString) return '-';
     return isoString.replace('T', ' ').split('.')[0];
+  };
+
+  const handleEditIncident = async () => {
+    setIncidentLoading(true);
+    try {
+      const rcaList = await fetchRCAs();
+      setIncidents(rcaList);
+      setSelectedIncidentId(data?.incident_id || '');
+      setIsEditingIncident(true);
+    } catch (err) {
+      console.error('Failed to load incidents:', err);
+      alert('인시던트 목록을 불러오는데 실패했습니다.');
+    } finally {
+      setIncidentLoading(false);
+    }
+  };
+
+  const handleSaveIncident = async () => {
+    if (!selectedIncidentId) {
+      alert('인시던트를 선택해주세요.');
+      return;
+    }
+    try {
+      await updateAlertIncident(alertId, selectedIncidentId);
+      setData(prev => prev ? { ...prev, incident_id: selectedIncidentId } : null);
+      setIsEditingIncident(false);
+      alert('인시던트 연결이 변경되었습니다.');
+    } catch (err) {
+      console.error('Failed to update incident:', err);
+      alert('인시던트 연결 변경에 실패했습니다.');
+    }
+  };
+
+  const handleCancelEditIncident = () => {
+    setIsEditingIncident(false);
+    setSelectedIncidentId(data?.incident_id || '');
   };
 
   if (loading) return <div className="p-12 text-center text-gray-500 dark:text-gray-400">상세 정보를 불러오는 중...</div>;
@@ -137,18 +188,61 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide flex items-center gap-1">
              🔗 연결된 Incident
           </div>
-          <div className="text-gray-900 dark:text-gray-100 font-medium">
-            {data.incident_id ? (
-              <span
-                className="text-blue-600 dark:text-blue-400 cursor-pointer hover:underline"
-                onClick={() => navigate(`/incidents/${data.incident_id}`)}
+          {isEditingIncident ? (
+            <div className="space-y-3">
+              <select
+                value={selectedIncidentId}
+                onChange={(e) => setSelectedIncidentId(e.target.value)}
+                className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                {data.incident_id}
-              </span>
-            ) : (
-              <span className="text-gray-400">연결된 Incident 없음</span>
-            )}
-          </div>
+                <option value="">인시던트를 선택하세요</option>
+                {incidents.map((incident) => (
+                  <option key={incident.incident_id} value={incident.incident_id}>
+                    [{incident.incident_id.slice(0, 8)}] {incident.title || '(제목 없음)'}
+                  </option>
+                ))}
+              </select>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSaveIncident}
+                  className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 transition"
+                >
+                  저장
+                </button>
+                <button
+                  onClick={handleCancelEditIncident}
+                  className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-xs font-semibold rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition"
+                >
+                  취소
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col">
+              <div className="text-gray-900 dark:text-gray-100 font-medium mb-2">
+                {data.incident_id ? (
+                  <div
+                    className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 rounded px-1 -mx-1 transition"
+                    onClick={() => navigate(`/incidents/${data.incident_id}`)}
+                  >
+                    <div className="text-red-500 dark:text-red-400 text-sm font-mono">{data.incident_id}</div>
+                    <div className="text-gray-900 dark:text-white">{getIncidentTitle(data.incident_id) || '(제목 없음)'}</div>
+                  </div>
+                ) : (
+                  <span className="text-gray-400">연결된 Incident 없음</span>
+                )}
+              </div>
+              <div className="flex justify-end">
+                <button
+                  onClick={handleEditIncident}
+                  disabled={incidentLoading}
+                  className="px-2 py-1 text-xs font-medium text-orange-600 dark:text-orange-400 border border-orange-400 dark:border-orange-500 rounded hover:bg-orange-50 dark:hover:bg-orange-900/20 transition disabled:opacity-50"
+                >
+                  {incidentLoading ? '로딩...' : 'Edit'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Fingerprint */}

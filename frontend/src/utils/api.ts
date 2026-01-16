@@ -181,3 +181,20 @@ export const fetchAlertDetail = async (id: string): Promise<AlertDetail> => {
 
   return response.json();
 };
+
+/**
+ * Alert의 연결된 Incident를 변경합니다.
+ */
+export const updateAlertIncident = async (alertId: string, incidentId: string): Promise<void> => {
+  const response = await requestWithAuth(`/api/v1/alerts/${alertId}/incident`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ incident_id: incidentId }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Alert의 Incident 연결을 변경하는데 실패했습니다.');
+  }
+};
