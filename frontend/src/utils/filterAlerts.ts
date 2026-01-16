@@ -1,4 +1,5 @@
 import { RCAItem } from '../types';
+import { AlertItem } from './api';
 
 // 상태 필터 타입 정의 (전체, 진행중, 해결됨)
 export type RCAStatusFilter = 'all' | 'ongoing' | 'resolved';
@@ -70,6 +71,49 @@ export const filterRCAs = (
 
   // --- [3단계] 정렬 (Sorting) ---
   // 발생 시간(fired_at) 기준 내림차순 (최신이 위로)
+  return filtered.sort((a, b) => {
+    const timeA = new Date(a.fired_at).getTime();
+    const timeB = new Date(b.fired_at).getTime();
+    return timeB - timeA;
+  });
+};
+
+/**
+ * Alert 필터링 함수
+ * 1. 시간(fired_at) 필터 적용
+ * 2. 상태(status) 필터 적용
+ * 3. 최신순 정렬
+ */
+export const filterAlerts = (
+  alerts: AlertItem[],
+  timeRange: string,
+  status: RCAStatusFilter
+): AlertItem[] => {
+  const cutoffTime = getCutoffTime(timeRange);
+
+  const filtered = alerts.filter((alert) => {
+    // --- [1단계] 시간 필터 (Time Filter) ---
+    if (!alert.fired_at) return false;
+
+    const firedTime = new Date(alert.fired_at).getTime();
+
+    if (firedTime < cutoffTime) {
+      return false;
+    }
+
+    // --- [2단계] 상태 필터 (Status Filter) ---
+    if (status === 'ongoing') {
+      if (alert.status !== 'firing') return false;
+    }
+
+    if (status === 'resolved') {
+      if (alert.status !== 'resolved') return false;
+    }
+
+    return true;
+  });
+
+  // --- [3단계] 정렬 (Sorting) ---
   return filtered.sort((a, b) => {
     const timeA = new Date(a.fired_at).getTime();
     const timeB = new Date(b.fired_at).getTime();

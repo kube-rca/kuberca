@@ -10,7 +10,7 @@ import AlertDetailView from './components/AlertDetailView';
 import AuthPanel from './components/AuthPanel';
 import { fetchRCAs, fetchAlerts, AlertItem } from './utils/api';
 import { fetchAuthConfig, refreshAccessToken, logout } from './utils/auth';
-import { filterRCAs, RCAStatusFilter } from './utils/filterAlerts';
+import { filterRCAs, filterAlerts, RCAStatusFilter } from './utils/filterAlerts';
 import { ITEMS_PER_PAGE } from './constants';
 import { Header } from './components/Header';
 
@@ -233,16 +233,12 @@ function App() {
 
   // Alert 필터링 및 페이지네이션
   const filteredAlerts = useMemo(() => {
-    let filtered = allAlerts;
-    if (statusFilter !== 'all') {
-      const statusValue = statusFilter === 'ongoing' ? 'firing' : 'resolved';
-      filtered = filtered.filter((item) => item.status === statusValue);
+    const baseFiltered = filterAlerts(allAlerts, timeRange, statusFilter);
+    if (severityFilter === 'all') {
+      return baseFiltered;
     }
-    if (severityFilter !== 'all') {
-      filtered = filtered.filter((item) => item.severity === severityFilter);
-    }
-    return filtered;
-  }, [allAlerts, statusFilter, severityFilter]);
+    return baseFiltered.filter((item) => item.severity === severityFilter);
+  }, [allAlerts, timeRange, statusFilter, severityFilter]);
 
   const alertTotalPages = Math.ceil(filteredAlerts.length / ITEMS_PER_PAGE);
 
@@ -304,7 +300,7 @@ function App() {
                     className={selectStyle}
                   >
                     <option value="all">All Status</option>
-                    <option value="ongoing">Ongoing</option>
+                    <option value="ongoing">Firing</option>
                     <option value="resolved">Resolved</option>
                   </select>
 
@@ -315,9 +311,8 @@ function App() {
                     className={selectStyle}
                   >
                     <option value="all">All Severities</option>
-                    <option value="critical">Critical</option>
                     <option value="warning">Warning</option>
-                    <option value="info">Info</option>
+                    <option value="critical">Critical</option>
                   </select>
 
                   {/* Time Filter */}
@@ -385,10 +380,12 @@ function App() {
                     className={selectStyle}
                   >
                     <option value="all">All Severities</option>
-                    <option value="critical">Critical</option>
                     <option value="warning">Warning</option>
-                    <option value="info">Info</option>
+                    <option value="critical">Critical</option>
                   </select>
+
+                  {/* Time Filter */}
+                  <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
                 </div>
               </div>
 
