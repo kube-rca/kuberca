@@ -204,7 +204,16 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
             </h3>
             <div className="bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800/30 rounded-lg p-5">
               <div className="prose prose-sm prose-yellow dark:prose-invert max-w-none text-gray-800 dark:text-gray-200">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    strong: ({node, ...props}) => <span className="font-bold text-gray-900 dark:text-white" {...props} />,
+                    ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1 my-2" {...props} />,
+                    code: ({node, ...props}) => (
+                      <code className="bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 px-1.5 py-0.5 rounded text-xs font-mono" {...props} />
+                    ),
+                  }}
+                >
                   {data.analysis_summary}
                 </ReactMarkdown>
               </div>
@@ -221,7 +230,21 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
             <div className="bg-gray-900 border border-gray-700 rounded-lg overflow-hidden shadow-sm">
               <div className="p-6 overflow-x-auto">
                 <div className="prose prose-sm prose-invert max-w-none font-mono leading-relaxed">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      h1: ({node, ...props}) => <h1 className="text-xl font-bold text-blue-400 mt-6 mb-4 border-b border-gray-700 pb-2" {...props} />,
+                      h2: ({node, ...props}) => <h2 className="text-lg font-bold text-blue-300 mt-5 mb-3" {...props} />,
+                      h3: ({node, ...props}) => <h3 className="text-md font-bold text-blue-200 mt-4 mb-2" {...props} />,
+                      strong: ({node, ...props}) => <span className="font-bold text-yellow-400" {...props} />,
+                      ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1 my-2 text-gray-300" {...props} />,
+                      code: ({node, ...props}) => (
+                        <code className="bg-gray-800 text-green-400 px-1 py-0.5 rounded text-xs" {...props} />
+                      ),
+                      p: ({node, ...props}) => <p className="mb-4 text-gray-300" {...props} />,
+                      a: ({node, ...props}) => <a className="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
+                    }}
+                  >
                     {data.analysis_detail}
                   </ReactMarkdown>
                 </div>
