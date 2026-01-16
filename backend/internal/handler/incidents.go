@@ -130,6 +130,24 @@ func (h *RcaHandler) HideIncident(c *gin.Context) {
 	})
 }
 
+// GetHiddenIncidents godoc
+// @Summary List hidden incidents
+// @Description 숨김 처리된(is_enabled=false) Incident 목록을 조회합니다.
+// @Tags incidents
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} model.IncidentListResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Router /api/v1/incidents/hidden [get]
+func (h *RcaHandler) GetHiddenIncidents(c *gin.Context) {
+	res, err := h.svc.GetHiddenIncidentList()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
 // ResolveIncident godoc
 // @Summary Resolve incident (사용자가 장애 종료)
 // @Tags incidents

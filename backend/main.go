@@ -115,6 +115,7 @@ func main() {
 		protected.GET("/incidents/:id", rcaHndlr.GetIncidentDetail)
 		protected.PUT("/incidents/:id", rcaHndlr.UpdateIncident)
 		protected.PATCH("/incidents/:id", rcaHndlr.HideIncident)
+		protected.GET("/incidents/hidden", rcaHndlr.GetHiddenIncidents)
 		protected.POST("/incidents/:id/resolve", rcaHndlr.ResolveIncident)
 		protected.GET("/incidents/:id/alerts", rcaHndlr.GetIncidentAlerts)
 		protected.POST("/incidents/mock", rcaHndlr.CreateMockIncident)

@@ -47,6 +47,11 @@ func (s *RcaService) HideIncident(id string) error {
 	return s.repo.HideIncident(id)
 }
 
+// GetHiddenIncidentList - 숨김 처리된 Incident 목록 조회
+func (s *RcaService) GetHiddenIncidentList() ([]model.IncidentListResponse, error) {
+	return s.repo.GetHiddenIncidentList()
+}
+
 func (s *RcaService) ResolveIncident(id string, resolvedBy string) error {
 	// 1. Incident 상태를 resolved로 변경
 	if err := s.repo.ResolveIncident(id, resolvedBy); err != nil {

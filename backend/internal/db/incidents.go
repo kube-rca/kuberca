@@ -86,6 +86,44 @@ func (db *Postgres) GetIncidentList() ([]model.IncidentListResponse, error) {
 	return list, nil
 }
 
+// GetHiddenIncidentList - 숨김 처리된 (is_enabled = false) Incident 목록 조회
+func (db *Postgres) GetHiddenIncidentList() ([]model.IncidentListResponse, error) {
+	query := `
+        SELECT
+            i.incident_id,
+            i.title,
+            i.severity,
+            i.status,
+            i.fired_at,
+            i.resolved_at,
+            COUNT(a.alert_id) as alert_count
+        FROM incidents i
+        LEFT JOIN alerts a ON i.incident_id = a.incident_id AND a.is_enabled = TRUE
+        WHERE i.is_enabled = FALSE
+        GROUP BY i.incident_id, i.title, i.severity, i.status, i.fired_at, i.resolved_at
+        ORDER BY i.fired_at DESC`
+
+	rows, err := db.Pool.Query(context.Background(), query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []model.IncidentListResponse
+	for rows.Next() {
+		var i model.IncidentListResponse
+		if err := rows.Scan(&i.IncidentID, &i.Title, &i.Severity, &i.Status, &i.FiredAt, &i.ResolvedAt, &i.AlertCount); err != nil {
+			return nil, err
+		}
+		list = append(list, i)
+	}
+
+	if list == nil {
+		list = []model.IncidentListResponse{}
+	}
+	return list, nil
+}
+
 // GetIncidentDetail - Incident 상세 조회
 func (db *Postgres) GetIncidentDetail(id string) (*model.IncidentDetailResponse, error) {
 	query := `
