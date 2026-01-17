@@ -36,9 +36,11 @@ type AgentAnalysisRequest struct {
 
 // AgentAnalysisResponse 구조체 정의
 type AgentAnalysisResponse struct {
-	Status   string `json:"status"`
-	ThreadTS string `json:"thread_ts"`
-	Analysis string `json:"analysis"`
+	Status          string `json:"status"`
+	ThreadTS        string `json:"thread_ts"`
+	Analysis        string `json:"analysis"`
+	AnalysisSummary string `json:"analysis_summary"`
+	AnalysisDetail  string `json:"analysis_detail"`
 }
 
 // IncidentSummaryRequest - Incident 최종 분석 요청

@@ -47,7 +47,16 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, threadTS string) {
 	}
 
 	// 분석 결과를 DB에 저장 (alerts.analysis_summary, analysis_detail)
-	if err := s.db.UpdateAlertAnalysis(alert.Fingerprint, resp.Analysis, resp.Analysis); err != nil {
+	summary := resp.AnalysisSummary
+	detail := resp.AnalysisDetail
+	if summary == "" {
+		summary = resp.Analysis
+	}
+	if detail == "" {
+		detail = resp.Analysis
+	}
+
+	if err := s.db.UpdateAlertAnalysis(alert.Fingerprint, summary, detail); err != nil {
 		log.Printf("Failed to save analysis to DB: %v", err)
 		// DB 저장 실패해도 Slack 전송은 계속 진행
 	} else {

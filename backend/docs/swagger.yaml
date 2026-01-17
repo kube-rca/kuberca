@@ -38,66 +38,61 @@ definitions:
       status:
         type: string
     type: object
-  model.AlertListResponse:
-    properties:
-      alert_id:
-        type: string
-      incident_id:
-        type: string
-      alarm_title:
-        type: string
-      severity:
-        type: string
-      status:
-        type: string
-      fired_at:
-        type: string
-      resolved_at:
-        type: string
-    type: object
   model.AlertDetailResponse:
     properties:
-      alert_id:
-        type: string
-      incident_id:
-        type: string
       alarm_title:
         type: string
-      severity:
-        type: string
-      status:
-        type: string
-      fired_at:
-        type: string
-      resolved_at:
-        type: string
-      analysis_summary:
+      alert_id:
         type: string
       analysis_detail:
         type: string
+      analysis_summary:
+        type: string
+      annotations:
+        type: object
       fingerprint:
         type: string
-      thread_ts:
+      fired_at:
+        type: string
+      incident_id:
         type: string
       labels:
         type: object
-      annotations:
-        type: object
-    type: object
-  model.AlertUpdateResponse:
-    properties:
+      resolved_at:
+        type: string
+      severity:
+        type: string
       status:
         type: string
-      message:
+      thread_ts:
+        type: string
+    type: object
+  model.AlertListResponse:
+    properties:
+      alarm_title:
         type: string
       alert_id:
         type: string
-    type: object
-  model.UpdateAlertIncidentRequest:
-    required:
-      - incident_id
-    properties:
+      fired_at:
+        type: string
       incident_id:
+        description: null 가능 (아직 Incident에 연결되지 않은 경우)
+        type: string
+      resolved_at:
+        type: string
+      severity:
+        type: string
+      status:
+        description: firing, resolved
+        type: string
+    type: object
+  model.AlertUpdateResponse:
+    properties:
+      alert_id:
+        type: string
+      message:
+        type: string
+      status:
         type: string
     type: object
   model.AlertWebhookResponse:
@@ -209,52 +204,54 @@ definitions:
     type: object
   model.IncidentDetailResponse:
     properties:
-      incident_id:
-        type: string
-      title:
-        type: string
-      severity:
-        type: string
-      status:
-        description: firing or resolved
-        type: string
-      fired_at:
-        type: string
-      resolved_at:
-        type: string
-      analysis_summary:
-        type: string
-      analysis_detail:
-        type: string
-      created_by:
-        type: string
-      resolved_by:
-        type: string
-      similar_incidents:
-        type: object
       alerts:
+        description: 연결된 Alert 목록 (상세 조회 시 포함)
         items:
           $ref: '#/definitions/model.AlertListResponse'
         type: array
+      analysis_detail:
+        type: string
+      analysis_summary:
+        type: string
+      created_by:
+        type: string
+      fired_at:
+        type: string
+      incident_id:
+        type: string
+      resolved_at:
+        type: string
+      resolved_by:
+        type: string
+      severity:
+        type: string
+      similar_incidents:
+        description: DB의 JSONB 컬럼을 그대로 바이트로 받아서 전달
+        type: object
+      status:
+        description: firing, resolved
+        type: string
+      title:
+        type: string
     type: object
   model.IncidentListResponse:
     properties:
+      alert_count:
+        description: 연결된 Alert 개수
+        type: integer
+      fired_at:
+        type: string
       incident_id:
         type: string
-      title:
+      resolved_at:
         type: string
       severity:
         type: string
       status:
-        description: firing or resolved
+        description: firing, resolved
         type: string
-      fired_at:
+      title:
         type: string
-      resolved_at:
-        type: string
-      alert_count:
-        description: Number of alerts linked to this incident
-        type: integer
     type: object
   model.IncidentUpdateResponse:
     properties:
@@ -291,23 +288,39 @@ definitions:
       status:
         type: string
     type: object
+  model.UpdateAlertIncidentRequest:
+    properties:
+      incident_id:
+        type: string
+    required:
+    - incident_id
+    type: object
   model.UpdateIncidentRequest:
     properties:
-      title:
-        type: string
-      severity:
+      analysis_detail:
         type: string
       analysis_summary:
         type: string
-      analysis_detail:
+      severity:
+        type: string
+      title:
         type: string
     type: object
   model.VectorSearchRequest:
     properties:
-      query:
-        type: string
       limit:
         type: integer
+      query:
+        type: string
+    type: object
+  model.VectorSearchResponse:
+    properties:
+      model:
+        type: string
+      results:
+        items:
+          $ref: '#/definitions/model.VectorSearchResult'
+        type: array
     type: object
   model.VectorSearchResult:
     properties:
@@ -317,15 +330,6 @@ definitions:
         type: string
       similarity:
         type: number
-    type: object
-  model.VectorSearchResponse:
-    properties:
-      results:
-        items:
-          $ref: '#/definitions/model.VectorSearchResult'
-        type: array
-      model:
-        type: string
     type: object
 info:
   contact: {}
@@ -664,7 +668,7 @@ paths:
             $ref: '#/definitions/model.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Get incident detail
+      summary: Get incident detail with alerts
       tags:
       - incidents
     patch:
@@ -748,7 +752,7 @@ paths:
             $ref: '#/definitions/model.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Get alerts by incident ID
+      summary: Get alerts for incident
       tags:
       - incidents
   /api/v1/incidents/{id}/resolve:
@@ -761,12 +765,41 @@ paths:
         name: id
         required: true
         type: string
-      - description: Resolve incident request
+      - description: Resolve incident payload
         in: body
         name: request
-        required: false
+        required: true
         schema:
           $ref: '#/definitions/model.ResolveIncidentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.IncidentUpdateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Resolve incident (사용자가 장애 종료)
+      tags:
+      - incidents
+  /api/v1/incidents/{id}/unhide:
+    patch:
+      description: 숨김 처리된 Incident를 다시 활성화합니다.
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -780,7 +813,28 @@ paths:
             $ref: '#/definitions/model.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Resolve incident
+      summary: Unhide incident (restore)
+      tags:
+      - incidents
+  /api/v1/incidents/hidden:
+    get:
+      description: 숨김 처리된(is_enabled=false) Incident 목록을 조회합니다.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.IncidentListResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List hidden incidents
       tags:
       - incidents
   /api/v1/incidents/mock:

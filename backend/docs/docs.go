@@ -34,6 +34,136 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/alerts": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "List all alerts",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.AlertListResponse"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/alerts/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Get alert detail",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Alert ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.AlertDetailResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/alerts/{id}/incident": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "사용자가 Alert을 다른 Incident에 연결할 때 사용",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Update alert's incident ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Alert ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update alert incident payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UpdateAlertIncidentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.AlertUpdateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/auth/config": {
             "get": {
                 "produces": [
@@ -377,6 +507,40 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/incidents/hidden": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "숨김 처리된(is_enabled=false) Incident 목록을 조회합니다.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "List hidden incidents",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.IncidentListResponse"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/incidents/mock": {
             "post": {
                 "security": [
@@ -407,136 +571,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/alerts": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "alerts"
-                ],
-                "summary": "List all alerts",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/model.AlertListResponse"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/model.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/alerts/{id}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "alerts"
-                ],
-                "summary": "Get alert detail",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Alert ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/model.AlertDetailResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/model.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/alerts/{id}/incident": {
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "사용자가 Alert을 다른 Incident에 연결할 때 사용",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "alerts"
-                ],
-                "summary": "Update alert's incident ID",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Alert ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Update alert incident payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/model.UpdateAlertIncidentRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/model.AlertUpdateResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/model.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/model.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/incidents/{id}": {
             "get": {
                 "security": [
@@ -550,7 +584,7 @@ const docTemplate = `{
                 "tags": [
                     "incidents"
                 ],
-                "summary": "Get incident detail",
+                "summary": "Get incident detail with alerts",
                 "parameters": [
                     {
                         "type": "string",
@@ -681,7 +715,7 @@ const docTemplate = `{
                 "tags": [
                     "incidents"
                 ],
-                "summary": "Get alerts by incident ID",
+                "summary": "Get alerts for incident",
                 "parameters": [
                     {
                         "type": "string",
@@ -726,7 +760,7 @@ const docTemplate = `{
                 "tags": [
                     "incidents"
                 ],
-                "summary": "Resolve incident",
+                "summary": "Resolve incident (사용자가 장애 종료)",
                 "parameters": [
                     {
                         "type": "string",
@@ -736,13 +770,59 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Resolve incident request",
+                        "description": "Resolve incident payload",
                         "name": "request",
                         "in": "body",
-                        "required": false,
+                        "required": true,
                         "schema": {
                             "$ref": "#/definitions/model.ResolveIncidentRequest"
                         }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.IncidentUpdateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/incidents/{id}/unhide": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "숨김 처리된 Incident를 다시 활성화합니다.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incidents"
+                ],
+                "summary": "Unhide incident (restore)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Incident ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -859,86 +939,88 @@ const docTemplate = `{
                 }
             }
         },
-        "model.AlertListResponse": {
-            "type": "object",
-            "properties": {
-                "alert_id": {
-                    "type": "string"
-                },
-                "incident_id": {
-                    "type": "string"
-                },
-                "alarm_title": {
-                    "type": "string"
-                },
-                "severity": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "fired_at": {
-                    "type": "string"
-                },
-                "resolved_at": {
-                    "type": "string"
-                }
-            }
-        },
         "model.AlertDetailResponse": {
             "type": "object",
             "properties": {
-                "alert_id": {
-                    "type": "string"
-                },
-                "incident_id": {
-                    "type": "string"
-                },
                 "alarm_title": {
                     "type": "string"
                 },
-                "severity": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "fired_at": {
-                    "type": "string"
-                },
-                "resolved_at": {
-                    "type": "string"
-                },
-                "analysis_summary": {
+                "alert_id": {
                     "type": "string"
                 },
                 "analysis_detail": {
                     "type": "string"
                 },
+                "analysis_summary": {
+                    "type": "string"
+                },
+                "annotations": {
+                    "type": "object"
+                },
                 "fingerprint": {
                     "type": "string"
                 },
-                "thread_ts": {
+                "fired_at": {
+                    "type": "string"
+                },
+                "incident_id": {
                     "type": "string"
                 },
                 "labels": {
                     "type": "object"
                 },
-                "annotations": {
-                    "type": "object"
+                "resolved_at": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "thread_ts": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.AlertListResponse": {
+            "type": "object",
+            "properties": {
+                "alarm_title": {
+                    "type": "string"
+                },
+                "alert_id": {
+                    "type": "string"
+                },
+                "fired_at": {
+                    "type": "string"
+                },
+                "incident_id": {
+                    "description": "null 가능 (아직 Incident에 연결되지 않은 경우)",
+                    "type": "string"
+                },
+                "resolved_at": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "firing, resolved",
+                    "type": "string"
                 }
             }
         },
         "model.AlertUpdateResponse": {
             "type": "object",
             "properties": {
-                "status": {
+                "alert_id": {
                     "type": "string"
                 },
                 "message": {
                     "type": "string"
                 },
-                "alert_id": {
+                "status": {
                     "type": "string"
                 }
             }
@@ -1109,73 +1191,75 @@ const docTemplate = `{
         "model.IncidentDetailResponse": {
             "type": "object",
             "properties": {
-                "incident_id": {
-                    "type": "string"
+                "alerts": {
+                    "description": "연결된 Alert 목록 (상세 조회 시 포함)",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.AlertListResponse"
+                    }
                 },
-                "title": {
-                    "type": "string"
-                },
-                "severity": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string",
-                    "description": "firing or resolved"
-                },
-                "fired_at": {
-                    "type": "string"
-                },
-                "resolved_at": {
+                "analysis_detail": {
                     "type": "string"
                 },
                 "analysis_summary": {
                     "type": "string"
                 },
-                "analysis_detail": {
+                "created_by": {
                     "type": "string"
                 },
-                "created_by": {
+                "fired_at": {
+                    "type": "string"
+                },
+                "incident_id": {
+                    "type": "string"
+                },
+                "resolved_at": {
                     "type": "string"
                 },
                 "resolved_by": {
                     "type": "string"
                 },
+                "severity": {
+                    "type": "string"
+                },
                 "similar_incidents": {
+                    "description": "DB의 JSONB 컬럼을 그대로 바이트로 받아서 전달",
                     "type": "object"
                 },
-                "alerts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.AlertListResponse"
-                    }
+                "status": {
+                    "description": "firing, resolved",
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
                 }
             }
         },
         "model.IncidentListResponse": {
             "type": "object",
             "properties": {
+                "alert_count": {
+                    "description": "연결된 Alert 개수",
+                    "type": "integer"
+                },
+                "fired_at": {
+                    "type": "string"
+                },
                 "incident_id": {
                     "type": "string"
                 },
-                "title": {
+                "resolved_at": {
                     "type": "string"
                 },
                 "severity": {
                     "type": "string"
                 },
                 "status": {
-                    "type": "string",
-                    "description": "firing or resolved"
-                },
-                "fired_at": {
+                    "description": "firing, resolved",
                     "type": "string"
                 },
-                "resolved_at": {
+                "title": {
                     "type": "string"
-                },
-                "alert_count": {
-                    "type": "integer",
-                    "description": "Number of alerts linked to this incident"
                 }
             }
         },
@@ -1236,7 +1320,9 @@ const docTemplate = `{
         },
         "model.UpdateAlertIncidentRequest": {
             "type": "object",
-            "required": ["incident_id"],
+            "required": [
+                "incident_id"
+            ],
             "properties": {
                 "incident_id": {
                     "type": "string"
@@ -1246,16 +1332,16 @@ const docTemplate = `{
         "model.UpdateIncidentRequest": {
             "type": "object",
             "properties": {
-                "title": {
-                    "type": "string"
-                },
-                "severity": {
+                "analysis_detail": {
                     "type": "string"
                 },
                 "analysis_summary": {
                     "type": "string"
                 },
-                "analysis_detail": {
+                "severity": {
+                    "type": "string"
+                },
+                "title": {
                     "type": "string"
                 }
             }
@@ -1263,11 +1349,25 @@ const docTemplate = `{
         "model.VectorSearchRequest": {
             "type": "object",
             "properties": {
-                "query": {
-                    "type": "string"
-                },
                 "limit": {
                     "type": "integer"
+                },
+                "query": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.VectorSearchResponse": {
+            "type": "object",
+            "properties": {
+                "model": {
+                    "type": "string"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.VectorSearchResult"
+                    }
                 }
             }
         },
@@ -1282,20 +1382,6 @@ const docTemplate = `{
                 },
                 "similarity": {
                     "type": "number"
-                }
-            }
-        },
-        "model.VectorSearchResponse": {
-            "type": "object",
-            "properties": {
-                "results": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.VectorSearchResult"
-                    }
-                },
-                "model": {
-                    "type": "string"
                 }
             }
         }
