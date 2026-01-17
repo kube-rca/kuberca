@@ -50,7 +50,7 @@ frontend:
 agent:
   image:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr
-    tag: agent-dc55e5e
+    tag: agent-f624861
   workers: 4
   sessionDB:
     host: postgresql.kube-rca.svc.cluster.local
