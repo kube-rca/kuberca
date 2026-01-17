@@ -18,6 +18,10 @@ interface RCADetailViewProps {
   onBack: () => void;
 }
 
+type LocationState = {
+  autoEdit?: boolean;
+};
+
 const severityStyles: Record<string, string> = {
   warning: 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-200 dark:border-yellow-700',
   critical: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-200 dark:border-red-700',
@@ -69,7 +73,8 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
   }, [loadDetail]);
 
   useEffect(() => {
-    if (location.state && (location.state as any).autoEdit) {
+    const state = location.state as LocationState | null;
+    if (state?.autoEdit) {
       setIsEditing(true);
       window.history.replaceState({}, document.title);
     }
@@ -156,7 +161,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
   if (error || !data) return <div className="p-12 text-center text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg m-4">{error}</div>;
 
   const isResolved = !!data.resolved_at;
-  const isHidden = (data as any).is_hidden; 
+  const isHidden = data.is_hidden ?? false; 
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-5xl mx-auto transition-colors duration-300">
@@ -309,7 +314,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
 
         <div className="md:col-span-2">
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
-            📋 인시던트 요약
+            📋 Incident Summary
           </h3>
           
           {isEditing ? (
@@ -328,10 +333,10 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                 <ReactMarkdown 
                   remarkPlugins={[remarkGfm]}
                   components={{
-                    strong: ({node, ...props}) => <span className="font-bold text-blue-800 dark:text-blue-300" {...props} />,
-                    ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1 my-2" {...props} />,
+                    strong: ({ node: _node, ...props }) => <span className="font-bold text-blue-800 dark:text-blue-300" {...props} />,
+                    ul: ({ node: _node, ...props }) => <ul className="list-disc pl-5 space-y-1 my-2" {...props} />,
                     // [핵심] 코드는 흰 배경에 파란 글씨 + 테두리 = 가독성 최적화
-                    code: ({node, ...props}) => (
+                    code: ({ node: _node, ...props }) => (
                       <code className="bg-white dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded text-xs font-mono font-bold shadow-sm" {...props} />
                     ),
                   }}
@@ -345,7 +350,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
 
         <div className="md:col-span-2">
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
-            📝 상세 분석 리포트
+            📝 Incident Analysis
           </h3>
 
           {isEditing ? (
@@ -364,16 +369,16 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                   <ReactMarkdown 
                     remarkPlugins={[remarkGfm]}
                     components={{
-                      h1: ({node, ...props}) => <h1 className="text-xl font-bold text-blue-400 mt-6 mb-4 border-b border-gray-700 pb-2" {...props} />,
-                      h2: ({node, ...props}) => <h2 className="text-lg font-bold text-blue-300 mt-5 mb-3" {...props} />,
-                      h3: ({node, ...props}) => <h3 className="text-md font-bold text-blue-200 mt-4 mb-2" {...props} />,
-                      strong: ({node, ...props}) => <span className="font-bold text-yellow-400" {...props} />,
-                      ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1 my-2 text-gray-300" {...props} />,
-                      code: ({node, ...props}) => (
+                      h1: ({ node: _node, ...props }) => <h1 className="text-xl font-bold text-blue-400 mt-6 mb-4 border-b border-gray-700 pb-2" {...props} />,
+                      h2: ({ node: _node, ...props }) => <h2 className="text-lg font-bold text-blue-300 mt-5 mb-3" {...props} />,
+                      h3: ({ node: _node, ...props }) => <h3 className="text-md font-bold text-blue-200 mt-4 mb-2" {...props} />,
+                      strong: ({ node: _node, ...props }) => <span className="font-bold text-yellow-400" {...props} />,
+                      ul: ({ node: _node, ...props }) => <ul className="list-disc pl-5 space-y-1 my-2 text-gray-300" {...props} />,
+                      code: ({ node: _node, ...props }) => (
                         <code className="bg-gray-800 text-green-400 px-1 py-0.5 rounded text-xs" {...props} />
                       ),
-                      p: ({node, ...props}) => <p className="mb-4 text-gray-300" {...props} />,
-                      a: ({node, ...props}) => <a className="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
+                      p: ({ node: _node, ...props }) => <p className="mb-4 text-gray-300" {...props} />,
+                      a: ({ node: _node, ...props }) => <a className="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
                     }}
                   >
                     {data.analysis_detail || "*상세 분석 내용이 없습니다.*"}
