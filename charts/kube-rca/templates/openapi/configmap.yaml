@@ -10,8 +10,7 @@ kind: ConfigMap
 metadata:
   name: {{ include "kube-rca.openapi.name" . }}-config
   labels:
-    {{- include "kube-rca.labels" . | nindent 4 }}
-    app.kubernetes.io/component: openapi
+    {{- include "kube-rca.openapi.labels" . | nindent 4 }}
 data:
   default.conf.template: |
     types {

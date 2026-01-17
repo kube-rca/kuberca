@@ -11,8 +11,7 @@ kind: Ingress
 metadata:
   name: {{ printf "%s-ingress" (include "kube-rca.openapi.name" .) | trunc 63 | trimSuffix "-" }}
   labels:
-    {{- include "kube-rca.labels" . | nindent 4 }}
-    app.kubernetes.io/component: openapi
+    {{- include "kube-rca.openapi.labels" . | nindent 4 }}
 {{- with $ingress.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}

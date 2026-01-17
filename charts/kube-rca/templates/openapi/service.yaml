@@ -4,8 +4,7 @@ kind: Service
 metadata:
   name: {{ include "kube-rca.openapi.name" . }}
   labels:
-    {{- include "kube-rca.labels" . | nindent 4 }}
-    app.kubernetes.io/component: openapi
+    {{- include "kube-rca.openapi.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.openapi.service.type }}
   ports:
@@ -13,6 +12,5 @@ spec:
       port: {{ .Values.openapi.service.port }}
       targetPort: http
   selector:
-    {{- include "kube-rca.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/component: openapi
+    {{- include "kube-rca.openapi.selectorLabels" . | nindent 4 }}
 {{- end -}}

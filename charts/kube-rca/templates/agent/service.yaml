@@ -3,13 +3,11 @@ kind: Service
 metadata:
   name: {{ include "kube-rca.agent.name" . }}
   labels:
-    {{- include "kube-rca.labels" . | nindent 4 }}
-    app.kubernetes.io/component: agent
+    {{- include "kube-rca.agent.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.agent.service.type }}
   selector:
-    {{- include "kube-rca.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/component: agent
+    {{- include "kube-rca.agent.selectorLabels" . | nindent 4 }}
   ports:
     - name: http
       port: {{ .Values.agent.service.port }}

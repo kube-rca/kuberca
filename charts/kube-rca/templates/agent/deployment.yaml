@@ -3,19 +3,16 @@ kind: Deployment
 metadata:
   name: {{ include "kube-rca.agent.name" . }}
   labels:
-    {{- include "kube-rca.labels" . | nindent 4 }}
-    app.kubernetes.io/component: agent
+    {{- include "kube-rca.agent.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.agent.replicaCount }}
   selector:
     matchLabels:
-      {{- include "kube-rca.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: agent
+      {{- include "kube-rca.agent.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "kube-rca.labels" . | nindent 8 }}
-        app.kubernetes.io/component: agent
+        {{- include "kube-rca.agent.labels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "kube-rca.agent.name" . }}
       containers:

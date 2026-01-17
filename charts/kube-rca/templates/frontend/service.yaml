@@ -3,13 +3,11 @@ kind: Service
 metadata:
   name: {{ include "kube-rca.frontend.name" . }}
   labels:
-    {{- include "kube-rca.labels" . | nindent 4 }}
-    app.kubernetes.io/component: frontend
+    {{- include "kube-rca.frontend.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.frontend.service.type }}
   selector:
-    {{- include "kube-rca.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/component: frontend
+    {{- include "kube-rca.frontend.selectorLabels" . | nindent 4 }}
   ports:
     - name: http
       port: {{ .Values.frontend.service.port }}

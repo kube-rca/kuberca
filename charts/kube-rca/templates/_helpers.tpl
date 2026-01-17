@@ -25,20 +25,79 @@ Chart label.
 {{- end -}}
 
 {{/*
-Common labels.
+Common labels (base).
 */}}
-{{- define "kube-rca.labels" -}}
-app.kubernetes.io/name: {{ include "kube-rca.name" . }}
+{{- define "kube-rca.labels.base" -}}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 helm.sh/chart: {{ include "kube-rca.chart" . }}
 {{- end -}}
 
 {{/*
-Selector labels.
+Backend labels.
 */}}
-{{- define "kube-rca.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "kube-rca.name" . }}
+{{- define "kube-rca.backend.labels" -}}
+app.kubernetes.io/name: {{ include "kube-rca.backend.name" . }}
+app.kubernetes.io/component: backend
+{{ include "kube-rca.labels.base" . }}
+{{- end -}}
+
+{{/*
+Backend selector labels.
+*/}}
+{{- define "kube-rca.backend.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "kube-rca.backend.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end -}}
+
+{{/*
+Frontend labels.
+*/}}
+{{- define "kube-rca.frontend.labels" -}}
+app.kubernetes.io/name: {{ include "kube-rca.frontend.name" . }}
+app.kubernetes.io/component: frontend
+{{ include "kube-rca.labels.base" . }}
+{{- end -}}
+
+{{/*
+Frontend selector labels.
+*/}}
+{{- define "kube-rca.frontend.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "kube-rca.frontend.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end -}}
+
+{{/*
+Agent labels.
+*/}}
+{{- define "kube-rca.agent.labels" -}}
+app.kubernetes.io/name: {{ include "kube-rca.agent.name" . }}
+app.kubernetes.io/component: agent
+{{ include "kube-rca.labels.base" . }}
+{{- end -}}
+
+{{/*
+Agent selector labels.
+*/}}
+{{- define "kube-rca.agent.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "kube-rca.agent.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end -}}
+
+{{/*
+OpenAPI labels.
+*/}}
+{{- define "kube-rca.openapi.labels" -}}
+app.kubernetes.io/name: {{ include "kube-rca.openapi.name" . }}
+app.kubernetes.io/component: openapi
+{{ include "kube-rca.labels.base" . }}
+{{- end -}}
+
+{{/*
+OpenAPI selector labels.
+*/}}
+{{- define "kube-rca.openapi.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "kube-rca.openapi.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 

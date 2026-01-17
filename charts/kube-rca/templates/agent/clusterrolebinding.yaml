@@ -3,8 +3,7 @@ kind: ClusterRoleBinding
 metadata:
   name: {{ include "kube-rca.agent.name" . }}
   labels:
-    {{- include "kube-rca.labels" . | nindent 4 }}
-    app.kubernetes.io/component: agent
+    {{- include "kube-rca.agent.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

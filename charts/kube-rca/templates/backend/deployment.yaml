@@ -3,19 +3,16 @@ kind: Deployment
 metadata:
   name: {{ include "kube-rca.backend.name" . }}
   labels:
-    {{- include "kube-rca.labels" . | nindent 4 }}
-    app.kubernetes.io/component: backend
+    {{- include "kube-rca.backend.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.backend.replicaCount }}
   selector:
     matchLabels:
-      {{- include "kube-rca.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: backend
+      {{- include "kube-rca.backend.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "kube-rca.labels" . | nindent 8 }}
-        app.kubernetes.io/component: backend
+        {{- include "kube-rca.backend.labels" . | nindent 8 }}
     spec:
       containers:
         - name: backend

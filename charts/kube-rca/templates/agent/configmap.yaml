@@ -3,8 +3,7 @@ kind: ConfigMap
 metadata:
   name: {{ include "kube-rca.agent.name" . }}-config
   labels:
-    {{- include "kube-rca.labels" . | nindent 4 }}
-    app.kubernetes.io/component: agent
+    {{- include "kube-rca.agent.labels" . | nindent 4 }}
 data:
   agent-config.yaml: |
     logLevel: "info"

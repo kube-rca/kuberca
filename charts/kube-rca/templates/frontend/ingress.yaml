@@ -12,8 +12,7 @@ kind: Ingress
 metadata:
   name: {{ printf "%s-ingress" (include "kube-rca.frontend.name" .) | trunc 63 | trimSuffix "-" }}
   labels:
-    {{- include "kube-rca.labels" . | nindent 4 }}
-    app.kubernetes.io/component: frontend
+    {{- include "kube-rca.frontend.labels" . | nindent 4 }}
 {{- with $ingress.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}

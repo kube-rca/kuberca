@@ -5,19 +5,16 @@ kind: Deployment
 metadata:
   name: {{ include "kube-rca.openapi.name" . }}
   labels:
-    {{- include "kube-rca.labels" . | nindent 4 }}
-    app.kubernetes.io/component: openapi
+    {{- include "kube-rca.openapi.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.openapi.replicaCount }}
   selector:
     matchLabels:
-      {{- include "kube-rca.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: openapi
+      {{- include "kube-rca.openapi.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "kube-rca.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/component: openapi
+        {{- include "kube-rca.openapi.labels" . | nindent 8 }}
       annotations:
         checksum/openapi-config: {{ include (print $.Template.BasePath "/openapi/configmap.yaml") . | sha256sum }}
     spec:
