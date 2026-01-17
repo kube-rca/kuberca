@@ -15,6 +15,8 @@ class AlertAnalysisResponse(BaseModel):
     status: str
     thread_ts: str
     analysis: str
+    analysis_summary: str | None = None
+    analysis_detail: str | None = None
 
 
 # Incident Summary schemas (for final RCA when incident is resolved)

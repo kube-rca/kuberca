@@ -108,6 +108,28 @@
             "title": "Analysis",
             "type": "string"
           },
+          "analysis_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analysis Detail"
+          },
+          "analysis_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analysis Summary"
+          },
           "status": {
             "title": "Status",
             "type": "string"
@@ -125,6 +147,56 @@
         "title": "AlertAnalysisResponse",
         "type": "object"
       },
+      "AlertSummaryInput": {
+        "properties": {
+          "alert_name": {
+            "title": "Alert Name",
+            "type": "string"
+          },
+          "analysis_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analysis Detail"
+          },
+          "analysis_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analysis Summary"
+          },
+          "fingerprint": {
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fingerprint",
+          "alert_name",
+          "severity",
+          "status"
+        ],
+        "title": "AlertSummaryInput",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -136,6 +208,75 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "IncidentSummaryRequest": {
+        "properties": {
+          "alerts": {
+            "items": {
+              "$ref": "#/components/schemas/AlertSummaryInput"
+            },
+            "title": "Alerts",
+            "type": "array"
+          },
+          "fired_at": {
+            "title": "Fired At",
+            "type": "string"
+          },
+          "incident_id": {
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "resolved_at": {
+            "title": "Resolved At",
+            "type": "string"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "incident_id",
+          "title",
+          "severity",
+          "fired_at",
+          "resolved_at",
+          "alerts"
+        ],
+        "title": "IncidentSummaryRequest",
+        "type": "object"
+      },
+      "IncidentSummaryResponse": {
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "title",
+          "summary",
+          "detail"
+        ],
+        "title": "IncidentSummaryResponse",
         "type": "object"
       },
       "ValidationError": {
@@ -281,6 +422,45 @@
           }
         },
         "summary": "Ping"
+      }
+    },
+    "/summarize-incident": {
+      "post": {
+        "description": "Generate final RCA summary for a resolved incident.",
+        "operationId": "summarize_incident_summarize_incident_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncidentSummaryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentSummaryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Summarize Incident"
       }
     }
   },

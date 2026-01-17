@@ -20,19 +20,25 @@ class AnalysisService:
         self._k8s_client = k8s_client
         self._analysis_engine = analysis_engine
 
-    def analyze(self, request: AlertAnalysisRequest) -> str:
+    def analyze(self, request: AlertAnalysisRequest) -> tuple[str, str, str]:
         namespace, pod_name = extract_pod_target(request.alert.labels)
         k8s_context = self._k8s_client.collect_context(namespace, pod_name)
 
         if self._analysis_engine is None:
-            return _fallback_summary(request, k8s_context, "analysis engine not configured")
+            analysis = _fallback_summary(request, k8s_context, "analysis engine not configured")
+            summary, detail = _split_alert_analysis(analysis)
+            return analysis, summary, detail
 
         prompt = _build_prompt(request, k8s_context)
         try:
-            return self._analysis_engine.analyze(prompt, request.incident_id)
+            analysis = self._analysis_engine.analyze(prompt, request.incident_id)
+            summary, detail = _split_alert_analysis(analysis)
+            return analysis, summary, detail
         except Exception as exc:  # noqa: BLE001
             self._logger.exception("Strands analysis failed")
-            return _fallback_summary(request, k8s_context, f"analysis failed: {exc}")
+            analysis = _fallback_summary(request, k8s_context, f"analysis failed: {exc}")
+            summary, detail = _split_alert_analysis(analysis)
+            return analysis, summary, detail
 
     def summarize_incident(self, request: IncidentSummaryRequest) -> tuple[str, str, str]:
         """Synthesize final RCA summary for a resolved incident.
@@ -63,7 +69,10 @@ def _build_prompt(request: AlertAnalysisRequest, k8s_context: K8sContext) -> str
 
     return (
         "You are kube-rca-agent. Analyze the alert using the provided Kubernetes context.\n"
-        "Return a concise RCA summary in Korean with: root cause, evidence, and next action.\n"
+        "Return your response in Korean with the following structure:\n"
+        "1) 요약 (Summary): 1-2 sentences, <= 300 chars.\n"
+        "   Include root cause + impact + next action.\n"
+        "2) 상세 분석 (Detail): Use sections for 근본 원인, 확인 근거, 조치 사항, 누락된 데이터.\n"
         "If data is missing, state what is missing.\n"
         "You may call tools if needed:\n"
         "- get_pod_status, get_pod_spec\n"
@@ -168,6 +177,10 @@ def _parse_incident_summary(result: str, original_title: str) -> tuple[str, str,
         if len(result) > 200:
             summary += "..."
 
+    # Ensure summary and detail are not identical
+    if summary.strip() == result.strip() or len(summary) > 300:
+        summary = _compact_summary(result)
+
     return title, summary, result
 
 
@@ -215,3 +228,62 @@ def _build_incident_summary_prompt(request: IncidentSummaryRequest) -> str:
         "   - 재발 방지 권고 (Prevention Recommendations)\n\n"
         f"Incident data:\n{_to_pretty_json(incident_data)}\n"
     )
+
+
+def _split_alert_analysis(result: str) -> tuple[str, str]:
+    all_keys = ["요약", "summary", "상세", "detail"]
+    summary = _extract_section(result, ["요약", "summary"], all_keys)
+    detail = _extract_section(result, ["상세 분석", "상세", "detail"], all_keys)
+
+    if not detail:
+        detail = result.strip()
+    if not summary:
+        summary = _compact_summary(detail)
+
+    if summary.strip() == detail.strip():
+        summary = _compact_summary(detail)
+
+    return summary, detail
+
+
+def _extract_section(text: str, keys: list[str], all_keys: list[str]) -> str | None:
+    lines = text.splitlines()
+    start = None
+    for idx, line in enumerate(lines):
+        if _is_section_header(line, keys):
+            start = idx + 1
+            break
+    if start is None:
+        return None
+
+    end = len(lines)
+    for idx in range(start, len(lines)):
+        if _is_section_header(lines[idx], all_keys):
+            end = idx
+            break
+
+    section = "\n".join(lines[start:end]).strip()
+    return section or None
+
+
+def _is_section_header(line: str, keys: list[str]) -> bool:
+    stripped = line.strip()
+    if not stripped:
+        return False
+    lowered = stripped.lower()
+    has_key = any(key in lowered for key in keys)
+    if not has_key:
+        return False
+    return stripped.startswith("#") or stripped.endswith(":") or stripped.endswith("：")
+
+
+def _compact_summary(text: str, limit: int = 300) -> str:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return ""
+    summary = lines[0]
+    if len(lines) > 1 and len(summary) < limit:
+        summary = f"{summary} {lines[1]}"
+    if len(summary) > limit:
+        summary = summary[:limit].rstrip() + "..."
+    return summary
