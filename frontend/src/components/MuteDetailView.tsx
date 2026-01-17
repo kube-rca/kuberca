@@ -168,7 +168,7 @@ const MuteDetailView: React.FC<MuteDetailViewProps> = ({ incidentId, onBack }) =
 
         <div className="md:col-span-2">
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
-            📋 Incident Summary
+            📋 Alert Summary
           </h3>
           {/* [수정 포인트] 가독성을 위해 Blue 톤으로 변경 */}
           <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-lg p-5">
@@ -191,7 +191,7 @@ const MuteDetailView: React.FC<MuteDetailViewProps> = ({ incidentId, onBack }) =
 
         <div className="md:col-span-2">
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
-            📝 Incident Analysis
+            📝 Alert Analysis
           </h3>
           <div className="bg-gray-900 border border-gray-700 rounded-lg overflow-hidden shadow-sm">
             <div className="p-6 overflow-x-auto">
