@@ -155,3 +155,75 @@ OpenAPI (Swagger UI) component name.
 {{- define "kube-rca.openapi.name" -}}
 {{- printf "%s-openapi" (include "kube-rca.fullname" .) | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
+
+{{/*
+Hook job labels.
+*/}}
+{{- define "kube-rca.hook.labels" -}}
+app.kubernetes.io/component: hook
+{{ include "kube-rca.labels.base" . }}
+{{- end -}}
+
+{{/*
+Wait job image.
+*/}}
+{{- define "kube-rca.hook.waitJob.image" -}}
+{{- $hooks := default (dict) .Values.hooks -}}
+{{- $waitJob := default (dict) $hooks.waitJob -}}
+{{- $image := default (dict) $waitJob.image -}}
+{{- $repository := default "busybox" $image.repository -}}
+{{- $tag := default "1.36" $image.tag -}}
+{{- printf "%s:%s" $repository $tag -}}
+{{- end -}}
+
+{{/*
+Wait job resources.
+*/}}
+{{- define "kube-rca.hook.waitJob.resources" -}}
+{{- $hooks := default (dict) .Values.hooks -}}
+{{- $waitJob := default (dict) $hooks.waitJob -}}
+{{- $resources := default (dict) $waitJob.resources -}}
+{{- if $resources }}
+{{- toYaml $resources }}
+{{- else }}
+requests:
+  cpu: 10m
+  memory: 16Mi
+limits:
+  cpu: 50m
+  memory: 32Mi
+{{- end }}
+{{- end -}}
+
+{{/*
+PostgreSQL connection string for wait-for-db.
+*/}}
+{{- define "kube-rca.hook.postgresql.host" -}}
+{{- default "postgresql.kube-rca.svc.cluster.local" .Values.backend.postgresql.host -}}
+{{- end -}}
+
+{{- define "kube-rca.hook.postgresql.port" -}}
+{{- default 5432 .Values.backend.postgresql.port -}}
+{{- end -}}
+
+{{/*
+Backend service endpoint for wait-for-backend.
+*/}}
+{{- define "kube-rca.hook.backend.host" -}}
+{{- include "kube-rca.backend.name" . -}}
+{{- end -}}
+
+{{- define "kube-rca.hook.backend.port" -}}
+{{- default 8080 .Values.backend.service.port -}}
+{{- end -}}
+
+{{/*
+Agent service endpoint for wait-for-agent.
+*/}}
+{{- define "kube-rca.hook.agent.host" -}}
+{{- include "kube-rca.agent.name" . -}}
+{{- end -}}
+
+{{- define "kube-rca.hook.agent.port" -}}
+{{- default 8000 .Values.agent.service.port -}}
+{{- end -}}

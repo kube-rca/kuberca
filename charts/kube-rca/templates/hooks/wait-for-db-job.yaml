@@ -1,0 +1,42 @@
+{{- if and .Values.hooks.enabled .Values.hooks.waitForDb.enabled }}
+{{- $hooks := .Values.hooks }}
+{{- $waitJob := $hooks.waitJob }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "kube-rca.fullname" . }}-wait-for-db
+  labels:
+    app.kubernetes.io/name: {{ include "kube-rca.fullname" . }}-wait-for-db
+    {{- include "kube-rca.hook.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ default 6 $waitJob.backoffLimit }}
+  activeDeadlineSeconds: {{ default 300 $waitJob.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "kube-rca.fullname" . }}-wait-for-db
+        {{- include "kube-rca.hook.labels" . | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: wait-for-db
+          image: {{ include "kube-rca.hook.waitJob.image" . }}
+          imagePullPolicy: {{ default "IfNotPresent" $waitJob.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "Waiting for PostgreSQL at {{ include "kube-rca.hook.postgresql.host" . }}:{{ include "kube-rca.hook.postgresql.port" . }}..."
+              until nc -z -w {{ default 10 $waitJob.checkTimeout }} {{ include "kube-rca.hook.postgresql.host" . }} {{ include "kube-rca.hook.postgresql.port" . }}; do
+                echo "PostgreSQL is not ready yet. Retrying in {{ default 5 $waitJob.checkInterval }} seconds..."
+                sleep {{ default 5 $waitJob.checkInterval }}
+              done
+              echo "PostgreSQL is ready!"
+          resources:
+            {{- include "kube-rca.hook.waitJob.resources" . | nindent 12 }}
+{{- end }}

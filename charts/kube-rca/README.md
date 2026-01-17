@@ -118,6 +118,23 @@ Deploy kube-rca backend and frontend
 | frontend.service.type | string | `"ClusterIP"` | Frontend service type. |
 | frontend.tolerations | list | `[]` | Tolerations for frontend pods assignment. |
 | fullnameOverride | string | `""` | Override the full name of the release. |
+| hooks.enabled | bool | `true` | Enable Helm hooks for deployment ordering. |
+| hooks.waitForAgent.enabled | bool | `true` | Enable wait-for-agent post-install hook. |
+| hooks.waitForAgent.healthPath | string | `"/healthz"` | Agent health check path. |
+| hooks.waitForBackend.enabled | bool | `true` | Enable wait-for-backend post-install hook. |
+| hooks.waitForBackend.healthPath | string | `"/ping"` | Backend health check path. |
+| hooks.waitForDb.enabled | bool | `true` | Enable wait-for-db pre-install hook. |
+| hooks.waitJob.activeDeadlineSeconds | int | `300` | Maximum time for the job to complete. |
+| hooks.waitJob.backoffLimit | int | `6` | Number of retries before giving up. |
+| hooks.waitJob.checkInterval | int | `5` | Interval between connection checks (seconds). |
+| hooks.waitJob.checkTimeout | int | `10` | Timeout for each check (seconds). |
+| hooks.waitJob.image.pullPolicy | string | `"IfNotPresent"` | Wait job image pull policy. |
+| hooks.waitJob.image.repository | string | `"busybox"` | Wait job image repository. |
+| hooks.waitJob.image.tag | string | `"1.36"` | Wait job image tag. |
+| hooks.waitJob.resources.limits.cpu | string | `"50m"` |  |
+| hooks.waitJob.resources.limits.memory | string | `"32Mi"` |  |
+| hooks.waitJob.resources.requests.cpu | string | `"10m"` |  |
+| hooks.waitJob.resources.requests.memory | string | `"16Mi"` |  |
 | nameOverride | string | `""` | Override the name of the chart. |
 | openapi.affinity | object | `{}` | Affinity for OpenAPI pods assignment. |
 | openapi.baseUrl | string | `"/"` | Base URL for Swagger UI. |

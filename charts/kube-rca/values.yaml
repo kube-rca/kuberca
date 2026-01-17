@@ -6,6 +6,48 @@ nameOverride: ""
 # -- Override the full name of the release.
 fullnameOverride: ""
 
+# Helm Hook configuration for deployment ordering.
+# Ensures: DB → backend → agent + frontend → openapi
+hooks:
+  # -- Enable Helm hooks for deployment ordering.
+  enabled: true
+  waitJob:
+    image:
+      # -- Wait job image repository.
+      repository: busybox
+      # -- Wait job image tag.
+      tag: "1.36"
+      # -- Wait job image pull policy.
+      pullPolicy: IfNotPresent
+    # -- Number of retries before giving up.
+    backoffLimit: 6
+    # -- Maximum time for the job to complete.
+    activeDeadlineSeconds: 300
+    # -- Interval between connection checks (seconds).
+    checkInterval: 5
+    # -- Timeout for each check (seconds).
+    checkTimeout: 10
+    resources:
+      requests:
+        cpu: 10m
+        memory: 16Mi
+      limits:
+        cpu: 50m
+        memory: 32Mi
+  waitForDb:
+    # -- Enable wait-for-db pre-install hook.
+    enabled: true
+  waitForBackend:
+    # -- Enable wait-for-backend post-install hook.
+    enabled: true
+    # -- Backend health check path.
+    healthPath: "/ping"
+  waitForAgent:
+    # -- Enable wait-for-agent post-install hook.
+    enabled: true
+    # -- Agent health check path.
+    healthPath: "/healthz"
+
 backend:
   # -- Number of backend replicas.
   replicaCount: 1
