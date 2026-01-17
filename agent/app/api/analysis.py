@@ -19,13 +19,15 @@ def analyze_alert(
     request: AlertAnalysisRequest,
     service: AnalysisService = Depends(get_analysis_service),  # noqa: B008
 ) -> AlertAnalysisResponse:
-    analysis, summary, detail = service.analyze(request)
+    analysis, summary, detail, context, artifacts = service.analyze(request)
     return AlertAnalysisResponse(
         status="ok",
         thread_ts=request.thread_ts,
         analysis=analysis,
         analysis_summary=summary,
         analysis_detail=detail,
+        context=context,
+        artifacts=artifacts,
     )
 
 

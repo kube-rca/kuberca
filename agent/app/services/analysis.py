@@ -20,25 +20,29 @@ class AnalysisService:
         self._k8s_client = k8s_client
         self._analysis_engine = analysis_engine
 
-    def analyze(self, request: AlertAnalysisRequest) -> tuple[str, str, str]:
+    def analyze(
+        self, request: AlertAnalysisRequest
+    ) -> tuple[str, str, str, dict[str, object], list[dict[str, object]]]:
         namespace, pod_name = extract_pod_target(request.alert.labels)
         k8s_context = self._k8s_client.collect_context(namespace, pod_name)
+        context = k8s_context.to_dict()
+        artifacts = _build_alert_artifacts(k8s_context)
 
         if self._analysis_engine is None:
             analysis = _fallback_summary(request, k8s_context, "analysis engine not configured")
             summary, detail = _split_alert_analysis(analysis)
-            return analysis, summary, detail
+            return analysis, summary, detail, context, artifacts
 
         prompt = _build_prompt(request, k8s_context)
         try:
             analysis = self._analysis_engine.analyze(prompt, request.incident_id)
             summary, detail = _split_alert_analysis(analysis)
-            return analysis, summary, detail
+            return analysis, summary, detail, context, artifacts
         except Exception as exc:  # noqa: BLE001
             self._logger.exception("Strands analysis failed")
             analysis = _fallback_summary(request, k8s_context, f"analysis failed: {exc}")
             summary, detail = _split_alert_analysis(analysis)
-            return analysis, summary, detail
+            return analysis, summary, detail, context, artifacts
 
     def summarize_incident(self, request: IncidentSummaryRequest) -> tuple[str, str, str]:
         """Synthesize final RCA summary for a resolved incident.
@@ -194,6 +198,7 @@ def _build_incident_summary_prompt(request: IncidentSummaryRequest) -> str:
             "status": alert.status,
             "analysis_summary": alert.analysis_summary or "N/A",
             "analysis_detail": alert.analysis_detail or "N/A",
+            "artifacts": [artifact.model_dump() for artifact in alert.artifacts or []],
         }
         alerts_info.append(alert_data)
 
@@ -287,3 +292,42 @@ def _compact_summary(text: str, limit: int = 300) -> str:
     if len(summary) > limit:
         summary = summary[:limit].rstrip() + "..."
     return summary
+
+
+def _build_alert_artifacts(k8s_context: K8sContext) -> list[dict[str, object]]:
+    artifacts: list[dict[str, object]] = []
+
+    for event in k8s_context.events:
+        event_data = event.to_dict()
+        summary = " / ".join(
+            part
+            for part in [
+                event_data.get("reason"),
+                event_data.get("message"),
+            ]
+            if part
+        )
+        artifacts.append(
+            {
+                "type": "event",
+                "summary": summary or "k8s event",
+                "result": event_data,
+            }
+        )
+
+    for snippet in k8s_context.previous_logs:
+        logs = snippet.logs[:20]
+        artifacts.append(
+            {
+                "type": "log",
+                "summary": f"{snippet.container} logs ({len(logs)} lines)",
+                "result": {
+                    "container": snippet.container,
+                    "previous": snippet.previous,
+                    "error": snippet.error,
+                    "logs": logs,
+                },
+            }
+        )
+
+    return artifacts

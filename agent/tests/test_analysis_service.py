@@ -53,11 +53,13 @@ def test_analysis_service_fallback() -> None:
     )
     service = AnalysisService(FakeKubernetesClient(context), analysis_engine=None)
 
-    analysis, summary, detail = service.analyze(_sample_request())
+    analysis, summary, detail, context, artifacts = service.analyze(_sample_request())
 
     assert "analysis engine unavailable" in analysis
     assert summary
     assert detail
+    assert context
+    assert isinstance(artifacts, list)
 
 
 def test_analysis_service_uses_engine() -> None:
@@ -74,8 +76,10 @@ def test_analysis_service_uses_engine() -> None:
         analysis_engine=FakeAnalysisEngine("ok"),
     )
 
-    analysis, summary, detail = service.analyze(_sample_request())
+    analysis, summary, detail, context, artifacts = service.analyze(_sample_request())
 
     assert analysis == "ok"
     assert summary
     assert detail
+    assert context
+    assert isinstance(artifacts, list)

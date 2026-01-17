@@ -11,12 +11,21 @@ class AlertAnalysisRequest(BaseModel):
     incident_id: str | None = None
 
 
+class AlertAnalysisArtifact(BaseModel):
+    type: str
+    query: str | None = None
+    result: dict[str, object] | list[object] | str | None = None
+    summary: str | None = None
+
+
 class AlertAnalysisResponse(BaseModel):
     status: str
     thread_ts: str
     analysis: str
     analysis_summary: str | None = None
     analysis_detail: str | None = None
+    context: dict[str, object] | None = None
+    artifacts: list[AlertAnalysisArtifact] | None = None
 
 
 # Incident Summary schemas (for final RCA when incident is resolved)
@@ -27,6 +36,7 @@ class AlertSummaryInput(BaseModel):
     status: str
     analysis_summary: str | None = None
     analysis_detail: str | None = None
+    artifacts: list[AlertAnalysisArtifact] | None = None
 
 
 class IncidentSummaryRequest(BaseModel):
