@@ -99,7 +99,7 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 		// 8. Agent에 비동기 분석 요청 (firing, resolved)
 		// DB에서 thread_ts 조회 (메모리 대신 DB 사용)
 		threadTS, _ := s.db.GetAlertThreadTS(alert.Fingerprint)
-		go s.agentService.RequestAnalysis(alert, threadTS)
+		go s.agentService.RequestAnalysis(alert, threadTS, incidentID)
 	}
 	return sent, failed
 }

@@ -36,11 +36,13 @@ type AgentAnalysisRequest struct {
 
 // AgentAnalysisResponse 구조체 정의
 type AgentAnalysisResponse struct {
-	Status          string `json:"status"`
-	ThreadTS        string `json:"thread_ts"`
-	Analysis        string `json:"analysis"`
-	AnalysisSummary string `json:"analysis_summary"`
-	AnalysisDetail  string `json:"analysis_detail"`
+	Status          string                       `json:"status"`
+	ThreadTS        string                       `json:"thread_ts"`
+	Analysis        string                       `json:"analysis"`
+	AnalysisSummary string                       `json:"analysis_summary"`
+	AnalysisDetail  string                       `json:"analysis_detail"`
+	Context         json.RawMessage              `json:"context,omitempty"`
+	Artifacts       []AlertAnalysisArtifactInput `json:"artifacts,omitempty"`
 }
 
 // IncidentSummaryRequest - Incident 최종 분석 요청
@@ -55,12 +57,21 @@ type IncidentSummaryRequest struct {
 
 // AlertSummaryInput - 개별 Alert 분석 내용 (Agent에 전달)
 type AlertSummaryInput struct {
-	Fingerprint     string `json:"fingerprint"`
-	AlertName       string `json:"alert_name"`
-	Severity        string `json:"severity"`
-	Status          string `json:"status"`
-	AnalysisSummary string `json:"analysis_summary"`
-	AnalysisDetail  string `json:"analysis_detail"`
+	Fingerprint     string                       `json:"fingerprint"`
+	AlertName       string                       `json:"alert_name"`
+	Severity        string                       `json:"severity"`
+	Status          string                       `json:"status"`
+	AnalysisSummary string                       `json:"analysis_summary"`
+	AnalysisDetail  string                       `json:"analysis_detail"`
+	Artifacts       []AlertAnalysisArtifactInput `json:"artifacts,omitempty"`
+}
+
+// AlertAnalysisArtifactInput - 분석 근거 데이터(메트릭/이벤트/로그/PromQL)
+type AlertAnalysisArtifactInput struct {
+	Type    string          `json:"type"`
+	Query   string          `json:"query,omitempty"`
+	Result  json.RawMessage `json:"result,omitempty"`
+	Summary string          `json:"summary,omitempty"`
 }
 
 // IncidentSummaryResponse - Incident 최종 분석 응답
@@ -92,11 +103,11 @@ func (c *AgentClient) IsConfigured() bool {
 }
 
 // POST /analyze 분석 요청하고 분석 결과 반환 (동기)
-func (c *AgentClient) RequestAnalysis(alert model.Alert, threadTS string) (*AgentAnalysisResponse, error) {
+func (c *AgentClient) RequestAnalysis(alert model.Alert, threadTS, incidentID string) (*AgentAnalysisResponse, error) {
 	req := AgentAnalysisRequest{
 		Alert:      alert,
 		ThreadTS:   threadTS,
-		IncidentID: alert.Fingerprint,
+		IncidentID: incidentID,
 	}
 
 	payload, err := json.Marshal(req)

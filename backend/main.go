@@ -42,6 +42,11 @@ func main() {
 		log.Fatalf("Failed to ensure alert schema: %v", err)
 	}
 
+	// Alert 분석/근거 스키마 생성
+	if err := pgRepo.EnsureAlertAnalysisSchema(); err != nil {
+		log.Fatalf("Failed to ensure alert analysis schema: %v", err)
+	}
+
 	// Embedding 스키마 생성 (pgvector 확장 및 embeddings 테이블)
 	// todo: pgvector 확장 먼저 db에 설치해아함
 	if err := pgRepo.EnsureEmbeddingSchema(ctx); err != nil {
