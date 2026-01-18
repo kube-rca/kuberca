@@ -1,6 +1,7 @@
 아래 ERD는 현재 구현과 계획을 함께 표현합니다.
 - users/refresh_tokens: 구현 (AuthService에서 스키마 생성)
-- incidents/alerts/embeddings: 구현 (Incident-Alert 1:N 관계, 분석 결과, 임베딩)
+- incidents/alerts/embeddings: 구현 (Incident-Alert 1:N 관계, 분석 결과/임베딩, 숨김 처리, 유사 인시던트 JSONB)
+- alert_analyses/alert_analysis_artifacts: 구현 (Alert 분석 히스토리/근거 데이터)
 - strands_sessions/strands_agents/strands_messages: 구현 (Agent 세션 저장)
 - RCA_DOCUMENT: 계획
 
@@ -9,6 +10,9 @@ erDiagram
   USER ||--o{ REFRESH_TOKEN : issues
   INCIDENT ||--o{ ALERT : contains
   INCIDENT ||--o{ EMBEDDING : references
+  INCIDENT ||--o{ ALERT_ANALYSIS : records
+  ALERT ||--o{ ALERT_ANALYSIS : records
+  ALERT_ANALYSIS ||--o{ ALERT_ANALYSIS_ARTIFACT : includes
   INCIDENT ||--|| RCA_DOCUMENT : has
   STRANDS_SESSION ||--o{ STRANDS_AGENT : owns
   STRANDS_AGENT ||--o{ STRANDS_MESSAGE : stores
@@ -37,9 +41,11 @@ erDiagram
     string status
     datetime fired_at
     datetime resolved_at
+    string created_by
     string resolved_by
     text analysis_summary
     text analysis_detail
+    jsonb similar_incidents
     boolean is_enabled
     datetime created_at
     datetime updated_at
@@ -59,8 +65,34 @@ erDiagram
     string thread_ts
     jsonb labels
     jsonb annotations
+    boolean is_enabled
     datetime created_at
     datetime updated_at
+  }
+
+  ALERT_ANALYSIS {
+    bigint analysis_id PK
+    string alert_id FK
+    string incident_id FK
+    string status
+    text summary
+    text detail
+    jsonb context
+    string analysis_model
+    string analysis_version
+    datetime created_at
+  }
+
+  ALERT_ANALYSIS_ARTIFACT {
+    bigint artifact_id PK
+    bigint analysis_id FK
+    string alert_id FK
+    string incident_id FK
+    string artifact_type
+    text query
+    jsonb result
+    text summary
+    datetime created_at
   }
 
   EMBEDDING {

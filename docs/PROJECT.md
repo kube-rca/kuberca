@@ -8,13 +8,14 @@ LLM을 활용해 Root Cause Analysis(RCA)와 대응 가이드를 제공하는 �
 ## 현재 구현 범위(요약)
 
 - Backend: Alertmanager Webhook 수신 및 Slack 알림 전송(스레드 처리 포함)
-  - Auth(JWT + Refresh Cookie), Incident API, Embedding API, OpenAPI 제공
+  - Auth(JWT + Refresh Cookie), Incident/Alert/Embedding API, OpenAPI 제공
+  - Incident 숨김/복원 API(`/api/v1/incidents/hidden`, `/api/v1/incidents/:id/unhide`) 포함
 - Agent: FastAPI 기반 분석 API
   - K8s/Prometheus 컨텍스트 + Strands Agents(Gemini) 기반 분석
   - `GEMINI_API_KEY` 미설정 시 fallback 요약 반환
   - SESSION_DB 설정 시 Postgres 세션 저장
-- Frontend: 로그인/회원가입 + Incident 목록/상세 UI
-  - `/api/v1/auth/*`, `/api/v1/incidents*` 사용
+- Frontend: 로그인/회원가입 + Incident/Alert 목록/상세 + 숨김(뮤트) 인시던트 UI
+  - `/api/v1/auth/*`, `/api/v1/incidents*`, `/api/v1/alerts*`, `/api/v1/embeddings/search` 사용
 - Helm: backend/agent/frontend + OpenAPI UI(optional) 배포용 `kube-rca` 차트 포함
 - DB: PostgreSQL 연동(incident/auth/embeddings). Vector DB는 계획 단계
 
@@ -131,7 +132,7 @@ Prometheus/Alertmanager, Slack, 로그, 메트릭, 트레이스 데이터를 연
 
 ### 6.6 테스트 및 검증
 
-- Chaos Engineering(계획): AWS Fault Injection Service(FIS), Chaos Mesh
+- Chaos Engineering: Chaos Mesh 시나리오(구현), AWS Fault Injection Service(FIS)(계획)
 - Load Testing(계획): k6
 
 ## 7. 구현 방향성/계획

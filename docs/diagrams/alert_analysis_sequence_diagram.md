@@ -7,7 +7,7 @@ sequenceDiagram
   participant AG as Agent - 구현
   participant LLM as Gemini API - 구현
   participant DB as PostgreSQL + pgvector - 구현
-  participant SDB as Session DB - 구현
+  participant SDB as Session DB - 구현 옵션
   participant FE as Frontend - 구현
 
   Note over AM,BE: Alert 수신 및 Incident 연결
@@ -24,11 +24,17 @@ sequenceDiagram
 
   Note over BE,AG: 개별 Alert 실시간 분석
   BE->>AG: POST /analyze - goroutine 비동기
-  AG->>SDB: 세션 조회 및 저장
+  opt 세션 저장 활성화
+    AG->>SDB: 세션 조회 및 저장
+  end
   AG->>LLM: LLM 분석
   LLM-->>AG: 분석 결과
   AG-->>BE: 분석 결과
   BE->>DB: alerts.analysis_summary/detail 업데이트
+  BE->>DB: alert_analyses 저장
+  opt artifacts 있음
+    BE->>DB: alert_analysis_artifacts 저장
+  end
   BE->>SL: 분석 결과 스레드 전송
 
   Note over FE,BE: Incident 종료 및 최종 분석

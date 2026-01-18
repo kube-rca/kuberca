@@ -10,14 +10,14 @@ flowchart LR
   %% Internal
   subgraph Core[" "]
     direction TB
-    FE[Frontend UI - 구현: auth + incidents + alerts + embedding search]
-    BE[Backend API - 구현: webhook + auth + incidents + alerts + embedding]
+    FE[Frontend UI - 구현: auth + incidents + alerts + embedding search + muted]
+    BE[Backend API - 구현: webhook + auth + incidents + alerts + embedding + hidden]
   end
   style Core fill:transparent,stroke:transparent
 
   AG[Agent API - 구현: Strands + K8s + summarize]
-  PG[(PostgreSQL + pgvector - 구현: incidents/alerts/auth/embeddings)]
-  SDB[(Session DB - 구현)]
+  PG[(PostgreSQL + pgvector - 구현: incidents/alerts/auth/embeddings/alert_analyses/artifacts)]
+  SDB[(Session DB - 구현 옵션)]
 
   AM -->|Webhook alert| BE
   BE -->|Slack 알림 전송| SL
