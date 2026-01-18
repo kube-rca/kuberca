@@ -118,10 +118,10 @@ Deploy kube-rca backend and frontend
 | frontend.service.type | string | `"ClusterIP"` | Frontend service type. |
 | frontend.tolerations | list | `[]` | Tolerations for frontend pods assignment. |
 | fullnameOverride | string | `""` | Override the full name of the release. |
-| hooks.enabled | bool | `true` | Enable Helm hooks for deployment ordering. |
-| hooks.waitForAgent.enabled | bool | `true` | Enable wait-for-agent post-install hook. |
+| hooks.enabled | bool | `true` | Enable Helm hooks for readiness checks. |
+| hooks.waitForAgent.enabled | bool | `false` | Enable wait-for-agent post-install hook (optional). |
 | hooks.waitForAgent.healthPath | string | `"/healthz"` | Agent health check path. |
-| hooks.waitForBackend.enabled | bool | `true` | Enable wait-for-backend post-install hook. |
+| hooks.waitForBackend.enabled | bool | `false` | Enable wait-for-backend post-install hook (optional). |
 | hooks.waitForBackend.healthPath | string | `"/ping"` | Backend health check path. |
 | hooks.waitForDb.enabled | bool | `true` | Enable wait-for-db pre-install hook. |
 | hooks.waitJob.activeDeadlineSeconds | int | `300` | Maximum time for the job to complete. |

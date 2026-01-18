@@ -6,10 +6,10 @@ nameOverride: ""
 # -- Override the full name of the release.
 fullnameOverride: ""
 
-# Helm Hook configuration for deployment ordering.
-# Ensures: DB → backend → agent + frontend → openapi
+# Helm Hook configuration for readiness checks.
+# Default: wait for DB only.
 hooks:
-  # -- Enable Helm hooks for deployment ordering.
+  # -- Enable Helm hooks for readiness checks.
   enabled: true
   waitJob:
     image:
@@ -38,13 +38,13 @@ hooks:
     # -- Enable wait-for-db pre-install hook.
     enabled: true
   waitForBackend:
-    # -- Enable wait-for-backend post-install hook.
-    enabled: true
+    # -- Enable wait-for-backend post-install hook (optional).
+    enabled: false
     # -- Backend health check path.
     healthPath: "/ping"
   waitForAgent:
-    # -- Enable wait-for-agent post-install hook.
-    enabled: true
+    # -- Enable wait-for-agent post-install hook (optional).
+    enabled: false
     # -- Agent health check path.
     healthPath: "/healthz"
 
