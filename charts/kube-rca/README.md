@@ -48,6 +48,10 @@ Deploy kube-rca backend and frontend
 | agent.sessionDB.user | string | `""` | PostgreSQL user. |
 | agent.tolerations | list | `[]` | Tolerations for agent pods assignment. |
 | agent.workers | int | `1` | Uvicorn worker count (WEB_CONCURRENCY). |
+| argocd.syncWaves.agent | string | `"2"` |  |
+| argocd.syncWaves.backend | string | `"1"` |  |
+| argocd.syncWaves.frontend | string | `"2"` |  |
+| argocd.syncWaves.openapi | string | `"3"` |  |
 | backend.affinity | object | `{}` | Affinity for backend pods assignment. |
 | backend.auth.admin.password | string | `"kube-rca"` | Admin password (default: kube-rca). |
 | backend.auth.admin.username | string | `"kube-rca"` | Admin login ID (default: kube-rca). |
@@ -118,12 +122,16 @@ Deploy kube-rca backend and frontend
 | frontend.service.type | string | `"ClusterIP"` | Frontend service type. |
 | frontend.tolerations | list | `[]` | Tolerations for frontend pods assignment. |
 | fullnameOverride | string | `""` | Override the full name of the release. |
-| hooks.enabled | bool | `true` | Enable Helm hooks for deployment ordering. |
+| hooks.enabled | bool | `true` | Enable Helm hooks for readiness ordering. |
 | hooks.waitForAgent.enabled | bool | `true` | Enable wait-for-agent post-install hook. |
 | hooks.waitForAgent.healthPath | string | `"/healthz"` | Agent health check path. |
 | hooks.waitForBackend.enabled | bool | `true` | Enable wait-for-backend post-install hook. |
 | hooks.waitForBackend.healthPath | string | `"/ping"` | Backend health check path. |
 | hooks.waitForDb.enabled | bool | `true` | Enable wait-for-db pre-install hook. |
+| hooks.waitForFrontend.enabled | bool | `true` | Enable wait-for-frontend post-install hook. |
+| hooks.waitForFrontend.healthPath | string | `"/"` | Frontend health check path. |
+| hooks.waitForOpenapi.enabled | bool | `true` | Enable wait-for-openapi post-install hook. |
+| hooks.waitForOpenapi.healthPath | string | `"/"` | OpenAPI health check path. |
 | hooks.waitJob.activeDeadlineSeconds | int | `300` | Maximum time for the job to complete. |
 | hooks.waitJob.backoffLimit | int | `6` | Number of retries before giving up. |
 | hooks.waitJob.checkInterval | int | `5` | Interval between connection checks (seconds). |

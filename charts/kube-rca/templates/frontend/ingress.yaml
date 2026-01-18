@@ -13,10 +13,12 @@ metadata:
   name: {{ printf "%s-ingress" (include "kube-rca.frontend.name" .) | trunc 63 | trimSuffix "-" }}
   labels:
     {{- include "kube-rca.frontend.labels" . | nindent 4 }}
-{{- with $ingress.annotations }}
+  {{- $baseAnnotations := default (dict) $ingress.annotations }}
+  {{- $annotations := include "kube-rca.annotations" (dict "root" $ "component" "frontend" "annotations" $baseAnnotations) | trim }}
+  {{- if $annotations }}
   annotations:
-    {{- toYaml . | nindent 4 }}
-{{- end }}
+{{ $annotations | nindent 4 }}
+  {{- end }}
 spec:
 {{- with $ingress.ingressClassName }}
   ingressClassName: {{ . | quote }}

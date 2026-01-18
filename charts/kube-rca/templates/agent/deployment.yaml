@@ -4,6 +4,11 @@ metadata:
   name: {{ include "kube-rca.agent.name" . }}
   labels:
     {{- include "kube-rca.agent.labels" . | nindent 4 }}
+  {{- $annotations := include "kube-rca.annotations" (dict "root" $ "component" "agent" "annotations" (dict)) | trim }}
+  {{- if $annotations }}
+  annotations:
+{{ $annotations | nindent 4 }}
+  {{- end }}
 spec:
   replicas: {{ .Values.agent.replicaCount }}
   selector:
