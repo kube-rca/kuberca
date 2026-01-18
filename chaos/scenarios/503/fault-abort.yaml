@@ -1,10 +1,10 @@
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
-  name: productpage-fault-abort
+  name: ratings-fault-abort
 spec:
   hosts:
-  - productpage
+  - ratings
   http:
   - fault:
       abort:
@@ -13,6 +13,6 @@ spec:
         httpStatus: 503
     route:
     - destination:
-        host: productpage
+        host: ratings
         port:
           number: 9080

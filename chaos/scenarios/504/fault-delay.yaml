@@ -1,10 +1,10 @@
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
-  name: ratings-fault-delay
+  name: reviews-fault-delay
 spec:
   hosts:
-  - ratings
+  - reviews
   http:
   - fault:
       delay:
@@ -13,6 +13,6 @@ spec:
         fixedDelay: 15s
     route:
     - destination:
-        host: ratings
+        host: reviews
         port:
           number: 9080

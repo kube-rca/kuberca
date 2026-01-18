@@ -121,11 +121,11 @@ case "$SCENARIO" in
     ;;
   503)
     CHAOS_MANIFEST="${SCENARIOS_DIR}/503/fault-abort.yaml"
-    LABEL_SELECTOR="app=productpage"
+    LABEL_SELECTOR="app=ratings"
     ;;
   504)
     CHAOS_MANIFEST="${SCENARIOS_DIR}/504/fault-delay.yaml"
-    LABEL_SELECTOR="app=ratings"
+    LABEL_SELECTOR="app=reviews"
     ;;
   *)
     log_error "unknown scenario: $SCENARIO"
