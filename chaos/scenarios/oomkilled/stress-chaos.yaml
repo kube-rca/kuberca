@@ -1,12 +1,12 @@
 apiVersion: chaos-mesh.org/v1alpha1
 kind: StressChaos
 metadata:
-  name: chaos-oom-stress
+  name: reviews-oom-stress
 spec:
   mode: one
   selector:
     labelSelectors:
-      app: adservice
+      app: reviews
   stressors:
     memory:
       workers: 1

@@ -1,18 +1,18 @@
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
-  name: ratings-fault-delay
+  name: details-fault-abort
 spec:
   hosts:
-  - ratings
+  - details
   http:
   - fault:
-      delay:
+      abort:
         percentage:
           value: 100
-        fixedDelay: 15s
+        httpStatus: 500
     route:
     - destination:
-        host: ratings
+        host: details
         port:
           number: 9080

@@ -1,13 +1,13 @@
 apiVersion: chaos-mesh.org/v1alpha1
 kind: NetworkChaos
 metadata:
-  name: redis-cart-network-delay
+  name: ratings-network-delay
 spec:
   action: delay
   mode: one
   selector:
     labelSelectors:
-      app: redis-cart
+      app: ratings
   delay:
     latency: "3s"
     correlation: "100"

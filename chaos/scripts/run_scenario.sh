@@ -12,12 +12,13 @@ Scenarios:
   oomkilled     Apply StressChaos to trigger OOMKilled
   crashloop     Create a crashlooping deployment
   imagepull     Create a deployment with invalid image
-  networkdelay  Add network delay to redis-cart
+  networkdelay  Add network delay to ratings
+  500           Istio fault injection: 500 Internal Server Error
   503           Istio fault injection: 503 Service Unavailable
   504           Istio fault injection: 504 Gateway Timeout
 
 Environment:
-  NAMESPACE              Target namespace (default: microservices-demo)
+  NAMESPACE              Target namespace (default: bookinfo)
   KUBE_CONTEXT           Kubernetes context (optional)
   WAIT_SECONDS           Wait timeout (default: 120)
   POLL_INTERVAL_SECONDS  Poll interval (default: 3)
@@ -41,7 +42,7 @@ log_ok() { printf "[OK] %s\n" "$*"; }
 log_warn() { printf "[WARN] %s\n" "$*" >&2; }
 log_error() { printf "[ERROR] %s\n" "$*" >&2; }
 
-DEFAULT_NAMESPACE="microservices-demo"
+DEFAULT_NAMESPACE="bookinfo"
 
 require_cmd() {
   local cmd=$1
@@ -95,7 +96,7 @@ REASON_MODE="waiting"
 case "$SCENARIO" in
   oomkilled)
     CHAOS_MANIFEST="${SCENARIOS_DIR}/oomkilled/stress-chaos.yaml"
-    LABEL_SELECTOR="app=adservice"
+    LABEL_SELECTOR="app=reviews"
     EXPECTED_REASON="OOMKilled"
     REASON_MODE="oom"
     ;;
@@ -112,15 +113,19 @@ case "$SCENARIO" in
     ;;
   networkdelay)
     CHAOS_MANIFEST="${SCENARIOS_DIR}/networkdelay/network-delay.yaml"
-    LABEL_SELECTOR="app=redis-cart"
+    LABEL_SELECTOR="app=ratings"
+    ;;
+  500)
+    CHAOS_MANIFEST="${SCENARIOS_DIR}/500/fault-abort.yaml"
+    LABEL_SELECTOR="app=details"
     ;;
   503)
     CHAOS_MANIFEST="${SCENARIOS_DIR}/503/fault-abort.yaml"
-    LABEL_SELECTOR="app in (frontend,frontend-external,paymentservice,productcatalogservice)"
+    LABEL_SELECTOR="app=productpage"
     ;;
   504)
     CHAOS_MANIFEST="${SCENARIOS_DIR}/504/fault-delay.yaml"
-    LABEL_SELECTOR="app in (adservice,cartservice,checkoutservice,currencyservice)"
+    LABEL_SELECTOR="app=ratings"
     ;;
   *)
     log_error "unknown scenario: $SCENARIO"

@@ -1,10 +1,10 @@
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
-  name: frontend-fault-abort
+  name: productpage-fault-abort
 spec:
   hosts:
-  - frontend
+  - productpage
   http:
   - fault:
       abort:
@@ -13,55 +13,6 @@ spec:
         httpStatus: 503
     route:
     - destination:
-        host: frontend
----
-apiVersion: networking.istio.io/v1beta1
-kind: VirtualService
-metadata:
-  name: frontend-external-fault-abort
-spec:
-  hosts:
-  - frontend-external
-  http:
-  - fault:
-      abort:
-        percentage:
-          value: 100
-        httpStatus: 503
-    route:
-    - destination:
-        host: frontend-external
----
-apiVersion: networking.istio.io/v1beta1
-kind: VirtualService
-metadata:
-  name: paymentservice-fault-abort
-spec:
-  hosts:
-  - paymentservice
-  http:
-  - fault:
-      abort:
-        percentage:
-          value: 100
-        httpStatus: 503
-    route:
-    - destination:
-        host: paymentservice
----
-apiVersion: networking.istio.io/v1beta1
-kind: VirtualService
-metadata:
-  name: productcatalogservice-fault-abort
-spec:
-  hosts:
-  - productcatalogservice
-  http:
-  - fault:
-      abort:
-        percentage:
-          value: 100
-        httpStatus: 503
-    route:
-    - destination:
-        host: productcatalogservice
+        host: productpage
+        port:
+          number: 9080

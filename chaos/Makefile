@@ -1,6 +1,6 @@
-.PHONY: help incident oomkilled crashloop imagepull networkdelay 503 504
+.PHONY: help incident oomkilled crashloop imagepull networkdelay 500 503 504
 
-NAMESPACE ?= microservices-demo
+NAMESPACE ?= bookinfo
 KUBE_CONTEXT ?=
 WAIT_SECONDS ?= 120
 POLL_INTERVAL_SECONDS ?= 3
@@ -37,6 +37,13 @@ networkdelay: ## Run Network delay scenario (Chaos Mesh)
 	WAIT_SECONDS="$(WAIT_SECONDS)" \
 	POLL_INTERVAL_SECONDS="$(POLL_INTERVAL_SECONDS)" \
 	./scripts/run-networkdelay.sh
+
+500: ## Run 500 Internal Server Error scenario (Istio fault injection)
+	@NAMESPACE="$(NAMESPACE)" \
+	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
+	WAIT_SECONDS="$(WAIT_SECONDS)" \
+	POLL_INTERVAL_SECONDS="$(POLL_INTERVAL_SECONDS)" \
+	./scripts/run-500.sh
 
 503: ## Run 503 Service Unavailable scenario (Istio fault injection)
 	@NAMESPACE="$(NAMESPACE)" \
