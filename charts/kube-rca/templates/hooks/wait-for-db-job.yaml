@@ -21,7 +21,6 @@ spec:
         app.kubernetes.io/name: {{ include "kube-rca.fullname" . }}-wait-for-db
         {{- include "kube-rca.hook.labels" . | nindent 8 }}
     spec:
-      automountServiceAccountToken: false
       restartPolicy: Never
       containers:
         - name: wait-for-db

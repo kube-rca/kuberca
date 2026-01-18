@@ -4,11 +4,6 @@ metadata:
   name: {{ include "kube-rca.agent.name" . }}-config
   labels:
     {{- include "kube-rca.agent.labels" . | nindent 4 }}
-  {{- $annotations := include "kube-rca.annotations" (dict "root" $ "component" "agent" "annotations" (dict)) | trim }}
-  {{- if $annotations }}
-  annotations:
-{{ $annotations | nindent 4 }}
-  {{- end }}
 data:
   agent-config.yaml: |
     logLevel: "info"

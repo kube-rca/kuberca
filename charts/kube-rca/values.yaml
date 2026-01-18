@@ -6,10 +6,10 @@ nameOverride: ""
 # -- Override the full name of the release.
 fullnameOverride: ""
 
-# Helm Hook configuration for deployment readiness ordering.
-# Default order: DB → backend → frontend/agent → openapi
+# Helm Hook configuration for deployment ordering.
+# Ensures: DB → backend → agent + frontend → openapi
 hooks:
-  # -- Enable Helm hooks for readiness ordering.
+  # -- Enable Helm hooks for deployment ordering.
   enabled: true
   waitJob:
     image:
@@ -47,24 +47,6 @@ hooks:
     enabled: true
     # -- Agent health check path.
     healthPath: "/healthz"
-  waitForFrontend:
-    # -- Enable wait-for-frontend post-install hook.
-    enabled: true
-    # -- Frontend health check path.
-    healthPath: "/"
-  waitForOpenapi:
-    # -- Enable wait-for-openapi post-install hook.
-    enabled: true
-    # -- OpenAPI health check path.
-    healthPath: "/"
-
-# Argo CD sync-wave ordering for resource creation.
-argocd:
-  syncWaves:
-    backend: "1"
-    frontend: "2"
-    agent: "2"
-    openapi: "3"
 
 backend:
   # -- Number of backend replicas.

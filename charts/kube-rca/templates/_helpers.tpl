@@ -165,25 +165,6 @@ app.kubernetes.io/component: hook
 {{- end -}}
 
 {{/*
-Merge annotations with optional ArgoCD sync-wave.
-*/}}
-{{- define "kube-rca.annotations" -}}
-{{- $root := .root -}}
-{{- $component := .component -}}
-{{- $base := default (dict) .annotations -}}
-{{- $merged := deepCopy $base -}}
-{{- $argocd := default (dict) $root.Values.argocd -}}
-{{- $waves := default (dict) $argocd.syncWaves -}}
-{{- $wave := index $waves $component | default "" -}}
-{{- if $wave }}
-{{- $_ := set $merged "argocd.argoproj.io/sync-wave" (printf "%v" $wave) -}}
-{{- end }}
-{{- if $merged }}
-{{- toYaml $merged }}
-{{- end -}}
-{{- end -}}
-
-{{/*
 Wait job image.
 */}}
 {{- define "kube-rca.hook.waitJob.image" -}}
@@ -245,26 +226,4 @@ Agent service endpoint for wait-for-agent.
 
 {{- define "kube-rca.hook.agent.port" -}}
 {{- default 8000 .Values.agent.service.port -}}
-{{- end -}}
-
-{{/*
-Frontend service endpoint for wait-for-frontend.
-*/}}
-{{- define "kube-rca.hook.frontend.host" -}}
-{{- include "kube-rca.frontend.name" . -}}
-{{- end -}}
-
-{{- define "kube-rca.hook.frontend.port" -}}
-{{- default 80 .Values.frontend.service.port -}}
-{{- end -}}
-
-{{/*
-OpenAPI service endpoint for wait-for-openapi.
-*/}}
-{{- define "kube-rca.hook.openapi.host" -}}
-{{- include "kube-rca.openapi.name" . -}}
-{{- end -}}
-
-{{- define "kube-rca.hook.openapi.port" -}}
-{{- default 8080 .Values.openapi.service.port -}}
 {{- end -}}

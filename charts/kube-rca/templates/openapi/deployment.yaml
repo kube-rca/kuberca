@@ -6,11 +6,6 @@ metadata:
   name: {{ include "kube-rca.openapi.name" . }}
   labels:
     {{- include "kube-rca.openapi.labels" . | nindent 4 }}
-  {{- $annotations := include "kube-rca.annotations" (dict "root" $ "component" "openapi" "annotations" (dict)) | trim }}
-  {{- if $annotations }}
-  annotations:
-{{ $annotations | nindent 4 }}
-  {{- end }}
 spec:
   replicas: {{ .Values.openapi.replicaCount }}
   selector:

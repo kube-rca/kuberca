@@ -4,11 +4,6 @@ metadata:
   name: {{ include "kube-rca.backend.name" . }}
   labels:
     {{- include "kube-rca.backend.labels" . | nindent 4 }}
-  {{- $annotations := include "kube-rca.annotations" (dict "root" $ "component" "backend" "annotations" (dict)) | trim }}
-  {{- if $annotations }}
-  annotations:
-{{ $annotations | nindent 4 }}
-  {{- end }}
 spec:
   replicas: {{ .Values.backend.replicaCount }}
   selector:
