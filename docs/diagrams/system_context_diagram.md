@@ -1,23 +1,23 @@
 ```mermaid
 flowchart LR
   %% External
-  AM[Alertmanager - 구현]
-  SL[Slack - 구현]
-  LLM[Gemini API - 구현]
-  PR[Prometheus - 구현]
-  K8S[Kubernetes API - 구현]
+  AM[Alertmanager]
+  SL[Slack]
+  LLM[Gemini API]
+  PR[Prometheus]
+  K8S[Kubernetes API]
 
   %% Internal
   subgraph Core[" "]
     direction TB
-    FE[Frontend UI - 구현: auth + incidents + alerts + embedding search + muted]
-    BE[Backend API - 구현: webhook + auth + incidents + alerts + embedding + hidden]
+    FE[Frontend UI: auth + incidents + alerts + embedding search + muted]
+    BE[Backend API: webhook + auth + incidents + alerts + embedding + hidden]
   end
   style Core fill:transparent,stroke:transparent
 
-  AG[Agent API - 구현: Strands + K8s + summarize]
-  PG[(PostgreSQL + pgvector - 구현: incidents/alerts/auth/embeddings/alert_analyses/artifacts)]
-  SDB[(Session DB - 구현 옵션)]
+  AG[Agent API: Strands + K8s + summarize]
+  PG[(PostgreSQL + pgvector: incidents/alerts/auth/embeddings/alert_analyses/artifacts)]
+  SDB[(Session DB)]
 
   AM -->|Webhook alert| BE
   BE -->|Slack 알림 전송| SL

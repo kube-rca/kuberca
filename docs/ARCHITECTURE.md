@@ -1,9 +1,8 @@
-# KubeRCA 현재 아키텍처(as-is)
+# KubeRCA 아키텍처
 
-이 문서는 현재 구현된 런타임 흐름을 요약합니다. 목표(to-be) 아키텍처는
-`diagrams/`를 참고합니다.
+이 문서는 런타임 흐름을 요약합니다. 상세 아키텍처는 `diagrams/`를 참고합니다.
 
-## 런타임 흐름(현재)
+## 런타임 흐름
 
 ### Alert 수신 및 Incident 연결
 1. Alertmanager가 `POST /webhook/alertmanager`로 Backend에 알림을 전달합니다.
@@ -34,7 +33,7 @@
 13. Frontend는 인증 초기화를 위해 `/api/v1/auth/config` 및 `/api/v1/auth/refresh`를 호출합니다.
 14. 인증 후 Frontend는 Incident/Alert 목록 및 상세를 조회하고 수정합니다.
 
-## 구성 요소(현재 구현)
+## 구성 요소
 
 - Backend (Gin, 기본 포트 `:8080`)
   - `GET /ping`, `GET /`, `GET /openapi.json`
@@ -63,7 +62,3 @@
   - incidents/alerts/auth/embeddings 저장소 (auth 스키마는 런타임에서 생성)
   - pgvector로 cosine similarity 기반 유사 인시던트 검색
 
-## 미구현/계획
-
-- LLM 기반 대응 가이드 자동 생성 고도화
-- 멀티 테넌트/멀티 클러스터 확장 기능

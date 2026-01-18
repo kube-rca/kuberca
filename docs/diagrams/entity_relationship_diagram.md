@@ -1,10 +1,3 @@
-아래 ERD는 현재 구현과 계획을 함께 표현합니다.
-- users/refresh_tokens: 구현 (AuthService에서 스키마 생성)
-- incidents/alerts/embeddings: 구현 (Incident-Alert 1:N 관계, 분석 결과/임베딩, 숨김 처리, 유사 인시던트 JSONB)
-- alert_analyses/alert_analysis_artifacts: 구현 (Alert 분석 히스토리/근거 데이터)
-- strands_sessions/strands_agents/strands_messages: 구현 (Agent 세션 저장)
-- RCA_DOCUMENT: 계획
-
 ```mermaid
 erDiagram
   USER ||--o{ REFRESH_TOKEN : issues

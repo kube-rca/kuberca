@@ -2,12 +2,12 @@
 sequenceDiagram
   autonumber
   participant AM as Alertmanager
-  participant BE as Backend - 구현
+  participant BE as Backend
   participant SL as Slack
-  participant AG as Agent - 구현
-  participant LLM as Gemini API - 구현
-  participant DB as PostgreSQL + pgvector - 구현
-  participant SDB as Session DB - 구현 옵션
+  participant AG as Agent
+  participant LLM as Gemini API
+  participant DB as PostgreSQL + pgvector
+  participant SDB as Session DB
 
   Note over AM,BE: Alert 수신 및 Incident 연결
   AM->>BE: Webhook alert

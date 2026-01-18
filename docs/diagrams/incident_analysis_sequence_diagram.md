@@ -1,11 +1,11 @@
 ```mermaid
 sequenceDiagram
   autonumber
-  participant FE as Frontend - 구현
-  participant BE as Backend - 구현
-  participant AG as Agent - 구현
-  participant LLM as Gemini API - 구현
-  participant DB as PostgreSQL + pgvector - 구현
+  participant FE as Frontend
+  participant BE as Backend
+  participant AG as Agent
+  participant LLM as Gemini API
+  participant DB as PostgreSQL + pgvector
 
   Note over FE,BE: Incident 종료 및 최종 분석
   FE->>BE: POST /api/v1/incidents/:id/resolve
@@ -18,7 +18,7 @@ sequenceDiagram
   BE->>LLM: 임베딩 생성 - text-embedding-004
   BE->>DB: embeddings 테이블 저장
 
-  Note over FE,DB: 유사 인시던트 검색 - 구현
+  Note over FE,DB: 유사 인시던트 검색
   FE->>BE: POST /api/v1/embeddings/search
   BE->>LLM: 쿼리 임베딩 생성
   BE->>DB: pgvector cosine similarity 검색

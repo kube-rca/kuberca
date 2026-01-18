@@ -5,7 +5,7 @@ LLM을 활용해 Root Cause Analysis(RCA)와 대응 가이드를 제공하는 �
 
 > 참고: 현재 리포지토리의 Helm 차트/리소스 식별자는 호환성을 위해 `kube-rca`를 사용합니다.
 
-## 현재 구현 범위(요약)
+## 주요 기능
 
 - Backend: Alertmanager Webhook 수신 및 Slack 알림 전송(스레드 처리 포함)
   - Auth(JWT + Refresh Cookie), Incident/Alert/Embedding API, OpenAPI 제공
@@ -16,10 +16,10 @@ LLM을 활용해 Root Cause Analysis(RCA)와 대응 가이드를 제공하는 �
   - SESSION_DB 설정 시 Postgres 세션 저장
 - Frontend: 로그인/회원가입 + Incident/Alert 목록/상세 + 숨김(뮤트) 인시던트 UI
   - `/api/v1/auth/*`, `/api/v1/incidents*`, `/api/v1/alerts*`, `/api/v1/embeddings/search` 사용
-- Helm: backend/agent/frontend + OpenAPI UI(optional) 배포용 `kube-rca` 차트 포함
-- DB: PostgreSQL 연동(incident/auth/embeddings). Vector DB는 계획 단계
+- Helm: backend/agent/frontend + OpenAPI UI 배포용 `kube-rca` 차트 포함
+- DB: PostgreSQL 연동(incident/auth/embeddings).
 
-구체적인 런타임 흐름(as-is)은 `ARCHITECTURE.md`, 목표(to-be)는 `diagrams/`를 참고합니다.
+상세 아키텍처와 런타임 흐름은 `ARCHITECTURE.md` 및 `diagrams/`를 참고합니다.
 
 ## 1. 프로젝트 배경
 
@@ -47,9 +47,7 @@ KubeRCA – AI 기반 Kubernetes 인시던트 알람 분석 및 RCA + 대응 가
 Prometheus/Alertmanager, Slack, 로그, 메트릭, 트레이스 데이터를 연동하여 장애 발생 시
 관련 정보를 수집하고, LLM을 활용해 원인 분석과 대응 가이드를 제공하는 것을 목표로 합니다.
 
-## 3. Core Workflow(목표, to-be)
-
-현재 구현 범위는 `ARCHITECTURE.md`를 참고합니다.
+## 3. Core Workflow
 
 1. 알람 수신 시 관련 로그, 메트릭, 이벤트를 자동 수집
 2. LLM 분석을 통해 장애 원인 후보와 추론 근거 생성
@@ -70,8 +68,8 @@ Prometheus/Alertmanager, Slack, 로그, 메트릭, 트레이스 데이터를 연
 
 ### 4.3 과거 장애 이력 기반 대응 가이드 제공
 
-- Vector DB를 활용해 유사 인시던트 Top 5 검색(계획)
-- 당시 실행했던 대응 절차와 최종 RCA 자료를 기반으로 대응 가이드 제공(계획)
+- Vector DB를 활용해 유사 인시던트 Top 5 검색
+- 당시 실행했던 대응 절차와 최종 RCA 자료를 기반으로 대응 가이드 제공
 
 ### 4.4 장애 지식의 자산화 및 온보딩 단축
 
@@ -96,13 +94,13 @@ Prometheus/Alertmanager, Slack, 로그, 메트릭, 트레이스 데이터를 연
 - 반복적인 수동 로그 검색/대조 작업을 자동화하여 운영 부담 감소
 - 일관된 RCA 포맷 및 대응 체크리스트로 대응 품질의 편차를 줄임
 
-## 6. 기술 스택(현재/계획)
+## 6. 기술 스택
 
 ### 6.1 인프라 / IaC
 
 - IaC: Terraform(리포지토리 포함)
 - Packaging/Deploy: Helm(리포지토리 포함)
-- Kubernetes: AWS EKS(목표)
+- Kubernetes: AWS EKS
 
 ### 6.2 Observability(연동/확장)
 
@@ -110,32 +108,32 @@ Prometheus/Alertmanager, Slack, 로그, 메트릭, 트레이스 데이터를 연
 - Visualization: Grafana(kube-prometheus-stack 차트 포함)
 - Collector: Grafana Alloy(차트 포함)
 - Logs: Loki(차트 포함)
-- Metrics/Traces 확장: Grafana Mimir, Tempo(계획)
+- Metrics/Traces 확장: Grafana Mimir, Tempo
 
 ### 6.3 알람 및 인터페이스
 
-- Alertmanager Webhook → Backend(구현)
-- Slack App/Bot(구현: Bot Token 기반 메시지 전송, Slash Command는 계획)
+- Alertmanager Webhook → Backend
+- Slack App/Bot(Bot Token 기반 메시지 전송, Slash Command)
 
 ### 6.4 애플리케이션
 
-- Backend: Go + Gin(구현, Auth/Incident/Embedding API)
-- Agent: Python + FastAPI(구현, Strands Agents 기반 분석)
-- Frontend: React + TypeScript + Vite + Tailwind CSS(구현, 인증 UI 포함)
+- Backend: Go + Gin(Auth/Incident/Embedding API)
+- Agent: Python + FastAPI(Strands Agents 기반 분석)
+- Frontend: React + TypeScript + Vite + Tailwind CSS(인증 UI 포함)
 
 ### 6.5 데이터베이스 / AI
 
-- PostgreSQL + pgvector(구현: incident/auth/embeddings)
-- Agent 세션 저장소(PostgreSQL, 구현 옵션)
-- LLM API(Gemini, Strands Agents/Embeddings)(구현)
-- Vector DB(계획): 유사 인시던트 검색
+- PostgreSQL + pgvector(incident/auth/embeddings)
+- Agent 세션 저장소(PostgreSQL)
+- LLM API(Gemini, Strands Agents/Embeddings)
+- Vector DB: 유사 인시던트 검색
 
 ### 6.6 테스트 및 검증
 
-- Chaos Engineering: Chaos Mesh 시나리오(구현), AWS Fault Injection Service(FIS)(계획)
-- Load Testing(계획): k6
+- Chaos Engineering: Chaos Mesh 시나리오, AWS Fault Injection Service(FIS)
+- Load Testing: k6
 
-## 7. 구현 방향성/계획
+## 7. 구현 방향성
 
 ### 7.1 기본 인프라 및 모니터링 환경 구축
 
@@ -156,7 +154,7 @@ Prometheus/Alertmanager, Slack, 로그, 메트릭, 트레이스 데이터를 연
 ### 7.4 Frontend 및 Slack 통합 UX
 
 - 인시던트 목록/상세, RCA 결과, 유사 이력, 재발 방지 액션 화면 제공
-- Slack 스레드에 RCA 요약/가이드 자동 포스팅 및 Slash Command 제공(계획)
+- Slack 스레드에 RCA 요약/가이드 자동 포스팅 및 Slash Command 제공
 
 ### 7.5 Chaos/Load 테스트로 데이터셋 확보 및 검증
 
