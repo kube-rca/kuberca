@@ -314,7 +314,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
 
         <div className="md:col-span-2">
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
-            📋 Alert Summary
+            📋 Incident Summary
           </h3>
           
           {isEditing ? (
@@ -350,7 +350,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
 
         <div className="md:col-span-2">
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
-            📝 Alert Analysis
+            📝 Incident Analysis
           </h3>
 
           {isEditing ? (
