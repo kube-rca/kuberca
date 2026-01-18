@@ -11,7 +11,7 @@ and generating alerts.
 
 ## Layout
 
-- `scenarios/oomkilled/`: OOMKilled scenario (StressChaos targeting reviews).
+- `scenarios/oomkilled/`: OOMKilled scenario (StressChaos targeting a dedicated OOM deployment).
 - `scenarios/crashloop/`: CrashLoopBackOff scenario (target deployment).
 - `scenarios/imagepull/`: ImagePullBackOff scenario (target deployment).
 - `scenarios/networkdelay/`: Network delay scenario (NetworkChaos targeting ratings).
@@ -23,7 +23,7 @@ and generating alerts.
 - `scripts/agent/`: Agent analyze test helpers.
 
 All scenarios run in `bookinfo` by default. OOMKilled uses Chaos Mesh and
-targets the `reviews` workload. Network delay uses Chaos Mesh and targets the
+targets the `chaos-oom-target` workload with memory limits. Network delay uses Chaos Mesh and targets the
 `ratings` workload. CrashLoopBackOff and ImagePullBackOff use plain
 deployments for deterministic failure states. 500/503/504 scenarios use Istio
 VirtualService fault injection. 500 aborts return 500 for details. 503 aborts

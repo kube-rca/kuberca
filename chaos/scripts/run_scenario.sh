@@ -95,21 +95,25 @@ REASON_MODE="waiting"
 
 case "$SCENARIO" in
   oomkilled)
+    TARGET_MANIFEST="${SCENARIOS_DIR}/oomkilled/target-deployment.yaml"
     CHAOS_MANIFEST="${SCENARIOS_DIR}/oomkilled/stress-chaos.yaml"
-    LABEL_SELECTOR="app=reviews"
+    LABEL_SELECTOR="app=chaos-oom-target"
     EXPECTED_REASON="OOMKilled"
     REASON_MODE="oom"
+    DEFAULT_NAMESPACE="kube-rca"
     ;;
   crashloop)
     TARGET_MANIFEST="${SCENARIOS_DIR}/crashloop/target-deployment.yaml"
     LABEL_SELECTOR="app=chaos-crashloop-target"
     EXPECTED_REASON="CrashLoopBackOff"
+    DEFAULT_NAMESPACE="kube-rca"
     ;;
   imagepull)
     TARGET_MANIFEST="${SCENARIOS_DIR}/imagepull/target-deployment.yaml"
     LABEL_SELECTOR="app=chaos-imagepull-target"
     EXPECTED_REASON="ImagePullBackOff"
     ALT_REASON="ErrImagePull"
+    DEFAULT_NAMESPACE="kube-rca"
     ;;
   networkdelay)
     CHAOS_MANIFEST="${SCENARIOS_DIR}/networkdelay/network-delay.yaml"

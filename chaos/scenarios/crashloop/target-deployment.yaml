@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: chaos-crashloop-target
+  namespace: kube-rca
   labels:
     app: chaos-crashloop-target
 spec:
