@@ -1,4 +1,4 @@
-.PHONY: help incident oomkilled crashloop imagepull
+.PHONY: help incident oomkilled crashloop imagepull networkdelay 503 504
 
 NAMESPACE ?= microservices-demo
 KUBE_CONTEXT ?=
@@ -30,3 +30,24 @@ imagepull: ## Run ImagePullBackOff scenario
 	WAIT_SECONDS="$(WAIT_SECONDS)" \
 	POLL_INTERVAL_SECONDS="$(POLL_INTERVAL_SECONDS)" \
 	./scripts/run-imagepull.sh
+
+networkdelay: ## Run Network delay scenario (Chaos Mesh)
+	@NAMESPACE="$(NAMESPACE)" \
+	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
+	WAIT_SECONDS="$(WAIT_SECONDS)" \
+	POLL_INTERVAL_SECONDS="$(POLL_INTERVAL_SECONDS)" \
+	./scripts/run-networkdelay.sh
+
+503: ## Run 503 Service Unavailable scenario (Istio fault injection)
+	@NAMESPACE="$(NAMESPACE)" \
+	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
+	WAIT_SECONDS="$(WAIT_SECONDS)" \
+	POLL_INTERVAL_SECONDS="$(POLL_INTERVAL_SECONDS)" \
+	./scripts/run-503.sh
+
+504: ## Run 504 Gateway Timeout scenario (Istio fault injection)
+	@NAMESPACE="$(NAMESPACE)" \
+	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
+	WAIT_SECONDS="$(WAIT_SECONDS)" \
+	POLL_INTERVAL_SECONDS="$(POLL_INTERVAL_SECONDS)" \
+	./scripts/run-504.sh

@@ -1,0 +1,67 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: adservice-fault-delay
+spec:
+  hosts:
+  - adservice
+  http:
+  - fault:
+      delay:
+        percentage:
+          value: 100
+        fixedDelay: 15s
+    route:
+    - destination:
+        host: adservice
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: cartservice-fault-delay
+spec:
+  hosts:
+  - cartservice
+  http:
+  - fault:
+      delay:
+        percentage:
+          value: 100
+        fixedDelay: 15s
+    route:
+    - destination:
+        host: cartservice
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: checkoutservice-fault-delay
+spec:
+  hosts:
+  - checkoutservice
+  http:
+  - fault:
+      delay:
+        percentage:
+          value: 100
+        fixedDelay: 15s
+    route:
+    - destination:
+        host: checkoutservice
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: currencyservice-fault-delay
+spec:
+  hosts:
+  - currencyservice
+  http:
+  - fault:
+      delay:
+        percentage:
+          value: 100
+        fixedDelay: 15s
+    route:
+    - destination:
+        host: currencyservice

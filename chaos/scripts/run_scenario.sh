@@ -9,9 +9,12 @@ show_usage() {
 Usage: $(basename "$0") <scenario>
 
 Scenarios:
-  oomkilled   Apply StressChaos to trigger OOMKilled
-  crashloop   Create a crashlooping deployment
-  imagepull   Create a deployment with invalid image
+  oomkilled     Apply StressChaos to trigger OOMKilled
+  crashloop     Create a crashlooping deployment
+  imagepull     Create a deployment with invalid image
+  networkdelay  Add network delay to redis-cart
+  503           Istio fault injection: 503 Service Unavailable
+  504           Istio fault injection: 504 Gateway Timeout
 
 Environment:
   NAMESPACE              Target namespace (default: microservices-demo)
@@ -91,7 +94,6 @@ REASON_MODE="waiting"
 
 case "$SCENARIO" in
   oomkilled)
-    TARGET_MANIFEST="${SCENARIOS_DIR}/oomkilled/target-deployment.yaml"
     CHAOS_MANIFEST="${SCENARIOS_DIR}/oomkilled/stress-chaos.yaml"
     LABEL_SELECTOR="app=adservice"
     EXPECTED_REASON="OOMKilled"
@@ -107,6 +109,18 @@ case "$SCENARIO" in
     LABEL_SELECTOR="app=chaos-imagepull-target"
     EXPECTED_REASON="ImagePullBackOff"
     ALT_REASON="ErrImagePull"
+    ;;
+  networkdelay)
+    CHAOS_MANIFEST="${SCENARIOS_DIR}/networkdelay/network-delay.yaml"
+    LABEL_SELECTOR="app=redis-cart"
+    ;;
+  503)
+    CHAOS_MANIFEST="${SCENARIOS_DIR}/503/fault-abort.yaml"
+    LABEL_SELECTOR="app in (frontend,frontend-external,paymentservice,productcatalogservice)"
+    ;;
+  504)
+    CHAOS_MANIFEST="${SCENARIOS_DIR}/504/fault-delay.yaml"
+    LABEL_SELECTOR="app in (adservice,cartservice,checkoutservice,currencyservice)"
     ;;
   *)
     log_error "unknown scenario: $SCENARIO"
@@ -124,7 +138,9 @@ if ! kubectl_local get namespace "$NAMESPACE" >/dev/null 2>&1; then
   exit 1
 fi
 
-require_file "$TARGET_MANIFEST"
+if [ -n "$TARGET_MANIFEST" ]; then
+  require_file "$TARGET_MANIFEST"
+fi
 if [ -n "$CHAOS_MANIFEST" ]; then
   require_file "$CHAOS_MANIFEST"
 fi
@@ -134,15 +150,19 @@ cleanup() {
   if [ -n "$CHAOS_MANIFEST" ]; then
     kubectl_local -n "$NAMESPACE" delete -f "$CHAOS_MANIFEST" --ignore-not-found=true >/dev/null 2>&1 || true
   fi
-  kubectl_local -n "$NAMESPACE" delete -f "$TARGET_MANIFEST" --ignore-not-found=true >/dev/null 2>&1 || true
+  if [ -n "$TARGET_MANIFEST" ]; then
+    kubectl_local -n "$NAMESPACE" delete -f "$TARGET_MANIFEST" --ignore-not-found=true >/dev/null 2>&1 || true
+  fi
   log_ok "Cleanup complete"
 }
 
 trap cleanup EXIT
 trap 'log_warn "Interrupted"; exit 130' INT TERM
 
-log_info "Applying target deployment..."
-kubectl_local -n "$NAMESPACE" apply -f "$TARGET_MANIFEST"
+if [ -n "$TARGET_MANIFEST" ]; then
+  log_info "Applying target deployment..."
+  kubectl_local -n "$NAMESPACE" apply -f "$TARGET_MANIFEST"
+fi
 
 if [ -n "$CHAOS_MANIFEST" ]; then
   log_info "Applying chaos manifest..."
@@ -151,9 +171,9 @@ fi
 
 log_info "Watch pods with:"
 if [ -n "$KUBE_CONTEXT" ]; then
-  log_info "  kubectl --context $KUBE_CONTEXT -n $NAMESPACE get pods -l $LABEL_SELECTOR -w"
+  log_info "  kubectl --context $KUBE_CONTEXT -n $NAMESPACE get pods -l '$LABEL_SELECTOR' -w"
 else
-  log_info "  kubectl -n $NAMESPACE get pods -l $LABEL_SELECTOR -w"
+  log_info "  kubectl -n $NAMESPACE get pods -l '$LABEL_SELECTOR' -w"
 fi
 
 wait_for_reason() {
@@ -195,7 +215,11 @@ wait_for_reason() {
   return 1
 }
 
-wait_for_reason "$LABEL_SELECTOR" "$EXPECTED_REASON" "$ALT_REASON" "$REASON_MODE" || true
+if [ -n "$EXPECTED_REASON" ]; then
+  wait_for_reason "$LABEL_SELECTOR" "$EXPECTED_REASON" "$ALT_REASON" "$REASON_MODE" || true
+else
+  log_info "Skipping reason check for scenario."
+fi
 
 log_info "Press Enter to cleanup and exit (Ctrl+C also cleans up)."
 read -r
