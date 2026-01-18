@@ -42,9 +42,27 @@ class PodLogSnippet:
 
 
 @dataclass(frozen=True)
+class PodSummary:
+    """Lightweight pod summary for listing pods in a namespace."""
+
+    name: str
+    namespace: str
+    phase: str
+    node_name: str | None
+    labels: dict[str, str]
+    restart_count: int
+    ready: bool
+    start_time: str | None
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
 class K8sContext:
     namespace: str | None
     pod_name: str | None
+    workload: str | None
     pod_status: PodStatusSnapshot | None
     events: list[PodEventSummary]
     previous_logs: list[PodLogSnippet]
@@ -54,6 +72,7 @@ class K8sContext:
         return {
             "namespace": self.namespace,
             "pod_name": self.pod_name,
+            "workload": self.workload,
             "pod_status": None if self.pod_status is None else self.pod_status.to_dict(),
             "events": [event.to_dict() for event in self.events],
             "previous_logs": [snippet.to_dict() for snippet in self.previous_logs],

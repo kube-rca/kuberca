@@ -211,11 +211,38 @@ def _build_tools(
         return prometheus_client.describe_endpoint()
 
     @tool
+    def list_prometheus_metrics(match: str | None = None) -> dict[str, object]:
+        """List available metric names from Prometheus.
+
+        Use this to discover what metrics are available before querying.
+        Args:
+            match: Optional regex pattern to filter metrics.
+                   Examples: 'kube_pod.*', 'istio.*', 'container_.*', 'http_.*'
+        """
+        if prometheus_client is None:
+            return {"warning": "prometheus client not configured"}
+        return prometheus_client.list_metrics(match=match)
+
+    @tool
     def query_prometheus(query: str, time: str | None = None) -> dict[str, object]:
         """Run a Prometheus instant query."""
         if prometheus_client is None:
             return {"warning": "prometheus client not configured"}
         return prometheus_client.query(query, time=time)
+
+    @tool
+    def list_pods_in_namespace(
+        namespace: str, label_selector: str | None = None
+    ) -> list[dict[str, object]]:
+        """List pods in a namespace with optional label filtering.
+
+        Use this when pod name is not in alert labels to discover affected pods.
+        Args:
+            namespace: The Kubernetes namespace to list pods from.
+            label_selector: Optional label selector (e.g., 'app=nginx', 'version=v1').
+        """
+        pods = k8s_client.list_pods_in_namespace(namespace, label_selector=label_selector)
+        return [pod.to_dict() for pod in pods]
 
     return [
         get_pod_status,
@@ -223,6 +250,7 @@ def _build_tools(
         list_pod_events,
         list_namespace_events,
         list_cluster_events,
+        list_pods_in_namespace,
         get_previous_pod_logs,
         get_pod_logs,
         get_workload_status,
@@ -230,5 +258,6 @@ def _build_tools(
         get_pod_metrics,
         get_node_metrics,
         discover_prometheus,
+        list_prometheus_metrics,
         query_prometheus,
     ]

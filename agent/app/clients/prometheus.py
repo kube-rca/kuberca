@@ -50,6 +50,56 @@ class PrometheusClient:
             return {"endpoint": endpoint.to_dict()}
         return detail
 
+    def list_metrics(self, match: str | None = None) -> dict[str, object]:
+        """List available metric names from Prometheus.
+
+        Args:
+            match: Optional regex pattern to filter metric names.
+                   Examples: 'kube_pod.*', 'istio_requests.*', 'container_.*'
+        """
+        endpoint, detail = self._discover_endpoint()
+        if endpoint is None:
+            return detail
+
+        url = f"{endpoint.base_url}/api/v1/label/__name__/values"
+
+        try:
+            with urllib.request.urlopen(url, timeout=self._timeout_seconds) as response:
+                payload = response.read()
+        except Exception as exc:  # noqa: BLE001
+            self._logger.warning("Failed to list Prometheus metrics: %s", exc)
+            return {
+                "error": "failed to list Prometheus metrics",
+                "detail": str(exc),
+                "endpoint": endpoint.to_dict(),
+            }
+
+        try:
+            data = json.loads(payload.decode("utf-8"))
+        except json.JSONDecodeError as exc:
+            self._logger.warning("Failed to decode Prometheus response: %s", exc)
+            return {
+                "error": "failed to decode Prometheus response",
+                "detail": str(exc),
+                "endpoint": endpoint.to_dict(),
+            }
+
+        metrics = data.get("data", [])
+        if match:
+            import re
+
+            try:
+                pattern = re.compile(match)
+                metrics = [m for m in metrics if pattern.search(m)]
+            except re.error as exc:
+                return {
+                    "error": "invalid regex pattern",
+                    "detail": str(exc),
+                    "pattern": match,
+                }
+
+        return {"endpoint": endpoint.to_dict(), "metrics": metrics, "count": len(metrics)}
+
     def query(self, query: str, *, time: str | None = None) -> dict[str, object]:
         endpoint, detail = self._discover_endpoint()
         if endpoint is None:

@@ -23,8 +23,8 @@ class AnalysisService:
     def analyze(
         self, request: AlertAnalysisRequest
     ) -> tuple[str, str, str, dict[str, object], list[dict[str, object]]]:
-        namespace, pod_name = extract_pod_target(request.alert.labels)
-        k8s_context = self._k8s_client.collect_context(namespace, pod_name)
+        namespace, pod_name, workload = extract_pod_target(request.alert.labels)
+        k8s_context = self._k8s_client.collect_context(namespace, pod_name, workload)
         context = k8s_context.to_dict()
         artifacts = _build_alert_artifacts(k8s_context)
 
@@ -81,10 +81,15 @@ def _build_prompt(request: AlertAnalysisRequest, k8s_context: K8sContext) -> str
         "You may call tools if needed:\n"
         "- get_pod_status, get_pod_spec\n"
         "- list_pod_events, list_namespace_events, list_cluster_events\n"
+        "- list_pods_in_namespace (use when pod name is missing from alert labels)\n"
         "- get_previous_pod_logs, get_pod_logs\n"
         "- get_workload_status, get_node_status\n"
         "- get_pod_metrics, get_node_metrics\n"
-        "- discover_prometheus, query_prometheus\n\n"
+        "- discover_prometheus, list_prometheus_metrics, query_prometheus\n\n"
+        "For Prometheus queries:\n"
+        "1. Use list_prometheus_metrics(match='pattern') to discover available metrics first.\n"
+        "2. Then use query_prometheus(query) to get detailed data.\n"
+        "Example patterns: 'kube_pod.*', 'istio.*', 'container_.*', 'http_.*'\n\n"
         f"Alert payload:\n{_to_pretty_json(payload)}\n\n"
         f"Kubernetes context:\n{_to_pretty_json(k8s_context.to_dict())}\n"
     )

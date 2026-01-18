@@ -10,7 +10,9 @@ class FakeKubernetesClient:
     def __init__(self, context: K8sContext) -> None:
         self._context = context
 
-    def collect_context(self, namespace: str | None, pod_name: str | None) -> K8sContext:
+    def collect_context(
+        self, namespace: str | None, pod_name: str | None, workload: str | None = None
+    ) -> K8sContext:
         return self._context
 
 
@@ -38,6 +40,7 @@ def test_analysis_service_fallback() -> None:
     context = K8sContext(
         namespace="default",
         pod_name="demo-pod",
+        workload=None,
         pod_status=PodStatusSnapshot(
             phase="CrashLoopBackOff",
             node_name="node-a",
@@ -66,6 +69,7 @@ def test_analysis_service_uses_engine() -> None:
     context = K8sContext(
         namespace="default",
         pod_name="demo-pod",
+        workload=None,
         pod_status=None,
         events=[],
         previous_logs=[],

@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from kubernetes import client, config
 from kubernetes.config.config_exception import ConfigException
 
-from app.models.k8s import K8sContext, PodEventSummary, PodLogSnippet, PodStatusSnapshot
+from app.models.k8s import K8sContext, PodEventSummary, PodLogSnippet, PodStatusSnapshot, PodSummary
 
 
 class KubernetesClient:
@@ -20,13 +20,22 @@ class KubernetesClient:
         self._batch_api = client.BatchV1Api() if self._core_api else None
         self._custom_api = client.CustomObjectsApi() if self._core_api else None
 
-    def collect_context(self, namespace: str | None, pod_name: str | None) -> K8sContext:
+    def collect_context(
+        self, namespace: str | None, pod_name: str | None, workload: str | None = None
+    ) -> K8sContext:
         warnings: list[str] = []
         if not namespace or not pod_name:
-            warnings.append("namespace/pod_name missing from alert labels")
+            hint = ""
+            if namespace and workload:
+                hint = (
+                    f" Use list_pods_in_namespace('{namespace}', 'app={workload}') "
+                    "to discover pods."
+                )
+            warnings.append(f"namespace/pod_name missing from alert labels.{hint}")
             return K8sContext(
                 namespace=namespace,
                 pod_name=pod_name,
+                workload=workload,
                 pod_status=None,
                 events=[],
                 previous_logs=[],
@@ -38,6 +47,7 @@ class KubernetesClient:
             return K8sContext(
                 namespace=namespace,
                 pod_name=pod_name,
+                workload=workload,
                 pod_status=None,
                 events=[],
                 previous_logs=[],
@@ -52,6 +62,7 @@ class KubernetesClient:
         return K8sContext(
             namespace=namespace,
             pod_name=pod_name,
+            workload=workload,
             pod_status=pod_status,
             events=events,
             previous_logs=previous_logs,
@@ -321,6 +332,52 @@ class KubernetesClient:
         except Exception as exc:  # noqa: BLE001
             self._logger.warning("Failed to list services for selector %s: %s", label_selector, exc)
             return []
+
+    def list_pods_in_namespace(
+        self, namespace: str, label_selector: str | None = None
+    ) -> list[PodSummary]:
+        """List pods in a namespace with optional label filtering."""
+        if self._core_api is None:
+            return []
+        try:
+            if label_selector:
+                response = self._core_api.list_namespaced_pod(
+                    namespace=namespace,
+                    label_selector=label_selector,
+                    _request_timeout=self._timeout_seconds,
+                )
+            else:
+                response = self._core_api.list_namespaced_pod(
+                    namespace=namespace,
+                    _request_timeout=self._timeout_seconds,
+                )
+            return [self._to_pod_summary(pod) for pod in response.items]
+        except Exception as exc:  # noqa: BLE001
+            self._logger.warning("Failed to list pods in namespace %s: %s", namespace, exc)
+            return []
+
+    def _to_pod_summary(self, pod: client.V1Pod) -> PodSummary:
+        """Convert V1Pod to PodSummary."""
+        metadata = pod.metadata
+        status = pod.status
+        spec = pod.spec
+
+        restart_count = 0
+        ready = False
+        if status and status.container_statuses:
+            restart_count = sum(cs.restart_count or 0 for cs in status.container_statuses)
+            ready = all(cs.ready for cs in status.container_statuses)
+
+        return PodSummary(
+            name=metadata.name if metadata else "",
+            namespace=metadata.namespace if metadata else "",
+            phase=status.phase if status else "Unknown",
+            node_name=spec.node_name if spec else None,
+            labels=metadata.labels or {} if metadata else {},
+            restart_count=restart_count,
+            ready=ready,
+            start_time=self._to_iso(status.start_time) if status else None,
+        )
 
     def _build_client(self) -> client.CoreV1Api | None:
         try:
@@ -827,14 +884,24 @@ class KubernetesClient:
         return str(value)
 
 
-def extract_pod_target(labels: dict[str, str]) -> tuple[str | None, str | None]:
-    namespace_keys = ["namespace"]
+def extract_pod_target(labels: dict[str, str]) -> tuple[str | None, str | None, str | None]:
+    """Extract namespace, pod name, and workload from alert labels.
+
+    Returns:
+        tuple: (namespace, pod_name, workload)
+        - namespace: from 'namespace' or 'destination_service_namespace' labels
+        - pod_name: from 'pod' label
+        - workload: from 'workload' or 'destination_workload' labels (for pod discovery)
+    """
+    namespace_keys = ["namespace", "destination_service_namespace"]
     pod_keys = ["pod"]
+    workload_keys = ["workload", "destination_workload"]
 
     namespace = _first_label_value(labels, namespace_keys)
     pod_name = _first_label_value(labels, pod_keys)
+    workload = _first_label_value(labels, workload_keys)
 
-    return namespace, pod_name
+    return namespace, pod_name, workload
 
 
 def _first_label_value(labels: dict[str, str], keys: Iterable[str]) -> str | None:
