@@ -35,7 +35,8 @@ class AnalysisService:
 
         prompt = _build_prompt(request, k8s_context)
         try:
-            analysis = self._analysis_engine.analyze(prompt, request.incident_id)
+            session_id = _resolve_alert_session_id(request)
+            analysis = self._analysis_engine.analyze(prompt, session_id)
             summary, detail = _split_alert_analysis(analysis)
             return analysis, summary, detail, context, artifacts
         except Exception as exc:  # noqa: BLE001
@@ -55,7 +56,8 @@ class AnalysisService:
 
         prompt = _build_incident_summary_prompt(request)
         try:
-            result = self._analysis_engine.analyze(prompt, request.incident_id)
+            session_id = _resolve_summary_session_id(request)
+            result = self._analysis_engine.analyze(prompt, session_id)
             return _parse_incident_summary(result, request.title)
         except Exception as exc:  # noqa: BLE001
             self._logger.exception("Incident summary analysis failed")
@@ -93,6 +95,48 @@ def _build_prompt(request: AlertAnalysisRequest, k8s_context: K8sContext) -> str
         f"Alert payload:\n{_to_pretty_json(payload)}\n\n"
         f"Kubernetes context:\n{_to_pretty_json(k8s_context.to_dict())}\n"
     )
+
+
+def _resolve_alert_session_id(request: AlertAnalysisRequest) -> str:
+    incident_id = _normalize_session_token(request.incident_id)
+    fingerprint = _normalize_session_token(request.alert.fingerprint)
+    if incident_id and fingerprint:
+        return f"{incident_id}:{fingerprint}"
+    if fingerprint:
+        return f"alert:{fingerprint}"
+    fallback = _build_alert_fallback_key(request)
+    if incident_id and fallback:
+        return f"{incident_id}:{fallback}"
+    if fallback:
+        return f"alert:{fallback}"
+    return incident_id or "default"
+
+
+def _resolve_summary_session_id(request: IncidentSummaryRequest) -> str:
+    incident_id = _normalize_session_token(request.incident_id)
+    if incident_id:
+        return f"{incident_id}:summary"
+    return "summary"
+
+
+def _normalize_session_token(value: str | None) -> str:
+    if not value:
+        return ""
+    return value.strip()
+
+
+def _build_alert_fallback_key(request: AlertAnalysisRequest) -> str:
+    labels = request.alert.labels
+    parts = [
+        _normalize_session_token(labels.get("alertname")),
+        _normalize_session_token(labels.get("namespace")),
+        _normalize_session_token(labels.get("pod")),
+        _normalize_session_token(labels.get("workload")),
+        _normalize_session_token(labels.get("destination_workload")),
+        _normalize_session_token(labels.get("destination_service_name")),
+    ]
+    compact = "-".join(part for part in parts if part)
+    return compact
 
 
 def _fallback_summary(
