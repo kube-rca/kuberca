@@ -369,16 +369,16 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                   <ReactMarkdown 
                     remarkPlugins={[remarkGfm]}
                     components={{
-                      h1: ({ node: _node, ...props }) => <h1 className="text-xl font-bold text-blue-400 mt-6 mb-4 border-b border-gray-700 pb-2" {...props} />,
-                      h2: ({ node: _node, ...props }) => <h2 className="text-lg font-bold text-blue-300 mt-5 mb-3" {...props} />,
-                      h3: ({ node: _node, ...props }) => <h3 className="text-md font-bold text-blue-200 mt-4 mb-2" {...props} />,
-                      strong: ({ node: _node, ...props }) => <span className="font-bold text-yellow-400" {...props} />,
-                      ul: ({ node: _node, ...props }) => <ul className="list-disc pl-5 space-y-1 my-2 text-gray-300" {...props} />,
+                      h1: ({ node: _node, ...props }) => <h1 className="text-2xl font-extrabold text-blue-400 mt-8 mb-6 pb-2 border-b border-gray-700 flex items-center gap-2 [&_strong]:text-blue-400" {...props} />,
+                      h2: ({ node: _node, ...props }) => <h2 className="text-xl font-bold text-indigo-300 mt-8 mb-4 pl-3 border-l-4 border-indigo-500 [&_strong]:text-indigo-300" {...props} />,
+                      h3: ({ node: _node, ...props }) => <h3 className="text-lg font-semibold text-sky-300 mt-6 mb-3 ml-1 [&_strong]:text-sky-300" {...props} />,
+                      strong: ({ node: _node, ...props }) => <span className="font-bold text-amber-400" {...props} />,
+                      ul: ({ node: _node, ...props }) => <ul className="list-disc pl-6 space-y-2 my-2 text-gray-300 leading-relaxed" {...props} />,
                       code: ({ node: _node, ...props }) => (
-                        <code className="bg-gray-800 text-green-400 px-1 py-0.5 rounded text-xs" {...props} />
+                        <code className="bg-gray-800 text-pink-400 px-1.5 py-0.5 rounded text-sm font-mono border border-gray-700 mx-1" {...props} />
                       ),
-                      p: ({ node: _node, ...props }) => <p className="mb-4 text-gray-300" {...props} />,
-                      a: ({ node: _node, ...props }) => <a className="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
+                      p: ({ node: _node, ...props }) => <p className="mb-4 text-gray-300 leading-relaxed" {...props} />,
+                      a: ({ node: _node, ...props }) => <a className="text-blue-400 hover:text-blue-300 hover:underline transition-colors" target="_blank" rel="noopener noreferrer" {...props} />,
                     }}
                   >
                     {data.analysis_detail || "*상세 분석 내용이 없습니다.*"}
