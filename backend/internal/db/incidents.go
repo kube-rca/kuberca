@@ -22,7 +22,7 @@ func (db *Postgres) EnsureIncidentSchema() error {
 		CREATE TABLE IF NOT EXISTS incidents (
 			incident_id TEXT PRIMARY KEY,
 			title TEXT NOT NULL DEFAULT '',
-			severity TEXT NOT NULL DEFAULT 'warning',
+			severity TEXT NOT NULL DEFAULT 'TBD',
 			status TEXT NOT NULL DEFAULT 'firing',
 			fired_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 			resolved_at TIMESTAMPTZ,

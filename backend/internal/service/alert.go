@@ -122,10 +122,12 @@ func (s *AlertService) getOrCreateIncident(alert model.Alert) (string, error) {
 		return "", err
 	}
 
-	severity := alert.Labels["severity"]
-	if severity == "" {
-		severity = "warning"
-	}
+	// severity := alert.Labels["severity"]
+	// if severity == "" {
+	// 	severity = "warning"
+	// }
+
+	severity := "TBD"
 
 	// 초기 title은 Ongoing으로 설정 (에이전트 분석 후 title 업데이트)
 	incidentID, err := s.db.CreateIncident("Ongoing", severity, alert.StartsAt)
