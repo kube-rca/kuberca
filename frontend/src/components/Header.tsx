@@ -27,7 +27,7 @@ export const Header = () => {
           Alert Dashboard
         </NavLink>
         <NavLink to="/muted" className={navLinkClass}>
-          Mute Dashboard
+          Archived Incidents
         </NavLink>
       </nav>
 

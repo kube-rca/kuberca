@@ -1,6 +1,6 @@
 import { RCAItem } from '../types';
 
-interface MuteTableProps {
+interface ArchiveTableProps {
   rcas: RCAItem[]; // Mute된 인시던트 데이터 리스트
   onTitleClick: (incident_id: string) => void;
 }
@@ -22,7 +22,7 @@ const statusStyles: Record<string, string> = {
   resolved: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-200 dark:border-green-700',
 };
 
-function MuteTable({ rcas, onTitleClick }: MuteTableProps) {
+function ArchiveTable({ rcas, onTitleClick }: ArchiveTableProps) {
   // 데이터가 없을 경우 처리
   if (!rcas || rcas.length === 0) {
     return (
@@ -115,4 +115,4 @@ function MuteTable({ rcas, onTitleClick }: MuteTableProps) {
   );
 }
 
-export default MuteTable;
+export default ArchiveTable;

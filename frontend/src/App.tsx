@@ -3,12 +3,12 @@ import { Routes, Route, useNavigate, useParams, useSearchParams, useLocation } f
 import { RCAItem } from './types';
 import TimeRangeSelector from './components/TimeRangeSelector';
 import RCATable from './components/RCATable';
-import MuteTable from './components/MuteTable'; 
+import ArchivedTable from './components/ArchiveTable'; 
 import AlertTable from './components/AlertTable';
 import Pagination from './components/Pagination';
 import RCADetailView from './components/RCADetailView';
 import AlertDetailView from './components/AlertDetailView';
-import MuteDetailView from './components/MuteDetailView'; // [Import 확인]
+import ArchivedDetailView from './components/ArchiveDetailView'; // [Import 확인]
 import AuthPanel from './components/AuthPanel';
 import { fetchRCAs, fetchAlerts, fetchMutedIncidents, AlertItem } from './utils/api';
 import { fetchAuthConfig, refreshAccessToken, logout } from './utils/auth';
@@ -45,7 +45,7 @@ const MuteDetailRoute = () => {
   const navigate = useNavigate();
   if (!id) return null;
   // onBack 시 목록(/muted)으로 돌아가도록 설정
-  return <MuteDetailView incidentId={id} onBack={() => navigate('/muted')} />;
+  return <ArchivedDetailView incidentId={id} onBack={() => navigate('/muted')} />;
 };
 
 const AlertDetailRoute = () => {
@@ -375,11 +375,11 @@ function App() {
             </div>
           } />
 
-          {/* Mute Dashboard */}
+          {/* Archived Incidents Dashboard */}
           <Route path="/muted" element={
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors duration-300">
               <div className="mb-6 flex flex-col xl:flex-row justify-between items-center gap-4">
-                <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">Mute Dashboard</h1>
+                <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">Archived Incidents</h1>
                 <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
                   <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as RCAStatusFilter)} className={selectStyle}>
                     <option value="all">All Status</option>
@@ -402,7 +402,7 @@ function App() {
               ) : (
                 <>
                   {/* [수정] onTitleClick에 handleMuteTitleClick 전달 */}
-                  <MuteTable rcas={paginatedMutedIncidents} onTitleClick={handleMuteTitleClick} />
+                  <ArchivedTable rcas={paginatedMutedIncidents} onTitleClick={handleMuteTitleClick} />
                   {filteredMutedIncidents.length > 0 && (
                     <div className="mt-6 flex justify-center">
                       <Pagination currentPage={muteCurrentPage} totalPages={Math.ceil(filteredMutedIncidents.length / ITEMS_PER_PAGE)} onPageChange={setMuteCurrentPage} />
