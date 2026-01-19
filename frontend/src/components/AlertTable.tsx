@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 
+// [수정] namespace 필드 추가
 export interface AlertItem {
   alert_id: string;
   incident_id: string | null;
@@ -8,6 +9,7 @@ export interface AlertItem {
   status: string;
   fired_at: string;
   resolved_at: string | null;
+  namespace: string; 
 }
 
 interface AlertTableProps {
@@ -24,7 +26,7 @@ const severityStyles: Record<string, string> = {
   warning: 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-200 dark:border-yellow-700',
   critical: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-200 dark:border-red-700',
   info: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-700',
-  TBD: 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600',
+  tbd: 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600',
 };
 
 const statusStyles: Record<string, string> = {
@@ -40,9 +42,8 @@ function AlertTable({ alerts, onTitleClick }: AlertTableProps) {
       <table className="min-w-full border-collapse border border-gray-300 dark:border-gray-700">
         <thead className="bg-gray-50 dark:bg-gray-700">
           <tr>
-            <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
-              Alert ID
-            </th>
+            {/* [삭제] Alert ID 헤더 제거 */}
+            
             <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
               Incident ID
             </th>
@@ -52,6 +53,12 @@ function AlertTable({ alerts, onTitleClick }: AlertTableProps) {
             <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
               Title
             </th>
+            
+            {/* [추가] Namespace 헤더 (Title 우측) */}
+            <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
+              Namespace
+            </th>
+
             <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
               Severity
             </th>
@@ -63,10 +70,9 @@ function AlertTable({ alerts, onTitleClick }: AlertTableProps) {
         <tbody className="bg-white dark:bg-gray-800">
           {alerts.map((alert) => (
             <tr key={alert.alert_id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-              <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 text-center font-mono">
-                {alert.alert_id.slice(0, 8)}...
-              </td>
+              {/* [삭제] Alert ID 데이터 셀 제거 */}
 
+              {/* Incident ID */}
               <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm text-center">
                 {alert.incident_id ? (
                   <span
@@ -80,6 +86,7 @@ function AlertTable({ alerts, onTitleClick }: AlertTableProps) {
                 )}
               </td>
 
+              {/* Time */}
               <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 text-center whitespace-nowrap leading-relaxed">
                 <div className="text-xs text-gray-500 dark:text-gray-400">
                   {formatDate(alert.fired_at)}
@@ -90,13 +97,22 @@ function AlertTable({ alerts, onTitleClick }: AlertTableProps) {
                 </div>
               </td>
 
+              {/* Title */}
               <td
-                className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm font-medium text-gray-700 dark:text-white cursor-pointer hover:underline hover:text-black dark:hover:text-gray-200 text-center"
+                className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm font-medium text-gray-700 dark:text-white cursor-pointer hover:underline hover:text-black dark:hover:text-gray-200 text-center min-w-[200px] break-words"
                 onClick={() => onTitleClick(alert.alert_id)}
               >
                 {alert.alarm_title}
               </td>
 
+              {/* [추가] Namespace 데이터 셀 */}
+              <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm text-center">
+                <span className="inline-block bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded text-xs font-mono">
+                  {alert.namespace || '-'}
+                </span>
+              </td>
+
+              {/* Severity */}
               <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm text-center">
                 <span
                   className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${
@@ -107,6 +123,7 @@ function AlertTable({ alerts, onTitleClick }: AlertTableProps) {
                 </span>
               </td>
 
+              {/* Status */}
               <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm text-center">
                 <span
                   className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${

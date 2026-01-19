@@ -153,6 +153,7 @@ export interface AlertItem {
   alert_id: string;
   incident_id: string | null;
   alarm_title: string;
+  namespace: string;
   severity: string;
   status: string;
   fired_at: string;
