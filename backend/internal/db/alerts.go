@@ -87,7 +87,7 @@ func (db *Postgres) SaveAlert(alert model.Alert, incidentID string) error {
 // GetAlertList - Alert 목록 조회
 func (db *Postgres) GetAlertList() ([]model.AlertListResponse, error) {
 	query := `
-		SELECT alert_id, incident_id, alarm_title, namespace, severity, status, fired_at, resolved_at
+		SELECT alert_id, incident_id, alarm_title, severity, status, fired_at, resolved_at
 		FROM alerts
 		WHERE is_enabled = TRUE
 		ORDER BY fired_at DESC`
@@ -101,7 +101,7 @@ func (db *Postgres) GetAlertList() ([]model.AlertListResponse, error) {
 	var list []model.AlertListResponse
 	for rows.Next() {
 		var a model.AlertListResponse
-		if err := rows.Scan(&a.AlertID, &a.IncidentID, &a.AlarmTitle, &a.Namespace, &a.Severity, &a.Status, &a.FiredAt, &a.ResolvedAt); err != nil {
+		if err := rows.Scan(&a.AlertID, &a.IncidentID, &a.AlarmTitle, &a.Severity, &a.Status, &a.FiredAt, &a.ResolvedAt); err != nil {
 			return nil, err
 		}
 		list = append(list, a)
