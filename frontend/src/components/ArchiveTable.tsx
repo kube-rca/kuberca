@@ -79,7 +79,7 @@ function ArchiveTable({ rcas, onTitleClick }: ArchiveTableProps) {
 
                 {/* Title (클릭 시 상세 이동) */}
                 <td
-                  className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm font-medium text-gray-700 dark:text-white cursor-pointer hover:underline hover:text-black dark:hover:text-gray-200 text-center"
+                  className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm font-medium text-gray-700 dark:text-white cursor-pointer hover:underline hover:text-black dark:hover:text-gray-200 text-center min-w-[300px] break-words"
                   onClick={() => onTitleClick(rca.incident_id)}
                 >
                   {rca.title}

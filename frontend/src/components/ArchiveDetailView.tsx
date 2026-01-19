@@ -10,7 +10,7 @@ import {
   EmbeddingSearchResult 
 } from '../utils/api';
 
-interface MuteDetailViewProps {
+interface ArchivedDetailViewProps {
   incidentId: string;
   onBack: () => void;
 }
@@ -21,7 +21,7 @@ const severityStyles: Record<string, string> = {
   info: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-700',
 };
 
-const MuteDetailView: React.FC<MuteDetailViewProps> = ({ incidentId, onBack }) => {
+const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onBack }) => {
   const [data, setData] = useState<RCADetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -108,7 +108,7 @@ const MuteDetailView: React.FC<MuteDetailViewProps> = ({ incidentId, onBack }) =
                 MUTED
               </span>
             </div>
-            <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white leading-tight">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white leading-tight break-words">
               {data.title}
             </h1>
           </div>
@@ -294,4 +294,4 @@ const MuteDetailView: React.FC<MuteDetailViewProps> = ({ incidentId, onBack }) =
   );
 };
 
-export default MuteDetailView;
+export default ArchivedDetailView;

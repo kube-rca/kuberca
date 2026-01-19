@@ -200,7 +200,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                 />
               </div>
             ) : (
-              <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white leading-tight">
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white leading-tight break-words">
                 {data.title}
               </h1>
             )}
