@@ -62,6 +62,7 @@ type AlertListResponse struct {
 	AlertID    string     `json:"alert_id"`
 	IncidentID *string    `json:"incident_id"` // null 가능 (아직 Incident에 연결되지 않은 경우)
 	AlarmTitle string     `json:"alarm_title"`
+	Namespace  string     `json:"namespace"`
 	Severity   string     `json:"severity"`
 	Status     string     `json:"status"` // firing, resolved
 	FiredAt    time.Time  `json:"fired_at"`
