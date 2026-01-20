@@ -200,6 +200,34 @@ func toSlackMarkdown(text string) string {
 			i++
 			continue
 		}
+		if !inCodeBlock && !inInlineCode && (i == 0 || text[i-1] == '\n') && text[i] == '#' {
+			j := i
+			for j < len(text) && text[j] == '#' {
+				j++
+			}
+			if j < len(text) && (text[j] == ' ' || text[j] == '\t') {
+				k := j
+				for k < len(text) && (text[k] == ' ' || text[k] == '\t') {
+					k++
+				}
+				end := k
+				for end < len(text) && text[end] != '\n' {
+					end++
+				}
+				heading := strings.TrimSpace(text[k:end])
+				if heading != "" {
+					builder.WriteByte('*')
+					builder.WriteString(heading)
+					builder.WriteByte('*')
+					if end < len(text) && text[end] == '\n' {
+						builder.WriteByte('\n')
+						end++
+					}
+					i = end
+					continue
+				}
+			}
+		}
 		if !inCodeBlock && !inInlineCode && strings.HasPrefix(text[i:], "**") {
 			builder.WriteByte('*')
 			i += 2

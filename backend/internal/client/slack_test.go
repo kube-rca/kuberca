@@ -23,10 +23,20 @@ func TestToSlackMarkdown(t *testing.T) {
 			input: "```python\n2 ** 3\n```\n**bold**",
 			want:  "```python\n2 ** 3\n```\n*bold*",
 		},
-		{
+	{
 			name:  "mixed-inline-and-bold",
 			input: "**Bold** and `code **`",
 			want:  "*Bold* and `code **`",
+		},
+		{
+			name:  "heading-converted",
+			input: "### 1) 요약 (Summary)\n내용",
+			want:  "*1) 요약 (Summary)*\n내용",
+		},
+		{
+			name:  "heading-protected-in-code-block",
+			input: "```\n### 1) 요약 (Summary)\n```\n**bold**",
+			want:  "```\n### 1) 요약 (Summary)\n```\n*bold*",
 		},
 	}
 
