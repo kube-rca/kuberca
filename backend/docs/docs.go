@@ -999,6 +999,9 @@ const docTemplate = `{
                     "description": "null 가능 (아직 Incident에 연결되지 않은 경우)",
                     "type": "string"
                 },
+                "namespace": {
+                    "type": "string"
+                },
                 "resolved_at": {
                     "type": "string"
                 },

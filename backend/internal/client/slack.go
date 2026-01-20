@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -166,11 +167,48 @@ func (c *SlackClient) SendToThread(threadTS, text string) error {
 			{
 				Color: "#6f42c1", // purple for AI analysis
 				Title: "🤖 AI 분석 결과",
-				Text:  text,
+				Text:  toSlackMarkdown(text),
 			},
 		},
 	}
 
 	_, err := c.send(msg)
 	return err
+}
+
+func toSlackMarkdown(text string) string {
+	if text == "" {
+		return text
+	}
+
+	var builder strings.Builder
+	builder.Grow(len(text))
+
+	inCodeBlock := false
+	inInlineCode := false
+
+	for i := 0; i < len(text); {
+		if !inInlineCode && strings.HasPrefix(text[i:], "```") {
+			inCodeBlock = !inCodeBlock
+			builder.WriteString("```")
+			i += 3
+			continue
+		}
+		if !inCodeBlock && text[i] == '`' {
+			inInlineCode = !inInlineCode
+			builder.WriteByte('`')
+			i++
+			continue
+		}
+		if !inCodeBlock && !inInlineCode && strings.HasPrefix(text[i:], "**") {
+			builder.WriteByte('*')
+			i += 2
+			continue
+		}
+
+		builder.WriteByte(text[i])
+		i++
+	}
+
+	return builder.String()
 }
