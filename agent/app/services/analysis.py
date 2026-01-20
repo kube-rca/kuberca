@@ -79,6 +79,7 @@ def _build_prompt(request: AlertAnalysisRequest, k8s_context: K8sContext) -> str
         "1) 요약 (Summary): 1-2 sentences, <= 300 chars.\n"
         "   Include root cause + impact + next action.\n"
         "2) 상세 분석 (Detail): Use sections for 근본 원인, 확인 근거, 조치 사항, 누락된 데이터.\n"
+        "Use '-' for unordered lists (do not use '*').\n"
         "If data is missing, state what is missing.\n"
         "You may call tools if needed:\n"
         "- get_pod_status, get_pod_spec\n"
