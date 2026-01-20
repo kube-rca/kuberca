@@ -11,24 +11,27 @@ and generating alerts.
 
 ## Layout
 
-- `scenarios/oomkilled/`: OOMKilled scenario (StressChaos targeting a dedicated OOM deployment).
+- `scenarios/oomkilled/`: OOMKilled scenario (Chaos Mesh Schedule targeting a dedicated OOM deployment).
 - `scenarios/crashloop/`: CrashLoopBackOff scenario (target deployment).
 - `scenarios/imagepull/`: ImagePullBackOff scenario (target deployment).
 - `scenarios/networkdelay/`: Network delay scenario (NetworkChaos targeting ratings).
 - `scenarios/500/`: 500 fault abort (details).
-- `scenarios/503/`: 503 fault abort (productpage).
-- `scenarios/504/`: 504 fault delay (ratings).
+- `scenarios/503/`: 503 fault abort (ratings).
+- `scenarios/504/`: 504 fault delay (reviews).
 - `scripts/run_scenario.sh`: Shared scenario runner.
 - `scripts/run-*.sh`: Scenario entrypoints.
 - `scripts/agent/`: Agent analyze test helpers.
 
-All scenarios run in `bookinfo` by default. OOMKilled uses Chaos Mesh and
-targets the `chaos-oom-target` workload with memory limits. Network delay uses Chaos Mesh and targets the
-`ratings` workload. CrashLoopBackOff and ImagePullBackOff use plain
-deployments for deterministic failure states. 500/503/504 scenarios use Istio
-VirtualService fault injection. 500 aborts return 500 for details. 503 aborts
-return 503 for productpage. 504 delay injects 15s latency for ratings (actual
-504 depends on client/gateway timeout settings).
+`oomkilled`, `crashloop`, and `imagepull` run in `kube-rca` namespace and use dedicated deployments.
+Other scenarios run in `bookinfo` namespace by default.
+
+OOMKilled uses Chaos Mesh Schedule to trigger memory stress every minute, causing the `chaos-oom-target` container to be OOMKilled and restarted repeatedly.
+Network delay uses Chaos Mesh and targets the `ratings` workload.
+CrashLoopBackOff and ImagePullBackOff use plain deployments for deterministic failure states.
+500/503/504 scenarios use Istio VirtualService fault injection.
+500 aborts return 500 for details.
+503 aborts return 503 for ratings.
+504 aborts return 504 for reviews.
 
 ## Quick Start
 
