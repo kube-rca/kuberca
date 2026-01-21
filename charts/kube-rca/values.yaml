@@ -212,9 +212,18 @@ agent:
     # -- Kubernetes API timeout in seconds.
     apiTimeoutSeconds: 5
     # -- Kubernetes event limit.
-    eventLimit: 20
+    eventLimit: 25
     # -- Kubernetes log tail lines.
-    logTailLines: 50
+    logTailLines: 25
+  prompt:
+    # -- Prompt token budget (approx).
+    tokenBudget: 32000
+    # -- Max log lines included in prompt.
+    maxLogLines: 25
+    # -- Max events included in prompt.
+    maxEvents: 25
+    # -- Max session summaries included in prompt.
+    summaryMaxItems: 3
   prometheus:
     # -- Prometheus base URL (PROMETHEUS_URL). If empty, Prometheus queries are disabled.
     url: ""

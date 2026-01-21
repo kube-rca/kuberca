@@ -27,12 +27,16 @@ Deploy kube-rca backend and frontend
 | agent.ingress.paths | list | `["/"]` | Paths for agent ingress. |
 | agent.ingress.tls | list | `[]` | TLS configuration for agent ingress. |
 | agent.k8s.apiTimeoutSeconds | int | `5` | Kubernetes API timeout in seconds. |
-| agent.k8s.eventLimit | int | `20` | Kubernetes event limit. |
-| agent.k8s.logTailLines | int | `50` | Kubernetes log tail lines. |
+| agent.k8s.eventLimit | int | `25` | Kubernetes event limit. |
+| agent.k8s.logTailLines | int | `25` | Kubernetes log tail lines. |
 | agent.logLevel | string | `"info"` | Agent log level (LOG_LEVEL). |
 | agent.nodeSelector | object | `{}` | Node labels for agent pods assignment. |
 | agent.prometheus.httpTimeoutSeconds | int | `5` | Prometheus HTTP timeout in seconds. |
 | agent.prometheus.url | string | `""` | Prometheus base URL (PROMETHEUS_URL). If empty, Prometheus queries are disabled. |
+| agent.prompt.maxEvents | int | `25` | Max events included in prompt. |
+| agent.prompt.maxLogLines | int | `25` | Max log lines included in prompt. |
+| agent.prompt.summaryMaxItems | int | `3` | Max session summaries included in prompt. |
+| agent.prompt.tokenBudget | int | `32000` | Prompt token budget (approx). |
 | agent.replicaCount | int | `1` | Number of agent replicas. |
 | agent.resources | object | `{}` | Agent resource requests/limits. |
 | agent.service.port | int | `8000` | Agent service port. |

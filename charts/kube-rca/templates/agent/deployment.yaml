@@ -44,6 +44,14 @@ spec:
               value: {{ .Values.agent.k8s.eventLimit | quote }}
             - name: K8S_LOG_TAIL_LINES
               value: {{ .Values.agent.k8s.logTailLines | quote }}
+            - name: PROMPT_TOKEN_BUDGET
+              value: {{ .Values.agent.prompt.tokenBudget | quote }}
+            - name: PROMPT_MAX_LOG_LINES
+              value: {{ .Values.agent.prompt.maxLogLines | quote }}
+            - name: PROMPT_MAX_EVENTS
+              value: {{ .Values.agent.prompt.maxEvents | quote }}
+            - name: PROMPT_SUMMARY_MAX_ITEMS
+              value: {{ .Values.agent.prompt.summaryMaxItems | quote }}
             - name: PROMETHEUS_URL
               value: {{ .Values.agent.prometheus.url | quote }}
             - name: PROMETHEUS_HTTP_TIMEOUT_SECONDS
