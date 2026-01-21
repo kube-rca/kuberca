@@ -169,12 +169,15 @@ def _build_prompt(
             "1. Use list_prometheus_metrics(match='pattern') to discover available metrics.\n"
             "2. Use query_prometheus(query) for current/instant values.\n"
             "3. Use query_prometheus_range(query, start, end, step) for time-series history.\n"
-            "   - For OOMKilled/memory issues: query memory history before the event.\n"
+            "   - ALWAYS use range queries to understand metric trends before the alert.\n"
+            "   - Use cases: memory/CPU spikes, error rate increase, latency degradation,\n"
+            "     request volume changes, network issues, resource exhaustion, etc.\n"
+            "   - Use alert's startsAt to calculate start (e.g., 1h before) and end time.\n"
             "   - Example: query_prometheus_range(\n"
-            "       query='container_memory_usage_bytes{pod=\"my-pod\"}',\n"
-            "       start='2024-01-01T00:00:00Z', end='2024-01-01T01:00:00Z', step='1m')\n"
-            "   - Use alert's startsAt time to calculate appropriate start/end range.\n"
-            "Example metric patterns: 'kube_pod.*', 'container_memory.*', 'container_cpu.*'\n\n"
+            "       query='rate(http_requests_total{pod=\"my-pod\"}[5m])',\n"
+            "       start='<startsAt - 1h>', end='<startsAt>', step='1m')\n"
+            "Example patterns: 'container_memory.*', 'container_cpu.*', 'http_.*',\n"
+            "'istio_request.*', 'kube_pod.*', 'node_.*'\n\n"
         )
 
     if summary_block:
