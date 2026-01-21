@@ -216,14 +216,8 @@ agent:
     # -- Kubernetes log tail lines.
     logTailLines: 50
   prometheus:
-    # -- Prometheus service label selector.
-    labelSelector: "app=kube-prometheus-stack-prometheus"
-    # -- Prometheus namespace allowlist (empty = all).
-    namespaceAllowlist: []
-    # -- Prometheus service port name (empty = auto).
-    portName: ""
-    # -- Prometheus scheme.
-    scheme: "http"
+    # -- Prometheus base URL (PROMETHEUS_URL). If empty, Prometheus queries are disabled.
+    url: ""
     # -- Prometheus HTTP timeout in seconds.
     httpTimeoutSeconds: 5
   gemini:

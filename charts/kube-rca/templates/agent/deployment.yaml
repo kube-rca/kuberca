@@ -44,14 +44,8 @@ spec:
               value: {{ .Values.agent.k8s.eventLimit | quote }}
             - name: K8S_LOG_TAIL_LINES
               value: {{ .Values.agent.k8s.logTailLines | quote }}
-            - name: PROMETHEUS_LABEL_SELECTOR
-              value: {{ .Values.agent.prometheus.labelSelector | quote }}
-            - name: PROMETHEUS_NAMESPACE_ALLOWLIST
-              value: {{ join "," .Values.agent.prometheus.namespaceAllowlist | quote }}
-            - name: PROMETHEUS_PORT_NAME
-              value: {{ .Values.agent.prometheus.portName | quote }}
-            - name: PROMETHEUS_SCHEME
-              value: {{ .Values.agent.prometheus.scheme | quote }}
+            - name: PROMETHEUS_URL
+              value: {{ .Values.agent.prometheus.url | quote }}
             - name: PROMETHEUS_HTTP_TIMEOUT_SECONDS
               value: {{ .Values.agent.prometheus.httpTimeoutSeconds | quote }}
             {{- $cache := default (dict) .Values.agent.cache }}

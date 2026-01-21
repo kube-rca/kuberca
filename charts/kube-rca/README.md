@@ -32,10 +32,7 @@ Deploy kube-rca backend and frontend
 | agent.logLevel | string | `"info"` | Agent log level (LOG_LEVEL). |
 | agent.nodeSelector | object | `{}` | Node labels for agent pods assignment. |
 | agent.prometheus.httpTimeoutSeconds | int | `5` | Prometheus HTTP timeout in seconds. |
-| agent.prometheus.labelSelector | string | `"app=kube-prometheus-stack-prometheus"` | Prometheus service label selector. |
-| agent.prometheus.namespaceAllowlist | list | `[]` | Prometheus namespace allowlist (empty = all). |
-| agent.prometheus.portName | string | `""` | Prometheus service port name (empty = auto). |
-| agent.prometheus.scheme | string | `"http"` | Prometheus scheme. |
+| agent.prometheus.url | string | `""` | Prometheus base URL (PROMETHEUS_URL). If empty, Prometheus queries are disabled. |
 | agent.replicaCount | int | `1` | Number of agent replicas. |
 | agent.resources | object | `{}` | Agent resource requests/limits. |
 | agent.service.port | int | `8000` | Agent service port. |
