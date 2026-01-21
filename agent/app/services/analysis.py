@@ -15,10 +15,12 @@ class AnalysisService:
         self,
         k8s_client: KubernetesClient,
         analysis_engine: AnalysisEngine | None,
+        prometheus_enabled: bool = False,
     ) -> None:
         self._logger = logging.getLogger(__name__)
         self._k8s_client = k8s_client
         self._analysis_engine = analysis_engine
+        self._prometheus_enabled = prometheus_enabled
 
     def analyze(
         self, request: AlertAnalysisRequest
@@ -33,7 +35,7 @@ class AnalysisService:
             summary, detail = _split_alert_analysis(analysis)
             return analysis, summary, detail, context, artifacts
 
-        prompt = _build_prompt(request, k8s_context)
+        prompt = _build_prompt(request, k8s_context, self._prometheus_enabled)
         try:
             session_id = _resolve_alert_session_id(request)
             analysis = self._analysis_engine.analyze(prompt, session_id)
@@ -64,7 +66,11 @@ class AnalysisService:
             return _fallback_incident_summary(request, f"analysis failed: {exc}")
 
 
-def _build_prompt(request: AlertAnalysisRequest, k8s_context: K8sContext) -> str:
+def _build_prompt(
+    request: AlertAnalysisRequest,
+    k8s_context: K8sContext,
+    prometheus_enabled: bool,
+) -> str:
     alert_payload = request.alert.model_dump(by_alias=True, mode="json")
     payload = {
         "alert": alert_payload,
@@ -73,7 +79,19 @@ def _build_prompt(request: AlertAnalysisRequest, k8s_context: K8sContext) -> str
     if request.incident_id:
         payload["incident_id"] = request.incident_id
 
-    return (
+    tool_lines = [
+        "- get_pod_status, get_pod_spec",
+        "- list_pod_events, list_namespace_events, list_cluster_events",
+        "- list_pods_in_namespace (use when pod name is missing from alert labels)",
+        "- get_previous_pod_logs, get_pod_logs",
+        "- get_workload_status, get_node_status",
+        "- get_pod_metrics, get_node_metrics",
+    ]
+    if prometheus_enabled:
+        tool_lines.append("- discover_prometheus, list_prometheus_metrics, query_prometheus")
+    tool_block = "\n".join(tool_lines)
+
+    prompt = (
         "You are kube-rca-agent. Analyze the alert using the provided Kubernetes context.\n"
         "Return your response in Korean with the following structure:\n"
         "1) 요약 (Summary): 1-2 sentences, <= 300 chars.\n"
@@ -89,19 +107,21 @@ def _build_prompt(request: AlertAnalysisRequest, k8s_context: K8sContext) -> str
         "avoid excessive code formatting.\n"
         "If data is missing, state what is missing.\n"
         "You may call tools if needed:\n"
-        "- get_pod_status, get_pod_spec\n"
-        "- list_pod_events, list_namespace_events, list_cluster_events\n"
-        "- list_pods_in_namespace (use when pod name is missing from alert labels)\n"
-        "- get_previous_pod_logs, get_pod_logs\n"
-        "- get_workload_status, get_node_status\n"
-        "- get_pod_metrics, get_node_metrics\n"
-        "- discover_prometheus, list_prometheus_metrics, query_prometheus\n\n"
-        "For Prometheus queries:\n"
-        "1. Use list_prometheus_metrics(match='pattern') to discover available metrics first.\n"
-        "2. Then use query_prometheus(query) to get detailed data.\n"
-        "Example patterns: 'kube_pod.*', 'istio.*', 'container_.*', 'http_.*'\n\n"
-        f"Alert payload:\n{_to_pretty_json(payload)}\n\n"
-        f"Kubernetes context:\n{_to_pretty_json(k8s_context.to_dict())}\n"
+        f"{tool_block}\n\n"
+    )
+
+    if prometheus_enabled:
+        prompt += (
+            "For Prometheus queries:\n"
+            "1. Use list_prometheus_metrics(match='pattern') to discover available metrics first.\n"
+            "2. Then use query_prometheus(query) to get detailed data.\n"
+            "Example patterns: 'kube_pod.*', 'istio.*', 'container_.*', 'http_.*'\n\n"
+        )
+
+    return (
+        prompt
+        + f"Alert payload:\n{_to_pretty_json(payload)}\n\n"
+        + f"Kubernetes context:\n{_to_pretty_json(k8s_context.to_dict())}\n"
     )
 
 

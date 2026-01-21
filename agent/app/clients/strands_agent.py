@@ -205,7 +205,7 @@ def _build_tools(
 
     @tool
     def discover_prometheus() -> dict[str, object]:
-        """Discover the in-cluster Prometheus service endpoint."""
+        """Return the configured Prometheus endpoint (PROMETHEUS_URL)."""
         if prometheus_client is None:
             return {"warning": "prometheus client not configured"}
         return prometheus_client.describe_endpoint()
@@ -244,7 +244,7 @@ def _build_tools(
         pods = k8s_client.list_pods_in_namespace(namespace, label_selector=label_selector)
         return [pod.to_dict() for pod in pods]
 
-    return [
+    tools: list[object] = [
         get_pod_status,
         get_pod_spec,
         list_pod_events,
@@ -257,7 +257,13 @@ def _build_tools(
         get_node_status,
         get_pod_metrics,
         get_node_metrics,
-        discover_prometheus,
-        list_prometheus_metrics,
-        query_prometheus,
     ]
+    if prometheus_client is not None:
+        tools.extend(
+            [
+                discover_prometheus,
+                list_prometheus_metrics,
+                query_prometheus,
+            ]
+        )
+    return tools

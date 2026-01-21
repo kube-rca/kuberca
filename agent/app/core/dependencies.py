@@ -25,8 +25,12 @@ def get_k8s_client() -> KubernetesClient:
 
 
 @lru_cache
-def get_prometheus_client() -> PrometheusClient:
-    return PrometheusClient(get_settings(), get_k8s_client())
+def get_prometheus_client() -> PrometheusClient | None:
+    settings = get_settings()
+    client = PrometheusClient(settings)
+    if not client.enabled:
+        return None
+    return client
 
 
 @lru_cache
@@ -39,4 +43,9 @@ def get_analysis_engine() -> AnalysisEngine | None:
 
 @lru_cache
 def get_analysis_service() -> AnalysisService:
-    return AnalysisService(get_k8s_client(), get_analysis_engine())
+    prometheus_client = get_prometheus_client()
+    return AnalysisService(
+        get_k8s_client(),
+        get_analysis_engine(),
+        prometheus_enabled=prometheus_client is not None,
+    )

@@ -6,46 +6,33 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 
-from kubernetes import client
-
-from app.clients.k8s import KubernetesClient
 from app.core.config import Settings
 
 
 @dataclass(frozen=True)
 class PrometheusEndpoint:
-    name: str
-    namespace: str
-    port: int
-    scheme: str
-
-    @property
-    def base_url(self) -> str:
-        return f"{self.scheme}://{self.name}.{self.namespace}.svc:{self.port}"
+    base_url: str
 
     def to_dict(self) -> dict[str, object]:
         return {
-            "name": self.name,
-            "namespace": self.namespace,
-            "port": self.port,
-            "scheme": self.scheme,
             "base_url": self.base_url,
         }
 
 
 class PrometheusClient:
-    def __init__(self, settings: Settings, k8s_client: KubernetesClient) -> None:
+    def __init__(self, settings: Settings) -> None:
         self._logger = logging.getLogger(__name__)
-        self._k8s_client = k8s_client
-        self._label_selector = settings.prometheus_label_selector
-        self._namespace_allowlist = settings.prometheus_namespace_allowlist
-        self._port_name = settings.prometheus_port_name
-        self._scheme = settings.prometheus_scheme
+        self._base_url = _normalize_base_url(settings.prometheus_url)
         self._timeout_seconds = settings.prometheus_http_timeout_seconds
-        self._endpoint: PrometheusEndpoint | None = None
+        if settings.prometheus_url and not self._base_url:
+            self._logger.warning("Invalid PROMETHEUS_URL: %s", settings.prometheus_url)
+
+    @property
+    def enabled(self) -> bool:
+        return bool(self._base_url)
 
     def describe_endpoint(self) -> dict[str, object]:
-        endpoint, detail = self._discover_endpoint()
+        endpoint, detail = self._resolve_endpoint()
         if endpoint:
             return {"endpoint": endpoint.to_dict()}
         return detail
@@ -57,7 +44,7 @@ class PrometheusClient:
             match: Optional regex pattern to filter metric names.
                    Examples: 'kube_pod.*', 'istio_requests.*', 'container_.*'
         """
-        endpoint, detail = self._discover_endpoint()
+        endpoint, detail = self._resolve_endpoint()
         if endpoint is None:
             return detail
 
@@ -101,7 +88,7 @@ class PrometheusClient:
         return {"endpoint": endpoint.to_dict(), "metrics": metrics, "count": len(metrics)}
 
     def query(self, query: str, *, time: str | None = None) -> dict[str, object]:
-        endpoint, detail = self._discover_endpoint()
+        endpoint, detail = self._resolve_endpoint()
         if endpoint is None:
             return detail
 
@@ -134,66 +121,20 @@ class PrometheusClient:
 
         return {"endpoint": endpoint.to_dict(), "data": data}
 
-    def _discover_endpoint(self) -> tuple[PrometheusEndpoint | None, dict[str, object]]:
-        if self._endpoint:
-            return self._endpoint, {"endpoint": self._endpoint.to_dict()}
-        if not self._label_selector:
-            return None, {"error": "prometheus label selector not configured"}
-
-        services = self._k8s_client.list_services_by_label(
-            self._label_selector,
-            namespaces=self._namespace_allowlist or None,
-        )
-        if not services:
-            return None, {"error": "prometheus service not found"}
-        if len(services) > 1:
-            return None, {
-                "error": "multiple prometheus services found",
-                "candidates": [self._describe_service(item) for item in services],
-            }
-
-        service = services[0]
-        port = self._select_port(service)
-        if port is None:
-            return None, {
-                "error": "prometheus service port not resolved",
-                "service": self._describe_service(service),
-            }
-
-        metadata = service.metadata
-        name = metadata.name if metadata else ""
-        namespace = metadata.namespace if metadata else ""
-        endpoint = PrometheusEndpoint(
-            name=name,
-            namespace=namespace,
-            port=port,
-            scheme=self._scheme,
-        )
-        self._endpoint = endpoint
+    def _resolve_endpoint(self) -> tuple[PrometheusEndpoint | None, dict[str, object]]:
+        if not self._base_url:
+            return None, {"warning": "prometheus url not configured"}
+        endpoint = PrometheusEndpoint(base_url=self._base_url)
         return endpoint, {"endpoint": endpoint.to_dict()}
 
-    def _select_port(self, service: client.V1Service) -> int | None:
-        ports = service.spec.ports if service.spec else None
-        if not ports:
-            return None
-        if self._port_name:
-            for port in ports:
-                if port.name == self._port_name:
-                    return port.port
-            return None
-        if len(ports) == 1:
-            return ports[0].port
-        return None
 
-    @staticmethod
-    def _describe_service(service: client.V1Service) -> dict[str, object]:
-        metadata = service.metadata
-        return {
-            "name": metadata.name if metadata else "",
-            "namespace": metadata.namespace if metadata else "",
-            "labels": metadata.labels if metadata else {},
-            "ports": [
-                {"name": port.name, "port": port.port, "protocol": port.protocol}
-                for port in (service.spec.ports if service.spec and service.spec.ports else [])
-            ],
-        }
+def _normalize_base_url(raw: str) -> str:
+    value = raw.strip()
+    if not value:
+        return ""
+    if "://" not in value:
+        value = f"http://{value}"
+    parsed = urllib.parse.urlparse(value)
+    if not parsed.scheme or not parsed.netloc:
+        return ""
+    return value.rstrip("/")

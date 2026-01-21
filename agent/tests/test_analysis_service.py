@@ -24,6 +24,16 @@ class FakeAnalysisEngine:
         return self._result
 
 
+class CapturingAnalysisEngine(FakeAnalysisEngine):
+    def __init__(self, result: str) -> None:
+        super().__init__(result)
+        self.last_prompt = ""
+
+    def analyze(self, prompt: str, incident_id: str | None = None) -> str:
+        self.last_prompt = prompt
+        return super().analyze(prompt, incident_id)
+
+
 def _sample_request() -> AlertAnalysisRequest:
     return AlertAnalysisRequest(
         alert=Alert(
@@ -54,7 +64,11 @@ def test_analysis_service_fallback() -> None:
         previous_logs=[],
         warnings=["namespace/pod_name missing from alert labels"],
     )
-    service = AnalysisService(FakeKubernetesClient(context), analysis_engine=None)
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=None,
+        prometheus_enabled=False,
+    )
 
     analysis, summary, detail, context, artifacts = service.analyze(_sample_request())
 
@@ -78,6 +92,7 @@ def test_analysis_service_uses_engine() -> None:
     service = AnalysisService(
         FakeKubernetesClient(context),
         analysis_engine=FakeAnalysisEngine("ok"),
+        prometheus_enabled=False,
     )
 
     analysis, summary, detail, context, artifacts = service.analyze(_sample_request())
@@ -87,3 +102,48 @@ def test_analysis_service_uses_engine() -> None:
     assert detail
     assert context
     assert isinstance(artifacts, list)
+
+
+def test_analysis_service_prompt_without_prometheus() -> None:
+    context = K8sContext(
+        namespace="default",
+        pod_name="demo-pod",
+        workload=None,
+        pod_status=None,
+        events=[],
+        previous_logs=[],
+        warnings=[],
+    )
+    engine = CapturingAnalysisEngine("ok")
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=engine,
+        prometheus_enabled=False,
+    )
+
+    service.analyze(_sample_request())
+
+    assert "query_prometheus" not in engine.last_prompt
+    assert "For Prometheus queries" not in engine.last_prompt
+
+
+def test_analysis_service_prompt_with_prometheus() -> None:
+    context = K8sContext(
+        namespace="default",
+        pod_name="demo-pod",
+        workload=None,
+        pod_status=None,
+        events=[],
+        previous_logs=[],
+        warnings=[],
+    )
+    engine = CapturingAnalysisEngine("ok")
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=engine,
+        prometheus_enabled=True,
+    )
+
+    service.analyze(_sample_request())
+
+    assert "query_prometheus" in engine.last_prompt
