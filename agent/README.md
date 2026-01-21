@@ -52,11 +52,15 @@ The server listens on `:8000` by default. Set `PORT` to change it.
 - `GEMINI_API_KEY`: Gemini API key (Secret-based in Helm deployment).
 - `GEMINI_MODEL_ID`: Gemini model ID (default: `gemini-3-flash-preview`).
 - `K8S_API_TIMEOUT_SECONDS`: Kubernetes API timeout in seconds (default: `5`).
-- `K8S_EVENT_LIMIT`: Maximum number of events to fetch (default: `20`).
-- `K8S_LOG_TAIL_LINES`: Number of previous log lines to fetch (default: `50`).
+- `K8S_EVENT_LIMIT`: Maximum number of events to fetch (default: `25`).
+- `K8S_LOG_TAIL_LINES`: Number of previous log lines to fetch (default: `25`).
 - `PROMETHEUS_URL`: Prometheus base URL. If empty, Prometheus queries are disabled.
   If the scheme is omitted, `http://` is assumed.
 - `PROMETHEUS_HTTP_TIMEOUT_SECONDS`: Prometheus HTTP timeout in seconds (default: `5`).
+- `PROMPT_TOKEN_BUDGET`: Prompt token budget (approx, default: `32000`).
+- `PROMPT_MAX_LOG_LINES`: Max log lines to include in prompt (default: `25`).
+- `PROMPT_MAX_EVENTS`: Max events to include in prompt (default: `25`).
+- `PROMPT_SUMMARY_MAX_ITEMS`: Max session summaries to keep (default: `3`).
 - `WEB_CONCURRENCY`: Uvicorn worker count (default: `1`).
 
 ## Endpoints

@@ -3,9 +3,11 @@ from __future__ import annotations
 import json
 import logging
 from typing import Any
+from uuid import uuid4
 
 from app.clients.k8s import KubernetesClient, extract_pod_target
 from app.clients.strands_agent import AnalysisEngine
+from app.clients.summary_store import SummaryStore
 from app.models.k8s import K8sContext
 from app.schemas.analysis import AlertAnalysisRequest, IncidentSummaryRequest
 
@@ -16,11 +18,21 @@ class AnalysisService:
         k8s_client: KubernetesClient,
         analysis_engine: AnalysisEngine | None,
         prometheus_enabled: bool = False,
+        summary_store: SummaryStore | None = None,
+        summary_history_size: int = 3,
+        prompt_token_budget: int = 32000,
+        prompt_max_log_lines: int = 25,
+        prompt_max_events: int = 25,
     ) -> None:
         self._logger = logging.getLogger(__name__)
         self._k8s_client = k8s_client
         self._analysis_engine = analysis_engine
         self._prometheus_enabled = prometheus_enabled
+        self._summary_store = summary_store
+        self._summary_history_size = max(1, summary_history_size)
+        self._prompt_token_budget = max(0, prompt_token_budget)
+        self._prompt_max_log_lines = max(0, prompt_max_log_lines)
+        self._prompt_max_events = max(0, prompt_max_events)
 
     def analyze(
         self, request: AlertAnalysisRequest
@@ -35,11 +47,22 @@ class AnalysisService:
             summary, detail = _split_alert_analysis(analysis)
             return analysis, summary, detail, context, artifacts
 
-        prompt = _build_prompt(request, k8s_context, self._prometheus_enabled)
+        summary_key = _resolve_alert_session_id(request)
+        recent_summaries = self._load_recent_summaries(summary_key)
+        prompt = _build_prompt(
+            request,
+            k8s_context,
+            self._prometheus_enabled,
+            recent_summaries,
+            self._prompt_token_budget,
+            self._prompt_max_log_lines,
+            self._prompt_max_events,
+        )
         try:
-            session_id = _resolve_alert_session_id(request)
+            session_id = _build_runtime_session_id(summary_key)
             analysis = self._analysis_engine.analyze(prompt, session_id)
             summary, detail = _split_alert_analysis(analysis)
+            self._store_summary(summary_key, summary)
             return analysis, summary, detail, context, artifacts
         except Exception as exc:  # noqa: BLE001
             self._logger.exception("Strands analysis failed")
@@ -65,11 +88,39 @@ class AnalysisService:
             self._logger.exception("Incident summary analysis failed")
             return _fallback_incident_summary(request, f"analysis failed: {exc}")
 
+    def _load_recent_summaries(self, session_id: str) -> list[str]:
+        if self._summary_store is None or self._summary_history_size <= 0:
+            return []
+        try:
+            return self._summary_store.list_summaries(session_id, self._summary_history_size)
+        except Exception as exc:  # noqa: BLE001
+            self._logger.warning("Failed to load session summaries: %s", exc)
+            return []
+
+    def _store_summary(self, session_id: str, summary: str) -> None:
+        if self._summary_store is None or self._summary_history_size <= 0:
+            return
+        compact = _compact_summary(summary, limit=300) or summary.strip()
+        if not compact:
+            return
+        try:
+            self._summary_store.append_summary(
+                session_id,
+                compact,
+                max_items=self._summary_history_size,
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._logger.warning("Failed to store session summary: %s", exc)
+
 
 def _build_prompt(
     request: AlertAnalysisRequest,
     k8s_context: K8sContext,
     prometheus_enabled: bool,
+    recent_summaries: list[str],
+    prompt_token_budget: int,
+    prompt_max_log_lines: int,
+    prompt_max_events: int,
 ) -> str:
     alert_payload = request.alert.model_dump(by_alias=True, mode="json")
     payload = {
@@ -91,6 +142,7 @@ def _build_prompt(
         tool_lines.append("- discover_prometheus, list_prometheus_metrics, query_prometheus")
     tool_block = "\n".join(tool_lines)
 
+    summary_block = _format_session_summaries(recent_summaries)
     prompt = (
         "You are kube-rca-agent. Analyze the alert using the provided Kubernetes context.\n"
         "Return your response in Korean with the following structure:\n"
@@ -118,11 +170,162 @@ def _build_prompt(
             "Example patterns: 'kube_pod.*', 'istio.*', 'container_.*', 'http_.*'\n\n"
         )
 
-    return (
-        prompt
-        + f"Alert payload:\n{_to_pretty_json(payload)}\n\n"
-        + f"Kubernetes context:\n{_to_pretty_json(k8s_context.to_dict())}\n"
+    if summary_block:
+        prompt += summary_block
+
+    context_dict = _prepare_k8s_context(
+        k8s_context,
+        max_events=prompt_max_events,
+        max_log_lines=prompt_max_log_lines,
     )
+    alert_block = f"Alert payload:\n{_to_pretty_json(payload)}\n\n"
+    context_block = f"Kubernetes context:\n{_to_pretty_json(context_dict)}\n"
+    full_prompt = prompt + alert_block + context_block
+    return _apply_prompt_budget(
+        full_prompt,
+        prompt_prefix=prompt,
+        alert_block=alert_block,
+        context_dict=context_dict,
+        prompt_token_budget=prompt_token_budget,
+    )
+
+
+def _build_runtime_session_id(summary_key: str) -> str:
+    suffix = uuid4().hex[:8]
+    if summary_key:
+        return f"{summary_key}:run:{suffix}"
+    return f"run:{suffix}"
+
+
+def _format_session_summaries(summaries: list[str]) -> str:
+    if not summaries:
+        return ""
+    lines = ["Recent session summaries (latest 3):"]
+    for idx, summary in enumerate(summaries, start=1):
+        compact = _compact_summary(summary, limit=300)
+        if not compact:
+            continue
+        lines.append(f"{idx}) {compact}")
+    if len(lines) == 1:
+        return ""
+    return "\n".join(lines) + "\n\n"
+
+
+def _prepare_k8s_context(
+    k8s_context: K8sContext, *, max_events: int, max_log_lines: int
+) -> dict[str, object]:
+    context = k8s_context.to_dict()
+    events = context.get("events") or []
+    if max_events <= 0:
+        context["events"] = []
+    else:
+        context["events"] = events[:max_events]
+
+    logs = context.get("previous_logs") or []
+    if max_log_lines <= 0:
+        context["previous_logs"] = []
+        return context
+
+    trimmed_logs: list[dict[str, object]] = []
+    for snippet in logs:
+        lines = snippet.get("logs") or []
+        lines = _dedupe_consecutive_lines(lines)
+        if max_log_lines > 0:
+            lines = lines[-max_log_lines:]
+        trimmed = dict(snippet)
+        trimmed["logs"] = lines
+        trimmed_logs.append(trimmed)
+    context["previous_logs"] = trimmed_logs
+    return context
+
+
+def _apply_prompt_budget(
+    prompt: str,
+    *,
+    prompt_prefix: str,
+    alert_block: str,
+    context_dict: dict[str, object],
+    prompt_token_budget: int,
+) -> str:
+    budget_chars = _prompt_budget_to_chars(prompt_token_budget)
+    if budget_chars <= 0 or len(prompt) <= budget_chars:
+        return prompt
+
+    def build_context_block(
+        context: dict[str, object] | None,
+        note: str | None = None,
+    ) -> str:
+        if context is None:
+            reason = note or "omitted due to prompt budget"
+            return f"Kubernetes context: {reason}.\n"
+        header = "Kubernetes context"
+        if note:
+            header = f"{header} ({note})"
+        return f"{header}:\n{_to_pretty_json(context)}\n"
+
+    # Step 1: remove previous logs
+    if context_dict.get("previous_logs"):
+        trimmed = dict(context_dict)
+        trimmed["previous_logs"] = []
+        candidate = prompt_prefix + alert_block + build_context_block(trimmed, "logs omitted")
+        if len(candidate) <= budget_chars:
+            return candidate
+
+    # Step 2: remove events
+    if context_dict.get("events"):
+        trimmed = dict(context_dict)
+        trimmed["events"] = []
+        trimmed["previous_logs"] = []
+        candidate = (
+            prompt_prefix + alert_block + build_context_block(trimmed, "events/logs omitted")
+        )
+        if len(candidate) <= budget_chars:
+            return candidate
+
+    # Step 3: compact context
+    compact = _compact_context_dict(context_dict)
+    candidate = prompt_prefix + alert_block + build_context_block(compact, "compact")
+    if len(candidate) <= budget_chars:
+        return candidate
+
+    # Step 4: omit context entirely
+    return prompt_prefix + alert_block + build_context_block(None, "omitted due to prompt budget")
+
+
+def _compact_context_dict(context: dict[str, object]) -> dict[str, object]:
+    pod_status = context.get("pod_status") or {}
+    compact_status = None
+    if pod_status:
+        compact_status = {
+            "phase": pod_status.get("phase"),
+            "reason": pod_status.get("reason"),
+            "message": pod_status.get("message"),
+            "node_name": pod_status.get("node_name"),
+        }
+    return {
+        "namespace": context.get("namespace"),
+        "pod_name": context.get("pod_name"),
+        "workload": context.get("workload"),
+        "pod_status": compact_status,
+        "warnings": context.get("warnings") or [],
+    }
+
+
+def _dedupe_consecutive_lines(lines: list[str]) -> list[str]:
+    deduped: list[str] = []
+    last = None
+    for line in lines:
+        if line == last:
+            continue
+        deduped.append(line)
+        last = line
+    return deduped
+
+
+def _prompt_budget_to_chars(prompt_token_budget: int) -> int:
+    if prompt_token_budget <= 0:
+        return 0
+    return prompt_token_budget * 4
 
 
 def _resolve_alert_session_id(request: AlertAnalysisRequest) -> str:

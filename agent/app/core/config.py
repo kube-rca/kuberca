@@ -38,6 +38,10 @@ class Settings:
     k8s_log_tail_lines: int
     prometheus_url: str
     prometheus_http_timeout_seconds: int
+    prompt_token_budget: int
+    prompt_max_log_lines: int
+    prompt_max_events: int
+    prompt_summary_max_items: int
 
     @property
     def session_store_dsn(self) -> str:
@@ -63,8 +67,12 @@ def load_settings() -> Settings:
         agent_cache_size=_get_non_negative_int_env("AGENT_CACHE_SIZE", 128),
         agent_cache_ttl_seconds=_get_non_negative_int_env("AGENT_CACHE_TTL_SECONDS", 0),
         k8s_api_timeout_seconds=_get_int_env("K8S_API_TIMEOUT_SECONDS", 5),
-        k8s_event_limit=_get_int_env("K8S_EVENT_LIMIT", 20),
-        k8s_log_tail_lines=_get_int_env("K8S_LOG_TAIL_LINES", 50),
+        k8s_event_limit=_get_int_env("K8S_EVENT_LIMIT", 25),
+        k8s_log_tail_lines=_get_int_env("K8S_LOG_TAIL_LINES", 25),
         prometheus_url=os.getenv("PROMETHEUS_URL", "").strip(),
         prometheus_http_timeout_seconds=_get_int_env("PROMETHEUS_HTTP_TIMEOUT_SECONDS", 5),
+        prompt_token_budget=_get_non_negative_int_env("PROMPT_TOKEN_BUDGET", 32000),
+        prompt_max_log_lines=_get_non_negative_int_env("PROMPT_MAX_LOG_LINES", 25),
+        prompt_max_events=_get_non_negative_int_env("PROMPT_MAX_EVENTS", 25),
+        prompt_summary_max_items=max(1, _get_int_env("PROMPT_SUMMARY_MAX_ITEMS", 3)),
     )

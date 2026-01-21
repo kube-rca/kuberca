@@ -498,12 +498,15 @@ class KubernetesClient:
         snippets: list[PodLogSnippet] = []
         for container_name in container_names:
             try:
+                effective_tail_lines = self._log_tail_lines
+                if tail_lines is not None:
+                    effective_tail_lines = min(tail_lines, self._log_tail_lines)
                 logs = self._core_api.read_namespaced_pod_log(
                     name=pod.metadata.name,
                     namespace=namespace,
                     container=container_name,
                     previous=False,
-                    tail_lines=tail_lines or self._log_tail_lines,
+                    tail_lines=effective_tail_lines,
                     since_seconds=since_seconds,
                     timestamps=True,
                     _request_timeout=self._timeout_seconds,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.models.k8s import K8sContext, PodStatusSnapshot
+from app.models.k8s import K8sContext, PodLogSnippet, PodStatusSnapshot
 from app.schemas.alert import Alert
 from app.schemas.analysis import AlertAnalysisRequest
 from app.services.analysis import AnalysisService
@@ -32,6 +32,20 @@ class CapturingAnalysisEngine(FakeAnalysisEngine):
     def analyze(self, prompt: str, incident_id: str | None = None) -> str:
         self.last_prompt = prompt
         return super().analyze(prompt, incident_id)
+
+
+class FakeSummaryStore:
+    def __init__(self, summaries: list[str]) -> None:
+        self._summaries = summaries
+        self.appended: list[tuple[str, str]] = []
+        self.last_session_id: str | None = None
+
+    def list_summaries(self, session_id: str, limit: int) -> list[str]:
+        self.last_session_id = session_id
+        return self._summaries[:limit]
+
+    def append_summary(self, session_id: str, summary: str, max_items: int) -> None:
+        self.appended.append((session_id, summary))
 
 
 def _sample_request() -> AlertAnalysisRequest:
@@ -147,3 +161,57 @@ def test_analysis_service_prompt_with_prometheus() -> None:
     service.analyze(_sample_request())
 
     assert "query_prometheus" in engine.last_prompt
+
+
+def test_analysis_service_includes_recent_summaries() -> None:
+    context = K8sContext(
+        namespace="default",
+        pod_name="demo-pod",
+        workload=None,
+        pod_status=None,
+        events=[],
+        previous_logs=[],
+        warnings=[],
+    )
+    store = FakeSummaryStore(["첫 번째 요약", "두 번째 요약", "세 번째 요약"])
+    engine = CapturingAnalysisEngine("ok")
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=engine,
+        prometheus_enabled=False,
+        summary_store=store,
+        summary_history_size=3,
+    )
+
+    service.analyze(_sample_request())
+
+    assert "Recent session summaries" in engine.last_prompt
+    assert "첫 번째 요약" in engine.last_prompt
+    assert store.appended
+
+
+def test_analysis_service_trims_log_lines() -> None:
+    logs = [f"line-{idx}" for idx in range(6)]
+    context = K8sContext(
+        namespace="default",
+        pod_name="demo-pod",
+        workload=None,
+        pod_status=None,
+        events=[],
+        previous_logs=[
+            PodLogSnippet(container="app", previous=True, logs=logs),
+        ],
+        warnings=[],
+    )
+    engine = CapturingAnalysisEngine("ok")
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=engine,
+        prometheus_enabled=False,
+        prompt_max_log_lines=2,
+    )
+
+    service.analyze(_sample_request())
+
+    assert "line-0" not in engine.last_prompt
+    assert "line-5" in engine.last_prompt
