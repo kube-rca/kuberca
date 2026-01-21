@@ -50,7 +50,7 @@ frontend:
 agent:
   image:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr
-    tag: agent-c7f99b4
+    tag: agent-1150336
   workers: 4
   prometheus:
     url: kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
