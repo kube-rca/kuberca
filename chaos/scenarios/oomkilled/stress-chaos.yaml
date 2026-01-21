@@ -1,8 +1,8 @@
 apiVersion: chaos-mesh.org/v1alpha1
 kind: Schedule
 metadata:
-  name: reviews-oom-schedule
-  namespace: kube-rca
+  name: details-oom-schedule
+  namespace: bookinfo
 spec:
   schedule: "@every 1m"
   type: "StressChaos"
@@ -12,7 +12,7 @@ spec:
     mode: one
     selector:
       labelSelectors:
-        app: chaos-oom-target
+        app: details
     stressors:
       memory:
         workers: 1

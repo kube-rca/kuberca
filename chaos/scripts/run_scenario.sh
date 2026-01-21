@@ -95,12 +95,13 @@ REASON_MODE="waiting"
 
 case "$SCENARIO" in
   oomkilled)
-    TARGET_MANIFEST="${SCENARIOS_DIR}/oomkilled/target-deployment.yaml"
+    # TARGET_MANIFEST="${SCENARIOS_DIR}/oomkilled/target-deployment.yaml"
+    TARGET_MANIFEST=""
     CHAOS_MANIFEST="${SCENARIOS_DIR}/oomkilled/stress-chaos.yaml"
-    LABEL_SELECTOR="app=chaos-oom-target"
+    LABEL_SELECTOR="app=details"
     EXPECTED_REASON="OOMKilled"
     REASON_MODE="oom"
-    DEFAULT_NAMESPACE="kube-rca"
+    DEFAULT_NAMESPACE="bookinfo"
     ;;
   crashloop)
     TARGET_MANIFEST="${SCENARIOS_DIR}/crashloop/target-deployment.yaml"
