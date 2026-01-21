@@ -54,6 +54,8 @@ agent:
   workers: 4
   prometheus:
     url: kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+  gemini:
+    modelId: "gemini-2.5-flash"
   sessionDB:
     host: postgresql.kube-rca.svc.cluster.local
     port: 5432
