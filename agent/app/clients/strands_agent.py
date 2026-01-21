@@ -231,6 +231,31 @@ def _build_tools(
         return prometheus_client.query(query, time=time)
 
     @tool
+    def query_prometheus_range(
+        query: str,
+        start: str,
+        end: str,
+        step: str = "1m",
+    ) -> dict[str, object]:
+        """Run a Prometheus range query to get time-series (history) data.
+
+        Use this to analyze metric trends over time, such as memory usage history
+        before an OOMKilled event.
+
+        Args:
+            query: PromQL query (e.g., 'container_memory_usage_bytes{pod="my-pod"}').
+            start: Start time (RFC3339 e.g., '2024-01-01T00:00:00Z' or Unix timestamp).
+            end: End time (RFC3339 or Unix timestamp).
+            step: Query resolution (e.g., '1m', '5m', '1h'). Default '1m'.
+
+        Returns:
+            Matrix result with timestamp-value pairs for each time series.
+        """
+        if prometheus_client is None:
+            return {"warning": "prometheus client not configured"}
+        return prometheus_client.query_range(query, start=start, end=end, step=step)
+
+    @tool
     def list_pods_in_namespace(
         namespace: str, label_selector: str | None = None
     ) -> list[dict[str, object]]:
@@ -264,6 +289,7 @@ def _build_tools(
                 discover_prometheus,
                 list_prometheus_metrics,
                 query_prometheus,
+                query_prometheus_range,
             ]
         )
     return tools

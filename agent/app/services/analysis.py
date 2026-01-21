@@ -139,7 +139,8 @@ def _build_prompt(
         "- get_pod_metrics, get_node_metrics",
     ]
     if prometheus_enabled:
-        tool_lines.append("- discover_prometheus, list_prometheus_metrics, query_prometheus")
+        tool_lines.append("- discover_prometheus, list_prometheus_metrics")
+        tool_lines.append("- query_prometheus, query_prometheus_range")
     tool_block = "\n".join(tool_lines)
 
     summary_block = _format_session_summaries(recent_summaries)
@@ -165,9 +166,15 @@ def _build_prompt(
     if prometheus_enabled:
         prompt += (
             "For Prometheus queries:\n"
-            "1. Use list_prometheus_metrics(match='pattern') to discover available metrics first.\n"
-            "2. Then use query_prometheus(query) to get detailed data.\n"
-            "Example patterns: 'kube_pod.*', 'istio.*', 'container_.*', 'http_.*'\n\n"
+            "1. Use list_prometheus_metrics(match='pattern') to discover available metrics.\n"
+            "2. Use query_prometheus(query) for current/instant values.\n"
+            "3. Use query_prometheus_range(query, start, end, step) for time-series history.\n"
+            "   - For OOMKilled/memory issues: query memory history before the event.\n"
+            "   - Example: query_prometheus_range(\n"
+            "       query='container_memory_usage_bytes{pod=\"my-pod\"}',\n"
+            "       start='2024-01-01T00:00:00Z', end='2024-01-01T01:00:00Z', step='1m')\n"
+            "   - Use alert's startsAt time to calculate appropriate start/end range.\n"
+            "Example metric patterns: 'kube_pod.*', 'container_memory.*', 'container_cpu.*'\n\n"
         )
 
     if summary_block:

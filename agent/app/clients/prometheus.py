@@ -121,6 +121,61 @@ class PrometheusClient:
 
         return {"endpoint": endpoint.to_dict(), "data": data}
 
+    def query_range(
+        self,
+        query: str,
+        *,
+        start: str,
+        end: str,
+        step: str = "1m",
+    ) -> dict[str, object]:
+        """Run a Prometheus range query to get time-series data.
+
+        Args:
+            query: PromQL query string.
+            start: Start time (RFC3339 or Unix timestamp).
+            end: End time (RFC3339 or Unix timestamp).
+            step: Query resolution step (e.g., '1m', '5m', '1h').
+
+        Returns:
+            Dict with 'endpoint' and 'data' (matrix result) or 'error' on failure.
+        """
+        endpoint, detail = self._resolve_endpoint()
+        if endpoint is None:
+            return detail
+
+        params: dict[str, str] = {
+            "query": query,
+            "start": start,
+            "end": end,
+            "step": step,
+        }
+        url = f"{endpoint.base_url}/api/v1/query_range?{urllib.parse.urlencode(params)}"
+
+        try:
+            with urllib.request.urlopen(url, timeout=self._timeout_seconds) as response:
+                payload = response.read()
+        except Exception as exc:  # noqa: BLE001
+            self._logger.warning("Failed to query_range Prometheus: %s", exc)
+            return {
+                "error": "failed to query_range Prometheus",
+                "detail": str(exc),
+                "endpoint": endpoint.to_dict(),
+            }
+
+        try:
+            data = json.loads(payload.decode("utf-8"))
+        except json.JSONDecodeError as exc:
+            self._logger.warning("Failed to decode Prometheus response: %s", exc)
+            return {
+                "error": "failed to decode Prometheus response",
+                "detail": str(exc),
+                "endpoint": endpoint.to_dict(),
+                "raw": payload.decode("utf-8", errors="replace"),
+            }
+
+        return {"endpoint": endpoint.to_dict(), "data": data}
+
     def _resolve_endpoint(self) -> tuple[PrometheusEndpoint | None, dict[str, object]]:
         if not self._base_url:
             return None, {"warning": "prometheus url not configured"}
