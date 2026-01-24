@@ -1,0 +1,18 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: ratings-fault-abort
+spec:
+  hosts:
+  - ratings
+  http:
+  - fault:
+      abort:
+        percentage:
+          value: 60
+        httpStatus: 404
+    route:
+    - destination:
+        host: ratings
+        port:
+          number: 9080

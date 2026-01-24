@@ -35,6 +35,13 @@ networkdelay: ## Run Network delay scenario (Chaos Mesh)
 	POLL_INTERVAL_SECONDS="$(POLL_INTERVAL_SECONDS)" \
 	./scripts/run-networkdelay.sh
 
+404: ## Run 404 Not Found scenario (Istio fault injection)
+	@NAMESPACE="$(NAMESPACE)" \
+	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
+	WAIT_SECONDS="$(WAIT_SECONDS)" \
+	POLL_INTERVAL_SECONDS="$(POLL_INTERVAL_SECONDS)" \
+	./scripts/run-404.sh
+
 500: ## Run 500 Internal Server Error scenario (Istio fault injection)
 	@NAMESPACE="$(NAMESPACE)" \
 	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
