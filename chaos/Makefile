@@ -1,4 +1,4 @@
-.PHONY: help incident oomkilled crashloop imagepull networkdelay 500 503 504
+.PHONY: help incident oomkilled crashloop imagepull networkdelay 404 500 503 504
 
 NAMESPACE ?= bookinfo
 KUBE_CONTEXT ?=

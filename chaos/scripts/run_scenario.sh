@@ -13,6 +13,7 @@ Scenarios:
   crashloop     Create a crashlooping deployment
   imagepull     Create a deployment with invalid image
   networkdelay  Add network delay to ratings
+  404           Istio fault injection: 404 Not Found
   500           Istio fault injection: 500 Internal Server Error
   503           Istio fault injection: 503 Service Unavailable
   504           Istio fault injection: 504 Gateway Timeout
@@ -118,6 +119,10 @@ case "$SCENARIO" in
     ;;
   networkdelay)
     CHAOS_MANIFEST="${SCENARIOS_DIR}/networkdelay/network-delay.yaml"
+    LABEL_SELECTOR="app=ratings"
+    ;;
+  404)
+    CHAOS_MANIFEST="${SCENARIOS_DIR}/404/fault-abort.yaml"
     LABEL_SELECTOR="app=ratings"
     ;;
   500)
