@@ -23,6 +23,7 @@ Environment:
   KUBE_CONTEXT           Kubernetes context (optional)
   WAIT_SECONDS           Wait timeout (default: 120)
   POLL_INTERVAL_SECONDS  Poll interval (default: 3)
+  FAULT_PERCENTAGE       Fault injection percentage for 4xx/5xx (default: 20)
 EOF
 }
 
@@ -42,6 +43,31 @@ log_info() { printf "[INFO] %s\n" "$*"; }
 log_ok() { printf "[OK] %s\n" "$*"; }
 log_warn() { printf "[WARN] %s\n" "$*" >&2; }
 log_error() { printf "[ERROR] %s\n" "$*" >&2; }
+
+is_valid_percentage() {
+  local value=$1
+  [[ "$value" =~ ^(100([.]0+)?|[0-9]{1,2}([.][0-9]+)?)$ ]]
+}
+
+apply_fault_percentage() {
+  local src=$1
+  local dest=$2
+  local percent=$3
+
+  if ! awk -v pct="$percent" '
+    /percentage:/ { in_pct=1 }
+    in_pct && /value:/ {
+      sub(/value:[[:space:]]*[0-9]+([.][0-9]+)?/, "value: " pct)
+      in_pct=0
+      replaced=1
+    }
+    { print }
+    END { if (!replaced) exit 2 }
+  ' "$src" > "$dest"; then
+    log_error "percentage field not found in manifest: $src"
+    return 1
+  fi
+}
 
 DEFAULT_NAMESPACE="bookinfo"
 
@@ -93,6 +119,8 @@ LABEL_SELECTOR=""
 EXPECTED_REASON=""
 ALT_REASON=""
 REASON_MODE="waiting"
+USE_FAULT_PERCENTAGE="false"
+TMP_MANIFEST=""
 
 case "$SCENARIO" in
   oomkilled)
@@ -124,18 +152,22 @@ case "$SCENARIO" in
   404)
     CHAOS_MANIFEST="${SCENARIOS_DIR}/404/fault-abort.yaml"
     LABEL_SELECTOR="app=ratings"
+    USE_FAULT_PERCENTAGE="true"
     ;;
   500)
     CHAOS_MANIFEST="${SCENARIOS_DIR}/500/fault-abort.yaml"
     LABEL_SELECTOR="app=details"
+    USE_FAULT_PERCENTAGE="true"
     ;;
   503)
     CHAOS_MANIFEST="${SCENARIOS_DIR}/503/fault-abort.yaml"
     LABEL_SELECTOR="app=ratings"
+    USE_FAULT_PERCENTAGE="true"
     ;;
   504)
     CHAOS_MANIFEST="${SCENARIOS_DIR}/504/fault-delay.yaml"
     LABEL_SELECTOR="app=reviews"
+    USE_FAULT_PERCENTAGE="true"
     ;;
   *)
     log_error "unknown scenario: $SCENARIO"
@@ -160,6 +192,20 @@ if [ -n "$CHAOS_MANIFEST" ]; then
   require_file "$CHAOS_MANIFEST"
 fi
 
+if [ "$USE_FAULT_PERCENTAGE" = "true" ]; then
+  FAULT_PERCENTAGE=${FAULT_PERCENTAGE:-20}
+  if ! is_valid_percentage "$FAULT_PERCENTAGE"; then
+    log_error "invalid FAULT_PERCENTAGE: $FAULT_PERCENTAGE (expected 0-100)"
+    exit 1
+  fi
+  if [ -n "$CHAOS_MANIFEST" ]; then
+    TMP_MANIFEST=$(mktemp)
+    apply_fault_percentage "$CHAOS_MANIFEST" "$TMP_MANIFEST" "$FAULT_PERCENTAGE"
+    CHAOS_MANIFEST="$TMP_MANIFEST"
+    log_info "Fault injection percentage set to ${FAULT_PERCENTAGE}%"
+  fi
+fi
+
 cleanup() {
   log_info "Cleaning up..."
   if [ -n "$CHAOS_MANIFEST" ]; then
@@ -167,6 +213,9 @@ cleanup() {
   fi
   if [ -n "$TARGET_MANIFEST" ]; then
     kubectl_local -n "$NAMESPACE" delete -f "$TARGET_MANIFEST" --ignore-not-found=true >/dev/null 2>&1 || true
+  fi
+  if [ -n "$TMP_MANIFEST" ] && [ -f "$TMP_MANIFEST" ]; then
+    rm -f "$TMP_MANIFEST"
   fi
   log_ok "Cleanup complete"
 }

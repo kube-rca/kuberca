@@ -44,6 +44,7 @@ make networkdelay
 make 500
 make 503
 make 504
+make 500 FAULT_PERCENTAGE=30
 make incident   # alias for oomkilled
 ```
 
@@ -53,5 +54,6 @@ make incident   # alias for oomkilled
 - `KUBE_CONTEXT`: kubectl context (optional)
 - `WAIT_SECONDS`: wait timeout (default: `120`)
 - `POLL_INTERVAL_SECONDS`: polling interval (default: `3`)
+- `FAULT_PERCENTAGE`: fault injection percentage for 4xx/5xx (default: `20`)
 
 Each scenario runs until you press Enter (or Ctrl+C), then cleans up.
