@@ -61,6 +61,17 @@ class AnalysisService:
         try:
             session_id = _build_runtime_session_id(summary_key)
             analysis = self._analysis_engine.analyze(prompt, session_id)
+            if not isinstance(analysis, str):
+                analysis = ""
+            if not analysis.strip():
+                self._logger.warning("Strands analysis returned empty response")
+                analysis = _fallback_summary(
+                    request,
+                    k8s_context,
+                    "analysis engine returned empty response",
+                )
+                summary, detail = _split_alert_analysis(analysis)
+                return analysis, summary, detail, context, artifacts
             summary, detail = _split_alert_analysis(analysis)
             self._store_summary(summary_key, summary)
             return analysis, summary, detail, context, artifacts
