@@ -152,9 +152,10 @@ func (s *AlertService) getOrCreateIncident(alert model.Alert) (string, error) {
 // Returns:
 //   - bool: true면 Slack으로 전송, false면 무시
 func (s *AlertService) shouldSendToSlack(alert model.Alert) bool {
-	// info severity는 필터링 (warning, critical만 전송)
-	if alert.Labels["severity"] == "info" {
-		return false
+	// warning, critical만 전송 (info, none 등 필터링)
+	severity := alert.Labels["severity"]
+	if severity == "warning" || severity == "critical" {
+		return true
 	}
-	return true
+	return false
 }
