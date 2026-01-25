@@ -1,138 +1,137 @@
-# agent
+<p align="center">
+  <img src="../.github/img/Kube-RCA-Logo-NoBG.png" alt="KubeRCA Logo" width="120"/>
+</p>
+
+<h1 align="center">KubeRCA Agent</h1>
+
+<p align="center">
+  <strong>AI-Powered Analysis Service for Kubernetes Incidents</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/FastAPI-0.115-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI">
+  <img src="https://img.shields.io/badge/Strands_Agents-Gemini-4285F4?style=flat-square&logo=google&logoColor=white" alt="Strands Agents">
+  <img src="https://img.shields.io/badge/uv-Package_Manager-DE5FE9?style=flat-square" alt="uv">
+</p>
+
+---
 
 ## Overview
 
-This service receives Alertmanager webhook payloads from the backend, performs
-RCA (Root Cause Analysis) using Strands Agents and in-cluster Kubernetes APIs,
-and returns the results to the backend.
+The KubeRCA Agent is a Python-based analysis service that performs Root Cause Analysis (RCA) on Kubernetes incidents. It receives alert payloads from the Backend, collects relevant context from the Kubernetes cluster and Prometheus, and uses LLM (Gemini via Strands Agents) to generate comprehensive analysis reports.
 
-## Project Structure
+### Key Features
 
-```text
-agent/
-├── app/                # Main application logic (FastAPI)
-│   ├── api/            # API routes and handlers
-│   ├── clients/        # Clients for K8s, Prometheus, and Strands/Gemini
-│   ├── core/           # Config, logging, and dependencies
-│   ├── models/         # Internal data models
-│   ├── schemas/        # Pydantic schemas for API I/O
-│   └── services/       # Business logic for RCA analysis
-├── scripts/            # Shell scripts for testing specific scenarios
-├── tests/              # Test suite
-├── Dockerfile          # Container image definition
-├── Makefile            # Development and automation tasks
-└── pyproject.toml      # Project metadata and dependencies (uv)
+- **AI-Powered RCA** - Uses Strands Agents with Gemini for intelligent analysis
+- **Kubernetes Context** - Collects pod logs, events, and resource status
+- **Prometheus Integration** - Queries relevant metrics for analysis
+- **Session Persistence** - Optional PostgreSQL storage for conversation history
+- **Fallback Mode** - Returns basic summary when Gemini API is unavailable
+
+---
+
+## Architecture
+
+```mermaid
+flowchart LR
+  BE[Backend] -->|POST /analyze| AG[Agent]
+  AG -->|Logs, Events| K8S[Kubernetes API]
+  AG -->|PromQL Query| PR[Prometheus]
+  AG -->|LLM Analysis| LLM[Gemini API]
+  AG -.->|Session Storage| PG[(PostgreSQL)]
+  AG -->|Analysis Result| BE
 ```
 
-## Requirements
+### Analysis Flow
+
+1. Receive alert payload from Backend
+2. Collect Kubernetes context (logs, events, pod status)
+3. Query Prometheus for relevant metrics
+4. Build analysis prompt with collected context
+5. Send to Strands Agents (Gemini) for RCA
+6. Return structured analysis result
+
+---
+
+## Tech Stack
+
+| Category | Technology |
+|----------|------------|
+| **Language** | Python 3.10+ |
+| **Framework** | FastAPI |
+| **AI/LLM** | Strands Agents (Gemini) |
+| **Package Manager** | uv |
+| **Linting** | ruff |
+| **Testing** | pytest |
+| **Container** | Docker |
+| **CI/CD** | GitHub Actions |
+
+---
+
+## Quick Start
+
+### Prerequisites
 
 - Python 3.10+
-- uv
+- uv (Python package manager)
+- (Optional) Kubernetes cluster access
+- (Optional) Gemini API key
 
-## Setup
+### Installation
 
 ```bash
 cd agent
+make install
+# or manually:
 uv venv
 source .venv/bin/activate
 uv pip install -e ".[dev]"
 ```
 
-## Run
+### Run Development Server
 
 ```bash
-cd agent
-WEB_CONCURRENCY=4 uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers ${WEB_CONCURRENCY:-1}
+make run
+# or manually:
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-The server listens on `:8000` by default. Set `PORT` to change it.
+The server starts at `http://localhost:8000`.
 
-## Environment Variables
-
-- `GEMINI_API_KEY`: Gemini API key (Secret-based in Helm deployment).
-- `GEMINI_MODEL_ID`: Gemini model ID (default: `gemini-3-flash-preview`).
-- `K8S_API_TIMEOUT_SECONDS`: Kubernetes API timeout in seconds (default: `5`).
-- `K8S_EVENT_LIMIT`: Maximum number of events to fetch (default: `25`).
-- `K8S_LOG_TAIL_LINES`: Number of previous log lines to fetch (default: `25`).
-- `PROMETHEUS_URL`: Prometheus base URL. If empty, Prometheus queries are disabled.
-  If the scheme is omitted, `http://` is assumed.
-- `PROMETHEUS_HTTP_TIMEOUT_SECONDS`: Prometheus HTTP timeout in seconds (default: `5`).
-- `PROMPT_TOKEN_BUDGET`: Prompt token budget (approx, default: `32000`).
-- `PROMPT_MAX_LOG_LINES`: Max log lines to include in prompt (default: `25`).
-- `PROMPT_MAX_EVENTS`: Max events to include in prompt (default: `25`).
-- `PROMPT_SUMMARY_MAX_ITEMS`: Max session summaries to keep (default: `3`).
-- `WEB_CONCURRENCY`: Uvicorn worker count (default: `1`).
-
-## Endpoints
-
-- `GET /ping`
-- `GET /healthz`
-- `GET /`
-- `POST /analyze`
-
-## OpenAPI
-
-OpenAPI 스펙은 `agent/docs/openapi.json`에 생성되어 Git에 포함됩니다.
+### Run Tests
 
 ```bash
-cd agent
-uv run python scripts/export_openapi.py
+make test
+# or:
+pytest
 ```
 
-### Git hook (선택)
-
-커밋 시 OpenAPI를 자동 갱신하려면 hooksPath를 설정합니다.
+### Lint & Format
 
 ```bash
-cd agent
-git config core.hooksPath .githooks
+make lint    # Check code style
+make format  # Auto-format code
 ```
 
-## Curl Test
+---
 
-```bash
-curl -X POST http://localhost:8000/analyze \
-  -H 'Content-Type: application/json' \
-  -d @- <<'JSON'
-{
-  "alert": {
-    "status": "firing",
-    "labels": {
-      "alertname": "TestAlert",
-      "severity": "warning",
-      "namespace": "default",
-      "pod": "example-pod"
-    },
-    "annotations": {
-      "summary": "test summary",
-      "description": "test description"
-    },
-    "startsAt": "2024-01-01T00:00:00Z",
-    "endsAt": "0001-01-01T00:00:00Z",
-    "generatorURL": "",
-    "fingerprint": "test-fingerprint"
-  },
-  "thread_ts": "test-thread"
-}
-JSON
-```
+## API Endpoints
 
-Or use Makefile:
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Service info |
+| GET | `/ping` | Health check |
+| GET | `/healthz` | Kubernetes health probe |
+| POST | `/analyze` | Analyze single alert |
+| POST | `/summarize-incident` | Summarize resolved incident |
+| GET | `/openapi.json` | OpenAPI specification |
 
-```bash
-cd agent
-make curl-analyze
-```
+### POST /analyze
 
-Override values if needed:
+Analyzes a single alert with Kubernetes/Prometheus context.
 
-```bash
-make curl-analyze ANALYZE_URL=http://localhost:8000/analyze \
-  THREAD_TS=test-thread ALERT_NAMESPACE=default ALERT_POD=example-pod
-```
-
-## Example Request Payload
-
+**Request:**
 ```json
 {
   "alert": {
@@ -144,116 +143,276 @@ make curl-analyze ANALYZE_URL=http://localhost:8000/analyze \
       "pod": "example-pod"
     },
     "annotations": {
-      "summary": "...",
-      "description": "..."
+      "summary": "High memory usage detected",
+      "description": "Pod memory usage > 90%"
     },
     "startsAt": "2024-01-01T00:00:00Z",
-    "endsAt": "...",
-    "fingerprint": "abc123..."
+    "fingerprint": "abc123"
   },
   "thread_ts": "1234567890.123456"
 }
 ```
 
-`...` is omitted.
-
-## Response Schema
-
+**Response:**
 ```json
 {
   "status": "ok",
   "thread_ts": "1234567890.123456",
-  "analysis": "..."
+  "analysis": {
+    "summary": "Brief summary of the issue",
+    "detail": "Detailed RCA markdown content..."
+  }
 }
 ```
 
-## Notes
+### POST /summarize-incident
 
-- For Kubernetes queries, alerts should include `namespace` and `pod` labels.
-- If `GEMINI_API_KEY` is missing, the service returns a fallback summary.
-- Use `pytest` for tests:
+Summarizes a resolved incident with all associated alerts.
 
-```bash
-cd agent
-pytest
+---
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `GEMINI_API_KEY` | Gemini API key for Strands Agents | - |
+| `GEMINI_MODEL_ID` | Gemini model ID | `gemini-3-flash-preview` |
+| `PROMETHEUS_URL` | Prometheus base URL | - (disabled) |
+| `LOG_LEVEL` | Logging level | `info` |
+| `WEB_CONCURRENCY` | Uvicorn worker count | `1` |
+
+### Kubernetes Context
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `K8S_API_TIMEOUT_SECONDS` | K8s API timeout | `5` |
+| `K8S_EVENT_LIMIT` | Max events to fetch | `25` |
+| `K8S_LOG_TAIL_LINES` | Log lines to fetch | `25` |
+
+### Prometheus
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PROMETHEUS_URL` | Prometheus base URL | - |
+| `PROMETHEUS_HTTP_TIMEOUT_SECONDS` | HTTP timeout | `5` |
+
+### Prompt Configuration
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PROMPT_TOKEN_BUDGET` | Approximate token budget | `32000` |
+| `PROMPT_MAX_LOG_LINES` | Max log lines in prompt | `25` |
+| `PROMPT_MAX_EVENTS` | Max events in prompt | `25` |
+| `PROMPT_SUMMARY_MAX_ITEMS` | Max session summaries | `3` |
+
+### Session Storage (Optional)
+
+| Variable | Description |
+|----------|-------------|
+| `SESSION_DB_HOST` | PostgreSQL host |
+| `SESSION_DB_PORT` | PostgreSQL port |
+| `SESSION_DB_NAME` | Database name |
+| `SESSION_DB_USER` | Database user |
+| `SESSION_DB_PASSWORD` | Database password |
+
+---
+
+## Project Structure
+
+```
+agent/
+├── app/                    # FastAPI application
+│   ├── main.py             # Application entrypoint
+│   ├── api/                # HTTP routes and handlers
+│   │   ├── routes.py       # API route definitions
+│   │   └── deps.py         # Dependency injection
+│   ├── clients/            # External service clients
+│   │   ├── k8s.py          # Kubernetes API client
+│   │   ├── prometheus.py   # Prometheus client
+│   │   └── strands.py      # Strands Agents (Gemini) client
+│   ├── core/               # Core configuration
+│   │   ├── config.py       # Settings management
+│   │   └── logging.py      # Logging configuration
+│   ├── models/             # Internal data models
+│   ├── schemas/            # Pydantic I/O schemas
+│   │   ├── request.py      # Request schemas
+│   │   └── response.py     # Response schemas
+│   └── services/           # Business logic
+│       ├── analyzer.py     # RCA analysis service
+│       └── context.py      # Context collection service
+├── docs/                   # Generated OpenAPI spec
+│   └── openapi.json
+├── scripts/                # Utility scripts
+│   └── export_openapi.py   # OpenAPI export script
+├── tests/                  # Test suite
+├── Dockerfile              # Container image
+├── Makefile                # Development tasks
+└── pyproject.toml          # Project configuration
 ```
 
-## Makefile
+---
+
+## Development
+
+### Makefile Commands
+
+| Command | Description |
+|---------|-------------|
+| `make install` | Install dependencies |
+| `make run` | Run development server |
+| `make lint` | Run ruff linter |
+| `make format` | Format code with ruff |
+| `make test` | Run pytest |
+| `make build IMAGE=<tag>` | Build Docker image |
+| `make curl-analyze` | Test analyze endpoint |
+| `make curl-analyze-local` | Test with local server |
+
+### Export OpenAPI Spec
+
+When API changes, regenerate the OpenAPI spec:
 
 ```bash
-cd agent
-make help
-make lint
-make curl-analyze
+uv run python scripts/export_openapi.py
+```
+
+The spec is saved to `docs/openapi.json`.
+
+### Git Hooks (Optional)
+
+Auto-regenerate OpenAPI on commit:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+---
+
+## Testing
+
+### Unit Tests
+
+```bash
 make test
-make run
+# or:
+pytest tests/
 ```
 
-### OOMKilled Test
+### Local Integration Test
 
-Create an OOMKilled pod in the local Kubernetes cluster and test the analyze endpoint.
-
-#### Prerequisites
-
-- `kubectl` installed and connected to a cluster
-- `kube-rca` namespace exists (not created automatically)
+Requires a Kubernetes cluster and Gemini API key:
 
 ```bash
-kubectl create namespace kube-rca
-```
-
-#### Targets
-
-| Target | Description |
-|---|---|
-| `test-oom-only` | Create OOM pod (without calling analyze) |
-| `cleanup-oom` | Cleanup test deployment |
-| `test-analysis` | Create OOM pod + call analyze |
-| `test-analysis-local` | Run local agent server + full test |
-
-#### Usage Examples
-
-```bash
-# Create OOM pod only (without calling analyze)
-make test-oom-only
-
-# Auto cleanup after test
-make test-oom-only CLEANUP=true
-
-# Cleanup existing deployment
-make cleanup-oom
-
-# Use specific context
-make test-oom-only KUBE_CONTEXT=my-cluster
-
-# Full test (local agent server + OOM + analyze)
 GEMINI_API_KEY=xxx KUBECONFIG=~/.kube/config make test-analysis-local
 ```
 
-#### Environment Variables
-
-| Variable | Description | Default |
-|---|---|---|
-| `KUBE_CONTEXT` | Kubernetes context | current-context |
-| `LOCAL_OOM_NAMESPACE` | Namespace | `kube-rca` |
-| `LOCAL_OOM_DEPLOYMENT` | Deployment name | `oomkilled-test` |
-| `LOCAL_OOM_IMAGE` | Container image | `python:3.11-alpine` |
-| `LOCAL_OOM_MEMORY_LIMIT` | Memory limit | `64Mi` |
-| `CLEANUP` | Cleanup after test | `false` |
-| `WAIT_SECONDS` | OOM wait timeout | `120` |
-
-#### Direct Script Execution
+### Manual API Test
 
 ```bash
-# Check help
-bash ../chaos/scripts/agent/curl-test-oomkilled.sh --help
-
-# Run with environment variables
-DEPLOYMENT_NAME=my-oom-test \
-IMAGE=python:3.11-alpine \
-OOM_COMMAND="python -c 'a=bytearray(200000000)'" \
-MEMORY_LIMIT=64Mi \
-NAMESPACE=kube-rca \
-SKIP_ANALYZE=true \
-bash ../chaos/scripts/agent/curl-test-oomkilled.sh
+curl -X POST http://localhost:8000/analyze \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "alert": {
+      "status": "firing",
+      "labels": {
+        "alertname": "TestAlert",
+        "severity": "warning",
+        "namespace": "default",
+        "pod": "example-pod"
+      },
+      "annotations": {
+        "summary": "Test summary",
+        "description": "Test description"
+      },
+      "startsAt": "2024-01-01T00:00:00Z",
+      "fingerprint": "test-fingerprint"
+    },
+    "thread_ts": "test-thread"
+  }'
 ```
+
+---
+
+## Docker
+
+### Build Image
+
+```bash
+docker build -t kube-rca-agent .
+# or:
+make build IMAGE=kube-rca-agent
+```
+
+### Run Container
+
+```bash
+docker run -d -p 8000:8000 \
+  -e GEMINI_API_KEY=your-api-key \
+  kube-rca-agent
+```
+
+---
+
+## OOMKilled Test Scenario
+
+Test the agent with a real OOMKilled scenario in Kubernetes.
+
+### Prerequisites
+
+- `kubectl` with cluster access
+- `kube-rca` namespace exists
+
+### Run Test
+
+```bash
+# Create OOM pod only
+make test-oom-only
+
+# Full test with analysis
+GEMINI_API_KEY=xxx make test-analysis-local
+
+# Cleanup
+make cleanup-oom
+```
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `KUBE_CONTEXT` | Kubernetes context | current |
+| `LOCAL_OOM_NAMESPACE` | Test namespace | `kube-rca` |
+| `LOCAL_OOM_DEPLOYMENT` | Deployment name | `oomkilled-test` |
+| `LOCAL_OOM_MEMORY_LIMIT` | Memory limit | `64Mi` |
+| `CLEANUP` | Auto-cleanup after test | `false` |
+
+---
+
+## Fallback Behavior
+
+When `GEMINI_API_KEY` is not set, the agent returns a fallback summary:
+
+```json
+{
+  "status": "ok",
+  "analysis": {
+    "summary": "Alert received but AI analysis unavailable",
+    "detail": "Basic alert information..."
+  }
+}
+```
+
+---
+
+## Related Components
+
+- [KubeRCA Backend](../backend/) - Go REST API server
+- [KubeRCA Frontend](../frontend/) - React web dashboard
+- [Helm Charts](../helm-charts/) - Kubernetes deployment
+- [Chaos Scenarios](../chaos/) - Failure injection tests
+
+---
+
+## License
+
+This project is part of KubeRCA, licensed under the Apache License 2.0.
