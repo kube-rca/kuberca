@@ -75,13 +75,10 @@ def _patch_gemini_format_chunk() -> None:
 
 def _patch_gemini_request_formatter() -> None:
     GeminiModel = gemini_module.GeminiModel
-    original_formatter: Callable[
-        [Any, dict[str, Any]],
-        Any,
-    ] = GeminiModel._format_request_content_part
+    original_formatter: Callable[..., Any] = GeminiModel._format_request_content_part
 
-    def patched_formatter(self: Any, content: dict[str, Any]) -> Any:
-        if "toolUse" in content:
+    def patched_formatter(self: Any, content: Any, *args: Any, **kwargs: Any) -> Any:
+        if isinstance(content, dict) and "toolUse" in content:
             tool_use = content["toolUse"]
             signature = tool_use.get("thoughtSignature") or tool_use.get("thought_signature")
             if signature:
@@ -94,7 +91,7 @@ def _patch_gemini_request_formatter() -> None:
                     ),
                     thought_signature=signature_bytes,
                 )
-        return original_formatter(self, content)
+        return original_formatter(self, content, *args, **kwargs)
 
     GeminiModel._format_request_content_part = patched_formatter  # type: ignore[assignment]
 
