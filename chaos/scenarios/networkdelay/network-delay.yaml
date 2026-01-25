@@ -12,4 +12,3 @@ spec:
     latency: "5s"
     correlation: "100"
     jitter: "50ms"
-  duration: "60s"
