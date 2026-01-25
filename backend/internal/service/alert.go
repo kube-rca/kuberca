@@ -42,6 +42,12 @@ func NewAlertService(slackClient *client.SlackClient, agentService *AgentService
 
 func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, failed int) {
 	for _, alert := range webhook.Alerts {
+		// 0. severity 필터링 (info, none 등은 DB 저장도 하지 않음)
+		if !s.shouldProcess(alert) {
+			log.Printf("Skipping alert with severity=%s (alert_id=%s)", alert.Labels["severity"], alert.Fingerprint)
+			continue
+		}
+
 		// 1. 현재 firing 상태인 Incident 확인/생성
 		incidentID, err := s.getOrCreateIncident(alert)
 		if err != nil {
@@ -142,6 +148,12 @@ func (s *AlertService) getOrCreateIncident(alert model.Alert) (string, error) {
 
 	log.Printf("Created new incident: %s (triggered by alert: %s)", incidentID, alert.Fingerprint)
 	return incidentID, nil
+}
+
+// shouldProcess - DB 저장 및 처리 여부 결정 (info, none 등은 완전 무시)
+func (s *AlertService) shouldProcess(alert model.Alert) bool {
+	severity := alert.Labels["severity"]
+	return severity == "warning" || severity == "critical"
 }
 
 // 필터링 로직 예시:
