@@ -217,6 +217,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                 onChange={handleInputChange}
                 className="px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
+                {editForm.severity === 'TBD' && <option value="TBD" disabled>TBD (선택해주세요)</option>}
                 <option value="critical">critical</option>
                 <option value="warning">warning</option>
                 <option value="info">info</option>
