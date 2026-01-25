@@ -156,25 +156,21 @@ class PostgresSessionRepository(SessionRepository):
     def create_message(
         self, session_id: str, agent_id: str, session_message: SessionMessage, **kwargs: Any
     ) -> None:
-        try:
-            with self._connect() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        """
-                        INSERT INTO strands_messages (session_id, agent_id, message_id, data)
-                        VALUES (%s, %s, %s, %s)
-                        """,
-                        (
-                            session_id,
-                            agent_id,
-                            session_message.message_id,
-                            Jsonb(session_message.to_dict()),
-                        ),
-                    )
-        except UniqueViolation as exc:
-            raise SessionException(
-                f"Message {session_message.message_id} already exists for agent {agent_id}"
-            ) from exc
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO strands_messages (session_id, agent_id, message_id, data)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (session_id, agent_id, message_id) DO NOTHING
+                    """,
+                    (
+                        session_id,
+                        agent_id,
+                        session_message.message_id,
+                        Jsonb(session_message.to_dict()),
+                    ),
+                )
 
     def read_message(
         self, session_id: str, agent_id: str, message_id: int, **kwargs: Any

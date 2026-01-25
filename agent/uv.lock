@@ -622,7 +622,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.4.0,<3.0.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0,<9.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.13.0,<0.14.0" },
-    { name = "strands-agents", extras = ["gemini"], specifier = ">=1.20.0,<2.0.0" },
+    { name = "strands-agents", extras = ["gemini"], specifier = ">=1.23.0,<2.0.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34.2,<1.0.0" },
 ]
 provides-extras = ["dev"]
@@ -1443,7 +1443,7 @@ wheels = [
 
 [[package]]
 name = "strands-agents"
-version = "1.20.0"
+version = "1.23.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "boto3" },
@@ -1458,9 +1458,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "watchdog" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/26/84/0e165337971a9d7ea1ad850fc976f47b96c20535a4624b055d207c7fe519/strands_agents-1.20.0.tar.gz", hash = "sha256:3b2a2bbb01f65f32d3ce3520b4875d32bb69b1e1879e4e3af41f3019500028a4", size = 613629, upload-time = "2025-12-15T20:41:14.356Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/bb/e6/27e7dad580b0a91430e67c667c1e0abd9beb363e4f2830d361ff46a6af7e/strands_agents-1.23.0.tar.gz", hash = "sha256:85b528218b3bdf2629dd64926ec0a7dd1ce781e5466693310a9f55b67a41c3f9", size = 709108, upload-time = "2026-01-21T20:15:06.413Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8a/9c/c23d87d1305e671a4281500d846b6b3e49649ec27d0dec2831bcdb58d704/strands_agents-1.20.0-py3-none-any.whl", hash = "sha256:f8d0c868867191e6a1eadf3c9b060b3719c79323b4a02dfd127e4b2c67e6fc63", size = 319068, upload-time = "2025-12-15T20:41:12.978Z" },
+    { url = "https://files.pythonhosted.org/packages/8a/64/722a164f0bb4351da6918594496d831295136bba1be8a76caceb4fac4d6c/strands_agents-1.23.0-py3-none-any.whl", hash = "sha256:76cb65e7c667d06334940843a5c4fd56baab7b11f5d9997ab8c250dcc3c1b403", size = 335387, upload-time = "2026-01-21T20:15:04.443Z" },
 ]
 
 [package.optional-dependencies]
