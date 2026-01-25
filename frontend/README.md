@@ -1,126 +1,300 @@
-# Alerts Dashboard
+<p align="center">
+  <img src="../.github/img/Kube-RCA-Logo-NoBG.png" alt="KubeRCA Logo" width="120"/>
+</p>
 
-React 18 + TypeScript + Vite + Tailwind CSS 프로젝트입니다.
+<h1 align="center">KubeRCA Frontend</h1>
 
-## 실행 방법
+<p align="center">
+  <strong>React Web Dashboard for Kubernetes Incident Management</strong>
+</p>
 
-### 1. Node.js 설치 확인
+<p align="center">
+  <img src="https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React">
+  <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Vite-5-646CFF?style=flat-square&logo=vite&logoColor=white" alt="Vite">
+  <img src="https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" alt="Tailwind CSS">
+</p>
 
-먼저 Node.js가 설치되어 있는지 확인하세요:
+---
+
+## Overview
+
+The KubeRCA Frontend is a React-based web dashboard that provides a user interface for viewing and managing Kubernetes incidents. It displays RCA (Root Cause Analysis) results, alerts, and allows users to search for similar past incidents.
+
+### Key Features
+
+- **Incident Dashboard** - View and manage Kubernetes incidents
+- **RCA Viewer** - Display AI-generated root cause analysis
+- **Alert Management** - Browse and filter alerts
+- **Similar Incident Search** - Find related past incidents via vector similarity
+- **Muted Incidents** - Manage hidden/muted incidents
+- **Dark Mode** - Toggle between light and dark themes
+- **Authentication** - Login/signup with JWT tokens
+
+---
+
+## Screenshots
+
+The dashboard provides views for:
+- Incident list with filtering and pagination
+- Incident detail with RCA analysis results
+- Alert list and detail views
+- Hidden/muted incident management
+
+---
+
+## Tech Stack
+
+| Category | Technology |
+|----------|------------|
+| **Framework** | React 18 |
+| **Language** | TypeScript |
+| **Build Tool** | Vite |
+| **Styling** | Tailwind CSS |
+| **Linting** | ESLint |
+| **Container** | Docker + Nginx |
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18+ (LTS recommended)
+- npm 9+
+
+### Installation
 
 ```bash
-node --version
-npm --version
-```
-
-Node.js가 없다면 [nodejs.org](https://nodejs.org/)에서 설치하세요 (LTS 버전 권장).
-
-### 2. 의존성 설치
-
-프로젝트 루트 디렉토리에서 다음 명령어를 실행하세요:
-
-```bash
+cd frontend
 npm install
 ```
 
-또는 yarn을 사용하는 경우:
-
-```bash
-yarn install
-```
-
-### 3. 개발 서버 실행
-
-의존성 설치가 완료되면 개발 서버를 시작하세요:
+### Run Development Server
 
 ```bash
 npm run dev
 ```
 
-또는 yarn을 사용하는 경우:
+Open `http://localhost:5173` in your browser.
+
+### Build for Production
 
 ```bash
-yarn dev
+npm run build
 ```
 
-### 4. 브라우저에서 확인
-
-터미널에 표시된 URL (보통 `http://localhost:5173`)로 브라우저에서 접속하세요.
-
-## 환경 변수 설정
-
-백엔드 API URL을 설정하려면 프로젝트 루트에 `.env` 파일을 생성하세요:
+### Preview Production Build
 
 ```bash
-# .env 파일
-VITE_API_BASE_URL=http://kube-rca-backend:8080
+npm run preview
 ```
 
-- **개발 환경**: 로컬 개발 시 `http://localhost:8080` 사용 가능
-- **프로덕션 환경 (쿠버네티스)**: `http://kube-rca-backend:8080` 사용 (기본값)
-- 환경 변수가 설정되지 않으면 기본값 `http://kube-rca-backend:8080`이 사용됩니다.
+---
 
-## 백엔드 API 연동
+## Project Structure
 
-이 프로젝트는 백엔드 API와 연동됩니다:
+```
+frontend/
+├── src/
+│   ├── main.tsx              # React entrypoint
+│   ├── App.tsx               # Main app with routing
+│   ├── types.ts              # TypeScript type definitions
+│   ├── index.css             # Tailwind CSS entrypoint
+│   ├── components/           # React components
+│   │   ├── AlertTable.tsx         # Alerts list table
+│   │   ├── AlertDetailView.tsx    # Alert detail view
+│   │   ├── RCATable.tsx           # Incidents/RCA list table
+│   │   ├── RCADetailView.tsx      # Incident detail with RCA
+│   │   ├── MuteTable.tsx          # Muted incidents table
+│   │   ├── MuteDetailView.tsx     # Muted incident detail
+│   │   ├── Header.tsx             # App header (theme, auth)
+│   │   ├── AuthPanel.tsx          # Login/signup panel
+│   │   ├── Pagination.tsx         # Pagination component
+│   │   └── TimeRangeSelector.tsx  # Time range filter
+│   ├── context/              # React Context providers
+│   │   ├── ThemeContext.ts        # Theme context definition
+│   │   └── ThemeProvider.tsx      # Theme provider component
+│   ├── constants/            # Application constants
+│   │   └── index.ts
+│   └── utils/                # Utility functions
+│       ├── api.ts                 # Backend API client
+│       ├── auth.ts                # Authentication utilities
+│       ├── config.ts              # Configuration utilities
+│       └── filterAlerts.ts        # Alert filtering logic
+├── public/                   # Static assets
+├── Dockerfile               # Production build (Nginx)
+├── package.json             # Dependencies and scripts
+├── tsconfig.json            # TypeScript configuration
+├── vite.config.ts           # Vite configuration
+├── tailwind.config.js       # Tailwind CSS configuration
+└── eslint.config.js         # ESLint configuration
+```
 
-- **API 엔드포인트**: `/api/alerts`
-- **기본 URL**: `http://kube-rca-backend:8080` (쿠버네티스 클러스터 내부 통신)
-- **응답 형식**: `AlertItem[]` 배열 또는 `{ alerts: AlertItem[] }` 객체
+---
 
-백엔드 API가 다른 형식으로 응답하는 경우 `src/utils/api.ts` 파일을 수정하세요.
+## Configuration
 
-## Docker를 사용한 실행
+### Environment Variables
 
-### 1. Docker 이미지 빌드
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `VITE_API_BASE_URL` | Backend API URL | `http://kube-rca-backend:8080` |
+
+### Local Development
+
+Create a `.env` file:
 
 ```bash
-docker build -t alerts-dashboard .
+VITE_API_BASE_URL=http://localhost:8080
 ```
 
-### 2. Docker 컨테이너 실행
+### Production (Kubernetes)
+
+In Kubernetes deployments, the default `http://kube-rca-backend:8080` is used for internal cluster communication.
+
+---
+
+## Available Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Build for production |
+| `npm run preview` | Preview production build |
+| `npm run lint` | Run ESLint |
+
+### Full Verification
 
 ```bash
-docker run -d -p 80:80 alerts-dashboard
+npm run lint && npm run build
 ```
 
-### 3. 브라우저에서 확인
+---
 
-`http://localhost:8080`으로 접속하세요.
+## API Integration
 
-## 사용 가능한 명령어
+The frontend communicates with the KubeRCA Backend API:
 
-- `npm run dev` - 개발 서버 시작
-- `npm run build` - 프로덕션 빌드
-- `npm run preview` - 빌드된 앱 미리보기
-- `npm run lint` - 코드 린팅
+### Endpoints Used
 
-## 프로젝트 구조
+| API | Description |
+|-----|-------------|
+| `/api/v1/auth/*` | Authentication (login, register, refresh) |
+| `/api/v1/incidents` | Incident list and details |
+| `/api/v1/incidents/:id/alerts` | Alerts for an incident |
+| `/api/v1/alerts` | Alert list and details |
+| `/api/v1/embeddings/search` | Similar incident search |
 
+### API Client
+
+Located at `src/utils/api.ts`, the API client handles:
+- Request/response formatting
+- Authentication token management
+- Error handling
+
+---
+
+## Styling
+
+### Tailwind CSS
+
+The project uses Tailwind CSS for styling:
+
+```tsx
+// Example component with Tailwind classes
+<div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+  <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+    Incident Details
+  </h1>
+</div>
 ```
-src/
-├── main.tsx              # React 진입점
-├── App.tsx               # 메인 앱 컴포넌트
-├── types.ts              # TypeScript 타입 정의
-├── index.css             # Tailwind CSS
-├── components/           # React 컴포넌트
-│   ├── TimeRangeSelector.tsx  # 시간 범위 선택기
-│   ├── AlertsTable.tsx        # 알림 테이블
-│   └── Pagination.tsx         # 페이지네이션
-├── constants/            # 상수 정의
-│   └── index.ts          # 앱 전역 상수
-└── utils/                # 유틸리티 함수
-    ├── api.ts            # 백엔드 API 클라이언트
-    ├── mockData.ts       # Mock 데이터 생성 함수
-    └── filterAlerts.ts  # 알림 필터링 유틸리티
+
+### Dark Mode
+
+Dark mode is implemented using Tailwind's `dark:` prefix:
+
+```tsx
+<div className="bg-white dark:bg-gray-900">
+  {/* Content adapts to theme */}
+</div>
 ```
 
-## 기술 스택
+Toggle is available in the header component.
 
-- **React 18** - UI 라이브러리
-- **TypeScript** - 타입 안정성
-- **Vite** - 빌드 도구
-- **Tailwind CSS** - 스타일링
-- **ESLint** - 코드 품질 관리
-- **Docker** - 컨테이너화
-- **Nginx** - 프로덕션 웹 서버
+---
+
+## Docker
+
+### Build Image
+
+```bash
+docker build -t kube-rca-frontend .
+```
+
+### Run Container
+
+```bash
+docker run -d -p 80:80 kube-rca-frontend
+```
+
+Access at `http://localhost`.
+
+### Dockerfile Overview
+
+Multi-stage build:
+1. **Build stage** - Node.js builds the React app
+2. **Production stage** - Nginx serves static files
+
+---
+
+## Development Guidelines
+
+### TypeScript
+
+- Use strict mode (`tsconfig.json`)
+- Define shared types in `src/types.ts`
+- Use interface for component props
+
+### Components
+
+- Functional components with hooks
+- Keep components focused and reusable
+- Use React Context for global state
+
+### API Calls
+
+```tsx
+// Example API call pattern
+const [data, setData] = useState<Incident[]>([]);
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState<string | null>(null);
+
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const response = await api.getIncidents();
+      setData(response);
+    } catch (err) {
+      setError('Failed to fetch incidents');
+    } finally {
+      setLoading(false);
+    }
+  };
+  fetchData();
+}, []);
+```
+
+---
+
+## Related Components
+
+- [KubeRCA Backend](../backend/) - Go REST API server
+- [KubeRCA Agent](../agent/) - Python analysis service
+- [Helm Charts](../helm-charts/) - Kubernetes deployment
+
+---
+
+## License
+
+This project is part of KubeRCA, licensed under the Apache License 2.0.
