@@ -6,9 +6,9 @@ erDiagram
   INCIDENT ||--o{ ALERT_ANALYSIS : records
   ALERT ||--o{ ALERT_ANALYSIS : records
   ALERT_ANALYSIS ||--o{ ALERT_ANALYSIS_ARTIFACT : includes
-  INCIDENT ||--|| RCA_DOCUMENT : has
   STRANDS_SESSION ||--o{ STRANDS_AGENT : owns
   STRANDS_AGENT ||--o{ STRANDS_MESSAGE : stores
+  STRANDS_SESSION ||--o{ KUBE_RCA_SESSION_SUMMARY : stores
 
   USER {
     bigint id PK
@@ -115,11 +115,11 @@ erDiagram
     jsonb data
   }
 
-  RCA_DOCUMENT {
-    string incident_id PK
-    text content_md
-    text additional_context_md
+  KUBE_RCA_SESSION_SUMMARY {
+    bigint summary_id PK
+    string session_id
+    text summary
     datetime created_at
-    datetime updated_at
   }
+
 ```

@@ -17,7 +17,7 @@ LLM을 활용해 Root Cause Analysis(RCA)와 대응 가이드를 제공하는 �
 - Frontend: 로그인/회원가입 + Incident/Alert 목록/상세 + 숨김(뮤트) 인시던트 UI
   - `/api/v1/auth/*`, `/api/v1/incidents*`, `/api/v1/alerts*`, `/api/v1/embeddings/search` 사용
 - Helm: backend/agent/frontend + OpenAPI UI 배포용 `kube-rca` 차트 포함
-- DB: PostgreSQL 연동(incident/auth/embeddings).
+- DB: PostgreSQL 연동(incident/auth/embeddings). RCA 문서는 incidents.analysis_detail에 저장.
 
 상세 아키텍처와 런타임 흐름은 `ARCHITECTURE.md` 및 `diagrams/`를 참고합니다.
 
