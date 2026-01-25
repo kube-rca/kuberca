@@ -90,7 +90,11 @@ func main() {
 	rcaHndlr := handler.NewRcaHandler(rcaSvc)
 
 	// HTTP 라우터 설정
-	router := gin.Default()
+	router := gin.New()
+	router.Use(gin.Recovery())
+	router.Use(gin.LoggerWithConfig(gin.LoggerConfig{
+		SkipPaths: []string{"/ping", "/", "/openapi.json"},
+	}))
 
 	corsOrigins := splitOrigins(cfg.Auth.CorsAllowedOrigins)
 	if len(corsOrigins) > 0 {
