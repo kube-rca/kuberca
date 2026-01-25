@@ -1,138 +1,318 @@
-# backend
+<p align="center">
+  <img src="../.github/img/Kube-RCA-Logo-NoBG.png" alt="KubeRCA Logo" width="120"/>
+</p>
 
-## Gin API Server
+<h1 align="center">KubeRCA Backend</h1>
 
-이 프로젝트는 Go 언어와 Gin 프레임워크를 사용한 기본 REST API 서버입니다.
+<p align="center">
+  <strong>Go REST API Server for Incident Management & Alert Processing</strong>
+</p>
 
-### 1. 환경 준비
+<p align="center">
+  <img src="https://img.shields.io/badge/Go-1.24-00ADD8?style=flat-square&logo=go" alt="Go">
+  <img src="https://img.shields.io/badge/Gin-Framework-00ADD8?style=flat-square" alt="Gin">
+  <img src="https://img.shields.io/badge/PostgreSQL-pgvector-336791?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/JWT-Auth-000000?style=flat-square&logo=jsonwebtokens" alt="JWT">
+</p>
 
-- **Go 설치**: Go 1.22 이상이 설치되어 있어야 합니다.
-- **모듈 의존성 설치** (처음 한 번만 실행):
+---
+
+## Overview
+
+The KubeRCA Backend is a Go-based REST API server that serves as the central hub for the KubeRCA system. It receives Alertmanager webhooks, manages incidents and alerts, handles authentication, and coordinates with the Agent service for AI-powered analysis.
+
+### Key Responsibilities
+
+- Receive and process Alertmanager webhook alerts
+- Create and manage incidents with alert associations
+- Send Slack notifications with thread tracking
+- Coordinate analysis requests with the Agent service
+- Store and search incident embeddings via pgvector
+- Provide JWT-based authentication
+
+---
+
+## Architecture
+
+```mermaid
+flowchart LR
+  AM[Alertmanager] -->|Webhook| BE[Backend]
+  BE -->|Notification| SL[Slack]
+  BE -->|Analyze Request| AG[Agent]
+  BE -->|Embeddings| LLM[Gemini API]
+  BE <-->|Data| PG[(PostgreSQL + pgvector)]
+  FE[Frontend] -->|REST API| BE
+```
+
+---
+
+## Tech Stack
+
+| Category | Technology |
+|----------|------------|
+| **Language** | Go 1.24 |
+| **Framework** | Gin |
+| **Database** | PostgreSQL + pgvector |
+| **Auth** | JWT (golang-jwt/jwt/v5) |
+| **AI** | Google GenAI (embeddings) |
+| **Container** | Docker (multi-stage build) |
+| **CI/CD** | GitHub Actions |
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Go 1.22+
+- PostgreSQL with pgvector extension
+- (Optional) Slack Bot Token for notifications
+
+### Installation
 
 ```bash
 cd backend
 go mod tidy
 ```
 
-### 2. 환경 변수(선택)
-
-Alertmanager 웹훅을 Slack으로 전송하려면 아래 환경 변수를 설정합니다.
-
-- `SLACK_BOT_TOKEN`: Slack Bot Token (xoxb-...)
-- `SLACK_CHANNEL_ID`: Slack 채널 ID (C...)
-
-Embeddings API를 사용하려면 아래 환경 변수를 설정합니다.
-
-- `AI_API_KEY`: Gemini API Key
-- `EMBEDDING_MODEL`: Embedding Model Name (default: "text-embedding-004")
-
-Postgres에는 pgvector 확장이 필요하며, 아래 예시처럼 테이블을 생성합니다.
-
-```sql
-CREATE EXTENSION IF NOT EXISTS vector;
-
-CREATE TABLE embeddings (
-  id bigserial primary key,
-  incident_id text not null,
-  incident_summary text not null,
-  embedding vector(<dim>) not null,
-  model text not null,
-  created_at timestamptz not null default now()
-);
-```
-
-`<dim>`은 사용 중인 모델의 임베딩 차원으로 교체합니다.
-
-인증 기능을 사용하려면 아래 환경 변수를 설정합니다.
-
-- `JWT_SECRET`: JWT 서명 시크릿
-- `JWT_ACCESS_TTL`: 액세스 토큰 TTL (예: `15m`)
-- `JWT_REFRESH_TTL`: 리프레시 토큰 TTL (예: `168h`)
-- `ALLOW_SIGNUP`: 회원가입 허용 여부 (`true`/`false`)
-- `ADMIN_USERNAME`: 사전 생성되는 admin ID
-- `ADMIN_PASSWORD`: 사전 생성되는 admin 비밀번호
-- `AUTH_COOKIE_SECURE`: 리프레시 쿠키 Secure 플래그 (`true`/`false`)
-- `AUTH_COOKIE_SAMESITE`: 리프레시 쿠키 SameSite (`Lax`/`Strict`/`None`)
-- `AUTH_COOKIE_DOMAIN`: 리프레시 쿠키 Domain
-- `AUTH_COOKIE_PATH`: 리프레시 쿠키 Path
-- `CORS_ALLOWED_ORIGINS`: CORS 허용 Origin (콤마로 구분)
-
-로컬 테스트는 `backend/.env`로 환경 변수를 로드하며, `.env`가 없으면 무시됩니다.
-
-### 3. 서버 실행
+### Run Development Server
 
 ```bash
-cd backend
 go run .
 ```
 
-기본적으로 `http://localhost:8080` 에서 서버가 실행됩니다.
+The server starts at `http://localhost:8080` by default.
 
-### 4. API 테스트
-
-- **루트 엔드포인트**
+### Run Tests
 
 ```bash
-curl http://localhost:8080/
+go test ./...
 ```
 
-예상 응답:
-
-```json
-{
-  "status": "ok",
-  "message": "Gin basic API server is running"
-}
-```
-
-- **테스트 엔드포인트 (`/ping`)**
+### Build Binary
 
 ```bash
-curl http://localhost:8080/ping
+go build -o main .
 ```
 
-예상 응답:
+---
 
-```json
-{
-  "message": "pong"
-}
-```
+## API Endpoints
 
-이 정도 구성이면 Gin을 이용해 기본적인 API 요청/응답 흐름을 테스트하기에 충분합니다.
+### Health & Status
 
-### 5. 인증 API
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Server status |
+| GET | `/ping` | Health check (returns "pong") |
+| GET | `/openapi.json` | OpenAPI specification |
 
-모든 인증 API는 `/api/v1/auth` prefix를 사용합니다.
+### Authentication (`/api/v1/auth`)
 
-- `POST /api/v1/auth/register`: 회원가입 (ALLOW_SIGNUP=true일 때만)
-- `POST /api/v1/auth/login`: 로그인 (access token 반환 + refresh 쿠키 설정)
-- `POST /api/v1/auth/refresh`: refresh 쿠키로 access token 재발급
-- `POST /api/v1/auth/logout`: refresh 토큰 폐기
-- `GET /api/v1/auth/config`: `allowSignup` 반환
-- `GET /api/v1/auth/me`: 액세스 토큰으로 사용자 정보 조회
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/register` | User registration (when enabled) |
+| POST | `/login` | User login |
+| POST | `/refresh` | Refresh access token |
+| POST | `/logout` | Logout (revoke refresh token) |
+| GET | `/config` | Auth configuration |
+| GET | `/me` | Current user info |
 
-### 6. OpenAPI(Swagger)
+### Webhook
 
-OpenAPI 스펙은 `backend/docs/`에 생성되며 Git에 포함됩니다.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/webhook/alertmanager` | Receive Alertmanager alerts |
+
+### Incidents (`/api/v1/incidents`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | List incidents |
+| GET | `/:id` | Get incident details |
+| PUT | `/:id` | Update incident |
+| PATCH | `/:id` | Hide incident |
+| GET | `/hidden` | List hidden incidents |
+| PATCH | `/:id/unhide` | Unhide incident |
+| POST | `/:id/resolve` | Resolve incident & trigger final analysis |
+| GET | `/:id/alerts` | List alerts for incident |
+| POST | `/mock` | Create mock incident (testing) |
+
+### Alerts (`/api/v1/alerts`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | List alerts |
+| GET | `/:id` | Get alert details |
+| PUT | `/:id/incident` | Reassign alert to different incident |
+
+### Embeddings (`/api/v1/embeddings`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/` | Create embedding |
+| POST | `/search` | Search similar incidents |
+
+---
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `DATABASE_URL` | PostgreSQL connection string | Yes |
+| `SLACK_BOT_TOKEN` | Slack Bot OAuth token | No |
+| `SLACK_CHANNEL_ID` | Slack channel for notifications | No |
+| `AGENT_URL` | Agent service base URL | Yes |
+| `AI_API_KEY` | Gemini API key for embeddings | Yes |
+| `JWT_SECRET` | JWT signing secret | Yes |
+| `JWT_ACCESS_TTL` | Access token TTL (e.g., `15m`) | No |
+| `JWT_REFRESH_TTL` | Refresh token TTL (e.g., `168h`) | No |
+| `ALLOW_SIGNUP` | Enable user registration (`true`/`false`) | No |
+| `ADMIN_USERNAME` | Initial admin username | No |
+| `ADMIN_PASSWORD` | Initial admin password | No |
+| `CORS_ALLOWED_ORIGINS` | Allowed CORS origins (comma-separated) | No |
+
+### Cookie Configuration
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `AUTH_COOKIE_SECURE` | Secure flag | `true` |
+| `AUTH_COOKIE_SAMESITE` | SameSite policy | `Lax` |
+| `AUTH_COOKIE_DOMAIN` | Cookie domain | - |
+| `AUTH_COOKIE_PATH` | Cookie path | `/` |
+
+### Local Development
+
+Create a `.env` file in the backend directory:
 
 ```bash
-cd backend
+DATABASE_URL=postgres://user:pass@localhost:5432/kubereca?sslmode=disable
+SLACK_BOT_TOKEN=xoxb-your-token
+SLACK_CHANNEL_ID=C01234567
+AGENT_URL=http://localhost:8000
+AI_API_KEY=your-gemini-api-key
+JWT_SECRET=your-secret-key
+ALLOW_SIGNUP=true
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin
+```
+
+---
+
+## Database Schema
+
+PostgreSQL with pgvector extension is required. Key tables:
+
+```sql
+-- Enable pgvector
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Embeddings table for similarity search
+CREATE TABLE embeddings (
+  id BIGSERIAL PRIMARY KEY,
+  incident_id TEXT NOT NULL,
+  incident_summary TEXT NOT NULL,
+  embedding VECTOR(768) NOT NULL,
+  model TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+---
+
+## Project Structure
+
+```
+backend/
+├── main.go              # Application entrypoint
+├── openapi.go           # OpenAPI annotations
+├── docs/                # Generated Swagger docs
+│   ├── docs.go
+│   ├── swagger.json
+│   └── swagger.yaml
+├── internal/
+│   ├── client/          # External service clients (Slack, Agent)
+│   ├── config/          # Configuration loading
+│   ├── db/              # Database connections & queries
+│   ├── handler/         # HTTP handlers (routing)
+│   ├── model/           # Data models/DTOs
+│   └── service/         # Business logic
+├── Dockerfile           # Multi-stage Docker build
+└── .github/workflows/
+    └── ci.yaml          # CI/CD pipeline
+```
+
+---
+
+## Development
+
+### Generate OpenAPI Spec
+
+```bash
 go run github.com/swaggo/swag/cmd/swag@v1.16.6 init -g openapi.go --parseInternal --output docs
 ```
 
-런타임 스펙 엔드포인트:
-
-- `GET /openapi.json`
-
-#### Git hook (선택)
-
-커밋 시 OpenAPI를 자동 갱신하려면 pre-commit을 사용합니다.
-pre-commit 설치 후 아래 명령을 실행합니다.
+### Code Formatting
 
 ```bash
-cd backend
-pre-commit install
+go fmt ./...
 ```
 
-커밋 과정에서 docs가 변경되면 `git add docs` 후 커밋을 다시 실행합니다.
+### Linting & Testing
+
+```bash
+go fmt ./... && go test ./...
+```
+
+---
+
+## Docker
+
+### Build Image
+
+```bash
+docker build -t kube-rca-backend .
+```
+
+### Run Container
+
+```bash
+docker run -d -p 8080:8080 \
+  -e DATABASE_URL=postgres://... \
+  -e JWT_SECRET=your-secret \
+  kube-rca-backend
+```
+
+---
+
+## API Testing
+
+### Health Check
+
+```bash
+curl http://localhost:8080/ping
+# Response: {"message": "pong"}
+```
+
+### Server Status
+
+```bash
+curl http://localhost:8080/
+# Response: {"status": "ok", "message": "Gin basic API server is running"}
+```
+
+---
+
+## Related Components
+
+- [KubeRCA Agent](../agent/) - Python analysis service
+- [KubeRCA Frontend](../frontend/) - React web dashboard
+- [Helm Charts](../helm-charts/) - Kubernetes deployment
+
+---
+
+## License
+
+This project is part of KubeRCA, licensed under the Apache License 2.0.
