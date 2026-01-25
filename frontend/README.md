@@ -289,9 +289,9 @@ useEffect(() => {
 
 ## Related Components
 
-- [KubeRCA Backend](../backend/) - Go REST API server
-- [KubeRCA Agent](../agent/) - Python analysis service
-- [Helm Charts](../helm-charts/) - Kubernetes deployment
+- [KubeRCA Backend](https://github.com/kube-rca/backend) - Go REST API server
+- [KubeRCA Agent](https://github.com/kube-rca/agent) - Python analysis service
+- [Helm Charts](https://github.com/kube-rca/helm-charts) - Kubernetes deployment
 
 ---
 
