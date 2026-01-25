@@ -56,8 +56,13 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 			// DB 저장 실패해도 Slack 전송은 계속 진행
 		}
 
-		// 3. resolved 상태면 resolved_at 업데이트
+		// 3. resolved 상태면 중복 체크 후 resolved_at 업데이트
 		if alert.Status == "resolved" {
+			// 이미 resolved된 알림인지 확인 (중복 웹훅 방지)
+			if alreadyResolved, _ := s.db.IsAlertAlreadyResolved(alert.Fingerprint); alreadyResolved {
+				log.Printf("Skipping duplicate resolved alert (alert_id=%s)", alert.Fingerprint)
+				continue
+			}
 			if err := s.db.UpdateAlertResolved(alert.Fingerprint, alert.EndsAt); err != nil {
 				log.Printf("Failed to update alert resolved status: %v", err)
 			}

@@ -270,3 +270,18 @@ func (db *Postgres) UpdateAlertIncidentID(alertID, incidentID string) error {
 	_, err := db.Pool.Exec(context.Background(), query, alertID, incidentID)
 	return err
 }
+
+// IsAlertAlreadyResolved - Alert가 이미 resolved 상태인지 확인
+func (db *Postgres) IsAlertAlreadyResolved(alertID string) (bool, error) {
+	query := `
+		SELECT resolved_at FROM alerts
+		WHERE alert_id = $1
+	`
+
+	var resolvedAt *time.Time
+	err := db.Pool.QueryRow(context.Background(), query, alertID).Scan(&resolvedAt)
+	if err != nil {
+		return false, err
+	}
+	return resolvedAt != nil, nil
+}
