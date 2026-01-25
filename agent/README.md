@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="../.github/img/Kube-RCA-Logo-NoBG.png" alt="KubeRCA Logo" width="120"/>
+  <img src="https://raw.githubusercontent.com/kube-rca/.github/main/img/Kube-RCA-Logo-NoBG.png" alt="KubeRCA Logo" width="120"/>
 </p>
 
 <h1 align="center">KubeRCA Agent</h1>
