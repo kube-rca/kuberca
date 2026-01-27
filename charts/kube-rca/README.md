@@ -12,7 +12,7 @@ Deploy kube-rca backend and frontend
 | agent.cache.size | int | `128` | Max number of cached agents (AGENT_CACHE_SIZE). |
 | agent.cache.ttlSeconds | int | `0` | Cache TTL in seconds (AGENT_CACHE_TTL_SECONDS, 0 = disable). |
 | agent.containerPort | int | `8000` | Agent container port. |
-| agent.gemini.modelId | string | `"gemini-3-flash-preview"` | Gemini model ID for Strands Agents. |
+| agent.gemini.modelId | string | `"gemini-3.0-flash"` | Gemini model ID for Strands Agents. |
 | agent.gemini.secret.create | bool | `false` | Create a Secret for the Gemini API key. |
 | agent.gemini.secret.existingSecret | string | `"kube-rca-ai"` | Existing Secret name for the Gemini API key. |
 | agent.gemini.secret.key | string | `"ai-studio-api-key"` | Secret key name for the Gemini API key. |
