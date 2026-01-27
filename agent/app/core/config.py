@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-DEFAULT_GEMINI_MODEL_ID = "gemini-3-flash-preview"
+DEFAULT_GEMINI_MODEL_ID = "gemini-3.0-flash"
 
 
 def _get_int_env(name: str, default: int) -> int:

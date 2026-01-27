@@ -178,7 +178,7 @@ Summarizes a resolved incident with all associated alerts.
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `GEMINI_API_KEY` | Gemini API key for Strands Agents | - |
-| `GEMINI_MODEL_ID` | Gemini model ID | `gemini-3-flash-preview` |
+| `GEMINI_MODEL_ID` | Gemini model ID | `gemini-3.0-flash` |
 | `PROMETHEUS_URL` | Prometheus base URL | - (disabled) |
 | `LOG_LEVEL` | Logging level | `info` |
 | `WEB_CONCURRENCY` | Uvicorn worker count | `1` |
