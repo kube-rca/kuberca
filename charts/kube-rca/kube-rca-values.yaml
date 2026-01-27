@@ -60,7 +60,7 @@ agent:
     maxEvents: 25
     summaryMaxItems: 3
   gemini:
-    modelId: "gemini-2.5-flash"
+    modelId: "gemini-3.0-flash"
   sessionDB:
     host: postgresql.kube-rca.svc.cluster.local
     port: 5432
