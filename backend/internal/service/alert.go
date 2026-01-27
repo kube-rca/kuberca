@@ -65,7 +65,7 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 		// 3. resolved 상태면 중복 체크 후 resolved_at 업데이트
 		if alert.Status == "resolved" {
 			// 이미 resolved된 알림인지 확인 (중복 웹훅 방지)
-			if alreadyResolved, _ := s.db.IsAlertAlreadyResolved(alert.Fingerprint); alreadyResolved {
+			if alreadyResolved, _ := s.db.IsAlertAlreadyResolved(alert.Fingerprint, alert.EndsAt); alreadyResolved {
 				log.Printf("Skipping duplicate resolved alert (alert_id=%s)", alert.Fingerprint)
 				continue
 			}

@@ -23,7 +23,7 @@ func TestToSlackMarkdown(t *testing.T) {
 			input: "```python\n2 ** 3\n```\n**bold**",
 			want:  "```python\n2 ** 3\n```\n*bold*",
 		},
-	{
+		{
 			name:  "mixed-inline-and-bold",
 			input: "**Bold** and `code **`",
 			want:  "*Bold* and `code **`",

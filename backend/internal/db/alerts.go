@@ -272,7 +272,7 @@ func (db *Postgres) UpdateAlertIncidentID(alertID, incidentID string) error {
 }
 
 // IsAlertAlreadyResolved - Alert가 이미 resolved 상태인지 확인
-func (db *Postgres) IsAlertAlreadyResolved(alertID string) (bool, error) {
+func (db *Postgres) IsAlertAlreadyResolved(alertID string, endsAt time.Time) (bool, error) {
 	query := `
 		SELECT resolved_at FROM alerts
 		WHERE alert_id = $1
@@ -283,5 +283,9 @@ func (db *Postgres) IsAlertAlreadyResolved(alertID string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return resolvedAt != nil, nil
+	if resolvedAt == nil {
+		return false, nil
+	}
+	// 동일/과거 endsAt은 중복으로 간주
+	return !endsAt.After(*resolvedAt), nil
 }
