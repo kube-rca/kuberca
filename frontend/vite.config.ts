@@ -9,7 +9,7 @@ export default defineConfig({
       '/api': {
         target: 'https://kuberca.kkamji.net',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '/api'),
+        rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
   },
