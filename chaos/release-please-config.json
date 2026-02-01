@@ -1,0 +1,9 @@
+{
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "package-name": "kube-rca-chaos",
+      "extra-files": ["VERSION"]
+    }
+  }
+}
