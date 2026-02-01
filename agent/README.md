@@ -11,7 +11,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/FastAPI-0.115-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI">
-  <img src="https://img.shields.io/badge/Strands_Agents-Gemini-4285F4?style=flat-square&logo=google&logoColor=white" alt="Strands Agents">
+  <img src="https://img.shields.io/badge/Strands_Agents-Multi-4B5563?style=flat-square" alt="Strands Agents (Multi Provider)">
   <img src="https://img.shields.io/badge/uv-Package_Manager-DE5FE9?style=flat-square" alt="uv">
 </p>
 
@@ -19,15 +19,15 @@
 
 ## Overview
 
-The KubeRCA Agent is a Python-based analysis service that performs Root Cause Analysis (RCA) on Kubernetes incidents. It receives alert payloads from the Backend, collects relevant context from the Kubernetes cluster and Prometheus, and uses LLM (Gemini via Strands Agents) to generate comprehensive analysis reports.
+The KubeRCA Agent is a Python-based analysis service that performs Root Cause Analysis (RCA) on Kubernetes incidents. It receives alert payloads from the Backend, collects relevant context from the Kubernetes cluster and Prometheus, and uses LLM via Strands Agents (Gemini/OpenAI/Anthropic) to generate comprehensive analysis reports.
 
 ### Key Features
 
-- **AI-Powered RCA** - Uses Strands Agents with Gemini for intelligent analysis
+- **AI-Powered RCA** - Uses Strands Agents with Gemini/OpenAI/Anthropic for intelligent analysis
 - **Kubernetes Context** - Collects pod logs, events, and resource status
 - **Prometheus Integration** - Queries relevant metrics for analysis
 - **Session Persistence** - Optional PostgreSQL storage for conversation history
-- **Fallback Mode** - Returns basic summary when Gemini API is unavailable
+- **Fallback Mode** - Returns basic summary when the provider API key is unavailable
 
 ---
 
@@ -38,7 +38,7 @@ flowchart LR
   BE[Backend] -->|POST /analyze| AG[Agent]
   AG -->|Logs, Events| K8S[Kubernetes API]
   AG -->|PromQL Query| PR[Prometheus]
-  AG -->|LLM Analysis| LLM[Gemini API]
+  AG -->|LLM Analysis| LLM[LLM Provider API]
   AG -.->|Session Storage| PG[(PostgreSQL)]
   AG -->|Analysis Result| BE
 ```
@@ -49,7 +49,7 @@ flowchart LR
 2. Collect Kubernetes context (logs, events, pod status)
 3. Query Prometheus for relevant metrics
 4. Build analysis prompt with collected context
-5. Send to Strands Agents (Gemini) for RCA
+5. Send to Strands Agents (Gemini/OpenAI/Anthropic) for RCA
 6. Return structured analysis result
 
 ---
@@ -60,7 +60,7 @@ flowchart LR
 |----------|------------|
 | **Language** | Python 3.10+ |
 | **Framework** | FastAPI |
-| **AI/LLM** | Strands Agents (Gemini) |
+| **AI/LLM** | Strands Agents (Gemini/OpenAI/Anthropic) |
 | **Package Manager** | uv |
 | **Linting** | ruff |
 | **Testing** | pytest |
@@ -76,7 +76,7 @@ flowchart LR
 - Python 3.10+
 - uv (Python package manager)
 - (Optional) Kubernetes cluster access
-- (Optional) Gemini API key
+- (Optional) AI provider API key
 
 ### Installation
 
@@ -177,8 +177,13 @@ Summarizes a resolved incident with all associated alerts.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
+| `AI_PROVIDER` | LLM provider (`gemini`, `openai`, `anthropic`) | `gemini` |
 | `GEMINI_API_KEY` | Gemini API key for Strands Agents | - |
+| `OPENAI_API_KEY` | OpenAI API key for Strands Agents | - |
+| `ANTHROPIC_API_KEY` | Anthropic API key for Strands Agents | - |
 | `GEMINI_MODEL_ID` | Gemini model ID | `gemini-3-flash-preview` |
+| `OPENAI_MODEL_ID` | OpenAI model ID | `gpt-4o` |
+| `ANTHROPIC_MODEL_ID` | Anthropic model ID | `claude-sonnet-4-20250514` |
 | `PROMETHEUS_URL` | Prometheus base URL | - (disabled) |
 | `LOG_LEVEL` | Logging level | `info` |
 | `WEB_CONCURRENCY` | Uvicorn worker count | `1` |
@@ -231,7 +236,7 @@ agent/
 │   ├── clients/            # External service clients
 │   │   ├── k8s.py          # Kubernetes API client
 │   │   ├── prometheus.py   # Prometheus client
-│   │   └── strands.py      # Strands Agents (Gemini) client
+│   │   └── strands.py      # Strands Agents client (multi-provider)
 │   ├── core/               # Core configuration
 │   │   ├── config.py       # Settings management
 │   │   └── logging.py      # Logging configuration
@@ -301,10 +306,10 @@ pytest tests/
 
 ### Local Integration Test
 
-Requires a Kubernetes cluster and Gemini API key:
+Requires a Kubernetes cluster and provider API key:
 
 ```bash
-GEMINI_API_KEY=xxx KUBECONFIG=~/.kube/config make test-analysis-local
+AI_PROVIDER=gemini GEMINI_API_KEY=xxx KUBECONFIG=~/.kube/config make test-analysis-local
 ```
 
 ### Manual API Test

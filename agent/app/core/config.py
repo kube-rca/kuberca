@@ -27,9 +27,10 @@ class Settings:
     log_level: str
     # AI Provider settings
     ai_provider: str  # gemini, openai, anthropic
-    ai_model_id: str
     gemini_api_key: str
-    gemini_model_id: str  # deprecated, use ai_model_id
+    gemini_model_id: str
+    openai_model_id: str
+    anthropic_model_id: str
     openai_api_key: str
     anthropic_api_key: str
     # Session DB settings
@@ -63,20 +64,16 @@ class Settings:
 def load_settings() -> Settings:
     # Resolve AI provider and model
     ai_provider = os.getenv("AI_PROVIDER", DEFAULT_AI_PROVIDER).lower()
-    ai_model_id = os.getenv("AI_MODEL_ID", "")
-
-    # Backward compatibility: use GEMINI_MODEL_ID if AI_MODEL_ID not set
-    if not ai_model_id:
-        ai_model_id = os.getenv("GEMINI_MODEL_ID", DEFAULT_GEMINI_MODEL_ID)
 
     return Settings(
         port=_get_int_env("PORT", 8000),
         log_level=os.getenv("LOG_LEVEL", "info"),
         # AI Provider settings
         ai_provider=ai_provider,
-        ai_model_id=ai_model_id,
         gemini_api_key=os.getenv("GEMINI_API_KEY", ""),
         gemini_model_id=os.getenv("GEMINI_MODEL_ID", DEFAULT_GEMINI_MODEL_ID),
+        openai_model_id=os.getenv("OPENAI_MODEL_ID", "").strip(),
+        anthropic_model_id=os.getenv("ANTHROPIC_MODEL_ID", "").strip(),
         openai_api_key=os.getenv("OPENAI_API_KEY", ""),
         anthropic_api_key=os.getenv("ANTHROPIC_API_KEY", ""),
         # Session DB settings

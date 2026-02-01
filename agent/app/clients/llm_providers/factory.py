@@ -120,18 +120,18 @@ def get_provider_config(settings: Settings) -> ModelConfig | None:
     # Resolve provider and API key
     if provider_str == "gemini":
         api_key = settings.gemini_api_key
-        default_model = DEFAULT_MODEL_IDS[LLMProvider.GEMINI]
+        model_id = settings.gemini_model_id or DEFAULT_MODEL_IDS[LLMProvider.GEMINI]
     elif provider_str == "openai":
         api_key = settings.openai_api_key
-        default_model = DEFAULT_MODEL_IDS[LLMProvider.OPENAI]
+        model_id = settings.openai_model_id or DEFAULT_MODEL_IDS[LLMProvider.OPENAI]
     elif provider_str == "anthropic":
         api_key = settings.anthropic_api_key
-        default_model = DEFAULT_MODEL_IDS[LLMProvider.ANTHROPIC]
+        model_id = settings.anthropic_model_id or DEFAULT_MODEL_IDS[LLMProvider.ANTHROPIC]
     else:
         logger.warning("Unknown AI provider '%s', falling back to gemini", provider_str)
         api_key = settings.gemini_api_key
         provider_str = "gemini"
-        default_model = DEFAULT_MODEL_IDS[LLMProvider.GEMINI]
+        model_id = settings.gemini_model_id or DEFAULT_MODEL_IDS[LLMProvider.GEMINI]
 
     if not api_key:
         logger.warning(
@@ -139,9 +139,6 @@ def get_provider_config(settings: Settings) -> ModelConfig | None:
             provider_str,
         )
         return None
-
-    # Use configured model_id or default
-    model_id = settings.ai_model_id or default_model
 
     try:
         provider = LLMProvider.from_string(provider_str)
