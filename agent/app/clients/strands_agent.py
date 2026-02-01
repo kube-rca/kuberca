@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -7,14 +8,16 @@ from threading import Lock
 from typing import Protocol
 
 from strands import Agent, tool
-from strands.models.gemini import GeminiModel
 from strands.session import RepositorySessionManager
 
 from app.clients.k8s import KubernetesClient
+from app.clients.llm_providers import LLMProvider, ModelConfig, create_model
 from app.clients.prometheus import PrometheusClient
 from app.clients.session_repository import PostgresSessionRepository
 from app.clients.strands_patch import apply_gemini_thought_signature_patch
 from app.core.config import Settings
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -35,20 +38,33 @@ class StrandsAnalysisEngine:
         settings: Settings,
         k8s_client: KubernetesClient,
         prometheus_client: PrometheusClient | None = None,
+        model_config: ModelConfig | None = None,
     ) -> None:
-        apply_gemini_thought_signature_patch()
+        # Apply Gemini patch only when using Gemini provider
+        if model_config is None or model_config.provider == LLMProvider.GEMINI:
+            apply_gemini_thought_signature_patch()
+
         if not settings.session_store_dsn:
             raise ValueError(
                 "SESSION_DB_HOST, SESSION_DB_USER, SESSION_DB_NAME are required "
                 "for Postgres session storage"
             )
         self._settings = settings
+        self._model_config = model_config
         self._tools = _build_tools(k8s_client, prometheus_client)
         self._cache_lock = Lock()
         self._agent_cache: OrderedDict[str, _AgentCacheEntry] = OrderedDict()
         self._cache_size = max(settings.agent_cache_size, 1)
         self._cache_ttl_seconds = settings.agent_cache_ttl_seconds
         self._session_repo = PostgresSessionRepository(settings.session_store_dsn)
+
+        # Log provider info
+        if model_config:
+            logger.info(
+                "Analysis engine initialized with provider=%s, model=%s",
+                model_config.provider.value,
+                model_config.model_id,
+            )
 
     def analyze(self, prompt: str, incident_id: str | None = None) -> str:
         session_id = self._resolve_session_id(incident_id)
@@ -97,15 +113,29 @@ class StrandsAnalysisEngine:
             self._agent_cache.pop(key, None)
 
     def _build_agent(self, session_id: str) -> Agent:
-        model = GeminiModel(
-            client_args={"api_key": self._settings.gemini_api_key},
-            model_id=self._settings.gemini_model_id,
-        )
+        model = self._create_model()
         session_manager = RepositorySessionManager(
             session_id=session_id,
             session_repository=self._session_repo,
         )
         return Agent(model=model, tools=self._tools, session_manager=session_manager)
+
+    def _create_model(self) -> object:
+        """Create the LLM model based on configuration.
+
+        Returns model using the multi-provider factory if model_config is set,
+        otherwise falls back to Gemini for backward compatibility.
+        """
+        if self._model_config is not None:
+            return create_model(self._model_config)
+
+        # Fallback to legacy Gemini configuration for backward compatibility
+        from strands.models.gemini import GeminiModel
+
+        return GeminiModel(
+            client_args={"api_key": self._settings.gemini_api_key},
+            model_id=self._settings.gemini_model_id,
+        )
 
 
 def _build_tools(

@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import logging
 from functools import lru_cache
 
 from app.clients.k8s import KubernetesClient
+from app.clients.llm_providers import get_provider_config
 from app.clients.prometheus import PrometheusClient
 from app.clients.strands_agent import AnalysisEngine, StrandsAnalysisEngine
 from app.clients.summary_store import PostgresSummaryStore, SummaryStore
 from app.core.config import Settings, load_settings
 from app.services.analysis import AnalysisService
+
+logger = logging.getLogger(__name__)
 
 
 @lru_cache
@@ -43,9 +47,19 @@ def get_prometheus_client() -> PrometheusClient | None:
 @lru_cache
 def get_analysis_engine() -> AnalysisEngine | None:
     settings = get_settings()
-    if not settings.gemini_api_key:
+
+    # Use multi-provider factory to get model configuration
+    model_config = get_provider_config(settings)
+    if model_config is None:
+        logger.warning("No valid AI provider configured. Analysis engine disabled.")
         return None
-    return StrandsAnalysisEngine(settings, get_k8s_client(), get_prometheus_client())
+
+    return StrandsAnalysisEngine(
+        settings,
+        get_k8s_client(),
+        get_prometheus_client(),
+        model_config=model_config,
+    )
 
 
 @lru_cache

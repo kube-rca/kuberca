@@ -4,6 +4,7 @@ import os
 from dataclasses import dataclass
 
 DEFAULT_GEMINI_MODEL_ID = "gemini-3-flash-preview"
+DEFAULT_AI_PROVIDER = "gemini"
 
 
 def _get_int_env(name: str, default: int) -> int:
@@ -24,8 +25,14 @@ def _get_non_negative_int_env(name: str, default: int) -> int:
 class Settings:
     port: int
     log_level: str
+    # AI Provider settings
+    ai_provider: str  # gemini, openai, anthropic
+    ai_model_id: str
     gemini_api_key: str
-    gemini_model_id: str
+    gemini_model_id: str  # deprecated, use ai_model_id
+    openai_api_key: str
+    anthropic_api_key: str
+    # Session DB settings
     session_db_host: str
     session_db_port: int
     session_db_name: str
@@ -54,11 +61,25 @@ class Settings:
 
 
 def load_settings() -> Settings:
+    # Resolve AI provider and model
+    ai_provider = os.getenv("AI_PROVIDER", DEFAULT_AI_PROVIDER).lower()
+    ai_model_id = os.getenv("AI_MODEL_ID", "")
+
+    # Backward compatibility: use GEMINI_MODEL_ID if AI_MODEL_ID not set
+    if not ai_model_id:
+        ai_model_id = os.getenv("GEMINI_MODEL_ID", DEFAULT_GEMINI_MODEL_ID)
+
     return Settings(
         port=_get_int_env("PORT", 8000),
         log_level=os.getenv("LOG_LEVEL", "info"),
+        # AI Provider settings
+        ai_provider=ai_provider,
+        ai_model_id=ai_model_id,
         gemini_api_key=os.getenv("GEMINI_API_KEY", ""),
         gemini_model_id=os.getenv("GEMINI_MODEL_ID", DEFAULT_GEMINI_MODEL_ID),
+        openai_api_key=os.getenv("OPENAI_API_KEY", ""),
+        anthropic_api_key=os.getenv("ANTHROPIC_API_KEY", ""),
+        # Session DB settings
         session_db_host=os.getenv("SESSION_DB_HOST", ""),
         session_db_port=_get_int_env("SESSION_DB_PORT", 5432),
         session_db_name=os.getenv("SESSION_DB_NAME", ""),
