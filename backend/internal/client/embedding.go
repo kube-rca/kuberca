@@ -14,7 +14,7 @@ type EmbeddingClient struct {
 }
 
 func NewEmbeddingClient(cfg config.EmbeddingConfig) (*EmbeddingClient, error) {
-	fmt.Printf("api key: %s\n", cfg.APIKey)
+	fmt.Println("api key: [REDACTED]")
 	fmt.Printf("model: %s\n", cfg.Model)
 	if cfg.APIKey == "" {
 		return nil, fmt.Errorf("missing AI_API_KEY")
