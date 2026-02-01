@@ -128,6 +128,28 @@ Gemini Secret name for agent.
 {{- end -}}
 
 {{/*
+OpenAI Secret name for agent.
+*/}}
+{{- define "kube-rca.agent.openaiSecretName" -}}
+{{- if .Values.agent.openai.secret.existingSecret -}}
+{{- .Values.agent.openai.secret.existingSecret -}}
+{{- else -}}
+{{- printf "%s-openai" (include "kube-rca.agent.name" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Anthropic Secret name for agent.
+*/}}
+{{- define "kube-rca.agent.anthropicSecretName" -}}
+{{- if .Values.agent.anthropic.secret.existingSecret -}}
+{{- .Values.agent.anthropic.secret.existingSecret -}}
+{{- else -}}
+{{- printf "%s-anthropic" (include "kube-rca.agent.name" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Slack Secret name for backend (chart-managed Secret).
 */}}
 {{- define "kube-rca.backend.slackSecretName" -}}

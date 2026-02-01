@@ -208,6 +208,8 @@ agent:
   logLevel: "info"
   # -- Uvicorn worker count (WEB_CONCURRENCY).
   workers: 1
+  # -- AI provider for agent (AI_PROVIDER). Allowed: gemini, openai, anthropic.
+  aiProvider: "gemini"
   k8s:
     # -- Kubernetes API timeout in seconds.
     apiTimeoutSeconds: 5
@@ -239,6 +241,26 @@ agent:
       existingSecret: "kube-rca-ai"
       # -- Secret key name for the Gemini API key.
       key: "ai-studio-api-key"
+  openai:
+    # -- OpenAI model ID for Strands Agents.
+    modelId: "gpt-4o"
+    secret:
+      # -- Create a Secret for the OpenAI API key.
+      create: false
+      # -- Existing Secret name for the OpenAI API key.
+      existingSecret: "kube-rca-ai"
+      # -- Secret key name for the OpenAI API key.
+      key: "openai-api-key"
+  anthropic:
+    # -- Anthropic model ID for Strands Agents.
+    modelId: "claude-sonnet-4-20250514"
+    secret:
+      # -- Create a Secret for the Anthropic API key.
+      create: false
+      # -- Existing Secret name for the Anthropic API key.
+      existingSecret: "kube-rca-ai"
+      # -- Secret key name for the Anthropic API key.
+      key: "anthropic-api-key"
   sessionDB:
     # -- PostgreSQL host for Strands session persistence.
     host: ""

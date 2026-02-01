@@ -31,13 +31,34 @@ spec:
               value: {{ default 1 .Values.agent.workers | quote }}
             - name: LOG_LEVEL
               value: {{ .Values.agent.logLevel | quote }}
+            - name: AI_PROVIDER
+              value: {{ default "gemini" .Values.agent.aiProvider | quote }}
             - name: GEMINI_MODEL_ID
               value: {{ .Values.agent.gemini.modelId | quote }}
+            - name: OPENAI_MODEL_ID
+              value: {{ .Values.agent.openai.modelId | quote }}
+            - name: ANTHROPIC_MODEL_ID
+              value: {{ .Values.agent.anthropic.modelId | quote }}
+            {{- $provider := default "gemini" .Values.agent.aiProvider | lower }}
+            {{- if eq $provider "gemini" }}
             - name: GEMINI_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ include "kube-rca.agent.geminiSecretName" . }}
                   key: {{ .Values.agent.gemini.secret.key }}
+            {{- else if eq $provider "openai" }}
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kube-rca.agent.openaiSecretName" . }}
+                  key: {{ .Values.agent.openai.secret.key }}
+            {{- else if eq $provider "anthropic" }}
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kube-rca.agent.anthropicSecretName" . }}
+                  key: {{ .Values.agent.anthropic.secret.key }}
+            {{- end }}
             - name: K8S_API_TIMEOUT_SECONDS
               value: {{ .Values.agent.k8s.apiTimeoutSeconds | quote }}
             - name: K8S_EVENT_LIMIT

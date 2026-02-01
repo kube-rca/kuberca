@@ -9,6 +9,11 @@ Deploy kube-rca backend and frontend
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | agent.affinity | object | `{}` | Affinity for agent pods assignment. |
+| agent.aiProvider | string | `"gemini"` | AI provider for agent (AI_PROVIDER). Allowed: gemini, openai, anthropic. |
+| agent.anthropic.modelId | string | `"claude-sonnet-4-20250514"` | Anthropic model ID for Strands Agents. |
+| agent.anthropic.secret.create | bool | `false` | Create a Secret for the Anthropic API key. |
+| agent.anthropic.secret.existingSecret | string | `"kube-rca-ai"` | Existing Secret name for the Anthropic API key. |
+| agent.anthropic.secret.key | string | `"anthropic-api-key"` | Secret key name for the Anthropic API key. |
 | agent.cache.size | int | `128` | Max number of cached agents (AGENT_CACHE_SIZE). |
 | agent.cache.ttlSeconds | int | `0` | Cache TTL in seconds (AGENT_CACHE_TTL_SECONDS, 0 = disable). |
 | agent.containerPort | int | `8000` | Agent container port. |
@@ -31,6 +36,10 @@ Deploy kube-rca backend and frontend
 | agent.k8s.logTailLines | int | `25` | Kubernetes log tail lines. |
 | agent.logLevel | string | `"info"` | Agent log level (LOG_LEVEL). |
 | agent.nodeSelector | object | `{}` | Node labels for agent pods assignment. |
+| agent.openai.modelId | string | `"gpt-4o"` | OpenAI model ID for Strands Agents. |
+| agent.openai.secret.create | bool | `false` | Create a Secret for the OpenAI API key. |
+| agent.openai.secret.existingSecret | string | `"kube-rca-ai"` | Existing Secret name for the OpenAI API key. |
+| agent.openai.secret.key | string | `"openai-api-key"` | Secret key name for the OpenAI API key. |
 | agent.prometheus.httpTimeoutSeconds | int | `5` | Prometheus HTTP timeout in seconds. |
 | agent.prometheus.url | string | `""` | Prometheus base URL (PROMETHEUS_URL). If empty, Prometheus queries are disabled. |
 | agent.prompt.maxEvents | int | `25` | Max events included in prompt. |
