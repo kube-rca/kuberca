@@ -1,0 +1,9 @@
+{
+  "packages": {
+    ".": {
+      "release-type": "go",
+      "package-name": "kube-rca-backend",
+      "extra-files": ["VERSION"]
+    }
+  }
+}
