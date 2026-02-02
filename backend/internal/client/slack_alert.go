@@ -14,7 +14,7 @@ import (
 // firing 알림과 resolved 알림을 다르게 처리:
 //   - firing: 새 메시지 전송 후 thread_ts 저장
 //   - resolved: 기존 쓰레드에 답글로 전송 후 thread_ts 삭제
-func (c *SlackClient) SendAlert(alert model.Alert, status string) error {
+func (c *SlackClient) SendAlert(alert model.Alert, status, incidentID string) error {
 	if !c.IsConfigured() {
 		return fmt.Errorf("slack bot token or channel ID not configured")
 	}
@@ -29,19 +29,27 @@ func (c *SlackClient) SendAlert(alert model.Alert, status string) error {
 		alert.Labels["alertname"],
 	)
 
+	fields := []SlackField{
+		{Title: "Namespace", Value: alert.Labels["namespace"], Short: true},
+		{Title: "Severity", Value: alert.Labels["severity"], Short: true},
+		{Title: "Status", Value: status, Short: true},
+		{Title: "Started", Value: alert.StartsAt.Format(time.RFC3339), Short: true},
+	}
+
+	// Incident 페이지 링크 추가
+	if incidentID != "" && c.frontendURL != "" {
+		incidentLink := fmt.Sprintf("<%s/incidents/%s|🔍 Incident 대시보드 보러가기>", c.frontendURL, incidentID)
+		fields = append(fields, SlackField{Title: "Incident", Value: incidentLink, Short: false})
+	}
+
 	msg := SlackMessage{
 		Channel: c.channelID,
 		Attachments: []SlackAttachment{
 			{
-				Color: color,
-				Title: title,
-				Text:  alert.Annotations["description"],
-				Fields: []SlackField{
-					{Title: "Namespace", Value: alert.Labels["namespace"], Short: true},
-					{Title: "Severity", Value: alert.Labels["severity"], Short: true},
-					{Title: "Status", Value: status, Short: true},
-					{Title: "Started", Value: alert.StartsAt.Format(time.RFC3339), Short: true},
-				},
+				Color:      color,
+				Title:      title,
+				Text:       alert.Annotations["description"],
+				Fields:     fields,
 				Footer:     "kube-rca",
 				FooterIcon: "https://kubernetes.io/images/favicon.png",
 				Ts:         time.Now().Unix(),

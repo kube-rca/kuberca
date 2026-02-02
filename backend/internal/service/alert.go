@@ -88,7 +88,7 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 		}
 
 		// 6. Client 레이어로 해당 알림을 전달
-		err = s.slackClient.SendAlert(alert, alert.Status)
+		err = s.slackClient.SendAlert(alert, alert.Status, incidentID)
 		if err != nil {
 			log.Printf("Failed to send alert to Slack: %v", err)
 			failed++

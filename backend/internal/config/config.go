@@ -15,8 +15,9 @@ type Config struct {
 }
 
 type SlackConfig struct {
-	BotToken  string
-	ChannelID string
+	BotToken    string
+	ChannelID   string
+	FrontendURL string
 }
 
 type AgentConfig struct {
@@ -57,8 +58,9 @@ func Load() Config {
 	_ = godotenv.Load()
 	return Config{
 		Slack: SlackConfig{
-			BotToken:  os.Getenv("SLACK_BOT_TOKEN"),
-			ChannelID: os.Getenv("SLACK_CHANNEL_ID"),
+			BotToken:    os.Getenv("SLACK_BOT_TOKEN"),
+			ChannelID:   os.Getenv("SLACK_CHANNEL_ID"),
+			FrontendURL: os.Getenv("FRONTEND_URL"),
 		},
 		Agent: AgentConfig{
 			BaseURL: getenv("AGENT_URL", "http://kube-rca-agent.kube-rca.svc:8000"),

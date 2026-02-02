@@ -27,9 +27,10 @@ import (
 
 // SlackClient(메시지 메타데이터) 구조체 정의
 type SlackClient struct {
-	botToken   string
-	channelID  string
-	httpClient *http.Client
+	botToken    string
+	channelID   string
+	frontendURL string
+	httpClient  *http.Client
 
 	// threadMap: fingerprint -> thread_ts 매핑
 	//   - resolved 알림을 firing과 같은 스레드로 보내기 위함
@@ -77,8 +78,9 @@ type SlackResponse struct {
 // SlackClient 객체 생성
 func NewSlackClient(cfg config.SlackConfig) *SlackClient {
 	return &SlackClient{
-		botToken:  cfg.BotToken,
-		channelID: cfg.ChannelID,
+		botToken:    cfg.BotToken,
+		channelID:   cfg.ChannelID,
+		frontendURL: strings.TrimRight(cfg.FrontendURL, "/"),
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
