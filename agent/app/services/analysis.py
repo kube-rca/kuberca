@@ -454,7 +454,7 @@ def _parse_incident_summary(result: str, original_title: str) -> tuple[str, str,
         if "제목" in stripped or "title" in stripped.lower():
             # Try to get the content after colon or on the next meaningful line
             if ":" in stripped:
-                title = stripped.split(":", 1)[1].strip().strip("'\"")[:50]
+                title = stripped.split(":", 1)[1].strip().strip("'\"")[:100]
             continue
 
         # Extract summary
@@ -465,7 +465,7 @@ def _parse_incident_summary(result: str, original_title: str) -> tuple[str, str,
 
         # If we haven't found title yet and this looks like content, use it
         if not title and not stripped.startswith(("*", "#", "-")):
-            title = stripped[:50]
+            title = stripped[:100]
             continue
 
         # If we have title but no summary and this looks like content
@@ -519,7 +519,7 @@ def _build_incident_summary_prompt(request: IncidentSummaryRequest) -> str:
         "Analyze all the alerts and their individual analyses to synthesize a "
         "comprehensive incident summary.\n\n"
         "Return your response in Korean with the following structure:\n"
-        "1. **제목 (Title)**: A concise incident title (max 50 chars) that includes:\n"
+        "1. **제목 (Title)**: A concise incident title (max 100 chars) that includes:\n"
         "   - The specific service/pod/namespace affected\n"
         "   - The root cause or error type\n"
         "   - Examples:\n"
