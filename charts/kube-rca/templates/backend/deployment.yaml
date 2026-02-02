@@ -131,6 +131,10 @@ spec:
                   key: {{ required "backend.slack.secret.channelIdKey (or backend.slack.secret.keys.channelId) is required" $channelIdKey | quote }}
             {{- end }}
             {{- end }}
+            {{- if .Values.frontend.ingress.hosts }}
+            - name: FRONTEND_URL
+              value: {{ printf "https://%s" (first .Values.frontend.ingress.hosts) | quote }}
+            {{- end }}
             - name: EMBEDDING_PROVIDER
               value: {{ default "gemini" .Values.backend.embedding.provider | quote }}
             - name: EMBEDDING_MODEL
