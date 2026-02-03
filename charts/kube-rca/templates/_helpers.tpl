@@ -218,14 +218,57 @@ limits:
 {{- end -}}
 
 {{/*
+PostgreSQL service name for the embedded dependency.
+*/}}
+{{- define "kube-rca.postgresql.primary.fullname" -}}
+{{- $pgValues := default (dict) .Values.postgresql -}}
+{{- $fullname := include "common.names.dependency.fullname" (dict "chartName" "postgresql" "chartValues" $pgValues "context" $) -}}
+{{- $architecture := default "standalone" $pgValues.architecture -}}
+{{- $primary := default (dict) $pgValues.primary -}}
+{{- $primaryName := default "primary" $primary.name -}}
+{{- if eq $architecture "replication" -}}
+{{- printf "%s-%s" $fullname $primaryName | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- $fullname -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+PostgreSQL service DNS for the embedded dependency.
+*/}}
+{{- define "kube-rca.postgresql.service.host" -}}
+{{- $pgValues := default (dict) .Values.postgresql -}}
+{{- $namespace := default .Release.Namespace $pgValues.namespaceOverride -}}
+{{- printf "%s.%s.svc.cluster.local" (include "kube-rca.postgresql.primary.fullname" .) $namespace -}}
+{{- end -}}
+
+{{/*
+PostgreSQL connection host/port for backend and hooks.
+If backend.postgresql.host is set, it is used (external DB).
+Otherwise it falls back to the embedded postgresql service DNS.
+*/}}
+{{- define "kube-rca.postgresql.host" -}}
+{{- $pgHost := default "" .Values.backend.postgresql.host -}}
+{{- if $pgHost -}}
+{{- $pgHost -}}
+{{- else -}}
+{{- include "kube-rca.postgresql.service.host" . -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "kube-rca.postgresql.port" -}}
+{{- default 5432 .Values.backend.postgresql.port -}}
+{{- end -}}
+
+{{/*
 PostgreSQL connection string for wait-for-db.
 */}}
 {{- define "kube-rca.hook.postgresql.host" -}}
-{{- default "postgresql.kube-rca.svc.cluster.local" .Values.backend.postgresql.host -}}
+{{- include "kube-rca.postgresql.host" . -}}
 {{- end -}}
 
 {{- define "kube-rca.hook.postgresql.port" -}}
-{{- default 5432 .Values.backend.postgresql.port -}}
+{{- include "kube-rca.postgresql.port" . -}}
 {{- end -}}
 
 {{/*

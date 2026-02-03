@@ -4,6 +4,21 @@
 
 Deploy kube-rca backend and frontend
 
+## Install (OCI, Public ECR)
+
+```bash
+# Optional: login to Public ECR (if your environment requires it)
+aws ecr-public get-login-password --region us-east-1 | \
+  helm registry login --username AWS --password-stdin public.ecr.aws
+
+# Install/upgrade (basic)
+helm upgrade --install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/kube-rca \
+  --namespace kube-rca --create-namespace \
+  --version <chart-version>
+```
+
+> `chart-version` is the Helm chart version from `charts/kube-rca/Chart.yaml` (or the release you published).
+
 ## Values
 
 | Key | Type | Default | Description |
@@ -93,7 +108,7 @@ Deploy kube-rca backend and frontend
 | backend.ingress.tls | list | `[]` | TLS configuration for backend ingress. |
 | backend.nodeSelector | object | `{}` | Node labels for backend pods assignment. |
 | backend.postgresql.database | string | `"kube-rca"` | PostgreSQL database. |
-| backend.postgresql.host | string | `"postgresql.kube-rca.svc.cluster.local"` | PostgreSQL host. |
+| backend.postgresql.host | string | `"kube-rca-postgresql.kube-rca.svc.cluster.local"` | PostgreSQL host. |
 | backend.postgresql.port | int | `5432` | PostgreSQL port. |
 | backend.postgresql.secret.existingSecret | string | `"postgresql"` | Existing Secret name for PostgreSQL password. |
 | backend.postgresql.secret.key | string | `"password"` | Secret key for PostgreSQL password. |

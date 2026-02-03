@@ -9,7 +9,7 @@ backend:
       allowedOrigins:
         - https://kuberca.kkamji.net
   postgresql:
-    host: postgresql.kube-rca.svc.cluster.local
+    host: kube-rca-postgresql.kube-rca.svc.cluster.local
     port: 5432
     user: kube-rca
     database: kube-rca
@@ -65,7 +65,7 @@ agent:
   openai:
     modelId: "gpt-5-mini"
   sessionDB:
-    host: postgresql.kube-rca.svc.cluster.local
+    host: kube-rca-postgresql.kube-rca.svc.cluster.local
     port: 5432
     name: kube-rca
     user: kube-rca

@@ -23,9 +23,9 @@ spec:
               containerPort: {{ .Values.backend.containerPort }}
           env:
             - name: PGHOST
-              value: {{ default "postgresql.kube-rca.svc.cluster" .Values.backend.postgresql.host | quote }}
+              value: {{ include "kube-rca.postgresql.host" . | quote }}
             - name: PGPORT
-              value: {{ default 5432 .Values.backend.postgresql.port | quote }}
+              value: {{ include "kube-rca.postgresql.port" . | quote }}
             - name: PGUSER
               value: {{ default "kube-rca" .Values.backend.postgresql.user | quote }}
             {{- $pgSecret := default (dict) .Values.backend.postgresql.secret }}
