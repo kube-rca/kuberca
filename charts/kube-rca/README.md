@@ -148,7 +148,7 @@ helm upgrade --install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/kube-
 | hooks.waitForAgent.healthPath | string | `"/healthz"` | Agent health check path. |
 | hooks.waitForBackend.enabled | bool | `false` | Enable wait-for-backend post-install hook (optional). |
 | hooks.waitForBackend.healthPath | string | `"/ping"` | Backend health check path. |
-| hooks.waitForDb.enabled | bool | `true` | Enable wait-for-db pre-install hook. |
+| hooks.waitForDb.enabled | bool | `true` | Enable wait-for-db post-install hook. |
 | hooks.waitJob.activeDeadlineSeconds | int | `300` | Maximum time for the job to complete. |
 | hooks.waitJob.backoffLimit | int | `6` | Number of retries before giving up. |
 | hooks.waitJob.checkInterval | int | `5` | Interval between connection checks (seconds). |
