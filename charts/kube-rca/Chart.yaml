@@ -4,3 +4,7 @@ description: Deploy kube-rca backend and frontend
 type: application
 version: 0.3.0
 appVersion: "0.1.0"
+dependencies:
+  - name: postgresql
+    version: 18.1.13
+    repository: "https://charts.bitnami.com/bitnami"

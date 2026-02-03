@@ -48,6 +48,37 @@ hooks:
     # -- Agent health check path.
     healthPath: "/healthz"
 
+postgresql:
+  auth:
+    username: "kube-rca"
+    database: "kube-rca"
+    existingSecret: "postgresql"
+    secretKeys:
+      adminPasswordKey: "postgres-password"
+      userPasswordKey: "password"
+  primary:
+    initdb:
+      scripts:
+        enable-pgvector.sh: |
+          #!/bin/sh
+          set -e
+          DB_USER="postgres"
+          if [ -n "${POSTGRES_POSTGRES_PASSWORD_FILE:-}" ] && [ -f "$POSTGRES_POSTGRES_PASSWORD_FILE" ]; then
+            PGPASSWORD="$(cat "$POSTGRES_POSTGRES_PASSWORD_FILE")"
+          elif [ -n "${POSTGRES_POSTGRES_PASSWORD:-}" ]; then
+            PGPASSWORD="$POSTGRES_POSTGRES_PASSWORD"
+          else
+            DB_USER="${POSTGRES_USER:-postgres}"
+            if [ -n "${POSTGRES_PASSWORD_FILE:-}" ] && [ -f "$POSTGRES_PASSWORD_FILE" ]; then
+              PGPASSWORD="$(cat "$POSTGRES_PASSWORD_FILE")"
+            elif [ -n "${POSTGRES_PASSWORD:-}" ]; then
+              PGPASSWORD="$POSTGRES_PASSWORD"
+            fi
+          fi
+          export PGPASSWORD
+          DB_NAME="${POSTGRES_DATABASE:-kube-rca}"
+          psql -U "$DB_USER" -d "$DB_NAME" -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
 backend:
   # -- Number of backend replicas.
   replicaCount: 1
