@@ -10,7 +10,7 @@ Deploy kube-rca backend and frontend
 |-----|------|---------|-------------|
 | agent.affinity | object | `{}` | Affinity for agent pods assignment. |
 | agent.aiProvider | string | `"gemini"` | AI provider for agent (AI_PROVIDER). Allowed: gemini, openai, anthropic. |
-| agent.anthropic.modelId | string | `"claude-sonnet-4-20250514"` | Anthropic model ID for Strands Agents. |
+| agent.anthropic.modelId | string | `"claude-haiku-4-5"` | Anthropic model ID for Strands Agents. |
 | agent.anthropic.secret.create | bool | `false` | Create a Secret for the Anthropic API key. |
 | agent.anthropic.secret.existingSecret | string | `"kube-rca-ai"` | Existing Secret name for the Anthropic API key. |
 | agent.anthropic.secret.key | string | `"anthropic-api-key"` | Secret key name for the Anthropic API key. |
@@ -36,7 +36,7 @@ Deploy kube-rca backend and frontend
 | agent.k8s.logTailLines | int | `25` | Kubernetes log tail lines. |
 | agent.logLevel | string | `"info"` | Agent log level (LOG_LEVEL). |
 | agent.nodeSelector | object | `{}` | Node labels for agent pods assignment. |
-| agent.openai.modelId | string | `"gpt-4o"` | OpenAI model ID for Strands Agents. |
+| agent.openai.modelId | string | `"gpt-5-mini"` | OpenAI model ID for Strands Agents. |
 | agent.openai.secret.create | bool | `false` | Create a Secret for the OpenAI API key. |
 | agent.openai.secret.existingSecret | string | `"kube-rca-ai"` | Existing Secret name for the OpenAI API key. |
 | agent.openai.secret.key | string | `"openai-api-key"` | Secret key name for the OpenAI API key. |

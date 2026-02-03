@@ -243,7 +243,7 @@ agent:
       key: "ai-studio-api-key"
   openai:
     # -- OpenAI model ID for Strands Agents.
-    modelId: "gpt-4o"
+    modelId: "gpt-5-mini"
     secret:
       # -- Create a Secret for the OpenAI API key.
       create: false
@@ -253,7 +253,7 @@ agent:
       key: "openai-api-key"
   anthropic:
     # -- Anthropic model ID for Strands Agents.
-    modelId: "claude-sonnet-4-20250514"
+    modelId: "claude-haiku-4-5"
     secret:
       # -- Create a Secret for the Anthropic API key.
       create: false
