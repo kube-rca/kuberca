@@ -297,4 +297,4 @@ useEffect(() => {
 
 ## License
 
-This project is part of KubeRCA, licensed under the Apache License 2.0.
+This project is part of KubeRCA, licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
