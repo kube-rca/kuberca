@@ -31,7 +31,7 @@ backend:
 frontend:
   image:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr
-    tag: frontend-059c3df
+    tag: frontend-7947bcd
   ingress:
     enabled: true
     ingressClassName: nginx
