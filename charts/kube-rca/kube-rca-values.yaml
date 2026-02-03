@@ -52,7 +52,7 @@ agent:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr
     tag: agent-cb3f5a0
   workers: 4
-  aiProvider: openai
+  aiProvider: gemini
   prometheus:
     url: kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
   prompt:
@@ -60,6 +60,8 @@ agent:
     maxLogLines: 25
     maxEvents: 25
     summaryMaxItems: 3
+  gemini:
+    modelId: "gemini-3-flash-preview"
   openai:
     modelId: "gpt-5-mini"
   sessionDB:
