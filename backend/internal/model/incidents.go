@@ -59,14 +59,15 @@ type ResolveIncidentRequest struct {
 
 // AlertListResponse - Alert 목록 조회용 구조체
 type AlertListResponse struct {
-	AlertID    string     `json:"alert_id"`
-	IncidentID *string    `json:"incident_id"` // null 가능 (아직 Incident에 연결되지 않은 경우)
-	AlarmTitle string     `json:"alarm_title"`
-	Namespace  *string    `json:"namespace"`
-	Severity   string     `json:"severity"`
-	Status     string     `json:"status"` // firing, resolved
-	FiredAt    time.Time  `json:"fired_at"`
-	ResolvedAt *time.Time `json:"resolved_at"`
+	AlertID    string          `json:"alert_id"`
+	IncidentID *string         `json:"incident_id"` // null 가능 (아직 Incident에 연결되지 않은 경우)
+	AlarmTitle string          `json:"alarm_title"`
+	Namespace  *string         `json:"namespace"`
+	Severity   string          `json:"severity"`
+	Status     string          `json:"status"` // firing, resolved
+	FiredAt    time.Time       `json:"fired_at"`
+	ResolvedAt *time.Time      `json:"resolved_at"`
+	Labels     json.RawMessage `json:"labels" swaggertype:"object"`
 }
 
 // AlertDetailResponse - Alert 상세 조회용 구조체
