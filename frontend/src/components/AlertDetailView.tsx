@@ -180,7 +180,7 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
              ✅ 해결 시간
           </div>
           <div className="text-gray-900 dark:text-gray-100 font-medium font-mono">
-            {data.resolved_at ? formatTime(data.resolved_at) : <span className="text-red-500 font-bold">Ongoing</span>}
+            {data.resolved_at ? formatTime(data.resolved_at) : <span className="text-red-500 font-bold">Firing</span>}
           </div>
         </div>
 

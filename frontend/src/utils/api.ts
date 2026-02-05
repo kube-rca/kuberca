@@ -158,6 +158,7 @@ export interface AlertItem {
   status: string;
   fired_at: string;
   resolved_at: string | null;
+  labels: Record<string, string>;
 }
 
 export interface AlertDetail {

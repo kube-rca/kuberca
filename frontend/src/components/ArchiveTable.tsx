@@ -74,7 +74,7 @@ function ArchiveTable({ rcas, onTitleClick }: ArchiveTableProps) {
                   </div>
                   <div className="text-gray-400 font-bold my-0.5">~</div>
                   <div className="text-xs text-gray-500 dark:text-gray-400">
-                    {rca.resolved_at ? formatDate(rca.resolved_at) : 'Ongoing'}
+                    {rca.resolved_at ? formatDate(rca.resolved_at) : 'Firing'}
                   </div>
                 </td>
 

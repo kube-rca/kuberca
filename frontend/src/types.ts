@@ -17,6 +17,8 @@ export interface AlertItem {
   status: string;
   fired_at: string;
   resolved_at: string | null;
+  namespace: string;
+  labels: Record<string, string>;
 }
 
 export interface RCADetail {

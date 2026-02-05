@@ -1,8 +1,8 @@
 import { RCAItem } from '../types';
 import { AlertItem } from './api';
 
-// 상태 필터 타입 정의 (전체, 진행중, 해결됨)
-export type RCAStatusFilter = 'all' | 'ongoing' | 'resolved';
+// 상태 필터 타입 정의 (전체, Firing, Resolved)
+export type RCAStatusFilter = 'all' | 'firing' | 'resolved';
 
 /**
  * 시간 범위 문자열을 현재 시간 기준의 '컷오프 타임스탬프(ms)'로 변환
@@ -55,8 +55,8 @@ export const filterRCAs = (
     }
 
     // --- [2단계] 상태 필터 (Status Filter) ---
-    if (status === 'ongoing') {
-      // 진행 중만 보고 싶다 -> resolved_at이 없어야(null) 함
+    if (status === 'firing') {
+      // Firing만 보고 싶다 -> resolved_at이 없어야(null) 함
       if (rca.resolved_at) return false; 
     }
     
@@ -102,7 +102,7 @@ export const filterAlerts = (
     }
 
     // --- [2단계] 상태 필터 (Status Filter) ---
-    if (status === 'ongoing') {
+    if (status === 'firing') {
       if (alert.status !== 'firing') return false;
     }
 

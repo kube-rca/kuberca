@@ -245,7 +245,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                     : 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-200 dark:border-red-700'
                   }`}
               >
-                {isResolved ? 'Resolved' : 'Ongoing'}
+                {isResolved ? 'Resolved' : 'Firing'}
               </span>
 
               <span 
@@ -309,7 +309,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
              ✅ 해결 시간
           </div>
           <div className="text-gray-900 dark:text-gray-100 font-medium font-mono">
-            {data.resolved_at ? formatTime(data.resolved_at) : <span className="text-red-500 font-bold">Ongoing</span>}
+            {data.resolved_at ? formatTime(data.resolved_at) : <span className="text-red-500 font-bold">Firing</span>}
           </div>
         </div>
 

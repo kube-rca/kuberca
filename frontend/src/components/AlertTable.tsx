@@ -1,19 +1,9 @@
 import { useNavigate } from 'react-router-dom';
-
-// [수정] namespace 필드 추가
-export interface AlertItem {
-  alert_id: string;
-  incident_id: string | null;
-  alarm_title: string;
-  severity: string;
-  status: string;
-  fired_at: string;
-  resolved_at: string | null;
-  namespace: string; 
-}
+// [중요] AlertItem은 types에서 가져옵니다 (중복 정의 방지)
+import { AlertItem } from '../types'; 
 
 interface AlertTableProps {
-  alerts: AlertItem[];
+  alerts: AlertItem[]; // 부모(App.tsx)가 이미 필터링해서 준 데이터
   onTitleClick: (alert_id: string) => void;
 }
 
@@ -37,13 +27,20 @@ const statusStyles: Record<string, string> = {
 function AlertTable({ alerts, onTitleClick }: AlertTableProps) {
   const navigate = useNavigate();
 
+  if (!alerts || alerts.length === 0) {
+    return (
+      <div className="text-center py-12 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+        <p className="text-gray-500 dark:text-gray-400">데이터가 없습니다.</p>
+        <p className="text-sm text-gray-400 mt-1">검색 조건에 맞는 결과가 없습니다.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full border-collapse border border-gray-300 dark:border-gray-700">
         <thead className="bg-gray-50 dark:bg-gray-700">
           <tr>
-            {/* [삭제] Alert ID 헤더 제거 */}
-            
             <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
               Incident ID
             </th>
@@ -53,12 +50,9 @@ function AlertTable({ alerts, onTitleClick }: AlertTableProps) {
             <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
               Title
             </th>
-            
-            {/* [추가] Namespace 헤더 (Title 우측) */}
             <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
               Namespace
             </th>
-
             <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
               Severity
             </th>
@@ -68,10 +62,9 @@ function AlertTable({ alerts, onTitleClick }: AlertTableProps) {
           </tr>
         </thead>
         <tbody className="bg-white dark:bg-gray-800">
+          {/* [핵심] filteredData가 아니라 그냥 alerts를 맵핑합니다 */}
           {alerts.map((alert) => (
             <tr key={alert.alert_id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-              {/* [삭제] Alert ID 데이터 셀 제거 */}
-
               {/* Incident ID */}
               <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm text-center">
                 {alert.incident_id ? (
@@ -93,7 +86,7 @@ function AlertTable({ alerts, onTitleClick }: AlertTableProps) {
                 </div>
                 <div className="text-gray-400 font-bold my-0.5">~</div>
                 <div className="text-xs text-gray-500 dark:text-gray-400">
-                  {alert.resolved_at ? formatDate(alert.resolved_at) : 'Ongoing'}
+                  {alert.resolved_at ? formatDate(alert.resolved_at) : 'Firing'}
                 </div>
               </td>
 
@@ -105,7 +98,7 @@ function AlertTable({ alerts, onTitleClick }: AlertTableProps) {
                 {alert.alarm_title}
               </td>
 
-              {/* [추가] Namespace 데이터 셀 */}
+              {/* Namespace */}
               <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm text-center">
                 <span className="inline-block bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded text-xs font-mono">
                   {alert.namespace || '-'}
