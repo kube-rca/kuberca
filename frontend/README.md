@@ -287,6 +287,13 @@ useEffect(() => {
 
 ---
 
+## Merge Policy (release-please)
+
+- Avoid merge commits when merging PRs; they can create duplicate changelog entries.
+- Prefer "Squash and merge" or "Rebase and merge" and ensure the final commit message is conventional.
+
+---
+
 ## Related Components
 
 - [KubeRCA Backend](https://github.com/kube-rca/backend) - Go REST API server
