@@ -146,7 +146,7 @@ def _build_prompt(
         "- list_pod_events, list_namespace_events, list_cluster_events",
         "- list_pods_in_namespace (use when pod name is missing from alert labels)",
         "- get_previous_pod_logs, get_pod_logs",
-        "- get_workload_status, get_node_status",
+        "- get_workload_status, get_daemonset_manifest, get_node_status",
         "- get_pod_metrics, get_node_metrics",
     ]
     if prometheus_enabled:

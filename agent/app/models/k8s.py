@@ -25,6 +25,7 @@ class PodEventSummary:
     count: int | None
     first_timestamp: str | None
     last_timestamp: str | None
+    involved_object: dict[str, str | None] | None
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
