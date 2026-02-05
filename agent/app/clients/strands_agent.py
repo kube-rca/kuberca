@@ -210,6 +210,14 @@ def _build_tools(
         return summary
 
     @tool
+    def get_daemonset_manifest(namespace: str, name: str) -> dict[str, object]:
+        """Fetch DaemonSet manifest (metadata/spec) for updateStrategy/selector."""
+        manifest = k8s_client.get_daemon_set_manifest(namespace, name)
+        if manifest is None:
+            return {"warning": "daemonset not found"}
+        return manifest
+
+    @tool
     def get_node_status(node_name: str) -> dict[str, object]:
         """Fetch node status details."""
         status = k8s_client.get_node_status(node_name)
@@ -309,6 +317,7 @@ def _build_tools(
         get_previous_pod_logs,
         get_pod_logs,
         get_workload_status,
+        get_daemonset_manifest,
         get_node_status,
         get_pod_metrics,
         get_node_metrics,

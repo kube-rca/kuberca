@@ -19,6 +19,7 @@ class KubernetesClient:
         self._apps_api = client.AppsV1Api() if self._core_api else None
         self._batch_api = client.BatchV1Api() if self._core_api else None
         self._custom_api = client.CustomObjectsApi() if self._core_api else None
+        self._events_api = client.EventsV1Api() if self._core_api else None
 
     def collect_context(
         self, namespace: str | None, pod_name: str | None, workload: str | None = None
@@ -97,31 +98,26 @@ class KubernetesClient:
         return self._summarize_pod_spec(pod)
 
     def list_namespace_events(self, namespace: str) -> list[PodEventSummary]:
-        if self._core_api is None:
+        if self._core_api is None and self._events_api is None:
             return []
-        try:
-            response = self._core_api.list_namespaced_event(
-                namespace=namespace,
-                limit=self._event_limit,
-                _request_timeout=self._timeout_seconds,
-            )
-        except Exception as exc:  # noqa: BLE001
-            self._logger.warning("Failed to list namespace events for %s: %s", namespace, exc)
-            return []
-        return [self._to_event_summary(item) for item in response.items]
+        v1_events, v1_error = self._list_namespace_events_v1(namespace)
+        if v1_events:
+            return v1_events
+        core_events, core_error = self._list_namespace_events_core(namespace)
+        if core_events:
+            return core_events
+        return self._event_warnings([v1_error, core_error])
 
     def list_cluster_events(self) -> list[PodEventSummary]:
-        if self._core_api is None:
+        if self._core_api is None and self._events_api is None:
             return []
-        try:
-            response = self._core_api.list_event_for_all_namespaces(
-                limit=self._event_limit,
-                _request_timeout=self._timeout_seconds,
-            )
-        except Exception as exc:  # noqa: BLE001
-            self._logger.warning("Failed to list cluster events: %s", exc)
-            return []
-        return [self._to_event_summary(item) for item in response.items]
+        v1_events, v1_error = self._list_cluster_events_v1()
+        if v1_events:
+            return v1_events
+        core_events, core_error = self._list_cluster_events_core()
+        if core_events:
+            return core_events
+        return self._event_warnings([v1_error, core_error])
 
     def get_pod_logs(
         self,
@@ -233,6 +229,26 @@ class KubernetesClient:
             return self._summarize_cron_job(cron_job)
 
         return None
+
+    def get_daemon_set_manifest(self, namespace: str, name: str) -> dict[str, object] | None:
+        if self._apps_api is None:
+            return None
+        try:
+            daemon_set = self._apps_api.read_namespaced_daemon_set(
+                name=name,
+                namespace=namespace,
+                _request_timeout=self._timeout_seconds,
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._logger.warning("Failed to read DaemonSet %s/%s: %s", namespace, name, exc)
+            return None
+        payload = daemon_set.to_dict()
+        return {
+            "apiVersion": payload.get("api_version"),
+            "kind": payload.get("kind") or "DaemonSet",
+            "metadata": payload.get("metadata"),
+            "spec": payload.get("spec"),
+        }
 
     def get_node_status(self, node_name: str) -> dict[str, object] | None:
         if self._core_api is None:
@@ -429,6 +445,81 @@ class KubernetesClient:
             return []
 
         return [self._to_event_summary(item) for item in response.items]
+
+    def _list_namespace_events_core(
+        self, namespace: str
+    ) -> tuple[list[PodEventSummary], str | None]:
+        if self._core_api is None:
+            return [], None
+        try:
+            response = self._core_api.list_namespaced_event(
+                namespace=namespace,
+                limit=self._event_limit,
+                _request_timeout=self._timeout_seconds,
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._logger.warning("Failed to list core events for %s: %s", namespace, exc)
+            return [], f"core events query failed: {exc}"
+        return [self._to_event_summary(item) for item in response.items], None
+
+    def _list_namespace_events_v1(
+        self, namespace: str
+    ) -> tuple[list[PodEventSummary], str | None]:
+        if self._events_api is None:
+            return [], None
+        try:
+            response = self._events_api.list_namespaced_event(
+                namespace=namespace,
+                limit=self._event_limit,
+                _request_timeout=self._timeout_seconds,
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._logger.warning("Failed to list events.k8s.io for %s: %s", namespace, exc)
+            return [], f"events.k8s.io query failed: {exc}"
+        return [self._to_event_summary_v1(item) for item in response.items], None
+
+    def _list_cluster_events_core(self) -> tuple[list[PodEventSummary], str | None]:
+        if self._core_api is None:
+            return [], None
+        try:
+            response = self._core_api.list_event_for_all_namespaces(
+                limit=self._event_limit,
+                _request_timeout=self._timeout_seconds,
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._logger.warning("Failed to list core cluster events: %s", exc)
+            return [], f"core cluster events query failed: {exc}"
+        return [self._to_event_summary(item) for item in response.items], None
+
+    def _list_cluster_events_v1(self) -> tuple[list[PodEventSummary], str | None]:
+        if self._events_api is None:
+            return [], None
+        try:
+            response = self._events_api.list_event_for_all_namespaces(
+                limit=self._event_limit,
+                _request_timeout=self._timeout_seconds,
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._logger.warning("Failed to list events.k8s.io cluster events: %s", exc)
+            return [], f"events.k8s.io cluster events query failed: {exc}"
+        return [self._to_event_summary_v1(item) for item in response.items], None
+
+    @staticmethod
+    def _event_warnings(messages: list[str | None]) -> list[PodEventSummary]:
+        combined = "; ".join(message for message in messages if message)
+        if not combined:
+            return []
+        return [
+            PodEventSummary(
+                type="Warning",
+                reason="EventQueryFailed",
+                message=combined,
+                count=None,
+                first_timestamp=None,
+                last_timestamp=None,
+                involved_object=None,
+            )
+        ]
 
     def _get_previous_logs(
         self,
@@ -726,6 +817,9 @@ class KubernetesClient:
     def _summarize_daemon_set(self, daemon_set: client.V1DaemonSet) -> dict[str, object]:
         status = daemon_set.status
         metadata = daemon_set.metadata
+        spec = daemon_set.spec
+        template_metadata = spec.template.metadata if spec and spec.template else None
+        template_spec = spec.template.spec if spec and spec.template else None
         return {
             "kind": "DaemonSet",
             "name": metadata.name if metadata else "",
@@ -740,6 +834,20 @@ class KubernetesClient:
             "number_unavailable": status.number_unavailable if status else None,
             "number_misscheduled": status.number_misscheduled if status else None,
             "conditions": self._summarize_conditions(status.conditions if status else None),
+            "update_strategy": (
+                spec.update_strategy.to_dict() if spec and spec.update_strategy else None
+            ),
+            "selector": spec.selector.to_dict() if spec and spec.selector else None,
+            "template_labels": template_metadata.labels if template_metadata else {},
+            "node_selector": template_spec.node_selector if template_spec else None,
+            "tolerations": [
+                toleration.to_dict() for toleration in (template_spec.tolerations or [])
+            ]
+            if template_spec
+            else [],
+            "affinity": template_spec.affinity.to_dict()
+            if template_spec and template_spec.affinity
+            else None,
         }
 
     def _summarize_job(self, job: client.V1Job) -> dict[str, object]:
@@ -876,7 +984,46 @@ class KubernetesClient:
             count=event.count,
             first_timestamp=self._to_iso(event.first_timestamp),
             last_timestamp=self._to_iso(event.last_timestamp or event.event_time),
+            involved_object=self._summarize_object_ref(event.involved_object),
         )
+
+    def _to_event_summary_v1(self, event: client.EventsV1Event) -> PodEventSummary:
+        metadata = getattr(event, "metadata", None)
+        series = getattr(event, "series", None)
+        regarding = getattr(event, "regarding", None) or getattr(event, "related", None)
+        message = getattr(event, "note", None) or getattr(event, "deprecated_message", None)
+        first_timestamp = (
+            getattr(event, "deprecated_first_timestamp", None)
+            or getattr(event, "event_time", None)
+            or getattr(metadata, "creation_timestamp", None)
+        )
+        last_timestamp = (
+            getattr(event, "deprecated_last_timestamp", None)
+            or getattr(series, "last_observed_time", None)
+            or getattr(event, "event_time", None)
+            or getattr(metadata, "creation_timestamp", None)
+        )
+        count = getattr(series, "count", None) or getattr(event, "deprecated_count", None)
+        return PodEventSummary(
+            type=getattr(event, "type", None),
+            reason=getattr(event, "reason", None),
+            message=message,
+            count=count,
+            first_timestamp=self._to_iso(first_timestamp),
+            last_timestamp=self._to_iso(last_timestamp),
+            involved_object=self._summarize_object_ref(regarding),
+        )
+
+    @staticmethod
+    def _summarize_object_ref(obj: object | None) -> dict[str, str | None] | None:
+        if obj is None:
+            return None
+        return {
+            "kind": getattr(obj, "kind", None),
+            "name": getattr(obj, "name", None),
+            "namespace": getattr(obj, "namespace", None),
+            "uid": getattr(obj, "uid", None),
+        }
 
     @staticmethod
     def _to_iso(value: object | None) -> str | None:
