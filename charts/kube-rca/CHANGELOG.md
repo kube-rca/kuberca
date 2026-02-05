@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0](https://github.com/kube-rca/helm-charts/compare/0.3.0...0.4.0) (2026-02-05)
+
+
+### Features
+
+* **kube-rca:** move postgresql to dependency and update configuration (KAN-110) ([c8229e2](https://github.com/kube-rca/helm-charts/commit/c8229e2396c86e5891f54514dbb030cc39bc59d9))
+
+
+### Bug Fixes
+
+* **helm:** align postgres host and hooks (KAN-110) ([a71a963](https://github.com/kube-rca/helm-charts/commit/a71a963b43a22b22a6014f276a39d02fd3961b99))
+* **helm:** run wait-for-db after postgres (KAN-110) ([4de3f14](https://github.com/kube-rca/helm-charts/commit/4de3f143cde7664914eaa547c09fd090a6eb666d))
+
 ## [0.3.0](https://github.com/kube-rca/helm-charts/compare/0.2.0...0.3.0) (2026-02-01)
 
 
