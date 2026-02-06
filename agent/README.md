@@ -294,6 +294,20 @@ git config core.hooksPath .githooks
 
 ---
 
+## Contributing
+
+### Merge Policy (release-please)
+
+release-please parses conventional commits; merge commits that include the PR title
+can be double-counted in the changelog.
+
+- Prefer `Squash and merge` or `Rebase and merge`.
+- If `Create a merge commit` is used, keep the PR title non-conventional
+  (e.g., "Merge PR #123").
+- Use Conventional Commits for change commits that should appear in the changelog.
+
+---
+
 ## Testing
 
 ### Unit Tests
