@@ -6,6 +6,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from app.core.config import Settings
 
@@ -55,8 +56,8 @@ class TempoClient:
 
         params = {
             "q": query,
-            "start": start,
-            "end": end,
+            "start": _normalize_search_time(start),
+            "end": _normalize_search_time(end),
             "limit": str(max(1, limit)),
         }
         payload, error = self._request_with_fallback(
@@ -268,3 +269,27 @@ def _normalize_base_url(raw: str) -> str:
     if not parsed.scheme or not parsed.netloc:
         return ""
     return value.rstrip("/")
+
+
+def _normalize_search_time(raw: str) -> str:
+    value = raw.strip()
+    if not value:
+        return raw
+
+    # Tempo /api/search expects unix timestamp values for start/end.
+    try:
+        return str(int(float(value)))
+    except ValueError:
+        pass
+
+    iso_value = value.replace("Z", "+00:00") if value.endswith("Z") else value
+    try:
+        parsed = datetime.fromisoformat(iso_value)
+    except ValueError:
+        return raw
+
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    else:
+        parsed = parsed.astimezone(timezone.utc)
+    return str(int(parsed.timestamp()))

@@ -202,6 +202,14 @@ class AnalysisService:
             warnings.append(response["warning"])
         if isinstance(response.get("error"), str):
             warnings.append(response["error"])
+        detail = response.get("detail")
+        if isinstance(detail, dict):
+            status_code = detail.get("status_code")
+            reason = detail.get("reason")
+            if status_code is not None or reason is not None:
+                warnings.append(f"tempo_query_detail: status={status_code}, reason={reason}")
+
+        query_status = "error" if isinstance(response.get("error"), str) else "ok"
 
         return {
             "endpoint": response.get("endpoint"),
@@ -209,6 +217,7 @@ class AnalysisService:
             "window": {"start": start, "end": end},
             "service_name": service_name,
             "namespace": namespace,
+            "query_status": query_status,
             "trace_count": trace_count,
             "traces": traces[: self._tempo_trace_limit],
             "warnings": warnings,
@@ -298,7 +307,8 @@ def _build_prompt(
             "1. Use search_tempo_traces(start, end, service_name, namespace, query, limit).\n"
             "2. Use get_tempo_trace(trace_id) to inspect spans for a selected trace.\n"
             "3. Use alert's startsAt to search around the incident time window.\n"
-            "4. Prioritize failed spans and high-latency path evidence.\n\n"
+            "4. Prioritize failed spans and high-latency path evidence.\n"
+            "5. If tempo query has warnings/errors, treat as query failure, not no-data.\n\n"
         )
 
     if summary_block:
@@ -831,6 +841,7 @@ def _compact_tempo_context(tempo_context: dict[str, object]) -> dict[str, object
     return {
         "query": tempo_context.get("query"),
         "window": tempo_context.get("window"),
+        "query_status": tempo_context.get("query_status"),
         "trace_count": tempo_context.get("trace_count"),
         "traces": compact_traces,
         "warnings": tempo_context.get("warnings") or [],
@@ -845,22 +856,40 @@ def _build_tempo_artifacts(tempo_context: dict[str, object] | None) -> list[dict
     window = tempo_context.get("window")
     warnings = tempo_context.get("warnings") or []
     traces = tempo_context.get("traces") if isinstance(tempo_context.get("traces"), list) else []
+    raw_query_status = tempo_context.get("query_status")
+    query_status = raw_query_status if isinstance(raw_query_status, str) else "ok"
     trace_count = tempo_context.get("trace_count")
     if not isinstance(trace_count, int):
         trace_count = len(traces)
 
+    summary = (
+        "tempo trace query failed" if query_status == "error" else f"tempo traces ({trace_count})"
+    )
     artifacts: list[dict[str, object]] = [
         {
             "type": "trace_summary",
             "query": query if isinstance(query, str) else None,
-            "summary": f"tempo traces ({trace_count})",
+            "summary": summary,
             "result": {
                 "window": window,
+                "query_status": query_status,
                 "trace_count": trace_count,
                 "warnings": warnings,
             },
         }
     ]
+    if query_status == "error":
+        artifacts.append(
+            {
+                "type": "trace_warning",
+                "query": query if isinstance(query, str) else None,
+                "summary": "tempo trace query failed",
+                "result": {
+                    "window": window,
+                    "warnings": warnings,
+                },
+            }
+        )
 
     for trace in traces[:3]:
         if not isinstance(trace, dict):

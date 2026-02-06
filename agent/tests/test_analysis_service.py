@@ -85,6 +85,26 @@ class FakeTempoClient:
         }
 
 
+class FakeFailingTempoClient:
+    def search_traces(
+        self,
+        *,
+        query: str,
+        start: str,
+        end: str,
+        limit: int = 5,
+    ) -> dict[str, object]:
+        return {
+            "error": "failed to search tempo traces",
+            "detail": {
+                "status_code": 400,
+                "reason": "Bad Request",
+            },
+            "trace_count": 0,
+            "traces": [],
+        }
+
+
 def _sample_request() -> AlertAnalysisRequest:
     return AlertAnalysisRequest(
         alert=Alert(
@@ -303,6 +323,35 @@ def test_analysis_service_tempo_window_uses_starts_at() -> None:
     expected_end = (starts_at + timedelta(minutes=5)).isoformat().replace("+00:00", "Z")
     assert call["start"] == expected_start
     assert call["end"] == expected_end
+
+
+def test_analysis_service_marks_tempo_query_error() -> None:
+    context = K8sContext(
+        namespace="bookinfo",
+        pod_name="ratings-v1",
+        workload="ratings",
+        pod_status=None,
+        events=[],
+        previous_logs=[],
+        warnings=[],
+    )
+    engine = CapturingAnalysisEngine("ok")
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=engine,
+        tempo_client=FakeFailingTempoClient(),
+        tempo_enabled=True,
+    )
+
+    request = _sample_request_with_starts_at("2024-01-01T12:00:00Z")
+    _, _, _, api_context, artifacts = service.analyze(request)
+
+    tempo_context = api_context.get("tempo")
+    assert isinstance(tempo_context, dict)
+    assert tempo_context.get("query_status") == "error"
+    assert "tempo_query_detail: status=400, reason=Bad Request" in tempo_context.get("warnings", [])
+    assert any(item.get("type") == "trace_warning" for item in artifacts)
+    assert '"query_status": "error"' in engine.last_prompt
 
 
 def test_analysis_service_includes_recent_summaries() -> None:
