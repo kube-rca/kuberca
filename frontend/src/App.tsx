@@ -305,15 +305,11 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
-      <Header />
+      <Header onLogout={handleLogout} />
       <div className="pt-20 pb-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         <div className="mb-6">
           <UnifiedSearchPanel availableLabels={availableLabels} availableNamespaces={availableNamespaces} />
-        </div>
-
-        <div className="mb-4 flex justify-end">
-          <button type="button" onClick={handleLogout} className="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors">로그아웃</button>
         </div>
 
         <Routes>
