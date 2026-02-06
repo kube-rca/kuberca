@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import Any, cast
 from uuid import uuid4
 
 from app.clients.k8s import KubernetesClient, extract_pod_target
 from app.clients.strands_agent import AnalysisEngine
 from app.clients.summary_store import SummaryStore
+from app.clients.tempo import TempoClient, build_traceql_query
 from app.core.masking import RegexMasker
 from app.models.k8s import K8sContext
 from app.schemas.analysis import AlertAnalysisRequest, IncidentSummaryRequest
@@ -20,6 +22,11 @@ class AnalysisService:
         analysis_engine: AnalysisEngine | None,
         masker: RegexMasker | None = None,
         prometheus_enabled: bool = False,
+        tempo_client: TempoClient | None = None,
+        tempo_enabled: bool = False,
+        tempo_trace_limit: int = 5,
+        tempo_lookback_minutes: int = 15,
+        tempo_forward_minutes: int = 5,
         summary_store: SummaryStore | None = None,
         summary_history_size: int = 3,
         prompt_token_budget: int = 32000,
@@ -31,6 +38,11 @@ class AnalysisService:
         self._analysis_engine = analysis_engine
         self._masker = masker or RegexMasker()
         self._prometheus_enabled = prometheus_enabled
+        self._tempo_client = tempo_client
+        self._tempo_enabled = tempo_enabled and tempo_client is not None
+        self._tempo_trace_limit = max(1, tempo_trace_limit)
+        self._tempo_lookback_minutes = max(0, tempo_lookback_minutes)
+        self._tempo_forward_minutes = max(0, tempo_forward_minutes)
         self._summary_store = summary_store
         self._summary_history_size = max(1, summary_history_size)
         self._prompt_token_budget = max(0, prompt_token_budget)
@@ -42,8 +54,11 @@ class AnalysisService:
     ) -> tuple[str, str, str, dict[str, object], list[dict[str, object]]]:
         namespace, pod_name, workload = extract_pod_target(request.alert.labels)
         k8s_context = self._k8s_client.collect_context(namespace, pod_name, workload)
+        tempo_context = self._collect_tempo_context(request)
         context = k8s_context.to_dict()
-        artifacts = _build_alert_artifacts(k8s_context)
+        if tempo_context:
+            context["tempo"] = tempo_context
+        artifacts = _build_alert_artifacts(k8s_context, tempo_context)
         masked_context = cast(dict[str, object], self._masker.mask_object(context))
         masked_artifacts = cast(list[dict[str, object]], self._masker.mask_object(artifacts))
 
@@ -60,6 +75,8 @@ class AnalysisService:
             request,
             k8s_context,
             self._prometheus_enabled,
+            self._tempo_enabled,
+            tempo_context,
             recent_summaries,
             self._prompt_token_budget,
             self._prompt_max_log_lines,
@@ -153,11 +170,57 @@ class AnalysisService:
         except Exception as exc:  # noqa: BLE001
             self._logger.warning("Failed to store session summary: %s", exc)
 
+    def _collect_tempo_context(
+        self,
+        request: AlertAnalysisRequest,
+    ) -> dict[str, object] | None:
+        if not self._tempo_enabled or self._tempo_client is None:
+            return None
+
+        labels = request.alert.labels
+        namespace = _resolve_trace_namespace(labels)
+        service_name = _resolve_trace_service_name(labels)
+        start, end = _resolve_tempo_window(
+            request.alert.starts_at,
+            lookback_minutes=self._tempo_lookback_minutes,
+            forward_minutes=self._tempo_forward_minutes,
+        )
+        query = build_traceql_query(service_name=service_name, namespace=namespace)
+        response = self._tempo_client.search_traces(
+            query=query,
+            start=start,
+            end=end,
+            limit=self._tempo_trace_limit,
+        )
+        traces = _extract_tempo_traces(response)
+        trace_count = response.get("trace_count")
+        if not isinstance(trace_count, int):
+            trace_count = len(traces)
+
+        warnings: list[str] = []
+        if isinstance(response.get("warning"), str):
+            warnings.append(response["warning"])
+        if isinstance(response.get("error"), str):
+            warnings.append(response["error"])
+
+        return {
+            "endpoint": response.get("endpoint"),
+            "query": query,
+            "window": {"start": start, "end": end},
+            "service_name": service_name,
+            "namespace": namespace,
+            "trace_count": trace_count,
+            "traces": traces[: self._tempo_trace_limit],
+            "warnings": warnings,
+        }
+
 
 def _build_prompt(
     request: AlertAnalysisRequest,
     k8s_context: K8sContext,
     prometheus_enabled: bool,
+    tempo_enabled: bool,
+    tempo_context: dict[str, object] | None,
     recent_summaries: list[str],
     prompt_token_budget: int,
     prompt_max_log_lines: int,
@@ -186,6 +249,8 @@ def _build_prompt(
     if prometheus_enabled:
         tool_lines.append("- discover_prometheus, list_prometheus_metrics")
         tool_lines.append("- query_prometheus, query_prometheus_range")
+    if tempo_enabled:
+        tool_lines.append("- discover_tempo, search_tempo_traces, get_tempo_trace")
     tool_block = "\n".join(tool_lines)
 
     summary_block = _format_session_summaries(
@@ -227,6 +292,15 @@ def _build_prompt(
             "'istio_request.*', 'kube_pod.*', 'node_.*'\n\n"
         )
 
+    if tempo_enabled:
+        prompt += (
+            "For Tempo trace queries:\n"
+            "1. Use search_tempo_traces(start, end, service_name, namespace, query, limit).\n"
+            "2. Use get_tempo_trace(trace_id) to inspect spans for a selected trace.\n"
+            "3. Use alert's startsAt to search around the incident time window.\n"
+            "4. Prioritize failed spans and high-latency path evidence.\n\n"
+        )
+
     if summary_block:
         prompt += summary_block
 
@@ -235,9 +309,11 @@ def _build_prompt(
         max_events=prompt_max_events,
         max_log_lines=prompt_max_log_lines,
     )
+    if tempo_context:
+        context_dict["tempo"] = _compact_tempo_context(tempo_context)
     context_dict = cast(dict[str, object], masker.mask_object(context_dict))
     alert_block = f"Alert payload:\n{_to_pretty_json(payload)}\n\n"
-    context_block = f"Kubernetes context:\n{_to_pretty_json(context_dict)}\n"
+    context_block = f"Kubernetes/APM context:\n{_to_pretty_json(context_dict)}\n"
     full_prompt = prompt + alert_block + context_block
     return _apply_prompt_budget(
         full_prompt,
@@ -315,8 +391,8 @@ def _apply_prompt_budget(
     ) -> str:
         if context is None:
             reason = note or "omitted due to prompt budget"
-            return f"Kubernetes context: {reason}.\n"
-        header = "Kubernetes context"
+            return f"Kubernetes/APM context: {reason}.\n"
+        header = "Kubernetes/APM context"
         if note:
             header = f"{header} ({note})"
         return f"{header}:\n{_to_pretty_json(context)}\n"
@@ -360,11 +436,16 @@ def _compact_context_dict(context: dict[str, object]) -> dict[str, object]:
             "message": pod_status.get("message"),
             "node_name": pod_status.get("node_name"),
         }
+    compact_tempo = None
+    tempo = context.get("tempo")
+    if isinstance(tempo, dict):
+        compact_tempo = _compact_tempo_context(tempo)
     return {
         "namespace": context.get("namespace"),
         "pod_name": context.get("pod_name"),
         "workload": context.get("workload"),
         "pod_status": compact_status,
+        "tempo": compact_tempo,
         "warnings": context.get("warnings") or [],
     }
 
@@ -426,6 +507,55 @@ def _build_alert_fallback_key(request: AlertAnalysisRequest) -> str:
     ]
     compact = "-".join(part for part in parts if part)
     return compact
+
+
+def _resolve_trace_namespace(labels: dict[str, str]) -> str | None:
+    return _first_non_empty_label(
+        labels,
+        ["destination_service_namespace", "namespace"],
+    )
+
+
+def _resolve_trace_service_name(labels: dict[str, str]) -> str | None:
+    return _first_non_empty_label(
+        labels,
+        [
+            "destination_service_name",
+            "service",
+            "destination_workload",
+            "workload",
+            "app",
+        ],
+    )
+
+
+def _first_non_empty_label(labels: dict[str, str], keys: list[str]) -> str | None:
+    for key in keys:
+        value = labels.get(key)
+        if value:
+            return value
+    return None
+
+
+def _resolve_tempo_window(
+    starts_at: datetime | None,
+    *,
+    lookback_minutes: int,
+    forward_minutes: int,
+) -> tuple[str, str]:
+    pivot = starts_at or datetime.now(timezone.utc)
+    if pivot.tzinfo is None:
+        pivot = pivot.replace(tzinfo=timezone.utc)
+    else:
+        pivot = pivot.astimezone(timezone.utc)
+
+    start = pivot - timedelta(minutes=max(0, lookback_minutes))
+    end = pivot + timedelta(minutes=max(0, forward_minutes))
+    return _to_iso_z(start), _to_iso_z(end)
+
+
+def _to_iso_z(value: datetime) -> str:
+    return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _fallback_summary(
@@ -633,7 +763,10 @@ def _compact_summary(text: str, limit: int = 300) -> str:
     return summary
 
 
-def _build_alert_artifacts(k8s_context: K8sContext) -> list[dict[str, object]]:
+def _build_alert_artifacts(
+    k8s_context: K8sContext,
+    tempo_context: dict[str, object] | None = None,
+) -> list[dict[str, object]]:
     artifacts: list[dict[str, object]] = []
 
     for event in k8s_context.events:
@@ -669,4 +802,83 @@ def _build_alert_artifacts(k8s_context: K8sContext) -> list[dict[str, object]]:
             }
         )
 
+    artifacts.extend(_build_tempo_artifacts(tempo_context))
+    return artifacts
+
+
+def _extract_tempo_traces(response: dict[str, object]) -> list[dict[str, object]]:
+    traces = response.get("traces")
+    if not isinstance(traces, list):
+        return []
+    return [trace for trace in traces if isinstance(trace, dict)]
+
+
+def _compact_tempo_context(tempo_context: dict[str, object]) -> dict[str, object]:
+    traces = tempo_context.get("traces")
+    compact_traces: list[dict[str, object]] = []
+    if isinstance(traces, list):
+        for trace in traces[:3]:
+            if not isinstance(trace, dict):
+                continue
+            compact_traces.append(
+                {
+                    "trace_id": trace.get("trace_id"),
+                    "root_service_name": trace.get("root_service_name"),
+                    "root_trace_name": trace.get("root_trace_name"),
+                    "duration_ms": trace.get("duration_ms"),
+                }
+            )
+    return {
+        "query": tempo_context.get("query"),
+        "window": tempo_context.get("window"),
+        "trace_count": tempo_context.get("trace_count"),
+        "traces": compact_traces,
+        "warnings": tempo_context.get("warnings") or [],
+    }
+
+
+def _build_tempo_artifacts(tempo_context: dict[str, object] | None) -> list[dict[str, object]]:
+    if not tempo_context:
+        return []
+
+    query = tempo_context.get("query")
+    window = tempo_context.get("window")
+    warnings = tempo_context.get("warnings") or []
+    traces = tempo_context.get("traces") if isinstance(tempo_context.get("traces"), list) else []
+    trace_count = tempo_context.get("trace_count")
+    if not isinstance(trace_count, int):
+        trace_count = len(traces)
+
+    artifacts: list[dict[str, object]] = [
+        {
+            "type": "trace_summary",
+            "query": query if isinstance(query, str) else None,
+            "summary": f"tempo traces ({trace_count})",
+            "result": {
+                "window": window,
+                "trace_count": trace_count,
+                "warnings": warnings,
+            },
+        }
+    ]
+
+    for trace in traces[:3]:
+        if not isinstance(trace, dict):
+            continue
+        trace_id = trace.get("trace_id")
+        summary_parts = [
+            str(trace.get("root_service_name") or "").strip(),
+            str(trace.get("root_trace_name") or "").strip(),
+        ]
+        summary = " / ".join(part for part in summary_parts if part)
+        if trace_id:
+            summary = f"{summary} ({trace_id})" if summary else str(trace_id)
+        artifacts.append(
+            {
+                "type": "trace",
+                "query": query if isinstance(query, str) else None,
+                "summary": summary or "tempo trace",
+                "result": trace,
+            }
+        )
     return artifacts

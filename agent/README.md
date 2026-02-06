@@ -203,6 +203,17 @@ Summarizes a resolved incident with all associated alerts.
 | `PROMETHEUS_URL` | Prometheus base URL | - |
 | `PROMETHEUS_HTTP_TIMEOUT_SECONDS` | HTTP timeout | `5` |
 
+### Tempo (APM Traces)
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `TEMPO_URL` | Tempo base URL (e.g. `http://tempo.monitoring.svc:3100`) | - |
+| `TEMPO_HTTP_TIMEOUT_SECONDS` | Tempo HTTP timeout | `5` |
+| `TEMPO_TENANT_ID` | Tempo tenant header value (`X-Scope-OrgID`) | - |
+| `TEMPO_TRACE_LIMIT` | Max traces fetched per alert | `5` |
+| `TEMPO_LOOKBACK_MINUTES` | Minutes before `startsAt` for trace search window | `15` |
+| `TEMPO_FORWARD_MINUTES` | Minutes after `startsAt` for trace search window | `5` |
+
 ### Prompt Configuration
 
 | Variable | Description | Default |

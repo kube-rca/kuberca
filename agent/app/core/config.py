@@ -79,6 +79,12 @@ class Settings:
     k8s_log_tail_lines: int
     prometheus_url: str
     prometheus_http_timeout_seconds: int
+    tempo_url: str
+    tempo_http_timeout_seconds: int
+    tempo_tenant_id: str
+    tempo_trace_limit: int
+    tempo_lookback_minutes: int
+    tempo_forward_minutes: int
     prompt_token_budget: int
     prompt_max_log_lines: int
     prompt_max_events: int
@@ -125,6 +131,12 @@ def load_settings() -> Settings:
         k8s_log_tail_lines=_get_int_env("K8S_LOG_TAIL_LINES", 25),
         prometheus_url=os.getenv("PROMETHEUS_URL", "").strip(),
         prometheus_http_timeout_seconds=_get_int_env("PROMETHEUS_HTTP_TIMEOUT_SECONDS", 5),
+        tempo_url=os.getenv("TEMPO_URL", "").strip(),
+        tempo_http_timeout_seconds=_get_int_env("TEMPO_HTTP_TIMEOUT_SECONDS", 5),
+        tempo_tenant_id=os.getenv("TEMPO_TENANT_ID", "").strip(),
+        tempo_trace_limit=max(1, _get_int_env("TEMPO_TRACE_LIMIT", 5)),
+        tempo_lookback_minutes=_get_non_negative_int_env("TEMPO_LOOKBACK_MINUTES", 15),
+        tempo_forward_minutes=_get_non_negative_int_env("TEMPO_FORWARD_MINUTES", 5),
         prompt_token_budget=_get_non_negative_int_env("PROMPT_TOKEN_BUDGET", 32000),
         prompt_max_log_lines=_get_non_negative_int_env("PROMPT_MAX_LOG_LINES", 25),
         prompt_max_events=_get_non_negative_int_env("PROMPT_MAX_EVENTS", 25),

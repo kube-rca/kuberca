@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta, timezone
 
 from app.core.masking import RegexMasker
 from app.models.k8s import K8sContext, PodLogSnippet, PodStatusSnapshot
@@ -51,6 +52,39 @@ class FakeSummaryStore:
         self.appended.append((session_id, summary))
 
 
+class FakeTempoClient:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    def search_traces(
+        self,
+        *,
+        query: str,
+        start: str,
+        end: str,
+        limit: int = 5,
+    ) -> dict[str, object]:
+        self.calls.append(
+            {
+                "query": query,
+                "start": start,
+                "end": end,
+                "limit": limit,
+            }
+        )
+        return {
+            "trace_count": 1,
+            "traces": [
+                {
+                    "trace_id": "trace-123",
+                    "root_service_name": "reviews",
+                    "root_trace_name": "GET /reviews",
+                    "duration_ms": 245.1,
+                }
+            ],
+        }
+
+
 def _sample_request() -> AlertAnalysisRequest:
     return AlertAnalysisRequest(
         alert=Alert(
@@ -58,6 +92,23 @@ def _sample_request() -> AlertAnalysisRequest:
             labels={"namespace": "default", "pod": "demo-pod"},
             annotations={"summary": "Test"},
             fingerprint="abc123",
+        ),
+        thread_ts="1234567890.123456",
+    )
+
+
+def _sample_request_with_starts_at(starts_at: str) -> AlertAnalysisRequest:
+    return AlertAnalysisRequest(
+        alert=Alert(
+            status="firing",
+            labels={
+                "namespace": "bookinfo",
+                "destination_service_name": "reviews",
+                "destination_service_namespace": "bookinfo",
+            },
+            annotations={"summary": "Test", "description": "trace test"},
+            startsAt=datetime.fromisoformat(starts_at.replace("Z", "+00:00")),
+            fingerprint="trace-abc123",
         ),
         thread_ts="1234567890.123456",
     )
@@ -164,6 +215,94 @@ def test_analysis_service_prompt_with_prometheus() -> None:
     service.analyze(_sample_request())
 
     assert "query_prometheus" in engine.last_prompt
+
+
+def test_analysis_service_prompt_with_tempo() -> None:
+    context = K8sContext(
+        namespace="bookinfo",
+        pod_name="reviews-v1",
+        workload="reviews",
+        pod_status=None,
+        events=[],
+        previous_logs=[],
+        warnings=[],
+    )
+    engine = CapturingAnalysisEngine("ok")
+    tempo = FakeTempoClient()
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=engine,
+        prometheus_enabled=False,
+        tempo_client=tempo,
+        tempo_enabled=True,
+    )
+
+    service.analyze(_sample_request_with_starts_at("2024-01-01T12:00:00Z"))
+
+    assert "search_tempo_traces" in engine.last_prompt
+    assert "get_tempo_trace" in engine.last_prompt
+    assert "\"tempo\"" in engine.last_prompt
+    assert tempo.calls
+
+
+def test_analysis_service_adds_tempo_trace_artifacts() -> None:
+    context = K8sContext(
+        namespace="bookinfo",
+        pod_name="reviews-v1",
+        workload="reviews",
+        pod_status=None,
+        events=[],
+        previous_logs=[],
+        warnings=[],
+    )
+    tempo = FakeTempoClient()
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=FakeAnalysisEngine("ok"),
+        tempo_client=tempo,
+        tempo_enabled=True,
+    )
+
+    _, _, _, api_context, artifacts = service.analyze(
+        _sample_request_with_starts_at("2024-01-01T12:00:00Z")
+    )
+
+    artifact_types = {item["type"] for item in artifacts}
+    assert "trace_summary" in artifact_types
+    assert "trace" in artifact_types
+    assert "tempo" in api_context
+
+
+def test_analysis_service_tempo_window_uses_starts_at() -> None:
+    context = K8sContext(
+        namespace="bookinfo",
+        pod_name="reviews-v1",
+        workload="reviews",
+        pod_status=None,
+        events=[],
+        previous_logs=[],
+        warnings=[],
+    )
+    tempo = FakeTempoClient()
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=FakeAnalysisEngine("ok"),
+        tempo_client=tempo,
+        tempo_enabled=True,
+        tempo_lookback_minutes=15,
+        tempo_forward_minutes=5,
+    )
+
+    starts_at = datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc)
+    request = _sample_request_with_starts_at("2024-01-01T12:00:00Z")
+    service.analyze(request)
+
+    assert tempo.calls
+    call = tempo.calls[-1]
+    expected_start = (starts_at - timedelta(minutes=15)).isoformat().replace("+00:00", "Z")
+    expected_end = (starts_at + timedelta(minutes=5)).isoformat().replace("+00:00", "Z")
+    assert call["start"] == expected_start
+    assert call["end"] == expected_end
 
 
 def test_analysis_service_includes_recent_summaries() -> None:

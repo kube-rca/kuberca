@@ -8,6 +8,7 @@ from app.clients.llm_providers import get_provider_config
 from app.clients.prometheus import PrometheusClient
 from app.clients.strands_agent import AnalysisEngine, StrandsAnalysisEngine
 from app.clients.summary_store import PostgresSummaryStore, SummaryStore
+from app.clients.tempo import TempoClient
 from app.core.config import Settings, load_settings
 from app.core.masking import RegexMasker, build_masker
 from app.services.analysis import AnalysisService
@@ -65,6 +66,7 @@ def get_analysis_engine() -> AnalysisEngine | None:
         settings,
         get_k8s_client(),
         get_prometheus_client(),
+        get_tempo_client(),
         masker=get_masker(),
         model_config=model_config,
     )
@@ -79,14 +81,29 @@ def get_summary_store() -> SummaryStore | None:
 
 
 @lru_cache
+def get_tempo_client() -> TempoClient | None:
+    settings = get_settings()
+    client = TempoClient(settings)
+    if not client.enabled:
+        return None
+    return client
+
+
+@lru_cache
 def get_analysis_service() -> AnalysisService:
     prometheus_client = get_prometheus_client()
+    tempo_client = get_tempo_client()
     settings = get_settings()
     return AnalysisService(
         get_k8s_client(),
         get_analysis_engine(),
         masker=get_masker(),
         prometheus_enabled=prometheus_client is not None,
+        tempo_client=tempo_client,
+        tempo_enabled=tempo_client is not None,
+        tempo_trace_limit=settings.tempo_trace_limit,
+        tempo_lookback_minutes=settings.tempo_lookback_minutes,
+        tempo_forward_minutes=settings.tempo_forward_minutes,
         summary_store=get_summary_store(),
         summary_history_size=settings.prompt_summary_max_items,
         prompt_token_budget=settings.prompt_token_budget,
