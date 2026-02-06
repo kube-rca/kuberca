@@ -8,7 +8,7 @@ interface UnifiedSearchPanelProps {
 }
 
 const UnifiedSearchPanel: React.FC<UnifiedSearchPanelProps> = ({ availableLabels, availableNamespaces }) => {
-  const { scope, setScope, filters, updateFilter } = useSearch();
+  const { scope, setScope, filters, updateFilter, resetFilters } = useSearch();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   
@@ -145,7 +145,10 @@ const UnifiedSearchPanel: React.FC<UnifiedSearchPanelProps> = ({ availableLabels
             <div>
               <label className="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider block">Severity</label>
               <div className="flex flex-wrap gap-2">
-                {['Critical', 'Warning', 'Info', 'TBD'].map((sev) => (
+                {(scope === 'INCIDENT'
+                  ? ['Critical', 'Warning', 'Info', 'TBD']
+                  : ['Critical', 'Warning', 'Info']
+                ).map((sev) => (
                   <FilterChip 
                     key={sev}
                     label={sev}
@@ -230,7 +233,7 @@ const UnifiedSearchPanel: React.FC<UnifiedSearchPanelProps> = ({ availableLabels
                   
                     const key = labelStr.slice(0, separatorIndex);
                     const value = labelStr.slice(separatorIndex + 1);
-                    const isChecked = filters.labels[key] === value;
+                    const isChecked = filters.labels.includes(labelStr);
 
                     return (
                       <label
@@ -242,11 +245,13 @@ const UnifiedSearchPanel: React.FC<UnifiedSearchPanelProps> = ({ availableLabels
                           className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 border-gray-300 flex-shrink-0"
                           checked={isChecked}
                           onChange={(e) => {
-                            const newLabels = { ...filters.labels };
+                            let newLabels = [...filters.labels];
                             if (e.target.checked) {
-                              newLabels[key] = value;
+                              if (!newLabels.includes(labelStr)) {
+                                newLabels.push(labelStr);
+                              }
                             } else {
-                              delete newLabels[key];
+                              newLabels = newLabels.filter(l => l !== labelStr);
                             }
                             updateFilter('labels', newLabels);
                           }}
@@ -269,6 +274,12 @@ const UnifiedSearchPanel: React.FC<UnifiedSearchPanelProps> = ({ availableLabels
 
             {/* 하단 버튼 */}
             <div className="flex justify-end gap-3 pt-6 mt-auto border-t border-gray-100 dark:border-gray-700">
+              <button
+                onClick={() => resetFilters()}
+                className="px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 rounded transition-colors border border-gray-200 dark:border-gray-600"
+              >
+                필터 초기화
+              </button>
               <button 
                 onClick={() => setIsDropdownOpen(false)} 
                 className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 rounded transition-colors"

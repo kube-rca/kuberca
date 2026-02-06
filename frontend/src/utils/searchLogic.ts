@@ -17,8 +17,10 @@ const getCutoffTime = (range: string): number => {
 };
 
 // --- [Helper] 라벨 파싱 및 비교 ---
-const matchLabels = (itemLabels: any, filterLabels: Record<string, string>): boolean => {
-  if (Object.keys(filterLabels).length === 0) return true; // 필터 없으면 통과
+// itemLabels: Alert나 Incident가 가진 labels (object 또는 JSON string)
+// filterLabels: "key:value" 형태의 토큰 배열
+const matchLabels = (itemLabels: any, filterLabels: string[]): boolean => {
+  if (!filterLabels || filterLabels.length === 0) return true; // 필터 없으면 통과
   if (!itemLabels) return false;
 
   let target = itemLabels;
@@ -27,15 +29,21 @@ const matchLabels = (itemLabels: any, filterLabels: Record<string, string>): boo
   if (typeof target === 'string') {
     try {
       target = JSON.parse(target.replace(/'/g, '"'));
-    } catch (e) {
+    } catch {
       return false;
     }
   }
 
-  if (typeof target !== 'object') return false;
+  if (typeof target !== 'object' || target === null) return false;
 
-  // 모든 필터 조건이 일치하는지 확인 (AND 조건)
-  return Object.entries(filterLabels).every(([k, v]) => target[k] === v);
+  // 라벨들을 "key:value" 토큰으로 변환
+  const tokenSet = new Set<string>();
+  Object.entries(target as Record<string, unknown>).forEach(([k, v]) => {
+    tokenSet.add(`${k}:${String(v)}`);
+  });
+
+  // 선택된 모든 라벨 토큰이 대상 Alert의 라벨에 포함되는지 확인 (AND 조건)
+  return filterLabels.every(t => tokenSet.has(t));
 };
 
 // --- [Helper] 상태 비교 ---
@@ -80,7 +88,7 @@ export const searchAlerts = (alerts: AlertItem[], filters: SearchFilters): Alert
   }
 
   // 6. Labels
-  if (Object.keys(filters.labels).length > 0) {
+  if (filters.labels.length > 0) {
     res = res.filter(item => matchLabels(item.labels, filters.labels));
   }
 
@@ -125,7 +133,7 @@ export const searchIncidents = (
 
   // 5. [중요] Alert 연동 필터 (Namespace / Labels)
   const hasNs = filters.namespaces.length > 0;
-  const hasLabels = Object.keys(filters.labels).length > 0;
+  const hasLabels = filters.labels.length > 0;
 
   if (hasNs || hasLabels) {
     // 조건을 만족하는 Alert들을 먼저 찾음
