@@ -42,8 +42,8 @@ const matchLabels = (itemLabels: any, filterLabels: string[]): boolean => {
     tokenSet.add(`${k}:${String(v)}`);
   });
 
-  // 선택된 모든 라벨 토큰이 대상 Alert의 라벨에 포함되는지 확인 (AND 조건)
-  return filterLabels.every(t => tokenSet.has(t));
+  // 선택된 라벨 중 하나라도 대상 Alert의 라벨에 포함되면 통과 (OR 조건)
+  return filterLabels.some(t => tokenSet.has(t));
 };
 
 // --- [Helper] 상태 비교 ---
