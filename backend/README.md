@@ -97,6 +97,14 @@ go build -o main .
 
 ---
 
+## Merge Policy (release-please)
+
+- Prefer `Squash and merge` (or `Rebase and merge`) into `main` to keep a single conventional commit per change.
+- Avoid merge commits with conventional prefixes (e.g., `feat:`, `fix:`) to prevent duplicate changelog entries.
+- Do not edit `CHANGELOG.md` manually; release-please owns it.
+
+---
+
 ## API Endpoints
 
 ### Health & Status
