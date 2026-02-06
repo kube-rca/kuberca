@@ -265,6 +265,19 @@ agent:
     url: ""
     # -- Prometheus HTTP timeout in seconds.
     httpTimeoutSeconds: 5
+  tempo:
+    # -- Tempo base URL (TEMPO_URL). If empty, Tempo trace queries are disabled.
+    url: ""
+    # -- Tempo HTTP timeout in seconds.
+    httpTimeoutSeconds: 5
+    # -- Optional Tempo tenant header value (TEMPO_TENANT_ID / X-Scope-OrgID).
+    tenantId: ""
+    # -- Max traces fetched per alert analysis (TEMPO_TRACE_LIMIT).
+    traceLimit: 5
+    # -- Minutes before alert startsAt for Tempo query window (TEMPO_LOOKBACK_MINUTES).
+    lookbackMinutes: 15
+    # -- Minutes after alert startsAt for Tempo query window (TEMPO_FORWARD_MINUTES).
+    forwardMinutes: 5
   gemini:
     # -- Gemini model ID for Strands Agents.
     modelId: "gemini-3-flash-preview"

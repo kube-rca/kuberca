@@ -55,6 +55,11 @@ agent:
   aiProvider: gemini
   prometheus:
     url: kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+  tempo:
+    url: http://tempo.monitoring.svc.cluster.local:3200
+    traceLimit: 5
+    lookbackMinutes: 15
+    forwardMinutes: 5
   prompt:
     tokenBudget: 32000
     maxLogLines: 25

@@ -79,6 +79,18 @@ spec:
               value: {{ .Values.agent.prometheus.url | quote }}
             - name: PROMETHEUS_HTTP_TIMEOUT_SECONDS
               value: {{ .Values.agent.prometheus.httpTimeoutSeconds | quote }}
+            - name: TEMPO_URL
+              value: {{ .Values.agent.tempo.url | quote }}
+            - name: TEMPO_HTTP_TIMEOUT_SECONDS
+              value: {{ .Values.agent.tempo.httpTimeoutSeconds | quote }}
+            - name: TEMPO_TENANT_ID
+              value: {{ .Values.agent.tempo.tenantId | quote }}
+            - name: TEMPO_TRACE_LIMIT
+              value: {{ .Values.agent.tempo.traceLimit | quote }}
+            - name: TEMPO_LOOKBACK_MINUTES
+              value: {{ .Values.agent.tempo.lookbackMinutes | quote }}
+            - name: TEMPO_FORWARD_MINUTES
+              value: {{ .Values.agent.tempo.forwardMinutes | quote }}
             {{- $cache := default (dict) .Values.agent.cache }}
             {{- $cacheSize := default 128 $cache.size }}
             {{- $cacheTtl := default 0 $cache.ttlSeconds }}
