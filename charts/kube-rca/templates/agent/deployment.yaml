@@ -73,6 +73,8 @@ spec:
               value: {{ .Values.agent.prompt.maxEvents | quote }}
             - name: PROMPT_SUMMARY_MAX_ITEMS
               value: {{ .Values.agent.prompt.summaryMaxItems | quote }}
+            - name: MASKING_REGEX_LIST_JSON
+              value: {{ toJson (default (list) .Values.agent.masking.regexList) | quote }}
             - name: PROMETHEUS_URL
               value: {{ .Values.agent.prometheus.url | quote }}
             - name: PROMETHEUS_HTTP_TIMEOUT_SECONDS

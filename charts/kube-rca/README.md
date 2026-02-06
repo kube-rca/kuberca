@@ -50,6 +50,7 @@ helm upgrade --install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/kube-
 | agent.k8s.eventLimit | int | `25` | Kubernetes event limit. |
 | agent.k8s.logTailLines | int | `25` | Kubernetes log tail lines. |
 | agent.logLevel | string | `"info"` | Agent log level (LOG_LEVEL). |
+| agent.masking.regexList | list | `[]` | Regex list (JSON array) for masking sensitive values before LLM requests and DB persistence. |
 | agent.nodeSelector | object | `{}` | Node labels for agent pods assignment. |
 | agent.openai.modelId | string | `"gpt-5-mini"` | OpenAI model ID for Strands Agents. |
 | agent.openai.secret.create | bool | `false` | Create a Secret for the OpenAI API key. |

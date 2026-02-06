@@ -257,6 +257,9 @@ agent:
     maxEvents: 25
     # -- Max session summaries included in prompt.
     summaryMaxItems: 3
+  masking:
+    # -- Regex list (JSON array) for masking sensitive values before LLM requests and DB persistence.
+    regexList: []
   prometheus:
     # -- Prometheus base URL (PROMETHEUS_URL). If empty, Prometheus queries are disabled.
     url: ""
