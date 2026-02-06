@@ -211,6 +211,7 @@ Summarizes a resolved incident with all associated alerts.
 | `PROMPT_MAX_LOG_LINES` | Max log lines in prompt | `25` |
 | `PROMPT_MAX_EVENTS` | Max events in prompt | `25` |
 | `PROMPT_SUMMARY_MAX_ITEMS` | Max session summaries | `3` |
+| `MASKING_REGEX_LIST_JSON` | JSON array of regex patterns for masking before LLM/DB response flows | `[]` |
 
 ### Session Storage (Optional)
 

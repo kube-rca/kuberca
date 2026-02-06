@@ -5,7 +5,7 @@ import time
 from collections import OrderedDict
 from dataclasses import dataclass
 from threading import Lock
-from typing import Protocol
+from typing import Any, Protocol
 
 from strands import Agent, tool
 from strands.session import RepositorySessionManager
@@ -16,6 +16,7 @@ from app.clients.prometheus import PrometheusClient
 from app.clients.session_repository import PostgresSessionRepository
 from app.clients.strands_patch import apply_gemini_thought_signature_patch
 from app.core.config import Settings
+from app.core.masking import RegexMasker
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ class StrandsAnalysisEngine:
         settings: Settings,
         k8s_client: KubernetesClient,
         prometheus_client: PrometheusClient | None = None,
+        masker: RegexMasker | None = None,
         model_config: ModelConfig | None = None,
     ) -> None:
         # Apply Gemini patch only when using Gemini provider
@@ -51,7 +53,8 @@ class StrandsAnalysisEngine:
             )
         self._settings = settings
         self._model_config = model_config
-        self._tools = _build_tools(k8s_client, prometheus_client)
+        self._masker = masker or RegexMasker()
+        self._tools = _build_tools(k8s_client, prometheus_client, self._masker)
         self._cache_lock = Lock()
         self._agent_cache: OrderedDict[str, _AgentCacheEntry] = OrderedDict()
         self._cache_size = max(settings.agent_cache_size, 1)
@@ -141,37 +144,41 @@ class StrandsAnalysisEngine:
 def _build_tools(
     k8s_client: KubernetesClient,
     prometheus_client: PrometheusClient | None,
+    masker: RegexMasker,
 ) -> list[object]:
+    def _mask(data: Any) -> Any:
+        return masker.mask_object(data)
+
     @tool
     def get_pod_status(namespace: str, pod_name: str) -> dict[str, object]:
         """Fetch pod status details."""
         status = k8s_client.get_pod_status(namespace, pod_name)
         if status is None:
-            return {"warning": "pod status not found"}
-        return status.to_dict()
+            return _mask({"warning": "pod status not found"})
+        return _mask(status.to_dict())
 
     @tool
     def get_pod_spec(namespace: str, pod_name: str) -> dict[str, object]:
         """Fetch a summarized pod spec (containers/resources/probes)."""
         spec = k8s_client.get_pod_spec_summary(namespace, pod_name)
         if spec is None:
-            return {"warning": "pod spec not found"}
-        return spec
+            return _mask({"warning": "pod spec not found"})
+        return _mask(spec)
 
     @tool
     def list_pod_events(namespace: str, pod_name: str) -> list[dict[str, object]]:
         """List recent events for a pod."""
-        return [event.to_dict() for event in k8s_client.list_pod_events(namespace, pod_name)]
+        return _mask([event.to_dict() for event in k8s_client.list_pod_events(namespace, pod_name)])
 
     @tool
     def list_namespace_events(namespace: str) -> list[dict[str, object]]:
         """List recent events for a namespace."""
-        return [event.to_dict() for event in k8s_client.list_namespace_events(namespace)]
+        return _mask([event.to_dict() for event in k8s_client.list_namespace_events(namespace)])
 
     @tool
     def list_cluster_events() -> list[dict[str, object]]:
         """List recent events across all namespaces."""
-        return [event.to_dict() for event in k8s_client.list_cluster_events()]
+        return _mask([event.to_dict() for event in k8s_client.list_cluster_events()])
 
     @tool
     def get_previous_pod_logs(
@@ -179,7 +186,9 @@ def _build_tools(
         pod_name: str,
     ) -> list[dict[str, object]]:
         """Return previous container logs (tail)."""
-        return [snippet.to_dict() for snippet in k8s_client.get_previous_logs(namespace, pod_name)]
+        return _mask(
+            [snippet.to_dict() for snippet in k8s_client.get_previous_logs(namespace, pod_name)]
+        )
 
     @tool
     def get_pod_logs(
@@ -190,63 +199,65 @@ def _build_tools(
         since_seconds: int | None = None,
     ) -> list[dict[str, object]]:
         """Return current container logs (tail)."""
-        return [
-            snippet.to_dict()
-            for snippet in k8s_client.get_pod_logs(
-                namespace,
-                pod_name,
-                container=container,
-                tail_lines=tail_lines,
-                since_seconds=since_seconds,
-            )
-        ]
+        return _mask(
+            [
+                snippet.to_dict()
+                for snippet in k8s_client.get_pod_logs(
+                    namespace,
+                    pod_name,
+                    container=container,
+                    tail_lines=tail_lines,
+                    since_seconds=since_seconds,
+                )
+            ]
+        )
 
     @tool
     def get_workload_status(namespace: str, pod_name: str) -> dict[str, object]:
         """Fetch top-level workload status (Deployment/StatefulSet/Job)."""
         summary = k8s_client.get_workload_summary(namespace, pod_name)
         if summary is None:
-            return {"warning": "workload not found"}
-        return summary
+            return _mask({"warning": "workload not found"})
+        return _mask(summary)
 
     @tool
     def get_daemonset_manifest(namespace: str, name: str) -> dict[str, object]:
         """Fetch DaemonSet manifest (metadata/spec) for updateStrategy/selector."""
         manifest = k8s_client.get_daemon_set_manifest(namespace, name)
         if manifest is None:
-            return {"warning": "daemonset not found"}
-        return manifest
+            return _mask({"warning": "daemonset not found"})
+        return _mask(manifest)
 
     @tool
     def get_node_status(node_name: str) -> dict[str, object]:
         """Fetch node status details."""
         status = k8s_client.get_node_status(node_name)
         if status is None:
-            return {"warning": "node not found"}
-        return status
+            return _mask({"warning": "node not found"})
+        return _mask(status)
 
     @tool
     def get_pod_metrics(namespace: str, pod_name: str) -> dict[str, object]:
         """Fetch pod CPU/memory usage from metrics-server."""
         metrics = k8s_client.get_pod_metrics(namespace, pod_name)
         if metrics is None:
-            return {"warning": "pod metrics not available"}
-        return metrics
+            return _mask({"warning": "pod metrics not available"})
+        return _mask(metrics)
 
     @tool
     def get_node_metrics(node_name: str) -> dict[str, object]:
         """Fetch node CPU/memory usage from metrics-server."""
         metrics = k8s_client.get_node_metrics(node_name)
         if metrics is None:
-            return {"warning": "node metrics not available"}
-        return metrics
+            return _mask({"warning": "node metrics not available"})
+        return _mask(metrics)
 
     @tool
     def discover_prometheus() -> dict[str, object]:
         """Return the configured Prometheus endpoint (PROMETHEUS_URL)."""
         if prometheus_client is None:
-            return {"warning": "prometheus client not configured"}
-        return prometheus_client.describe_endpoint()
+            return _mask({"warning": "prometheus client not configured"})
+        return _mask(prometheus_client.describe_endpoint())
 
     @tool
     def list_prometheus_metrics(match: str | None = None) -> dict[str, object]:
@@ -258,15 +269,15 @@ def _build_tools(
                    Examples: 'kube_pod.*', 'istio.*', 'container_.*', 'http_.*'
         """
         if prometheus_client is None:
-            return {"warning": "prometheus client not configured"}
-        return prometheus_client.list_metrics(match=match)
+            return _mask({"warning": "prometheus client not configured"})
+        return _mask(prometheus_client.list_metrics(match=match))
 
     @tool
     def query_prometheus(query: str, time: str | None = None) -> dict[str, object]:
         """Run a Prometheus instant query."""
         if prometheus_client is None:
-            return {"warning": "prometheus client not configured"}
-        return prometheus_client.query(query, time=time)
+            return _mask({"warning": "prometheus client not configured"})
+        return _mask(prometheus_client.query(query, time=time))
 
     @tool
     def query_prometheus_range(
@@ -290,8 +301,8 @@ def _build_tools(
             Matrix result with timestamp-value pairs for each time series.
         """
         if prometheus_client is None:
-            return {"warning": "prometheus client not configured"}
-        return prometheus_client.query_range(query, start=start, end=end, step=step)
+            return _mask({"warning": "prometheus client not configured"})
+        return _mask(prometheus_client.query_range(query, start=start, end=end, step=step))
 
     @tool
     def list_pods_in_namespace(
@@ -305,7 +316,7 @@ def _build_tools(
             label_selector: Optional label selector (e.g., 'app=nginx', 'version=v1').
         """
         pods = k8s_client.list_pods_in_namespace(namespace, label_selector=label_selector)
-        return [pod.to_dict() for pod in pods]
+        return _mask([pod.to_dict() for pod in pods])
 
     tools: list[object] = [
         get_pod_status,

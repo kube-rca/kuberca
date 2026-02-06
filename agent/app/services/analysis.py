@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import Any, cast
 from uuid import uuid4
 
 from app.clients.k8s import KubernetesClient, extract_pod_target
 from app.clients.strands_agent import AnalysisEngine
 from app.clients.summary_store import SummaryStore
+from app.core.masking import RegexMasker
 from app.models.k8s import K8sContext
 from app.schemas.analysis import AlertAnalysisRequest, IncidentSummaryRequest
 
@@ -17,6 +18,7 @@ class AnalysisService:
         self,
         k8s_client: KubernetesClient,
         analysis_engine: AnalysisEngine | None,
+        masker: RegexMasker | None = None,
         prometheus_enabled: bool = False,
         summary_store: SummaryStore | None = None,
         summary_history_size: int = 3,
@@ -27,6 +29,7 @@ class AnalysisService:
         self._logger = logging.getLogger(__name__)
         self._k8s_client = k8s_client
         self._analysis_engine = analysis_engine
+        self._masker = masker or RegexMasker()
         self._prometheus_enabled = prometheus_enabled
         self._summary_store = summary_store
         self._summary_history_size = max(1, summary_history_size)
@@ -41,11 +44,15 @@ class AnalysisService:
         k8s_context = self._k8s_client.collect_context(namespace, pod_name, workload)
         context = k8s_context.to_dict()
         artifacts = _build_alert_artifacts(k8s_context)
+        masked_context = cast(dict[str, object], self._masker.mask_object(context))
+        masked_artifacts = cast(list[dict[str, object]], self._masker.mask_object(artifacts))
 
         if self._analysis_engine is None:
-            analysis = _fallback_summary(request, k8s_context, "analysis engine not configured")
+            analysis = self._masker.mask_text(
+                _fallback_summary(request, k8s_context, "analysis engine not configured")
+            )
             summary, detail = _split_alert_analysis(analysis)
-            return analysis, summary, detail, context, artifacts
+            return analysis, summary, detail, masked_context, masked_artifacts
 
         summary_key = _resolve_alert_session_id(request)
         recent_summaries = self._load_recent_summaries(summary_key)
@@ -57,29 +64,35 @@ class AnalysisService:
             self._prompt_token_budget,
             self._prompt_max_log_lines,
             self._prompt_max_events,
+            self._masker,
         )
         try:
             session_id = _build_runtime_session_id(summary_key)
             analysis = self._analysis_engine.analyze(prompt, session_id)
             if not isinstance(analysis, str):
                 analysis = ""
+            analysis = self._masker.mask_text(analysis)
             if not analysis.strip():
                 self._logger.warning("Strands analysis returned empty response")
-                analysis = _fallback_summary(
-                    request,
-                    k8s_context,
-                    "analysis engine returned empty response",
+                analysis = self._masker.mask_text(
+                    _fallback_summary(
+                        request,
+                        k8s_context,
+                        "analysis engine returned empty response",
+                    )
                 )
                 summary, detail = _split_alert_analysis(analysis)
-                return analysis, summary, detail, context, artifacts
+                return analysis, summary, detail, masked_context, masked_artifacts
             summary, detail = _split_alert_analysis(analysis)
             self._store_summary(summary_key, summary)
-            return analysis, summary, detail, context, artifacts
+            return analysis, summary, detail, masked_context, masked_artifacts
         except Exception as exc:  # noqa: BLE001
             self._logger.exception("Strands analysis failed")
-            analysis = _fallback_summary(request, k8s_context, f"analysis failed: {exc}")
+            analysis = self._masker.mask_text(
+                _fallback_summary(request, k8s_context, f"analysis failed: {exc}")
+            )
             summary, detail = _split_alert_analysis(analysis)
-            return analysis, summary, detail, context, artifacts
+            return analysis, summary, detail, masked_context, masked_artifacts
 
     def summarize_incident(self, request: IncidentSummaryRequest) -> tuple[str, str, str]:
         """Synthesize final RCA summary for a resolved incident.
@@ -88,22 +101,38 @@ class AnalysisService:
             tuple[str, str, str]: (title, summary, detail)
         """
         if self._analysis_engine is None:
-            return _fallback_incident_summary(request, "analysis engine not configured")
+            return self._mask_incident_result(
+                _fallback_incident_summary(request, "analysis engine not configured")
+            )
 
-        prompt = _build_incident_summary_prompt(request)
+        prompt = _build_incident_summary_prompt(request, self._masker)
         try:
             session_id = _resolve_summary_session_id(request)
             result = self._analysis_engine.analyze(prompt, session_id)
-            return _parse_incident_summary(result, request.title)
+            if not isinstance(result, str):
+                result = ""
+            masked_result = self._masker.mask_text(result)
+            return self._mask_incident_result(_parse_incident_summary(masked_result, request.title))
         except Exception as exc:  # noqa: BLE001
             self._logger.exception("Incident summary analysis failed")
-            return _fallback_incident_summary(request, f"analysis failed: {exc}")
+            return self._mask_incident_result(
+                _fallback_incident_summary(request, f"analysis failed: {exc}")
+            )
+
+    def _mask_incident_result(self, result: tuple[str, str, str]) -> tuple[str, str, str]:
+        title, summary, detail = result
+        return (
+            self._masker.mask_text(title),
+            self._masker.mask_text(summary),
+            self._masker.mask_text(detail),
+        )
 
     def _load_recent_summaries(self, session_id: str) -> list[str]:
         if self._summary_store is None or self._summary_history_size <= 0:
             return []
         try:
-            return self._summary_store.list_summaries(session_id, self._summary_history_size)
+            summaries = self._summary_store.list_summaries(session_id, self._summary_history_size)
+            return [self._masker.mask_text(summary) for summary in summaries]
         except Exception as exc:  # noqa: BLE001
             self._logger.warning("Failed to load session summaries: %s", exc)
             return []
@@ -111,7 +140,8 @@ class AnalysisService:
     def _store_summary(self, session_id: str, summary: str) -> None:
         if self._summary_store is None or self._summary_history_size <= 0:
             return
-        compact = _compact_summary(summary, limit=300) or summary.strip()
+        masked_summary = self._masker.mask_text(summary)
+        compact = _compact_summary(masked_summary, limit=300) or masked_summary.strip()
         if not compact:
             return
         try:
@@ -132,14 +162,18 @@ def _build_prompt(
     prompt_token_budget: int,
     prompt_max_log_lines: int,
     prompt_max_events: int,
+    masker: RegexMasker,
 ) -> str:
-    alert_payload = request.alert.model_dump(by_alias=True, mode="json")
+    alert_payload = cast(
+        dict[str, Any],
+        masker.mask_object(request.alert.model_dump(by_alias=True, mode="json")),
+    )
     payload = {
         "alert": alert_payload,
-        "thread_ts": request.thread_ts,
+        "thread_ts": masker.mask_text(request.thread_ts),
     }
     if request.incident_id:
-        payload["incident_id"] = request.incident_id
+        payload["incident_id"] = masker.mask_text(request.incident_id)
 
     tool_lines = [
         "- get_pod_status, get_pod_spec",
@@ -154,7 +188,9 @@ def _build_prompt(
         tool_lines.append("- query_prometheus, query_prometheus_range")
     tool_block = "\n".join(tool_lines)
 
-    summary_block = _format_session_summaries(recent_summaries)
+    summary_block = _format_session_summaries(
+        [masker.mask_text(summary) for summary in recent_summaries]
+    )
     prompt = (
         "You are kube-rca-agent. Analyze the alert using the provided Kubernetes context.\n"
         "Return your response in Korean with the following structure:\n"
@@ -199,6 +235,7 @@ def _build_prompt(
         max_events=prompt_max_events,
         max_log_lines=prompt_max_log_lines,
     )
+    context_dict = cast(dict[str, object], masker.mask_object(context_dict))
     alert_block = f"Alert payload:\n{_to_pretty_json(payload)}\n\n"
     context_block = f"Kubernetes context:\n{_to_pretty_json(context_dict)}\n"
     full_prompt = prompt + alert_block + context_block
@@ -489,7 +526,7 @@ def _parse_incident_summary(result: str, original_title: str) -> tuple[str, str,
     return title, summary, result
 
 
-def _build_incident_summary_prompt(request: IncidentSummaryRequest) -> str:
+def _build_incident_summary_prompt(request: IncidentSummaryRequest, masker: RegexMasker) -> str:
     alerts_info = []
     for alert in request.alerts:
         alert_data = {
@@ -512,6 +549,7 @@ def _build_incident_summary_prompt(request: IncidentSummaryRequest) -> str:
         "alert_count": len(request.alerts),
         "alerts": alerts_info,
     }
+    incident_data = cast(dict[str, Any], masker.mask_object(incident_data))
 
     return (
         "You are kube-rca-agent. An incident has been resolved and you need to "

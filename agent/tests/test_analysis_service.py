@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import json
+
+from app.core.masking import RegexMasker
 from app.models.k8s import K8sContext, PodLogSnippet, PodStatusSnapshot
 from app.schemas.alert import Alert
-from app.schemas.analysis import AlertAnalysisRequest
+from app.schemas.analysis import AlertAnalysisRequest, AlertSummaryInput, IncidentSummaryRequest
 from app.services.analysis import AnalysisService
 
 
@@ -215,3 +218,109 @@ def test_analysis_service_trims_log_lines() -> None:
 
     assert "line-0" not in engine.last_prompt
     assert "line-5" in engine.last_prompt
+
+
+def test_analysis_service_masks_prompt_response_and_store() -> None:
+    secret = "token-123456"
+    context = K8sContext(
+        namespace="default",
+        pod_name="demo-pod",
+        workload=None,
+        pod_status=None,
+        events=[],
+        previous_logs=[
+            PodLogSnippet(container="app", previous=True, logs=[f"error: {secret}"]),
+        ],
+        warnings=[f"warning: {secret}"],
+    )
+    store = FakeSummaryStore([f"recent summary {secret}"])
+    engine = CapturingAnalysisEngine(
+        "### 1) 요약 (Summary)\n"
+        f"LLM summary {secret}\n"
+        "### 2) 상세 분석 (Detail)\n"
+        f"LLM detail {secret}\n"
+    )
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=engine,
+        masker=RegexMasker.from_patterns([r"token-\d+"]),
+        prometheus_enabled=False,
+        summary_store=store,
+    )
+    request = AlertAnalysisRequest(
+        alert=Alert(
+            status="firing",
+            labels={"namespace": "default", "pod": "demo-pod"},
+            annotations={"summary": f"annotation {secret}"},
+            fingerprint="abc123",
+        ),
+        thread_ts="1234567890.123456",
+    )
+
+    analysis, summary, detail, response_context, artifacts = service.analyze(request)
+    rendered = json.dumps(
+        {
+            "analysis": analysis,
+            "summary": summary,
+            "detail": detail,
+            "context": response_context,
+            "artifacts": artifacts,
+        },
+        ensure_ascii=False,
+    )
+
+    assert secret not in engine.last_prompt
+    assert "[MASKED]" in engine.last_prompt
+    assert secret not in rendered
+    assert "[MASKED]" in rendered
+    assert store.appended
+    assert secret not in store.appended[0][1]
+    assert "[MASKED]" in store.appended[0][1]
+
+
+def test_summarize_incident_masks_prompt_and_response() -> None:
+    secret = "secret-value"
+    context = K8sContext(
+        namespace="default",
+        pod_name="demo-pod",
+        workload=None,
+        pod_status=None,
+        events=[],
+        previous_logs=[],
+        warnings=[],
+    )
+    engine = CapturingAnalysisEngine(
+        f"제목: incident {secret}\n"
+        f"요약: summary {secret}\n"
+        f"상세 분석: detail {secret}\n"
+    )
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=engine,
+        masker=RegexMasker.from_patterns([r"secret-[A-Za-z]+"]),
+    )
+    request = IncidentSummaryRequest(
+        incident_id="INC-1",
+        title="원본 타이틀",
+        severity="critical",
+        fired_at="2026-01-01T00:00:00Z",
+        resolved_at="2026-01-01T00:10:00Z",
+        alerts=[
+            AlertSummaryInput(
+                fingerprint="abc",
+                alert_name="TestAlert",
+                severity="critical",
+                status="resolved",
+                analysis_summary=f"analysis summary {secret}",
+                analysis_detail=f"analysis detail {secret}",
+            )
+        ],
+    )
+
+    title, summary, detail = service.summarize_incident(request)
+    rendered = "\n".join([title, summary, detail])
+
+    assert secret not in engine.last_prompt
+    assert "[MASKED]" in engine.last_prompt
+    assert secret not in rendered
+    assert "[MASKED]" in rendered
