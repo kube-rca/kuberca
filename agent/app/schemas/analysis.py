@@ -24,6 +24,10 @@ class AlertAnalysisResponse(BaseModel):
     analysis: str
     analysis_summary: str | None = None
     analysis_detail: str | None = None
+    analysis_quality: str | None = None
+    missing_data: list[str] | None = None
+    warnings: list[str] | None = None
+    capabilities: dict[str, str] | None = None
     context: dict[str, object] | None = None
     artifacts: list[AlertAnalysisArtifact] | None = None
 

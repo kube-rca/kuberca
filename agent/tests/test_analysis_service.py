@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timedelta, timezone
 
 from app.core.masking import RegexMasker
-from app.models.k8s import K8sContext, PodLogSnippet, PodStatusSnapshot
+from app.models.k8s import K8sContext, PodEventSummary, PodLogSnippet, PodStatusSnapshot
 from app.schemas.alert import Alert
 from app.schemas.analysis import AlertAnalysisRequest, AlertSummaryInput, IncidentSummaryRequest
 from app.services.analysis import AnalysisService
@@ -165,6 +165,51 @@ def test_analysis_service_fallback() -> None:
     assert detail
     assert context
     assert isinstance(artifacts, list)
+    assert context.get("analysis_quality") == "low"
+    assert "analysis_engine.not_configured" in context.get("missing_data", [])
+    capabilities = context.get("capabilities")
+    assert isinstance(capabilities, dict)
+    assert capabilities.get("traffic_policy") == "unknown"
+
+
+def test_analysis_service_quality_high_with_only_optional_missing_data() -> None:
+    context = K8sContext(
+        namespace="default",
+        pod_name="demo-pod",
+        workload=None,
+        pod_status=PodStatusSnapshot(
+            phase="Running",
+            node_name="node-a",
+            start_time=None,
+            reason=None,
+            message=None,
+            conditions=[],
+            container_statuses=[],
+        ),
+        events=[
+            PodEventSummary(
+                type="Normal",
+                reason="Pulled",
+                message="Container image pulled",
+                count=1,
+                first_timestamp=None,
+                last_timestamp=None,
+                involved_object=None,
+            )
+        ],
+        previous_logs=[PodLogSnippet(container="app", previous=True, logs=["ok"])],
+        warnings=[],
+    )
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=FakeAnalysisEngine("ok"),
+        prometheus_enabled=False,
+    )
+
+    _, _, _, response_context, _ = service.analyze(_sample_request())
+
+    assert response_context.get("analysis_quality") == "high"
+    assert "traffic_policy.match_conditions" not in response_context.get("missing_data", [])
 
 
 def test_analysis_service_uses_engine() -> None:
@@ -261,7 +306,11 @@ def test_analysis_service_prompt_with_tempo() -> None:
 
     assert "search_tempo_traces" in engine.last_prompt
     assert "get_tempo_trace" in engine.last_prompt
+    assert "get_manifest" in engine.last_prompt
+    assert "list_manifests" in engine.last_prompt
     assert "\"tempo\"" in engine.last_prompt
+    assert "\"capabilities\"" in engine.last_prompt
+    assert "\"missing_data\"" in engine.last_prompt
     assert tempo.calls
 
 

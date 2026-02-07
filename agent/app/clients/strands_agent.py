@@ -363,6 +363,48 @@ def _build_tools(
         pods = k8s_client.list_pods_in_namespace(namespace, label_selector=label_selector)
         return _mask([pod.to_dict() for pod in pods])
 
+    @tool
+    def get_manifest(
+        namespace: str,
+        api_version: str,
+        resource: str,
+        name: str,
+    ) -> dict[str, object]:
+        """Fetch a namespaced manifest from core or custom resources.
+
+        Examples:
+        - api_version='v1', resource='services'
+        - api_version='networking.istio.io/v1', resource='virtualservices'
+        """
+        manifest = k8s_client.get_manifest(
+            namespace,
+            api_version=api_version,
+            resource=resource,
+            name=name,
+        )
+        if manifest is None:
+            return _mask({"warning": "manifest not found or unsupported"})
+        return _mask(manifest)
+
+    @tool
+    def list_manifests(
+        namespace: str,
+        api_version: str,
+        resource: str,
+        label_selector: str | None = None,
+        limit: int = 20,
+    ) -> list[dict[str, object]]:
+        """List namespaced manifests from core or custom resources."""
+        return _mask(
+            k8s_client.list_manifests(
+                namespace,
+                api_version=api_version,
+                resource=resource,
+                label_selector=label_selector,
+                limit=limit,
+            )
+        )
+
     tools: list[object] = [
         get_pod_status,
         get_pod_spec,
@@ -377,6 +419,8 @@ def _build_tools(
         get_node_status,
         get_pod_metrics,
         get_node_metrics,
+        get_manifest,
+        list_manifests,
     ]
     if prometheus_client is not None:
         tools.extend(
