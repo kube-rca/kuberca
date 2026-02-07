@@ -26,7 +26,7 @@ The KubeRCA Agent is a Python-based analysis service that performs Root Cause An
 - **AI-Powered RCA** - Uses Strands Agents with Gemini/OpenAI/Anthropic for intelligent analysis
 - **Kubernetes Context** - Collects pod logs, events, and resource status
 - **Prometheus Integration** - Queries relevant metrics for analysis
-- **Session Persistence** - Optional PostgreSQL storage for conversation history
+- **Session Persistence** - PostgreSQL-backed session history when `SESSION_DB_*` is configured
 - **Fallback Mode** - Returns basic summary when the provider API key is unavailable
 
 ---
@@ -81,7 +81,8 @@ flowchart LR
 ### Installation
 
 ```bash
-cd agent
+# Run in repository root
+# (monorepo layout: cd agent/main)
 make install
 # or manually:
 uv venv
@@ -94,7 +95,7 @@ uv pip install -e ".[dev]"
 ```bash
 make run
 # or manually:
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 The server starts at `http://localhost:8000`.
@@ -158,10 +159,14 @@ Analyzes a single alert with Kubernetes/Prometheus context.
 {
   "status": "ok",
   "thread_ts": "1234567890.123456",
-  "analysis": {
-    "summary": "Brief summary of the issue",
-    "detail": "Detailed RCA markdown content..."
-  }
+  "analysis": "## Root Cause Analysis\n...",
+  "analysis_summary": "Brief summary of the issue",
+  "analysis_detail": "Detailed RCA markdown content...",
+  "context": {
+    "namespace": "default",
+    "pod_name": "example-pod"
+  },
+  "artifacts": []
 }
 ```
 
@@ -224,7 +229,7 @@ Summarizes a resolved incident with all associated alerts.
 | `PROMPT_SUMMARY_MAX_ITEMS` | Max session summaries | `3` |
 | `MASKING_REGEX_LIST_JSON` | JSON array of regex patterns for masking before LLM/DB response flows | `[]` |
 
-### Session Storage (Optional)
+### Session Storage (Required when LLM provider key is set)
 
 | Variable | Description |
 |----------|-------------|
@@ -234,39 +239,43 @@ Summarizes a resolved incident with all associated alerts.
 | `SESSION_DB_USER` | Database user |
 | `SESSION_DB_PASSWORD` | Database password |
 
+> If `GEMINI_API_KEY`/`OPENAI_API_KEY`/`ANTHROPIC_API_KEY` is set, configure `SESSION_DB_*` together.
+
 ---
 
 ## Project Structure
 
-```
+```text
 agent/
-├── app/                    # FastAPI application
-│   ├── main.py             # Application entrypoint
-│   ├── api/                # HTTP routes and handlers
-│   │   ├── routes.py       # API route definitions
-│   │   └── deps.py         # Dependency injection
-│   ├── clients/            # External service clients
-│   │   ├── k8s.py          # Kubernetes API client
-│   │   ├── prometheus.py   # Prometheus client
-│   │   └── strands.py      # Strands Agents client (multi-provider)
-│   ├── core/               # Core configuration
-│   │   ├── config.py       # Settings management
-│   │   └── logging.py      # Logging configuration
-│   ├── models/             # Internal data models
-│   ├── schemas/            # Pydantic I/O schemas
-│   │   ├── request.py      # Request schemas
-│   │   └── response.py     # Response schemas
-│   └── services/           # Business logic
-│       ├── analyzer.py     # RCA analysis service
-│       └── context.py      # Context collection service
-├── docs/                   # Generated OpenAPI spec
-│   └── openapi.json
-├── scripts/                # Utility scripts
-│   └── export_openapi.py   # OpenAPI export script
-├── tests/                  # Test suite
-├── Dockerfile              # Container image
-├── Makefile                # Development tasks
-└── pyproject.toml          # Project configuration
+├── app/
+│   ├── main.py                # FastAPI entrypoint
+│   ├── api/
+│   │   ├── analysis.py        # POST /analyze, POST /summarize-incident
+│   │   └── health.py          # GET /, /ping, /healthz
+│   ├── clients/
+│   │   ├── k8s.py
+│   │   ├── prometheus.py
+│   │   ├── tempo.py
+│   │   ├── session_repository.py
+│   │   ├── summary_store.py
+│   │   ├── strands_agent.py
+│   │   ├── strands_patch.py
+│   │   └── llm_providers/
+│   ├── core/
+│   │   ├── config.py
+│   │   ├── dependencies.py
+│   │   └── logging.py
+│   ├── models/
+│   ├── schemas/
+│   │   ├── alert.py
+│   │   └── analysis.py
+│   └── services/analysis.py
+├── docs/openapi.json
+├── scripts/export_openapi.py
+├── tests/
+├── Dockerfile
+├── Makefile
+└── pyproject.toml
 ```
 
 ---
