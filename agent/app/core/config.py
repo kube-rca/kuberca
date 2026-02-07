@@ -132,7 +132,7 @@ def load_settings() -> Settings:
         prometheus_url=os.getenv("PROMETHEUS_URL", "").strip(),
         prometheus_http_timeout_seconds=_get_int_env("PROMETHEUS_HTTP_TIMEOUT_SECONDS", 5),
         tempo_url=os.getenv("TEMPO_URL", "").strip(),
-        tempo_http_timeout_seconds=_get_int_env("TEMPO_HTTP_TIMEOUT_SECONDS", 5),
+        tempo_http_timeout_seconds=_get_int_env("TEMPO_HTTP_TIMEOUT_SECONDS", 10),
         tempo_tenant_id=os.getenv("TEMPO_TENANT_ID", "").strip(),
         tempo_trace_limit=max(1, _get_int_env("TEMPO_TRACE_LIMIT", 5)),
         tempo_lookback_minutes=_get_non_negative_int_env("TEMPO_LOOKBACK_MINUTES", 15),

@@ -213,7 +213,7 @@ Summarizes a resolved incident with all associated alerts.
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `TEMPO_URL` | Tempo base URL (e.g. `http://tempo.monitoring.svc:3100`) | - |
-| `TEMPO_HTTP_TIMEOUT_SECONDS` | Tempo HTTP timeout | `5` |
+| `TEMPO_HTTP_TIMEOUT_SECONDS` | Tempo HTTP timeout | `10` |
 | `TEMPO_TENANT_ID` | Tempo tenant header value (`X-Scope-OrgID`) | - |
 | `TEMPO_TRACE_LIMIT` | Max traces fetched per alert | `5` |
 | `TEMPO_LOOKBACK_MINUTES` | Minutes before `startsAt` for trace search window | `15` |
