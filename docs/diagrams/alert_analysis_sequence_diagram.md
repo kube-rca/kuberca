@@ -3,9 +3,10 @@ sequenceDiagram
   autonumber
   participant AM as Alertmanager
   participant BE as Backend
-  participant SL as Slack
+  participant SL as Slack Bot
   participant AG as Agent
-  participant LLM as Gemini API
+  participant TP as Tempo 계획
+  participant LLM as LLM API
   participant DB as PostgreSQL + pgvector
   participant SDB as Session DB
 
@@ -25,6 +26,10 @@ sequenceDiagram
   BE->>AG: POST /analyze - goroutine 비동기
   opt 세션 저장 활성화
     AG->>SDB: 세션 조회 및 저장
+  end
+  opt Trace 수집 계획
+    AG->>TP: Trace 조회
+    TP-->>AG: Trace context
   end
   AG->>LLM: LLM 분석
   LLM-->>AG: 분석 결과

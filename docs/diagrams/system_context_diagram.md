@@ -2,10 +2,15 @@
 flowchart LR
   %% External
   AM[Alertmanager]
-  SL[Slack]
-  LLM[Gemini API]
+  SL[Slack Bot]
+  SC[Slack Slash Command 계획]
+  LLM[LLM API Gemini OpenAI Anthropic]
   PR[Prometheus]
   K8S[Kubernetes API]
+  GK[Grafana 계획]
+  LO[Loki 계획]
+  TP[Tempo 계획]
+  AL[Alloy 계획]
 
   %% Internal
   subgraph Core[" "]
@@ -16,22 +21,31 @@ flowchart LR
   style Core fill:transparent,stroke:transparent
 
   AG[Agent API: Strands + K8s + summarize]
-  PG[(PostgreSQL + pgvector: incidents/alerts/auth/embeddings/alert_analyses/artifacts)]
-  SDB[(Session DB)]
+  PG[(PostgreSQL + pgvector: incidents alerts auth embeddings alert_analyses artifacts)]
+  SDB[(Session DB optional)]
 
   AM -->|Webhook alert| BE
-  BE -->|Slack 알림 전송| SL
+  BE -->|Slack message| SL
+  SC -.->|Slash query 계획| BE
 
-  FE -->|Auth/Incidents/Alerts/Embedding API| BE
+  FE -->|Auth incidents alerts embedding API| BE
   BE -->|POST /analyze, /summarize-incident| AG
-  AG -->|분석 결과| BE
+  AG -->|Analysis result| BE
 
-  AG -->|K8s 조회| K8S
+  AG -->|K8s query| K8S
   AG -->|PromQL query| PR
-  AG -->|LLM 분석| LLM
-  BE -->|임베딩 생성| LLM
+  AG -.->|Trace query 계획| TP
+  AG -->|LLM inference| LLM
+  BE -->|Embedding create| LLM
 
-  BE -->|Incidents/Alerts/Auth/Embeddings 저장| PG
-  BE -->|임베딩 검색 cosine similarity| PG
-  AG -->|세션 저장| SDB
+  BE -->|Incidents alerts auth embeddings store| PG
+  BE -->|Cosine similarity search| PG
+  AG -->|Session store optional| SDB
+
+  AL -.->|Collector 계획| PR
+  AL -.->|Collector 계획| LO
+  AL -.->|Collector 계획| TP
+  GK -.->|Dashboard 계획| PR
+  GK -.->|Dashboard 계획| LO
+  GK -.->|Dashboard 계획| TP
 ```

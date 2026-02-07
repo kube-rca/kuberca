@@ -1,14 +1,15 @@
 ```mermaid
 erDiagram
+  %% STRANDS_* and KUBE_RCA_SESSION_SUMMARY are used when session DB is enabled.
   USER ||--o{ REFRESH_TOKEN : issues
   INCIDENT ||--o{ ALERT : contains
   INCIDENT ||--o{ EMBEDDING : references
   INCIDENT ||--o{ ALERT_ANALYSIS : records
   ALERT ||--o{ ALERT_ANALYSIS : records
   ALERT_ANALYSIS ||--o{ ALERT_ANALYSIS_ARTIFACT : includes
-  STRANDS_SESSION ||--o{ STRANDS_AGENT : owns
-  STRANDS_AGENT ||--o{ STRANDS_MESSAGE : stores
-  STRANDS_SESSION ||--o{ KUBE_RCA_SESSION_SUMMARY : stores
+  STRANDS_SESSION ||--o{ STRANDS_AGENT : optional
+  STRANDS_AGENT ||--o{ STRANDS_MESSAGE : optional
+  STRANDS_SESSION ||--o{ KUBE_RCA_SESSION_SUMMARY : optional
 
   USER {
     bigint id PK

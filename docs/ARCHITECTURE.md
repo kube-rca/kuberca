@@ -15,6 +15,7 @@
 ### 개별 Alert 실시간 분석
 5. Backend는 Agent에 `POST /analyze`로 분석을 요청합니다 (goroutine 비동기).
    - Agent 응답을 받아 alerts 테이블에 analysis_summary/detail 저장.
+   - 상세 히스토리는 alert_analyses/alert_analysis_artifacts에 저장합니다.
    - Slack 스레드에 분석 결과를 전송합니다.
 
 ### Incident 종료 및 최종 분석
@@ -51,14 +52,19 @@
   - `GET /ping`, `GET /healthz`, `GET /`
   - `POST /analyze` - 개별 Alert 실시간 분석
   - `POST /summarize-incident` - Incident 종료 시 최종 분석
-  - Strands Agents(Gemini) + K8s/Prometheus 컨텍스트 기반 분석
-  - `GEMINI_API_KEY` 미설정 시 fallback 요약 반환
+  - Strands Agents(`gemini|openai|anthropic`) + K8s/Prometheus 컨텍스트 기반 분석
+  - provider API key 미설정 시 fallback 요약 반환
 - Frontend (React)
   - 로그인/회원가입 UI
   - Incident 목록/상세 UI (유사 인시던트 검색 포함)
   - Alert 목록/상세 UI (Incident 재할당 기능)
   - `Authorization: Bearer` + refresh cookie 사용
 - PostgreSQL + pgvector
-  - incidents/alerts/auth/embeddings 저장소 (auth 스키마는 런타임에서 생성)
+  - incidents/alerts/auth/embeddings/alert_analyses/artifacts 저장소
   - pgvector로 cosine similarity 기반 유사 인시던트 검색
+  - session DB 활성화 시 STRANDS_* 및 KUBE_RCA_SESSION_SUMMARY 사용
 
+## 계획 중 통합
+
+- Slack Slash Command 기반 인시던트 조회/요약
+- Tempo/Loki/Grafana/Alloy 연동 확장

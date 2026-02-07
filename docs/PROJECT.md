@@ -7,17 +7,25 @@ LLM을 활용해 Root Cause Analysis(RCA)와 대응 가이드를 제공하는 �
 
 ## 주요 기능
 
-- Backend: Alertmanager Webhook 수신 및 Slack 알림 전송(스레드 처리 포함)
+### 현재 구현
+
+- Backend: Alertmanager Webhook 수신 및 Slack 스레드 알림 전송
   - Auth(JWT + Refresh Cookie), Incident/Alert/Embedding API, OpenAPI 제공
   - Incident 숨김/복원 API(`/api/v1/incidents/hidden`, `/api/v1/incidents/:id/unhide`) 포함
 - Agent: FastAPI 기반 분석 API
-  - K8s/Prometheus 컨텍스트 + Strands Agents(Gemini) 기반 분석
-  - `GEMINI_API_KEY` 미설정 시 fallback 요약 반환
-  - SESSION_DB 설정 시 Postgres 세션 저장
+  - K8s/Prometheus 컨텍스트 + Strands Agents(`gemini|openai|anthropic`) 분석
+  - Provider API key 미설정 시 fallback 요약 반환
+  - `SESSION_DB_*` 설정 시 세션 저장 사용
 - Frontend: 로그인/회원가입 + Incident/Alert 목록/상세 + 숨김(뮤트) 인시던트 UI
   - `/api/v1/auth/*`, `/api/v1/incidents*`, `/api/v1/alerts*`, `/api/v1/embeddings/search` 사용
 - Helm: backend/agent/frontend + OpenAPI UI 배포용 `kube-rca` 차트 포함
-- DB: PostgreSQL 연동(incident/auth/embeddings). RCA 문서는 incidents.analysis_detail에 저장.
+- DB: PostgreSQL 연동(incident/auth/embeddings/alert_analyses/artifacts)
+
+### 계획 항목
+
+- Slack Slash Command 기반 조회/요약 UX
+- 관측 스택 통합 고도화(Tempo/Loki/Grafana/Alloy)
+- 고급 RAG/추천 파이프라인 및 대응 플레이북 자동화
 
 상세 아키텍처와 런타임 흐름은 `ARCHITECTURE.md` 및 `diagrams/`를 참고합니다.
 
@@ -104,16 +112,17 @@ Prometheus/Alertmanager, Slack, 로그, 메트릭, 트레이스 데이터를 연
 
 ### 6.2 Observability(연동/확장)
 
-- Alerting: Prometheus/Alertmanager(kube-prometheus-stack 차트 포함)
-- Visualization: Grafana(kube-prometheus-stack 차트 포함)
-- Collector: Grafana Alloy(차트 포함)
-- Logs: Loki(차트 포함)
-- Metrics/Traces 확장: Grafana Mimir, Tempo
+- Alerting: Prometheus/Alertmanager(kube-prometheus-stack 차트 포함, 구현)
+- Visualization: Grafana(차트 포함, 계획/확장)
+- Collector: Grafana Alloy(차트 포함, 계획/확장)
+- Logs: Loki(차트 포함, 계획/확장)
+- Metrics/Traces 확장: Grafana Mimir, Tempo(계획/확장)
 
 ### 6.3 알람 및 인터페이스
 
-- Alertmanager Webhook → Backend
-- Slack App/Bot(Bot Token 기반 메시지 전송, Slash Command)
+- Alertmanager Webhook → Backend (구현)
+- Slack App/Bot(Bot Token 기반 메시지 전송, 구현)
+- Slack Slash Command(계획)
 
 ### 6.4 애플리케이션
 
@@ -154,7 +163,8 @@ Prometheus/Alertmanager, Slack, 로그, 메트릭, 트레이스 데이터를 연
 ### 7.4 Frontend 및 Slack 통합 UX
 
 - 인시던트 목록/상세, RCA 결과, 유사 이력, 재발 방지 액션 화면 제공
-- Slack 스레드에 RCA 요약/가이드 자동 포스팅 및 Slash Command 제공
+- Slack 스레드에 RCA 요약/가이드 자동 포스팅(구현)
+- Slack Slash Command 기반 조회/액션(계획)
 
 ### 7.5 Chaos/Load 테스트로 데이터셋 확보 및 검증
 
