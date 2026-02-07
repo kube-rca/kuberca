@@ -72,6 +72,12 @@ helm upgrade --install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/kube-
 | agent.sessionDB.secret.existingSecret | string | `"postgresql"` | Existing Secret name for session DB password. |
 | agent.sessionDB.secret.key | string | `"password"` | Secret key for session DB password. |
 | agent.sessionDB.user | string | `""` | PostgreSQL user. |
+| agent.tempo.forwardMinutes | int | `5` | Minutes after alert startsAt for Tempo query window (TEMPO_FORWARD_MINUTES). |
+| agent.tempo.httpTimeoutSeconds | int | `10` | Tempo HTTP timeout in seconds. Trace search can be slower than K8s/Prometheus queries under load. |
+| agent.tempo.lookbackMinutes | int | `15` | Minutes before alert startsAt for Tempo query window (TEMPO_LOOKBACK_MINUTES). |
+| agent.tempo.tenantId | string | `""` | Optional Tempo tenant header value (TEMPO_TENANT_ID / X-Scope-OrgID). |
+| agent.tempo.traceLimit | int | `5` | Max traces fetched per alert analysis (TEMPO_TRACE_LIMIT). |
+| agent.tempo.url | string | `""` | Tempo base URL (TEMPO_URL). If empty, Tempo trace queries are disabled. |
 | agent.tolerations | list | `[]` | Tolerations for agent pods assignment. |
 | agent.workers | int | `1` | Uvicorn worker count (WEB_CONCURRENCY). |
 | backend.affinity | object | `{}` | Affinity for backend pods assignment. |

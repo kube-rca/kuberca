@@ -57,6 +57,7 @@ agent:
     url: kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
   tempo:
     url: http://tempo.monitoring.svc.cluster.local:3200
+    httpTimeoutSeconds: 10
     traceLimit: 5
     lookbackMinutes: 15
     forwardMinutes: 5

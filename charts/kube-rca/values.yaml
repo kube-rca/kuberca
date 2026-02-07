@@ -269,7 +269,8 @@ agent:
     # -- Tempo base URL (TEMPO_URL). If empty, Tempo trace queries are disabled.
     url: ""
     # -- Tempo HTTP timeout in seconds.
-    httpTimeoutSeconds: 5
+    # Trace search can be slower than K8s/Prometheus queries under load.
+    httpTimeoutSeconds: 10
     # -- Optional Tempo tenant header value (TEMPO_TENANT_ID / X-Scope-OrgID).
     tenantId: ""
     # -- Max traces fetched per alert analysis (TEMPO_TRACE_LIMIT).
