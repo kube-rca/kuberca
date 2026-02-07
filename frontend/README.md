@@ -66,7 +66,8 @@ The dashboard provides views for:
 ### Installation
 
 ```bash
-cd frontend
+# Run in repository root
+# (monorepo layout: cd frontend/main)
 npm install
 ```
 
@@ -106,29 +107,31 @@ frontend/
 │   │   ├── AlertDetailView.tsx    # Alert detail view
 │   │   ├── RCATable.tsx           # Incidents/RCA list table
 │   │   ├── RCADetailView.tsx      # Incident detail with RCA
-│   │   ├── MuteTable.tsx          # Muted incidents table
-│   │   ├── MuteDetailView.tsx     # Muted incident detail
+│   │   ├── ArchiveTable.tsx       # Hidden incidents table
+│   │   ├── ArchiveDetailView.tsx  # Hidden incident detail
+│   │   ├── UnifiedSearchPanel.tsx # Unified search panel
 │   │   ├── Header.tsx             # App header (theme, auth)
 │   │   ├── AuthPanel.tsx          # Login/signup panel
 │   │   ├── Pagination.tsx         # Pagination component
 │   │   └── TimeRangeSelector.tsx  # Time range filter
 │   ├── context/              # React Context providers
 │   │   ├── ThemeContext.ts        # Theme context definition
-│   │   └── ThemeProvider.tsx      # Theme provider component
+│   │   ├── ThemeProvider.tsx      # Theme provider component
+│   │   └── SearchContext.tsx      # Search context
 │   ├── constants/            # Application constants
 │   │   └── index.ts
 │   └── utils/                # Utility functions
 │       ├── api.ts                 # Backend API client
 │       ├── auth.ts                # Authentication utilities
 │       ├── config.ts              # Configuration utilities
-│       └── filterAlerts.ts        # Alert filtering logic
-├── public/                   # Static assets
+│       ├── filterAlerts.ts        # Alert filtering logic
+│       └── searchLogic.ts         # Search scoring and sorting
 ├── Dockerfile               # Production build (Nginx)
 ├── package.json             # Dependencies and scripts
 ├── tsconfig.json            # TypeScript configuration
 ├── vite.config.ts           # Vite configuration
 ├── tailwind.config.js       # Tailwind CSS configuration
-└── eslint.config.js         # ESLint configuration
+└── .eslintrc.cjs            # ESLint configuration
 ```
 
 ---
@@ -139,7 +142,7 @@ frontend/
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `VITE_API_BASE_URL` | Backend API URL | `http://kube-rca-backend:8080` |
+| `VITE_API_BASE_URL` | Backend API URL | `''` (same-origin) |
 
 ### Local Development
 
@@ -151,7 +154,7 @@ VITE_API_BASE_URL=http://localhost:8080
 
 ### Production (Kubernetes)
 
-In Kubernetes deployments, the default `http://kube-rca-backend:8080` is used for internal cluster communication.
+In Kubernetes deployments, set `VITE_API_BASE_URL` when frontend and backend are served from different origins.
 
 ---
 
@@ -182,7 +185,6 @@ The frontend communicates with the KubeRCA Backend API:
 |-----|-------------|
 | `/api/v1/auth/*` | Authentication (login, register, refresh) |
 | `/api/v1/incidents` | Incident list and details |
-| `/api/v1/incidents/:id/alerts` | Alerts for an incident |
 | `/api/v1/alerts` | Alert list and details |
 | `/api/v1/embeddings/search` | Similar incident search |
 
