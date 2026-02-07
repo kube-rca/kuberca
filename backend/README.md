@@ -64,14 +64,15 @@ flowchart LR
 
 ### Prerequisites
 
-- Go 1.22+
+- Go 1.24+
 - PostgreSQL with pgvector extension
 - (Optional) Slack Bot Token for notifications
 
 ### Installation
 
 ```bash
-cd backend
+# Run in repository root
+# (monorepo layout: cd backend/main)
 go mod tidy
 ```
 
@@ -172,7 +173,7 @@ go build -o main .
 | `DATABASE_URL` | PostgreSQL connection string | Yes |
 | `SLACK_BOT_TOKEN` | Slack Bot OAuth token | No |
 | `SLACK_CHANNEL_ID` | Slack channel for notifications | No |
-| `AGENT_URL` | Agent service base URL | Yes |
+| `AGENT_URL` | Agent service base URL | No (default: `http://kube-rca-agent.kube-rca.svc:8000`) |
 | `AI_API_KEY` | Gemini API key for embeddings | Yes |
 | `JWT_SECRET` | JWT signing secret | Yes |
 | `JWT_ACCESS_TTL` | Access token TTL (e.g., `15m`) | No |
@@ -222,7 +223,7 @@ CREATE TABLE embeddings (
   id BIGSERIAL PRIMARY KEY,
   incident_id TEXT NOT NULL,
   incident_summary TEXT NOT NULL,
-  embedding VECTOR(768) NOT NULL,
+  embedding VECTOR(3072) NOT NULL,
   model TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
