@@ -25,6 +25,7 @@ The KubeRCA Agent is a Python-based analysis service that performs Root Cause An
 
 - **AI-Powered RCA** - Uses Strands Agents with Gemini/OpenAI/Anthropic for intelligent analysis
 - **Kubernetes Context** - Collects pod logs, events, and resource status
+- **Generic Manifest Read Tools** - Reads namespaced core/CRD manifests via `apiVersion` + `resource`
 - **Prometheus Integration** - Queries relevant metrics for analysis
 - **Session Persistence** - PostgreSQL-backed session history when `SESSION_DB_*` is configured
 - **Fallback Mode** - Returns basic summary when the provider API key is unavailable
@@ -162,9 +163,21 @@ Analyzes a single alert with Kubernetes/Prometheus context.
   "analysis": "## Root Cause Analysis\n...",
   "analysis_summary": "Brief summary of the issue",
   "analysis_detail": "Detailed RCA markdown content...",
+  "analysis_quality": "medium",
+  "missing_data": ["alert.labels.pod"],
+  "warnings": ["namespace/pod_name missing from alert labels"],
+  "capabilities": {
+    "k8s_core": "ok",
+    "manifest_read": "ok",
+    "prometheus": "unavailable",
+    "tempo": "unavailable",
+    "mesh": "unknown",
+    "traffic_policy": "unknown"
+  },
   "context": {
     "namespace": "default",
-    "pod_name": "example-pod"
+    "pod_name": "example-pod",
+    "analysis_quality": "medium"
   },
   "artifacts": []
 }
@@ -173,6 +186,27 @@ Analyzes a single alert with Kubernetes/Prometheus context.
 ### POST /summarize-incident
 
 Summarizes a resolved incident with all associated alerts.
+
+### Generic Manifest Read Tools
+
+The analysis engine can inspect namespaced Kubernetes manifests (core and CRD) with:
+
+- `get_manifest(namespace, api_version, resource, name)`
+- `list_manifests(namespace, api_version, resource, label_selector=None, limit=20)`
+
+Examples:
+
+```text
+get_manifest("bookinfo", "v1", "services", "reviews")
+get_manifest("bookinfo", "networking.istio.io/v1", "virtualservices", "reviews-route")
+list_manifests("bookinfo", "v1", "configmaps", "app=reviews", 10)
+```
+
+Notes:
+
+- `api_version` supports both core (`v1`) and grouped (`group/version`) formats.
+- `resource` must be a plural resource name (for example: `pods`, `services`, `virtualservices`).
+- For security and readability, secret values are masked and `status`/`metadata.managedFields` are omitted in `get_manifest` responses.
 
 ---
 
