@@ -324,6 +324,60 @@ class KubernetesClient:
             return None
         return self._summarize_node_metrics(response)
 
+    def get_manifest(
+        self,
+        namespace: str,
+        api_version: str,
+        resource: str,
+        name: str,
+    ) -> dict[str, object] | None:
+        """Fetch a namespaced manifest for either core (v1) or custom resources."""
+        parsed = self._parse_api_version(api_version)
+        normalized_resource = resource.strip().lower()
+        if parsed is None or not normalized_resource:
+            return None
+        group, version = parsed
+        if group is None:
+            return self._get_core_manifest(namespace, version, normalized_resource, name)
+        return self._get_custom_manifest(
+            group=group,
+            version=version,
+            namespace=namespace,
+            plural=normalized_resource,
+            name=name,
+        )
+
+    def list_manifests(
+        self,
+        namespace: str,
+        api_version: str,
+        resource: str,
+        label_selector: str | None = None,
+        limit: int = 20,
+    ) -> list[dict[str, object]]:
+        """List namespaced manifests for either core (v1) or custom resources."""
+        parsed = self._parse_api_version(api_version)
+        normalized_resource = resource.strip().lower()
+        if parsed is None or not normalized_resource:
+            return []
+        group, version = parsed
+        if group is None:
+            return self._list_core_manifests(
+                namespace,
+                version,
+                normalized_resource,
+                label_selector=label_selector,
+                limit=limit,
+            )
+        return self._list_custom_manifests(
+            group=group,
+            version=version,
+            namespace=namespace,
+            plural=normalized_resource,
+            label_selector=label_selector,
+            limit=limit,
+        )
+
     def list_services_by_label(
         self, label_selector: str, namespaces: list[str] | None = None
     ) -> list[client.V1Service]:
@@ -394,6 +448,215 @@ class KubernetesClient:
             ready=ready,
             start_time=self._to_iso(status.start_time) if status else None,
         )
+
+    def _list_custom_manifests(
+        self,
+        *,
+        group: str,
+        version: str,
+        namespace: str,
+        plural: str,
+        label_selector: str | None = None,
+        limit: int = 20,
+    ) -> list[dict[str, object]]:
+        if self._custom_api is None:
+            return []
+        try:
+            kwargs: dict[str, object] = {
+                "group": group,
+                "version": version,
+                "namespace": namespace,
+                "plural": plural,
+                "_request_timeout": self._timeout_seconds,
+            }
+            if label_selector:
+                kwargs["label_selector"] = label_selector
+            if limit > 0:
+                kwargs["limit"] = limit
+            response = self._custom_api.list_namespaced_custom_object(**kwargs)
+        except Exception as exc:  # noqa: BLE001
+            self._logger.warning(
+                "Failed to list custom resources %s/%s in namespace %s: %s",
+                group,
+                plural,
+                namespace,
+                exc,
+            )
+            return []
+
+        if not isinstance(response, dict):
+            return []
+        items = response.get("items")
+        if not isinstance(items, list):
+            return []
+        manifests: list[dict[str, object]] = []
+        for item in items:
+            if isinstance(item, dict):
+                manifests.append(self._to_manifest(item, resource=plural))
+        return manifests
+
+    def _get_custom_manifest(
+        self,
+        *,
+        group: str,
+        version: str,
+        namespace: str,
+        plural: str,
+        name: str,
+    ) -> dict[str, object] | None:
+        if self._custom_api is None:
+            return None
+        try:
+            response = self._custom_api.get_namespaced_custom_object(
+                group=group,
+                version=version,
+                namespace=namespace,
+                plural=plural,
+                name=name,
+                _request_timeout=self._timeout_seconds,
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._logger.warning(
+                "Failed to get custom resource %s/%s %s/%s: %s",
+                group,
+                plural,
+                namespace,
+                name,
+                exc,
+            )
+            return None
+        if not isinstance(response, dict):
+            return None
+        return self._sanitize_manifest_for_read(response, resource=plural)
+
+    @staticmethod
+    def _to_manifest(payload: dict[str, object], *, resource: str) -> dict[str, object]:
+        return {
+            "apiVersion": payload.get("apiVersion"),
+            "kind": payload.get("kind") or resource,
+            "metadata": payload.get("metadata"),
+            "spec": payload.get("spec"),
+        }
+
+    def _get_core_manifest(
+        self,
+        namespace: str,
+        version: str,
+        resource: str,
+        name: str,
+    ) -> dict[str, object] | None:
+        if self._core_api is None:
+            return None
+        path = f"/api/{version}/namespaces/{namespace}/{resource}/{name}"
+        try:
+            response, _, _ = self._core_api.api_client.call_api(
+                path,
+                "GET",
+                auth_settings=["BearerToken"],
+                response_type="object",
+                _return_http_data_only=False,
+                _preload_content=True,
+                _request_timeout=self._timeout_seconds,
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._logger.warning(
+                "Failed to get core resource %s/%s %s/%s: %s",
+                version,
+                resource,
+                namespace,
+                name,
+                exc,
+            )
+            return None
+        if not isinstance(response, dict):
+            return None
+        return self._sanitize_manifest_for_read(response, resource=resource)
+
+    def _list_core_manifests(
+        self,
+        namespace: str,
+        version: str,
+        resource: str,
+        *,
+        label_selector: str | None = None,
+        limit: int = 20,
+    ) -> list[dict[str, object]]:
+        if self._core_api is None:
+            return []
+        path = f"/api/{version}/namespaces/{namespace}/{resource}"
+        query_params: list[tuple[str, str]] = []
+        if label_selector:
+            query_params.append(("labelSelector", label_selector))
+        if limit > 0:
+            query_params.append(("limit", str(limit)))
+        try:
+            response, _, _ = self._core_api.api_client.call_api(
+                path,
+                "GET",
+                auth_settings=["BearerToken"],
+                response_type="object",
+                _return_http_data_only=False,
+                _preload_content=True,
+                _request_timeout=self._timeout_seconds,
+                query_params=query_params,
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._logger.warning(
+                "Failed to list core resources %s/%s in namespace %s: %s",
+                version,
+                resource,
+                namespace,
+                exc,
+            )
+            return []
+        if not isinstance(response, dict):
+            return []
+        items = response.get("items")
+        if not isinstance(items, list):
+            return []
+        manifests: list[dict[str, object]] = []
+        for item in items:
+            if isinstance(item, dict):
+                manifests.append(self._to_manifest(item, resource=resource))
+        return manifests
+
+    @staticmethod
+    def _parse_api_version(api_version: str) -> tuple[str | None, str] | None:
+        value = api_version.strip()
+        if not value:
+            return None
+        if "/" not in value:
+            return None, value
+        group, version = value.split("/", 1)
+        if not group or not version:
+            return None
+        return group, version
+
+    @staticmethod
+    def _sanitize_manifest_for_read(
+        payload: dict[str, object], *, resource: str
+    ) -> dict[str, object]:
+        # Return near-raw manifest for diagnostics while stripping noisy/sensitive fields.
+        sanitized = dict(payload)
+
+        metadata = sanitized.get("metadata")
+        if isinstance(metadata, dict):
+            metadata_copy = dict(metadata)
+            metadata_copy.pop("managedFields", None)
+            sanitized["metadata"] = metadata_copy
+
+        sanitized.pop("status", None)
+
+        kind = str(sanitized.get("kind") or "").lower()
+        if resource == "secrets" or kind == "secret":
+            data = sanitized.get("data")
+            if isinstance(data, dict):
+                sanitized["data"] = {str(key): "[MASKED]" for key in data}
+            string_data = sanitized.get("stringData")
+            if isinstance(string_data, dict):
+                sanitized["stringData"] = {str(key): "[MASKED]" for key in string_data}
+
+        return sanitized
 
     def _build_client(self) -> client.CoreV1Api | None:
         try:

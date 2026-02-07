@@ -55,18 +55,55 @@ class AnalysisService:
         namespace, pod_name, workload = extract_pod_target(request.alert.labels)
         k8s_context = self._k8s_client.collect_context(namespace, pod_name, workload)
         tempo_context = self._collect_tempo_context(request)
-        context = k8s_context.to_dict()
-        if tempo_context:
-            context["tempo"] = tempo_context
         artifacts = _build_alert_artifacts(k8s_context, tempo_context)
-        masked_context = cast(dict[str, object], self._masker.mask_object(context))
         masked_artifacts = cast(list[dict[str, object]], self._masker.mask_object(artifacts))
+        capabilities, capability_warnings = self._collect_capabilities(
+            k8s_context=k8s_context,
+            tempo_context=tempo_context,
+        )
+        base_missing_data = _collect_missing_data(
+            labels=request.alert.labels,
+            k8s_context=k8s_context,
+            tempo_context=tempo_context,
+            capabilities=capabilities,
+        )
+        base_warnings = _collect_analysis_warnings(
+            k8s_warnings=k8s_context.warnings,
+            tempo_context=tempo_context,
+            capability_warnings=capability_warnings,
+        )
+
+        def build_masked_context(engine_issue: str | None = None) -> dict[str, object]:
+            missing_data = list(base_missing_data)
+            if engine_issue:
+                missing_data.append(f"analysis_engine.{engine_issue}")
+            missing_data = _dedupe_strings(missing_data)
+
+            warnings = list(base_warnings)
+            if engine_issue:
+                warnings.append(f"analysis engine issue: {engine_issue}")
+            warnings = _dedupe_strings(warnings)
+
+            analysis_quality = _resolve_analysis_quality(
+                missing_data=missing_data,
+                capabilities=capabilities,
+                engine_issue=engine_issue,
+            )
+            context = k8s_context.to_dict()
+            if tempo_context:
+                context["tempo"] = tempo_context
+            context["analysis_quality"] = analysis_quality
+            context["missing_data"] = missing_data
+            context["warnings"] = warnings
+            context["capabilities"] = capabilities
+            return cast(dict[str, object], self._masker.mask_object(context))
 
         if self._analysis_engine is None:
             analysis = self._masker.mask_text(
                 _fallback_summary(request, k8s_context, "analysis engine not configured")
             )
             summary, detail = _split_alert_analysis(analysis)
+            masked_context = build_masked_context(engine_issue="not_configured")
             return analysis, summary, detail, masked_context, masked_artifacts
 
         summary_key = _resolve_alert_session_id(request)
@@ -77,6 +114,9 @@ class AnalysisService:
             self._prometheus_enabled,
             self._tempo_enabled,
             tempo_context,
+            capabilities,
+            base_missing_data,
+            base_warnings,
             recent_summaries,
             self._prompt_token_budget,
             self._prompt_max_log_lines,
@@ -99,9 +139,11 @@ class AnalysisService:
                     )
                 )
                 summary, detail = _split_alert_analysis(analysis)
+                masked_context = build_masked_context(engine_issue="empty_response")
                 return analysis, summary, detail, masked_context, masked_artifacts
             summary, detail = _split_alert_analysis(analysis)
             self._store_summary(summary_key, summary)
+            masked_context = build_masked_context()
             return analysis, summary, detail, masked_context, masked_artifacts
         except Exception as exc:  # noqa: BLE001
             self._logger.exception("Strands analysis failed")
@@ -109,6 +151,7 @@ class AnalysisService:
                 _fallback_summary(request, k8s_context, f"analysis failed: {exc}")
             )
             summary, detail = _split_alert_analysis(analysis)
+            masked_context = build_masked_context(engine_issue="execution_failed")
             return analysis, summary, detail, masked_context, masked_artifacts
 
     def summarize_incident(self, request: IncidentSummaryRequest) -> tuple[str, str, str]:
@@ -223,6 +266,32 @@ class AnalysisService:
             "warnings": warnings,
         }
 
+    def _collect_capabilities(
+        self,
+        *,
+        k8s_context: K8sContext,
+        tempo_context: dict[str, object] | None,
+    ) -> tuple[dict[str, str], list[str]]:
+        capabilities: dict[str, str] = {
+            "k8s_core": "ok",
+            "prometheus": "ok" if self._prometheus_enabled else "unavailable",
+            "tempo": "ok" if self._tempo_enabled else "unavailable",
+            "manifest_read": "ok",
+            "mesh": "unknown",
+            "traffic_policy": "unknown",
+        }
+        warnings: list[str] = []
+        if any(
+            "kubernetes client is not configured" in warning for warning in k8s_context.warnings
+        ):
+            capabilities["k8s_core"] = "unavailable"
+            capabilities["manifest_read"] = "unavailable"
+            warnings.append("kubernetes core api unavailable")
+        if tempo_context and tempo_context.get("query_status") == "error":
+            capabilities["tempo"] = "degraded"
+
+        return capabilities, warnings
+
 
 def _build_prompt(
     request: AlertAnalysisRequest,
@@ -230,6 +299,9 @@ def _build_prompt(
     prometheus_enabled: bool,
     tempo_enabled: bool,
     tempo_context: dict[str, object] | None,
+    capabilities: dict[str, str],
+    missing_data: list[str],
+    diagnostic_warnings: list[str],
     recent_summaries: list[str],
     prompt_token_budget: int,
     prompt_max_log_lines: int,
@@ -254,6 +326,7 @@ def _build_prompt(
         "- get_previous_pod_logs, get_pod_logs",
         "- get_workload_status, get_daemonset_manifest, get_node_status",
         "- get_pod_metrics, get_node_metrics",
+        "- get_manifest, list_manifests",
     ]
     if prometheus_enabled:
         tool_lines.append("- discover_prometheus, list_prometheus_metrics")
@@ -280,6 +353,10 @@ def _build_prompt(
         "- Use inline code only for literal keys/values/commands; "
         "avoid excessive code formatting.\n"
         "If data is missing, state what is missing.\n"
+        "- Do not infer user/header traffic match conditions without direct "
+        "manifest/log evidence.\n"
+        "- For routing policy evidence, use get_manifest/list_manifests with "
+        "explicit apiVersion/resource.\n"
         "You may call tools if needed:\n"
         f"{tool_block}\n\n"
     )
@@ -321,6 +398,9 @@ def _build_prompt(
     )
     if tempo_context:
         context_dict["tempo"] = _compact_tempo_context(tempo_context)
+    context_dict["capabilities"] = capabilities
+    context_dict["missing_data"] = missing_data
+    context_dict["diagnostic_warnings"] = diagnostic_warnings
     context_dict = cast(dict[str, object], masker.mask_object(context_dict))
     alert_block = f"Alert payload:\n{_to_pretty_json(payload)}\n\n"
     context_block = f"Kubernetes/APM context:\n{_to_pretty_json(context_dict)}\n"
@@ -457,6 +537,9 @@ def _compact_context_dict(context: dict[str, object]) -> dict[str, object]:
         "pod_status": compact_status,
         "tempo": compact_tempo,
         "warnings": context.get("warnings") or [],
+        "capabilities": context.get("capabilities") or {},
+        "missing_data": context.get("missing_data") or [],
+        "diagnostic_warnings": context.get("diagnostic_warnings") or [],
     }
 
 
@@ -566,6 +649,109 @@ def _resolve_tempo_window(
 
 def _to_iso_z(value: datetime) -> str:
     return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _collect_missing_data(
+    *,
+    labels: dict[str, str],
+    k8s_context: K8sContext,
+    tempo_context: dict[str, object] | None,
+    capabilities: dict[str, str],
+) -> list[str]:
+    missing_data: list[str] = []
+    if not _first_non_empty_label(labels, ["namespace", "destination_service_namespace"]):
+        missing_data.append("alert.labels.namespace")
+    if not _first_non_empty_label(labels, ["pod"]):
+        missing_data.append("alert.labels.pod")
+    if k8s_context.pod_status is None:
+        missing_data.append("k8s.pod_status")
+    if not k8s_context.events:
+        missing_data.append("k8s.events")
+    if not k8s_context.previous_logs:
+        missing_data.append("k8s.previous_logs")
+    if capabilities.get("k8s_core") != "ok":
+        missing_data.append("k8s.core_api")
+    if capabilities.get("manifest_read") != "ok":
+        missing_data.append("k8s.manifest_read")
+    if capabilities.get("prometheus") != "ok":
+        missing_data.append("prometheus.metrics")
+    if capabilities.get("tempo") == "unavailable":
+        missing_data.append("tempo.traces")
+    if capabilities.get("traffic_policy") in {"unsupported", "unavailable"}:
+        missing_data.append("traffic_policy.match_conditions")
+    if tempo_context:
+        if tempo_context.get("query_status") == "error":
+            missing_data.append("tempo.query_result")
+        trace_count = tempo_context.get("trace_count")
+        if isinstance(trace_count, int) and trace_count <= 0:
+            missing_data.append("tempo.traces")
+    return _dedupe_strings(missing_data)
+
+
+def _collect_analysis_warnings(
+    *,
+    k8s_warnings: list[str],
+    tempo_context: dict[str, object] | None,
+    capability_warnings: list[str],
+) -> list[str]:
+    warnings = [warning for warning in k8s_warnings if warning]
+    warnings.extend(warning for warning in capability_warnings if warning)
+    if tempo_context:
+        raw_warnings = tempo_context.get("warnings")
+        if isinstance(raw_warnings, list):
+            for warning in raw_warnings:
+                if isinstance(warning, str) and warning:
+                    warnings.append(f"tempo: {warning}")
+    return _dedupe_strings(warnings)
+
+
+def _resolve_analysis_quality(
+    *,
+    missing_data: list[str],
+    capabilities: dict[str, str],
+    engine_issue: str | None,
+) -> str:
+    if engine_issue:
+        return "low"
+    if capabilities.get("k8s_core") != "ok":
+        return "low"
+
+    optional_codes = {
+        "prometheus.metrics",
+        "tempo.traces",
+        "tempo.query_result",
+        "k8s.manifest_read",
+        "traffic_policy.match_conditions",
+    }
+    non_optional_missing = [item for item in missing_data if item not in optional_codes]
+    if not non_optional_missing:
+        return "high"
+
+    critical_codes = {
+        "alert.labels.namespace",
+        "alert.labels.pod",
+        "k8s.core_api",
+        "k8s.pod_status",
+    }
+    critical_count = sum(1 for item in non_optional_missing if item in critical_codes)
+    if critical_count >= 2:
+        return "low"
+    if critical_count >= 1:
+        return "medium"
+    if len(non_optional_missing) >= 2:
+        return "medium"
+    return "high"
+
+
+def _dedupe_strings(values: list[str]) -> list[str]:
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        if not value or value in seen:
+            continue
+        deduped.append(value)
+        seen.add(value)
+    return deduped
 
 
 def _fallback_summary(
