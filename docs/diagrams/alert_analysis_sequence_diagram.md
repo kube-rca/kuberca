@@ -5,7 +5,7 @@ sequenceDiagram
   participant BE as Backend
   participant SL as Slack Bot
   participant AG as Agent
-  participant TP as Tempo 계획
+  participant TP as Tempo
   participant LLM as LLM API
   participant DB as PostgreSQL + pgvector
   participant SDB as Session DB
@@ -27,7 +27,7 @@ sequenceDiagram
   opt 세션 저장 활성화
     AG->>SDB: 세션 조회 및 저장
   end
-  opt Trace 수집 계획
+  opt Trace 수집
     AG->>TP: Trace 조회
     TP-->>AG: Trace context
   end

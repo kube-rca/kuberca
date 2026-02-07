@@ -64,7 +64,7 @@
   - pgvector로 cosine similarity 기반 유사 인시던트 검색
   - session DB 활성화 시 STRANDS_* 및 KUBE_RCA_SESSION_SUMMARY 사용
 
-## 계획 중 통합
+## 확장 통합 항목
 
 - Slack Slash Command 기반 인시던트 조회/요약
 - Tempo/Loki/Grafana/Alloy 연동 확장

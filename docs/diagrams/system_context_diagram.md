@@ -3,14 +3,14 @@ flowchart LR
   %% External
   AM[Alertmanager]
   SL[Slack Bot]
-  SC[Slack Slash Command 계획]
+  SC[Slack Slash Command]
   LLM[LLM API Gemini OpenAI Anthropic]
   PR[Prometheus]
   K8S[Kubernetes API]
-  GK[Grafana 계획]
-  LO[Loki 계획]
-  TP[Tempo 계획]
-  AL[Alloy 계획]
+  GK[Grafana]
+  LO[Loki]
+  TP[Tempo]
+  AL[Alloy]
 
   %% Internal
   subgraph Core[" "]
@@ -26,7 +26,7 @@ flowchart LR
 
   AM -->|Webhook alert| BE
   BE -->|Slack message| SL
-  SC -.->|Slash query 계획| BE
+  SC -.->|Slash query| BE
 
   FE -->|Auth incidents alerts embedding API| BE
   BE -->|POST /analyze, /summarize-incident| AG
@@ -34,7 +34,7 @@ flowchart LR
 
   AG -->|K8s query| K8S
   AG -->|PromQL query| PR
-  AG -.->|Trace query 계획| TP
+  AG -.->|Trace query| TP
   AG -->|LLM inference| LLM
   BE -->|Embedding create| LLM
 
@@ -42,10 +42,10 @@ flowchart LR
   BE -->|Cosine similarity search| PG
   AG -->|Session store optional| SDB
 
-  AL -.->|Collector 계획| PR
-  AL -.->|Collector 계획| LO
-  AL -.->|Collector 계획| TP
-  GK -.->|Dashboard 계획| PR
-  GK -.->|Dashboard 계획| LO
-  GK -.->|Dashboard 계획| TP
+  AL -.->|Collector| PR
+  AL -.->|Collector| LO
+  AL -.->|Collector| TP
+  GK -.->|Dashboard| PR
+  GK -.->|Dashboard| LO
+  GK -.->|Dashboard| TP
 ```

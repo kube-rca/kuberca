@@ -2,7 +2,7 @@
 sequenceDiagram
   autonumber
   participant FE as Frontend
-  participant SC as Slack Slash Command 계획
+  participant SC as Slack Slash Command
   participant BE as Backend
   participant AG as Agent
   participant LLM as LLM API
@@ -26,7 +26,7 @@ sequenceDiagram
   DB-->>BE: 유사 인시던트 목록
   BE-->>FE: similarity 점수와 함께 반환
 
-  opt Slack Slash Command 계획
+  opt Slack Slash Command
     SC->>BE: 유사 인시던트 조회 요청
     BE->>DB: pgvector cosine similarity 검색
     DB-->>BE: 유사 인시던트 목록
