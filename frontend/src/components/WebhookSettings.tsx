@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useUndo } from '../hooks/useUndo';
 
 interface WebhookHeader {
   key: string;
@@ -11,7 +12,7 @@ const WebhookSettings: React.FC = () => {
   const [url, setUrl] = useState('');
   const [method, setMethod] = useState('POST');
   const [headers, setHeaders] = useState<WebhookHeader[]>([{ key: '', value: '' }]);
-  const [body, setBody] = useState('{\n  "text": "Hello World"\n}');
+  const { state: body, setState: setBody, undo, redo } = useUndo('{\n  "text": "Hello World"\n}');
   const [jsonError, setJsonError] = useState<string | null>(null);
 
   React.useEffect(() => {
@@ -135,6 +136,16 @@ const WebhookSettings: React.FC = () => {
                 id="webhook-body"
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
+                onKeyDown={(e) => {
+                  if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                    e.preventDefault();
+                    if (e.shiftKey) {
+                      redo();
+                    } else {
+                      undo();
+                    }
+                  }
+                }}
                 rows={12}
                 className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-mono text-sm focus:ring-blue-500 focus:border-blue-500 ${
                   jsonError 
@@ -148,8 +159,8 @@ const WebhookSettings: React.FC = () => {
                 </p>
               )}
             </div>
-            <div className="w-1/3 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Insert Variables</h3>
+            <div className="w-1/3 bg-slate-100 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 uppercase tracking-wider">Available Variables</h3>
               <div className="space-y-2">
                 {[
                   { label: 'Incident ID', value: '{{incident.id}}' },
@@ -180,10 +191,12 @@ const WebhookSettings: React.FC = () => {
                         textarea.setSelectionRange(start + variable.value.length, start + variable.value.length);
                       }, 0);
                     }}
-                    className="w-full text-left px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-700 transition-colors text-gray-700 dark:text-gray-200"
+                    className="w-full text-left px-3 py-2 text-sm bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-md shadow-sm hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-200 group"
                   >
-                    <span className="font-mono text-blue-600 dark:text-blue-400 text-xs mr-2">{variable.value}</span>
-                    <span className="text-gray-500 dark:text-gray-400 text-xs">- {variable.label}</span>
+                    <div className="flex flex-col">
+                      <span className="font-mono text-blue-600 dark:text-blue-400 text-xs font-semibold group-hover:text-blue-700 dark:group-hover:text-blue-300">{variable.value}</span>
+                      <span className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">{variable.label}</span>
+                    </div>
                   </button>
                 ))}
               </div>
