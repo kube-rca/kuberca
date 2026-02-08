@@ -1,6 +1,32 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useUndo } from '../hooks/useUndo';
+import Editor from 'react-simple-code-editor';
+import Prism from 'prismjs';
+import 'prismjs/components/prism-json';
+import 'prismjs/themes/prism.css'; // Basic theme, can be customized
+
+// Custom styler to highlight variables
+const highlightWithPrism = (code: string) => {
+  let highlighted = Prism.highlight(code, Prism.languages.json, 'json');
+  
+  // Replace {{variable}} with a span having a background color
+  // We use a regex to find {{...}} pattern and wrap it.
+  // Note: Prism highlighting returns HTML strings. We need to be careful not to break HTML tags.
+  // However, simple variable replacement usually works if they don't contain HTML-like characters that Prism escapes differently.
+  // A safer approach for this specific requirement without writing a full Prism grammar extension
+  // is to replace the text pattern. Since {{...}} is distinct, it should be fine.
+  
+  // Actually, a better way is to extend Prism JSON grammar to tokenize {{...}} as a specific type.
+  // But for simplicity and effectiveness with the requested background color feature:
+   highlighted = highlighted.replace(
+    /{{[\w.]+}}/g,
+    (match) => `<span class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded px-0.5 font-bold">${match}</span>`
+  );
+  
+  return highlighted;
+};
+
+// ... inside component ...
+
+
 
 interface WebhookHeader {
   key: string;
@@ -132,27 +158,54 @@ const WebhookSettings: React.FC = () => {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Body (JSON)</label>
           <div className="flex gap-4">
             <div className="flex-1">
-              <textarea
-                id="webhook-body"
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                onKeyDown={(e) => {
-                  if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-                    e.preventDefault();
-                    if (e.shiftKey) {
-                      redo();
-                    } else {
-                      undo();
-                    }
-                  }
-                }}
-                rows={12}
-                className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-mono text-sm focus:ring-blue-500 focus:border-blue-500 ${
+              <div className={`relative w-full border rounded-md bg-white dark:bg-gray-700 overflow-hidden ${
                   jsonError 
-                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 
-                    : 'border-gray-300 dark:border-gray-600'
-                }`}
-              />
+                    ? 'border-red-500 ring-1 ring-red-500' 
+                    : 'border-gray-300 dark:border-gray-600 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500'
+                }`}>
+                <Editor
+                  value={body}
+                  onValueChange={code => setBody(code)}
+                  highlight={highlightWithPrism}
+                  padding={10}
+                  textareaId="webhook-body-editor"
+                  className="font-mono text-sm"
+                  style={{
+                    fontFamily: '"Fira code", "Fira Mono", monospace',
+                    fontSize: 14,
+                    minHeight: '300px',
+                  }}
+                  onKeyDown={(e) => {
+                    const { key, ctrlKey, metaKey, shiftKey } = e;
+                    
+                    // Undo/Redo
+                    if ((ctrlKey || metaKey) && key === 'z') {
+                      e.preventDefault();
+                      if (shiftKey) {
+                        redo();
+                      } else {
+                        undo();
+                      }
+                      return;
+                    }
+
+                    // Tab indentation
+                    if (key === 'Tab') {
+                        e.preventDefault();
+                        const textarea = e.target as HTMLTextAreaElement;
+                        const start = textarea.selectionStart;
+                        const end = textarea.selectionEnd;
+                        
+                        const newBody = body.substring(0, start) + '  ' + body.substring(end);
+                        setBody(newBody);
+                        
+                        setTimeout(() => {
+                            textarea.selectionStart = textarea.selectionEnd = start + 2;
+                        }, 0);
+                    }
+                  }}
+                />
+              </div>
               {jsonError && (
                 <p className="mt-1 text-sm text-red-500 dark:text-red-400">
                   {jsonError}
@@ -173,7 +226,7 @@ const WebhookSettings: React.FC = () => {
                   <button
                     key={variable.value}
                     onClick={() => {
-                      const textarea = document.getElementById('webhook-body') as HTMLTextAreaElement;
+                      const textarea = document.getElementById('webhook-body-editor') as HTMLTextAreaElement;
                       if (!textarea) return;
 
                       const start = textarea.selectionStart;
