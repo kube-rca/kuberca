@@ -1,30 +1,22 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-json';
-import 'prismjs/themes/prism.css'; // Basic theme, can be customized
+import 'prismjs/themes/prism.css';
+import { useUndo } from '../hooks/useUndo';
 
 // Custom styler to highlight variables
 const highlightWithPrism = (code: string) => {
   let highlighted = Prism.highlight(code, Prism.languages.json, 'json');
   
-  // Replace {{variable}} with a span having a background color
-  // We use a regex to find {{...}} pattern and wrap it.
-  // Note: Prism highlighting returns HTML strings. We need to be careful not to break HTML tags.
-  // However, simple variable replacement usually works if they don't contain HTML-like characters that Prism escapes differently.
-  // A safer approach for this specific requirement without writing a full Prism grammar extension
-  // is to replace the text pattern. Since {{...}} is distinct, it should be fine.
-  
-  // Actually, a better way is to extend Prism JSON grammar to tokenize {{...}} as a specific type.
-  // But for simplicity and effectiveness with the requested background color feature:
-   highlighted = highlighted.replace(
+  highlighted = highlighted.replace(
     /{{[\w.]+}}/g,
     (match) => `<span class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded px-0.5 font-bold">${match}</span>`
   );
   
   return highlighted;
 };
-
-// ... inside component ...
 
 
 
@@ -65,7 +57,7 @@ const WebhookSettings: React.FC = () => {
   };
 
   const removeHeader = (index: number) => {
-    const newHeaders = headers.filter((_, i) => i !== index);
+    const newHeaders = headers.filter((_: WebhookHeader, i: number) => i !== index);
     setHeaders(newHeaders);
   };
 
