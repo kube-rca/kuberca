@@ -17,7 +17,6 @@ import { Header } from './components/Header';
 import UnifiedSearchPanel from './components/UnifiedSearchPanel';
 import SettingsPage from './components/SettingsPage';
 import WebhookSettings from './components/WebhookSettings';
-import FloatingChatbot from './components/FloatingChatbot';
 import { useSearch } from './context/SearchContext';
 // [필수] 우리가 만든 로직 Import
 import { searchIncidents, searchAlerts } from './utils/searchLogic';
@@ -309,7 +308,6 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
       <Header onLogout={handleLogout} />
-      <FloatingChatbot />
       <div className="pt-20 pb-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         <div className="mb-6">
