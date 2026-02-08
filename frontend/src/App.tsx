@@ -15,6 +15,8 @@ import { fetchAuthConfig, refreshAccessToken, logout } from './utils/auth';
 import { ITEMS_PER_PAGE } from './constants';
 import { Header } from './components/Header';
 import UnifiedSearchPanel from './components/UnifiedSearchPanel';
+import SettingsPage from './components/SettingsPage';
+import WebhookSettings from './components/WebhookSettings';
 import { useSearch } from './context/SearchContext';
 // [필수] 우리가 만든 로직 Import
 import { searchIncidents, searchAlerts } from './utils/searchLogic';
@@ -501,6 +503,10 @@ function App() {
               )}
             </div>
           } />
+
+          {/* Settings Route */}
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings/webhooks" element={<WebhookSettings />} />
         </Routes>
       </div>
     </div>

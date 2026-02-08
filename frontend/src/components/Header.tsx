@@ -33,6 +33,9 @@ export const Header: React.FC<HeaderProps> = ({ onLogout }) => {
         <NavLink to="/muted" className={navLinkClass}>
           Archived Incidents
         </NavLink>
+        <NavLink to="/settings" className={navLinkClass}>
+          Settings
+        </NavLink>
       </nav>
 
       {/* 우측 컨트롤 영역: 로그아웃 + 다크모드 토글 */}
