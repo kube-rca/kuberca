@@ -167,7 +167,7 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
         {/* 발생 시간 */}
         <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide flex items-center gap-1">
-             🔥 발생 시간
+            Fired at
           </div>
           <div className="text-gray-900 dark:text-gray-100 font-medium font-mono">
             {formatTime(data.fired_at)}
@@ -177,7 +177,7 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
         {/* 해결 시간 */}
         <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide flex items-center gap-1">
-             ✅ 해결 시간
+            Resolved at
           </div>
           <div className="text-gray-900 dark:text-gray-100 font-medium font-mono">
             {data.resolved_at ? formatTime(data.resolved_at) : <span className="text-red-500 font-bold">Firing</span>}
@@ -187,7 +187,7 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
         {/* 연결된 Incident */}
         <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide flex items-center gap-1">
-             🔗 연결된 Incident
+            Related Incident
           </div>
           {isEditingIncident ? (
             <div className="space-y-3">
@@ -249,7 +249,7 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
         {/* Fingerprint */}
         <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide flex items-center gap-1">
-             🔑 Fingerprint
+             Fingerprint
           </div>
           <div className="text-gray-900 dark:text-gray-100 font-medium font-mono text-sm">
             {data.fingerprint || '-'}
@@ -259,7 +259,7 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
         {/* Labels */}
         <div className="md:col-span-2">
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
-            🏷️ Labels
+            Labels
           </h3>
           <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
             <div className="flex flex-wrap gap-2">
@@ -279,7 +279,7 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
         {/* Annotations */}
         <div className="md:col-span-2">
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
-            📝 Annotations
+            Annotations
           </h3>
           <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700 space-y-2">
             {Object.entries(data.annotations || {}).map(([key, value]) => (
@@ -295,7 +295,7 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
         {data.analysis_summary && (
           <div className="md:col-span-2">
             <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
-              📋 Alert Summary
+              Alert Summary
             </h3>
             <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-lg p-5 transition-colors">
               <div className="prose prose-sm prose-slate dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed">
@@ -321,7 +321,7 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
         {data.analysis_detail && (
           <div className="md:col-span-2">
             <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
-              📝 Alert Analysis
+              Alert Analysis
             </h3>
             <div className="bg-gray-900 border border-gray-700 rounded-lg overflow-hidden shadow-sm">
               <div className="p-6 overflow-x-auto">

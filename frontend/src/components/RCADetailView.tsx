@@ -297,7 +297,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
         
         <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide flex items-center gap-1">
-             🔥 발생 시간
+             Fired at
           </div>
           <div className="text-gray-900 dark:text-gray-100 font-medium font-mono">
             {formatTime(data.fired_at)}
@@ -306,7 +306,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
 
         <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide flex items-center gap-1">
-             ✅ 해결 시간
+             Resolved at
           </div>
           <div className="text-gray-900 dark:text-gray-100 font-medium font-mono">
             {data.resolved_at ? formatTime(data.resolved_at) : <span className="text-red-500 font-bold">Firing</span>}
@@ -315,7 +315,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
 
         <div className="md:col-span-2">
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
-            📋 Incident Summary
+            Incident Summary
           </h3>
           
           {isEditing ? (
@@ -351,7 +351,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
 
         <div className="md:col-span-2">
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
-            📝 Incident Analysis
+            Incident Analysis
           </h3>
 
           {isEditing ? (
@@ -392,7 +392,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
 
         <div className="md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-6 mt-2">
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
-            🚨 연결된 Alert ({data.alerts?.length || 0}개)
+            Related Alerts ({data.alerts?.length || 0} incidents)
           </h3>
 
           {data.alerts && data.alerts.length > 0 ? (
@@ -452,7 +452,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
 
         <div className="md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-6 mt-2">
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
-            🔗 Top 3 유사 인시던트
+            Top 3 Similar Incidents
             {similarLoading && <span className="ml-2 text-sm font-normal text-gray-500">(검색 중...)</span>}
           </h3>
 
