@@ -12,6 +12,20 @@ const WebhookSettings: React.FC = () => {
   const [method, setMethod] = useState('POST');
   const [headers, setHeaders] = useState<WebhookHeader[]>([{ key: '', value: '' }]);
   const [body, setBody] = useState('{\n  "text": "Hello World"\n}');
+  const [jsonError, setJsonError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    try {
+      JSON.parse(body);
+      setJsonError(null);
+    } catch (e) {
+      if (e instanceof Error) {
+        setJsonError(e.message);
+      } else {
+        setJsonError('Invalid JSON');
+      }
+    }
+  }, [body]);
 
   const handleHeaderChange = (index: number, field: 'key' | 'value', value: string) => {
     const newHeaders = [...headers];
@@ -122,8 +136,17 @@ const WebhookSettings: React.FC = () => {
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 rows={12}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-mono text-sm focus:ring-blue-500 focus:border-blue-500"
+                className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-mono text-sm focus:ring-blue-500 focus:border-blue-500 ${
+                  jsonError 
+                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 
+                    : 'border-gray-300 dark:border-gray-600'
+                }`}
               />
+              {jsonError && (
+                <p className="mt-1 text-sm text-red-500 dark:text-red-400">
+                  {jsonError}
+                </p>
+              )}
             </div>
             <div className="w-1/3 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
               <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Insert Variables</h3>
