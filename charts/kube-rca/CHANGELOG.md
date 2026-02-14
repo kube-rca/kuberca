@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.0](https://github.com/kube-rca/helm-charts/compare/0.4.0...0.5.0) (2026-02-09)
+
+
+### Features
+
+* **kube-rca:** add agent masking regex helm settings (KAN-146) ([#8](https://github.com/kube-rca/helm-charts/issues/8)) ([3fec5b5](https://github.com/kube-rca/helm-charts/commit/3fec5b52ccc6c276cb5329fe46f9ff399e633a8e))
+* **observability:** add tempo stack and wire agent tempo settings (KAN-73) ([#7](https://github.com/kube-rca/helm-charts/issues/7)) ([3a1642f](https://github.com/kube-rca/helm-charts/commit/3a1642f474bf2c72faf99fcad2efccc332acfc13))
+
+
+### Bug Fixes
+
+* **helm:** harden tempo defaults for timeout and load (KAN-145) ([3459fde](https://github.com/kube-rca/helm-charts/commit/3459fde4c0a1560f022682f6cf97f6eaff06e260))
+
 ## [0.4.0](https://github.com/kube-rca/helm-charts/compare/0.3.0...0.4.0) (2026-02-05)
 
 
