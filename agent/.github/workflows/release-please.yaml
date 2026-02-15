@@ -61,7 +61,7 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
           ECR_REGISTRY_ALIAS: r5b7j2e4
-          IMAGE_REPO_NAME: kube-rca-ecr
+          IMAGE_REPO_NAME: kube-rca-ecr/agent
           IMAGE_NAME: agent
         run: |
           docker build -t "$ECR_REGISTRY/$ECR_REGISTRY_ALIAS/$IMAGE_REPO_NAME:${{ steps.image-tag.outputs.image_tag }}" .
