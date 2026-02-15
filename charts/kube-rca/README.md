@@ -12,7 +12,7 @@ aws ecr-public get-login-password --region us-east-1 | \
   helm registry login --username AWS --password-stdin public.ecr.aws
 
 # Install/upgrade (basic)
-helm upgrade --install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/kube-rca \
+helm upgrade --install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/charts/kube-rca \
   --namespace kube-rca --create-namespace \
   --version <chart-version>
 ```
@@ -37,7 +37,7 @@ helm upgrade --install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/kube-
 | agent.gemini.secret.existingSecret | string | `"kube-rca-ai"` | Existing Secret name for the Gemini API key. |
 | agent.gemini.secret.key | string | `"ai-studio-api-key"` | Secret key name for the Gemini API key. |
 | agent.image.pullPolicy | string | `"IfNotPresent"` | Agent image pull policy. |
-| agent.image.repository | string | `"public.ecr.aws/r5b7j2e4/kube-rca-ecr"` | Agent image repository. |
+| agent.image.repository | string | `"public.ecr.aws/r5b7j2e4/kube-rca-ecr/agent"` | Agent image repository. |
 | agent.image.tag | string | `""` | Agent image tag. |
 | agent.ingress.annotations | object | `{}` | Annotations for agent ingress. |
 | agent.ingress.enabled | bool | `false` | Enable agent ingress. |
@@ -104,7 +104,7 @@ helm upgrade --install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/kube-
 | backend.embedding.model | string | `"gemini-embedding-001"` |  |
 | backend.embedding.provider | string | `"gemini"` |  |
 | backend.image.pullPolicy | string | `"IfNotPresent"` | Backend image pull policy. |
-| backend.image.repository | string | `"public.ecr.aws/r5b7j2e4/kube-rca-ecr"` | Backend image repository. |
+| backend.image.repository | string | `"public.ecr.aws/r5b7j2e4/kube-rca-ecr/backend"` | Backend image repository. |
 | backend.image.tag | string | `""` | Backend image tag. |
 | backend.ingress.annotations | object | `{}` | Annotations for backend ingress. |
 | backend.ingress.enabled | bool | `false` | Enable backend ingress. |
@@ -134,7 +134,7 @@ helm upgrade --install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/kube-
 | frontend.affinity | object | `{}` | Affinity for frontend pods assignment. |
 | frontend.containerPort | int | `80` | Frontend container port. |
 | frontend.image.pullPolicy | string | `"IfNotPresent"` | Frontend image pull policy. |
-| frontend.image.repository | string | `"public.ecr.aws/r5b7j2e4/kube-rca-ecr"` | Frontend image repository. |
+| frontend.image.repository | string | `"public.ecr.aws/r5b7j2e4/kube-rca-ecr/frontend"` | Frontend image repository. |
 | frontend.image.tag | string | `""` | Frontend image tag. |
 | frontend.ingress.annotations | object | `{}` | Annotations for frontend ingress. |
 | frontend.ingress.enabled | bool | `false` | Enable frontend ingress. |

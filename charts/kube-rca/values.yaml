@@ -84,7 +84,7 @@ backend:
   replicaCount: 1
   image:
     # -- Backend image repository.
-    repository: "public.ecr.aws/r5b7j2e4/kube-rca-ecr"
+    repository: "public.ecr.aws/r5b7j2e4/kube-rca-ecr/backend"
     # -- Backend image tag.
     tag: ""
     # -- Backend image pull policy.
@@ -205,7 +205,7 @@ agent:
   replicaCount: 1
   image:
     # -- Agent image repository.
-    repository: "public.ecr.aws/r5b7j2e4/kube-rca-ecr"
+    repository: "public.ecr.aws/r5b7j2e4/kube-rca-ecr/agent"
     # -- Agent image tag.
     tag: ""
     # -- Agent image pull policy.
@@ -340,7 +340,7 @@ frontend:
   replicaCount: 1
   image:
     # -- Frontend image repository.
-    repository: "public.ecr.aws/r5b7j2e4/kube-rca-ecr"
+    repository: "public.ecr.aws/r5b7j2e4/kube-rca-ecr/frontend"
     # -- Frontend image tag.
     tag: ""
     # -- Frontend image pull policy.
