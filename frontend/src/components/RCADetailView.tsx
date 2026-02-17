@@ -314,7 +314,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
         </div>
 
         <div className="md:col-span-2">
-          <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
             Incident Summary
           </h3>
           
@@ -330,7 +330,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
           ) : (
             // [수정 포인트] 노란색 -> 깔끔한 블루/그레이 톤으로 변경 + 코드 블록 고대비 적용
             <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-lg p-5 transition-colors">
-              <div className="prose prose-sm prose-slate dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed">
+            <div className="prose prose-sm prose-slate dark:prose-invert max-w-none text-gray-900 dark:text-gray-100 leading-relaxed">
                 <ReactMarkdown 
                   remarkPlugins={[remarkGfm]}
                   components={{
@@ -350,7 +350,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
         </div>
 
         <div className="md:col-span-2">
-          <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
             Incident Analysis
           </h3>
 
@@ -366,19 +366,21 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
           ) : (
             <div className="bg-gray-900 border border-gray-700 rounded-lg overflow-hidden shadow-sm">
               <div className="p-6 overflow-x-auto">
-                <div className="prose prose-sm prose-invert max-w-none font-mono leading-relaxed">
+                <div className="prose prose-sm prose-invert prose-p:text-gray-100 prose-li:text-gray-100 prose-headings:text-gray-100 max-w-none font-mono leading-relaxed text-gray-100">
                   <ReactMarkdown 
                     remarkPlugins={[remarkGfm]}
                     components={{
                       h1: ({ node: _node, ...props }) => <h1 className="text-2xl font-extrabold text-blue-400 mt-8 mb-6 pb-2 border-b border-gray-700 flex items-center gap-2 [&_strong]:text-blue-400" {...props} />,
                       h2: ({ node: _node, ...props }) => <h2 className="text-xl font-bold text-indigo-300 mt-8 mb-4 pl-3 border-l-4 border-indigo-500 [&_strong]:text-indigo-300" {...props} />,
                       h3: ({ node: _node, ...props }) => <h3 className="text-lg font-semibold text-sky-300 mt-6 mb-3 ml-1 [&_strong]:text-sky-300" {...props} />,
+                      h4: ({ node: _node, ...props }) => <h4 className="text-base font-semibold text-gray-100 mt-4 mb-2" {...props} />,
                       strong: ({ node: _node, ...props }) => <span className="font-bold text-amber-400" {...props} />,
-                      ul: ({ node: _node, ...props }) => <ul className="list-disc pl-6 space-y-2 my-2 text-gray-300 leading-relaxed" {...props} />,
+                      ul: ({ node: _node, ...props }) => <ul className="list-disc pl-6 space-y-2 my-2 text-gray-100 leading-relaxed" {...props} />,
+                      li: ({ node: _node, ...props }) => <li className="text-gray-100 leading-relaxed" {...props} />,
                       code: ({ node: _node, ...props }) => (
                         <code className="bg-gray-800 text-pink-400 px-1.5 py-0.5 rounded text-sm font-mono border border-gray-700 mx-1" {...props} />
                       ),
-                      p: ({ node: _node, ...props }) => <p className="mb-4 text-gray-300 leading-relaxed" {...props} />,
+                      p: ({ node: _node, ...props }) => <p className="mb-4 text-gray-100 leading-relaxed" {...props} />,
                       a: ({ node: _node, ...props }) => <a className="text-blue-400 hover:text-blue-300 hover:underline transition-colors" target="_blank" rel="noopener noreferrer" {...props} />,
                     }}
                   >
