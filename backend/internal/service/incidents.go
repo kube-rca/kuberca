@@ -135,6 +135,35 @@ func (s *RcaService) UpdateAlertIncidentID(alertID, incidentID string) error {
 	return s.repo.UpdateAlertIncidentID(alertID, incidentID)
 }
 
+func (s *RcaService) GetFeedback(targetType, targetID string, userID int64) (*model.FeedbackSummary, error) {
+	upVotes, downVotes, myVote, err := s.repo.GetVoteSummary(targetType, targetID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	comments, err := s.repo.GetComments(targetType, targetID, 200)
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.FeedbackSummary{
+		TargetType: targetType,
+		TargetID:   targetID,
+		UpVotes:    upVotes,
+		DownVotes:  downVotes,
+		MyVote:     myVote,
+		Comments:   comments,
+	}, nil
+}
+
+func (s *RcaService) CreateFeedbackComment(targetType, targetID string, userID int64, loginID, body string) (*model.FeedbackComment, error) {
+	return s.repo.CreateComment(targetType, targetID, userID, loginID, body)
+}
+
+func (s *RcaService) VoteFeedback(targetType, targetID string, userID int64, voteType string) error {
+	return s.repo.UpsertVote(targetType, targetID, userID, voteType)
+}
+
 // Mock 데이터 생성 (테스트용)
 func (s *RcaService) CreateMockIncident() (string, error) {
 	return s.repo.CreateMockIncident()

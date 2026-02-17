@@ -346,3 +346,123 @@ func (h *RcaHandler) UpdateAlertIncident(c *gin.Context) {
 		AlertID: alertID,
 	})
 }
+
+func (h *RcaHandler) GetIncidentFeedback(c *gin.Context) {
+	incidentID := c.Param("id")
+	user := GetAuthUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	res, err := h.svc.GetFeedback("incident", incidentID, user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+func (h *RcaHandler) CreateIncidentComment(c *gin.Context) {
+	incidentID := c.Param("id")
+	user := GetAuthUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req model.CreateFeedbackCommentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	comment, err := h.svc.CreateFeedbackComment("incident", incidentID, user.ID, user.LoginID, req.Body)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, comment)
+}
+
+func (h *RcaHandler) VoteIncidentFeedback(c *gin.Context) {
+	incidentID := c.Param("id")
+	user := GetAuthUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req model.VoteFeedbackRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.svc.VoteFeedback("incident", incidentID, user.ID, req.VoteType); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, model.VoteFeedbackResponse{Status: "success"})
+}
+
+func (h *RcaHandler) GetAlertFeedback(c *gin.Context) {
+	alertID := c.Param("id")
+	user := GetAuthUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	res, err := h.svc.GetFeedback("alert", alertID, user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+func (h *RcaHandler) CreateAlertComment(c *gin.Context) {
+	alertID := c.Param("id")
+	user := GetAuthUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req model.CreateFeedbackCommentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	comment, err := h.svc.CreateFeedbackComment("alert", alertID, user.ID, user.LoginID, req.Body)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, comment)
+}
+
+func (h *RcaHandler) VoteAlertFeedback(c *gin.Context) {
+	alertID := c.Param("id")
+	user := GetAuthUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req model.VoteFeedbackRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.svc.VoteFeedback("alert", alertID, user.ID, req.VoteType); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, model.VoteFeedbackResponse{Status: "success"})
+}

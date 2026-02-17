@@ -47,6 +47,11 @@ func main() {
 		log.Fatalf("Failed to ensure alert analysis schema: %v", err)
 	}
 
+	// 피드백(투표/코멘트) 스키마 생성
+	if err := pgRepo.EnsureFeedbackSchema(); err != nil {
+		log.Fatalf("Failed to ensure feedback schema: %v", err)
+	}
+
 	// Embedding 스키마 생성 (pgvector 확장 및 embeddings 테이블)
 	// todo: pgvector 확장 먼저 db에 설치해아함
 	if err := pgRepo.EnsureEmbeddingSchema(ctx); err != nil {
@@ -129,11 +134,17 @@ func main() {
 		protected.POST("/incidents/:id/resolve", rcaHndlr.ResolveIncident)
 		protected.GET("/incidents/:id/alerts", rcaHndlr.GetIncidentAlerts)
 		protected.POST("/incidents/mock", rcaHndlr.CreateMockIncident)
+		protected.GET("/incidents/:id/feedback", rcaHndlr.GetIncidentFeedback)
+		protected.POST("/incidents/:id/comments", rcaHndlr.CreateIncidentComment)
+		protected.POST("/incidents/:id/vote", rcaHndlr.VoteIncidentFeedback)
 
 		// Alert 엔드포인트
 		protected.GET("/alerts", rcaHndlr.GetAlerts)
 		protected.GET("/alerts/:id", rcaHndlr.GetAlertDetail)
 		protected.PUT("/alerts/:id/incident", rcaHndlr.UpdateAlertIncident)
+		protected.GET("/alerts/:id/feedback", rcaHndlr.GetAlertFeedback)
+		protected.POST("/alerts/:id/comments", rcaHndlr.CreateAlertComment)
+		protected.POST("/alerts/:id/vote", rcaHndlr.VoteAlertFeedback)
 
 		protected.POST("/embeddings", embeddingHandler.CreateEmbedding)
 		protected.POST("/embeddings/search", embeddingHandler.SearchEmbeddings)
