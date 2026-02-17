@@ -1,0 +1,372 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import {
+  createFeedbackComment,
+  fetchFeedbackSummary,
+  FeedbackCommentResponse,
+  voteFeedback,
+} from '../utils/api';
+
+type VoteType = 'up' | 'down' | null;
+type EditorTab = 'write' | 'preview';
+
+interface FeedbackSectionProps {
+  targetType: 'incident' | 'alert';
+  targetId: string;
+}
+
+const avatarColorByName = (name: string) => {
+  const palette = [
+    'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+    'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+    'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+    'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
+  ];
+  const sum = name.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  return palette[sum % palette.length];
+};
+
+const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId }) => {
+  const [selectedVote, setSelectedVote] = useState<VoteType>(null);
+  const [upVotes, setUpVotes] = useState(0);
+  const [downVotes, setDownVotes] = useState(0);
+  const [comments, setComments] = useState<FeedbackCommentResponse[]>([]);
+  const [tab, setTab] = useState<EditorTab>('write');
+  const [draft, setDraft] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const moreMenuRef = useRef<HTMLDivElement | null>(null);
+
+  const loadFeedback = async () => {
+    setLoading(true);
+    try {
+      const summary = await fetchFeedbackSummary(targetType, targetId);
+      setSelectedVote(summary.my_vote ?? null);
+      setUpVotes(summary.up_votes ?? 0);
+      setDownVotes(summary.down_votes ?? 0);
+      setComments(summary.comments ?? []);
+    } catch (error) {
+      console.error('Failed to load feedback:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadFeedback();
+  }, [targetType, targetId]);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!moreMenuRef.current) return;
+      if (!moreMenuRef.current.contains(event.target as Node)) {
+        setMoreMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, []);
+
+  const handleVote = async (vote: Exclude<VoteType, null>) => {
+    try {
+      const nextVote = selectedVote === vote ? 'none' : vote;
+      await voteFeedback(targetType, targetId, nextVote);
+      await loadFeedback();
+    } catch (error) {
+      console.error('Failed to save vote:', error);
+      alert('투표 저장에 실패했습니다.');
+    }
+  };
+
+  const handleSubmit = async () => {
+    const body = draft.trim();
+    if (!body) return;
+
+    setSubmitting(true);
+    try {
+      const newComment = await createFeedbackComment(targetType, targetId, body);
+      setComments((prev) => [...prev, newComment]);
+      setDraft('');
+      setTab('write');
+    } catch (error) {
+      console.error('Failed to save comment:', error);
+      alert('코멘트 저장에 실패했습니다.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const title = useMemo(() => (targetType === 'incident' ? 'Incident Feedback' : 'Alert Feedback'), [targetType]);
+
+  const applySelectionTransform = (transform: (selected: string) => { text: string; cursorOffset?: number }) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = draft.slice(start, end);
+    const next = transform(selected);
+
+    const updated = `${draft.slice(0, start)}${next.text}${draft.slice(end)}`;
+    setDraft(updated);
+
+    const nextPos = start + (next.cursorOffset ?? next.text.length);
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(nextPos, nextPos);
+    }, 0);
+  };
+
+  const applyLinePrefix = (prefix: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const before = draft.slice(0, start);
+    const selected = draft.slice(start, end);
+    const lineStart = before.lastIndexOf('\n') + 1;
+    const block = `${draft.slice(lineStart, start)}${selected}`;
+    const prefixed = block
+      .split('\n')
+      .map((line) => (line.trim() ? `${prefix}${line}` : line))
+      .join('\n');
+
+    const updated = `${draft.slice(0, lineStart)}${prefixed}${draft.slice(end)}`;
+    setDraft(updated);
+    setTimeout(() => {
+      textarea.focus();
+    }, 0);
+  };
+
+  const handleMoreAction = (action: 'unordered' | 'numbered' | 'task' | 'mention' | 'reference' | 'slash') => {
+    setMoreMenuOpen(false);
+
+    if (action === 'unordered') {
+      applyLinePrefix('- ');
+      return;
+    }
+    if (action === 'numbered') {
+      applyLinePrefix('1. ');
+      return;
+    }
+    if (action === 'task') {
+      applyLinePrefix('- [ ] ');
+      return;
+    }
+    if (action === 'mention') {
+      applySelectionTransform((s) => ({ text: s ? `@${s}` : '@mention' }));
+      return;
+    }
+    if (action === 'reference') {
+      applySelectionTransform((s) => ({ text: s ? `${s}#123` : 'owner/repo#123' }));
+      return;
+    }
+    applySelectionTransform((s) => ({ text: s ? `/${s}` : '/command' }));
+  };
+
+  return (
+    <section className="border-t border-gray-200 dark:border-gray-700 pt-6 mt-2">
+      <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">{title}</h3>
+
+      <div className="mb-6 flex items-center justify-center gap-4">
+        <button
+          type="button"
+          onClick={() => handleVote('up')}
+          className={`h-12 w-12 rounded-full border text-2xl flex items-center justify-center transition-colors ${
+            selectedVote === 'up'
+              ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
+              : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
+          aria-label="Upvote"
+        >
+          👍🏻
+        </button>
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{upVotes}</span>
+
+        <button
+          type="button"
+          onClick={() => handleVote('down')}
+          className={`h-12 w-12 rounded-full border text-2xl flex items-center justify-center transition-colors ${
+            selectedVote === 'down'
+              ? 'border-rose-500 bg-rose-50 dark:bg-rose-900/20'
+              : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
+          aria-label="Downvote"
+        >
+          👎🏻
+        </button>
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{downVotes}</span>
+      </div>
+
+      <div className="space-y-4 mb-6">
+        {loading && (
+          <div className="text-sm text-gray-500 dark:text-gray-400">피드백을 불러오는 중...</div>
+        )}
+        {comments.map((comment) => {
+          const initial = comment.author_login_id[0]?.toUpperCase() || 'U';
+          return (
+            <article key={comment.comment_id} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+              <header className="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3">
+                <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold ${avatarColorByName(comment.author_login_id)}`}>
+                  {initial}
+                </div>
+                <div className="text-sm">
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">{comment.author_login_id}</span>
+                  <span className="text-gray-500 dark:text-gray-400 ml-2">{comment.created_at}</span>
+                </div>
+              </header>
+              <div className="px-4 py-4 text-sm text-gray-800 dark:text-gray-200">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    p: ({ node: _node, ...props }) => <p className="mb-3 last:mb-0 leading-relaxed" {...props} />,
+                    ul: ({ node: _node, ...props }) => <ul className="list-disc pl-5 mb-3 space-y-1" {...props} />,
+                    code: ({ node: _node, ...props }) => (
+                      <code className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-1 py-0.5 font-mono text-xs" {...props} />
+                    ),
+                  }}
+                >
+                  {comment.body}
+                </ReactMarkdown>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-visible">
+        <div className="flex border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+          <button
+            type="button"
+            onClick={() => setTab('write')}
+            className={`px-4 py-2 text-sm font-medium border-r border-gray-200 dark:border-gray-700 ${
+              tab === 'write' ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'
+            }`}
+          >
+            Write
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('preview')}
+            className={`px-4 py-2 text-sm font-medium ${
+              tab === 'preview' ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'
+            }`}
+          >
+            Preview
+          </button>
+        </div>
+
+        {tab === 'write' && (
+          <div className="flex items-center gap-1 px-2 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 overflow-x-auto">
+            <button
+              type="button"
+              onClick={() => applyLinePrefix('### ')}
+              className="h-8 w-8 rounded text-lg font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+              title="Heading"
+            >
+              H
+            </button>
+            <button
+              type="button"
+              onClick={() => applySelectionTransform((s) => ({ text: `**${s || 'bold text'}**`, cursorOffset: s ? undefined : 2 }))}
+              className="h-8 w-8 rounded text-lg font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+              title="Bold"
+            >
+              B
+            </button>
+            <button
+              type="button"
+              onClick={() => applySelectionTransform((s) => ({ text: `*${s || 'italic text'}*`, cursorOffset: s ? undefined : 1 }))}
+              className="h-8 w-8 rounded text-lg italic text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+              title="Italic"
+            >
+              I
+            </button>
+            <button
+              type="button"
+              onClick={() => applySelectionTransform((s) => ({ text: `\`${s || 'code'}\``, cursorOffset: s ? undefined : 1 }))}
+              className="h-8 w-8 rounded text-lg text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+              title="Code"
+            >
+              &lt;&gt;
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                applySelectionTransform((s) => ({
+                  text: `[${s || 'link text'}](https://example.com)`,
+                  cursorOffset: s ? undefined : 1,
+                }))
+              }
+              className="h-8 w-8 rounded text-lg text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+              title="Link"
+            >
+              🔗
+            </button>
+            <span className="mx-1 h-6 w-px bg-gray-300 dark:bg-gray-600" />
+            <div className="relative" ref={moreMenuRef}>
+              <button
+                type="button"
+                onClick={() => setMoreMenuOpen((v) => !v)}
+                className="h-8 w-8 rounded text-lg text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                title="More"
+              >
+                ...
+              </button>
+              {moreMenuOpen && (
+                <div className="absolute right-0 top-9 z-20 w-52 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg">
+                  <button type="button" onClick={() => handleMoreAction('unordered')} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Unordered list</button>
+                  <button type="button" onClick={() => handleMoreAction('numbered')} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Numbered list</button>
+                  <button type="button" onClick={() => handleMoreAction('task')} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Task list</button>
+                  <div className="h-px bg-gray-200 dark:bg-gray-700" />
+                  <button type="button" onClick={() => handleMoreAction('mention')} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">@ Mention</button>
+                  <button type="button" onClick={() => handleMoreAction('reference')} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Reference</button>
+                  <button type="button" onClick={() => handleMoreAction('slash')} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Slash commands</button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {tab === 'write' ? (
+          <textarea
+            ref={textareaRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={`Add a comment for ${targetType} ${targetId}...`}
+            className="w-full min-h-[160px] p-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none"
+          />
+        ) : (
+          <div className="min-h-[160px] p-4 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+            {draft.trim() ? (
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{draft}</ReactMarkdown>
+            ) : (
+              <p className="text-sm text-gray-500 dark:text-gray-400">Nothing to preview.</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-3 flex justify-end">
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={!draft.trim() || submitting}
+          className="px-4 py-2 rounded-md bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {submitting ? 'Saving...' : 'Comment'}
+        </button>
+      </div>
+    </section>
+  );
+};
+
+export default FeedbackSection;

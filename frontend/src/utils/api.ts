@@ -263,3 +263,86 @@ export const searchSimilarIncidents = async (query: string, limit: number = 5): 
 
   return response.json();
 };
+
+// ============================================================================
+// Feedback API
+// ============================================================================
+
+export type FeedbackTargetType = 'incident' | 'alert';
+export type FeedbackVoteType = 'up' | 'down' | 'none';
+
+export interface FeedbackCommentResponse {
+  comment_id: number;
+  target_type: FeedbackTargetType;
+  target_id: string;
+  user_id: number;
+  author_login_id: string;
+  body: string;
+  created_at: string;
+}
+
+export interface FeedbackSummaryResponse {
+  target_type: FeedbackTargetType;
+  target_id: string;
+  up_votes: number;
+  down_votes: number;
+  my_vote?: 'up' | 'down';
+  comments: FeedbackCommentResponse[];
+}
+
+const getFeedbackBasePath = (targetType: FeedbackTargetType, targetId: string): string => {
+  if (targetType === 'incident') {
+    return `/api/v1/incidents/${targetId}`;
+  }
+  return `/api/v1/alerts/${targetId}`;
+};
+
+export const fetchFeedbackSummary = async (targetType: FeedbackTargetType, targetId: string): Promise<FeedbackSummaryResponse> => {
+  const response = await requestWithAuth(`${getFeedbackBasePath(targetType, targetId)}/feedback`, {
+    method: 'GET',
+  });
+
+  if (!response.ok) {
+    throw new Error('피드백 정보를 불러오는데 실패했습니다.');
+  }
+
+  return response.json();
+};
+
+export const createFeedbackComment = async (
+  targetType: FeedbackTargetType,
+  targetId: string,
+  body: string
+): Promise<FeedbackCommentResponse> => {
+  const response = await requestWithAuth(`${getFeedbackBasePath(targetType, targetId)}/comments`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ body }),
+  });
+
+  if (!response.ok) {
+    throw new Error('코멘트 저장에 실패했습니다.');
+  }
+
+  return response.json();
+};
+
+export const voteFeedback = async (
+  targetType: FeedbackTargetType,
+  targetId: string,
+  voteType: FeedbackVoteType
+): Promise<void> => {
+  const response = await requestWithAuth(`${getFeedbackBasePath(targetType, targetId)}/vote`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ vote_type: voteType }),
+  });
+
+  if (!response.ok) {
+    throw new Error('투표 저장에 실패했습니다.');
+  }
+};

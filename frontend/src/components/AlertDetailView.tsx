@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm';
 import { useNavigate } from 'react-router-dom';
 import { fetchAlertDetail, fetchRCAs, updateAlertIncident } from '../utils/api';
 import { RCAItem } from '../types';
+import FeedbackSection from './FeedbackSection';
 
 export interface AlertDetail {
   alert_id: string;
@@ -348,6 +349,10 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
             </div>
           </div>
         )}
+
+        <div className="md:col-span-2">
+          <FeedbackSection targetType="alert" targetId={alertId} />
+        </div>
       </div>
     </div>
   );

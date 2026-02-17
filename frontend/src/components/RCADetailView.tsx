@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { RCADetail, AlertItem } from '../types';
+import FeedbackSection from './FeedbackSection';
 import { 
   fetchRCADetail, 
   updateRCADetail, 
@@ -487,6 +488,10 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
               </p>
             </div>
           )}
+        </div>
+
+        <div className="md:col-span-2">
+          <FeedbackSection targetType="incident" targetId={incidentId} />
         </div>
 
       </div>
