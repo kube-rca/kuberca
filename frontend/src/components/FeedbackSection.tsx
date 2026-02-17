@@ -52,9 +52,13 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
   const [commentMenuId, setCommentMenuId] = useState<number | null>(null);
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editingDraft, setEditingDraft] = useState('');
+  const [editingTab, setEditingTab] = useState<EditorTab>('write');
+  const [editingMoreMenuOpen, setEditingMoreMenuOpen] = useState(false);
   const [commentActionLoadingId, setCommentActionLoadingId] = useState<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const editingTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const moreMenuRef = useRef<HTMLDivElement | null>(null);
+  const editingMoreMenuRef = useRef<HTMLDivElement | null>(null);
 
   const loadFeedback = async () => {
     setLoading(true);
@@ -81,6 +85,9 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
 
       if (moreMenuRef.current && !moreMenuRef.current.contains(target)) {
         setMoreMenuOpen(false);
+      }
+      if (editingMoreMenuRef.current && !editingMoreMenuRef.current.contains(target)) {
+        setEditingMoreMenuOpen(false);
       }
 
       if (!target.closest('[data-comment-menu]')) {
@@ -129,6 +136,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
     setCommentMenuId(null);
     setEditingCommentId(comment.comment_id);
     setEditingDraft(comment.body);
+    setEditingTab('write');
   };
 
   const cancelEditComment = () => {
@@ -175,17 +183,26 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
     }
   };
 
-  const applySelectionTransform = (transform: (selected: string) => { text: string; cursorOffset?: number }) => {
-    const textarea = textareaRef.current;
+  type EditorContext = {
+    draft: string;
+    setDraft: React.Dispatch<React.SetStateAction<string>>;
+    textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  };
+
+  const applySelectionTransform = (
+    transform: (selected: string) => { text: string; cursorOffset?: number },
+    ctx: EditorContext = { draft, setDraft: setDraft as React.Dispatch<React.SetStateAction<string>>, textareaRef }
+  ) => {
+    const textarea = ctx.textareaRef.current;
     if (!textarea) return;
 
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
-    const selected = draft.slice(start, end);
+    const selected = ctx.draft.slice(start, end);
     const next = transform(selected);
 
-    const updated = `${draft.slice(0, start)}${next.text}${draft.slice(end)}`;
-    setDraft(updated);
+    const updated = `${ctx.draft.slice(0, start)}${next.text}${ctx.draft.slice(end)}`;
+    ctx.setDraft(updated);
 
     const nextPos = start + (next.cursorOffset ?? next.text.length);
     setTimeout(() => {
@@ -194,52 +211,64 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
     }, 0);
   };
 
-  const applyLinePrefix = (prefix: string) => {
-    const textarea = textareaRef.current;
+  const applyLinePrefix = (
+    prefix: string,
+    ctx: EditorContext = { draft, setDraft: setDraft as React.Dispatch<React.SetStateAction<string>>, textareaRef }
+  ) => {
+    const textarea = ctx.textareaRef.current;
     if (!textarea) return;
 
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
-    const before = draft.slice(0, start);
-    const selected = draft.slice(start, end);
+    const before = ctx.draft.slice(0, start);
+    const selected = ctx.draft.slice(start, end);
     const lineStart = before.lastIndexOf('\n') + 1;
-    const block = `${draft.slice(lineStart, start)}${selected}`;
+    const block = `${ctx.draft.slice(lineStart, start)}${selected}`;
     const prefixed = block
       .split('\n')
       .map((line) => (line.trim() ? `${prefix}${line}` : line || prefix))
       .join('\n');
 
-    const updated = `${draft.slice(0, lineStart)}${prefixed}${draft.slice(end)}`;
-    setDraft(updated);
+    const updated = `${ctx.draft.slice(0, lineStart)}${prefixed}${ctx.draft.slice(end)}`;
+    ctx.setDraft(updated);
     setTimeout(() => {
       textarea.focus();
     }, 0);
   };
 
-  const handleMoreAction = (action: 'unordered' | 'numbered' | 'task' | 'mention' | 'reference' | 'slash') => {
+  const handleMoreAction = (
+    action: 'unordered' | 'numbered' | 'task' | 'mention' | 'reference' | 'slash',
+    ctx?: EditorContext
+  ) => {
     setMoreMenuOpen(false);
+    setEditingMoreMenuOpen(false);
 
+    const editCtx: EditorContext = ctx ?? {
+      draft,
+      setDraft: setDraft as React.Dispatch<React.SetStateAction<string>>,
+      textareaRef,
+    };
     if (action === 'unordered') {
-      applyLinePrefix('- ');
+      applyLinePrefix('- ', editCtx);
       return;
     }
     if (action === 'numbered') {
-      applyLinePrefix('1. ');
+      applyLinePrefix('1. ', editCtx);
       return;
     }
     if (action === 'task') {
-      applyLinePrefix('- [ ] ');
+      applyLinePrefix('- [ ] ', editCtx);
       return;
     }
     if (action === 'mention') {
-      applySelectionTransform((s) => ({ text: s ? `@${s}` : '@mention' }));
+      applySelectionTransform((s) => ({ text: s ? `@${s}` : '@mention' }), editCtx);
       return;
     }
     if (action === 'reference') {
-      applySelectionTransform((s) => ({ text: s ? `${s}#123` : 'owner/repo#123' }));
+      applySelectionTransform((s) => ({ text: s ? `${s}#123` : 'owner/repo#123' }), editCtx);
       return;
     }
-    applySelectionTransform((s) => ({ text: s ? `/${s}` : '/command' }));
+    applySelectionTransform((s) => ({ text: s ? `/${s}` : '/command' }), editCtx);
   };
 
   return (
@@ -324,13 +353,126 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
               </header>
               <div className="px-4 py-4 text-sm text-gray-800 dark:text-gray-200">
                 {editingCommentId === comment.comment_id ? (
-                  <div className="space-y-2">
-                    <textarea
-                      value={editingDraft}
-                      onChange={(e) => setEditingDraft(e.target.value)}
-                      className="w-full min-h-[96px] rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 p-3 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <div className="flex items-center justify-end gap-2">
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-visible -mx-1 -my-1">
+                    <div className="flex border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                      <button
+                        type="button"
+                        onClick={() => setEditingTab('write')}
+                        className={`px-4 py-2 text-sm font-medium border-r border-gray-200 dark:border-gray-700 ${
+                          editingTab === 'write' ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'
+                        }`}
+                      >
+                        Write
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingTab('preview')}
+                        className={`px-4 py-2 text-sm font-medium ${
+                          editingTab === 'preview' ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'
+                        }`}
+                      >
+                        Preview
+                      </button>
+                    </div>
+                    {editingTab === 'write' && (
+                      <div className="flex items-center gap-1 px-2 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 overflow-x-auto">
+                        <button
+                          type="button"
+                          onClick={() => applyLinePrefix('### ', { draft: editingDraft, setDraft: setEditingDraft, textareaRef: editingTextareaRef })}
+                          className="h-8 w-8 rounded text-lg font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                          title="Heading"
+                        >
+                          H
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => applySelectionTransform((s) => ({ text: `**${s || 'bold text'}**`, cursorOffset: s ? undefined : 2 }), { draft: editingDraft, setDraft: setEditingDraft, textareaRef: editingTextareaRef })}
+                          className="h-8 w-8 rounded text-lg font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                          title="Bold"
+                        >
+                          B
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => applySelectionTransform((s) => ({ text: `*${s || 'italic text'}*`, cursorOffset: s ? undefined : 1 }), { draft: editingDraft, setDraft: setEditingDraft, textareaRef: editingTextareaRef })}
+                          className="h-8 w-8 rounded text-lg italic text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                          title="Italic"
+                        >
+                          I
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => applySelectionTransform((s) => ({ text: `\`${s || 'code'}\``, cursorOffset: s ? undefined : 1 }), { draft: editingDraft, setDraft: setEditingDraft, textareaRef: editingTextareaRef })}
+                          className="h-8 w-8 rounded text-lg text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                          title="Code"
+                        >
+                          &lt;&gt;
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            applySelectionTransform(
+                              (s) => ({ text: `[${s || 'link text'}](https://example.com)`, cursorOffset: s ? undefined : 1 }),
+                              { draft: editingDraft, setDraft: setEditingDraft, textareaRef: editingTextareaRef }
+                            )
+                          }
+                          className="h-8 w-8 rounded text-lg text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                          title="Link"
+                        >
+                          🔗
+                        </button>
+                        <span className="mx-1 h-6 w-px bg-gray-300 dark:bg-gray-600" />
+                        <div className="relative" ref={editingMoreMenuRef}>
+                          <button
+                            type="button"
+                            onClick={() => setEditingMoreMenuOpen((v) => !v)}
+                            className="h-8 w-8 rounded text-lg text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                            title="More"
+                          >
+                            ...
+                          </button>
+                          {editingMoreMenuOpen && (
+                            <div className="absolute right-0 top-9 z-[100] w-52 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg">
+                              <button type="button" onClick={() => handleMoreAction('unordered', { draft: editingDraft, setDraft: setEditingDraft, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Unordered list</button>
+                              <button type="button" onClick={() => handleMoreAction('numbered', { draft: editingDraft, setDraft: setEditingDraft, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Numbered list</button>
+                              <button type="button" onClick={() => handleMoreAction('task', { draft: editingDraft, setDraft: setEditingDraft, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Task list</button>
+                              <div className="h-px bg-gray-200 dark:bg-gray-700" />
+                              <button type="button" onClick={() => handleMoreAction('mention', { draft: editingDraft, setDraft: setEditingDraft, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">@ Mention</button>
+                              <button type="button" onClick={() => handleMoreAction('reference', { draft: editingDraft, setDraft: setEditingDraft, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Reference</button>
+                              <button type="button" onClick={() => handleMoreAction('slash', { draft: editingDraft, setDraft: setEditingDraft, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Slash commands</button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {editingTab === 'write' ? (
+                      <textarea
+                        ref={editingTextareaRef}
+                        value={editingDraft}
+                        onChange={(e) => setEditingDraft(e.target.value)}
+                        className="w-full min-h-[160px] p-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none text-sm"
+                      />
+                    ) : (
+                      <div className="min-h-[160px] p-4 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+                        {editingDraft.trim() ? (
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              p: ({ node: _node, ...props }) => <p className="mb-3 last:mb-0 leading-relaxed" {...props} />,
+                              ul: ({ node: _node, ...props }) => <ul className="list-disc pl-5 mb-3 space-y-1" {...props} />,
+                              code: ({ node: _node, ...props }) => (
+                                <code className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-1 py-0.5 font-mono text-xs" {...props} />
+                              ),
+                            }}
+                          >
+                            {editingDraft}
+                          </ReactMarkdown>
+                        ) : (
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Nothing to preview.</p>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex justify-end gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
                       <button
                         type="button"
                         onClick={cancelEditComment}
