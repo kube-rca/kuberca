@@ -346,3 +346,43 @@ export const voteFeedback = async (
     throw new Error('투표 저장에 실패했습니다.');
   }
 };
+
+// ============================================================================
+// Chat API
+// ============================================================================
+
+export interface ChatRequest {
+  message: string;
+  conversation_id: string;
+  page: string;
+  auto: boolean;
+  incident_id: string;
+  alert_id: string;
+  incident_title: string;
+  incident_content: string;
+  alert_title: string;
+  alert_content: string;
+}
+
+export interface ChatResponse {
+  status: string;
+  answer: string;
+  conversation_id?: string;
+}
+
+export const chatWithAgent = async (payload: ChatRequest): Promise<ChatResponse> => {
+  const response = await requestWithAuth('/api/v1/chat', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `채팅 요청 실패 (${response.status})`);
+  }
+
+  return response.json();
+};

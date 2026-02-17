@@ -18,6 +18,7 @@ import { Sidebar } from './components/Sidebar';
 import UnifiedSearchPanel from './components/UnifiedSearchPanel';
 import SettingsPage from './components/SettingsPage';
 import WebhookSettings from './components/WebhookSettings';
+import FloatingChatPanel from './components/FloatingChatPanel';
 import { useSearch } from './context/SearchContext';
 // [필수] 우리가 만든 로직 Import
 import { searchIncidents, searchAlerts } from './utils/searchLogic';
@@ -86,6 +87,7 @@ function App() {
   const [authReady, setAuthReady] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [allowSignup, setAllowSignup] = useState(false);
+  const [isChatDocked, setIsChatDocked] = useState(false);
 
   const mapLegacyTimeToKey = (range: string): string => {
     switch (range) {
@@ -311,7 +313,7 @@ function App() {
       <Header onLogout={handleLogout} />
       <div className="pt-16">
         <Sidebar />
-        <div className="md:ml-64 px-4 sm:px-6 lg:px-8 py-6">
+        <div className={`md:ml-64 px-4 sm:px-6 lg:px-8 py-6 transition-all duration-300 ${isChatDocked ? "md:mr-[26rem]" : ""}`}>
           <div className="w-full max-w-[1600px] mx-auto">
             <div className="mb-6">
               <UnifiedSearchPanel availableLabels={availableLabels} availableNamespaces={availableNamespaces} />
@@ -514,6 +516,7 @@ function App() {
           </div>
         </div>
       </div>
+      <FloatingChatPanel onDockedChange={setIsChatDocked} />
     </div>
   );
 }
