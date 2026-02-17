@@ -160,6 +160,14 @@ func (s *RcaService) CreateFeedbackComment(targetType, targetID string, userID i
 	return s.repo.CreateComment(targetType, targetID, userID, loginID, body)
 }
 
+func (s *RcaService) UpdateFeedbackComment(targetType, targetID string, commentID, userID int64, body string) (*model.FeedbackComment, error) {
+	return s.repo.UpdateComment(targetType, targetID, commentID, userID, body)
+}
+
+func (s *RcaService) DeleteFeedbackComment(targetType, targetID string, commentID, userID int64) error {
+	return s.repo.DeleteComment(targetType, targetID, commentID, userID)
+}
+
 func (s *RcaService) VoteFeedback(targetType, targetID string, userID int64, voteType string) error {
 	return s.repo.UpsertVote(targetType, targetID, userID, voteType)
 }

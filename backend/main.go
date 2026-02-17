@@ -138,6 +138,8 @@ func main() {
 		protected.POST("/incidents/mock", rcaHndlr.CreateMockIncident)
 		protected.GET("/incidents/:id/feedback", rcaHndlr.GetIncidentFeedback)
 		protected.POST("/incidents/:id/comments", rcaHndlr.CreateIncidentComment)
+		protected.PUT("/incidents/:id/comments/:commentId", rcaHndlr.UpdateIncidentComment)
+		protected.DELETE("/incidents/:id/comments/:commentId", rcaHndlr.DeleteIncidentComment)
 		protected.POST("/incidents/:id/vote", rcaHndlr.VoteIncidentFeedback)
 
 		// Alert 엔드포인트
@@ -146,6 +148,8 @@ func main() {
 		protected.PUT("/alerts/:id/incident", rcaHndlr.UpdateAlertIncident)
 		protected.GET("/alerts/:id/feedback", rcaHndlr.GetAlertFeedback)
 		protected.POST("/alerts/:id/comments", rcaHndlr.CreateAlertComment)
+		protected.PUT("/alerts/:id/comments/:commentId", rcaHndlr.UpdateAlertComment)
+		protected.DELETE("/alerts/:id/comments/:commentId", rcaHndlr.DeleteAlertComment)
 		protected.POST("/alerts/:id/vote", rcaHndlr.VoteAlertFeedback)
 
 		protected.POST("/embeddings", embeddingHandler.CreateEmbedding)

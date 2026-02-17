@@ -2,6 +2,8 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/kube-rca/backend/internal/model"
@@ -376,6 +378,10 @@ func (h *RcaHandler) CreateIncidentComment(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	if strings.TrimSpace(req.Body) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "body is required"})
+		return
+	}
 
 	comment, err := h.svc.CreateFeedbackComment("incident", incidentID, user.ID, user.LoginID, req.Body)
 	if err != nil {
@@ -384,6 +390,63 @@ func (h *RcaHandler) CreateIncidentComment(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, comment)
+}
+
+func (h *RcaHandler) UpdateIncidentComment(c *gin.Context) {
+	incidentID := c.Param("id")
+	commentID, err := strconv.ParseInt(c.Param("commentId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid comment_id"})
+		return
+	}
+
+	user := GetAuthUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req model.UpdateFeedbackCommentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if strings.TrimSpace(req.Body) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "body is required"})
+		return
+	}
+
+	comment, err := h.svc.UpdateFeedbackComment("incident", incidentID, commentID, user.ID, req.Body)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, comment)
+}
+
+func (h *RcaHandler) DeleteIncidentComment(c *gin.Context) {
+	incidentID := c.Param("id")
+	commentID, err := strconv.ParseInt(c.Param("commentId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid comment_id"})
+		return
+	}
+
+	user := GetAuthUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	if err := h.svc.DeleteFeedbackComment("incident", incidentID, commentID, user.ID); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, model.FeedbackCommentMutationResponse{
+		Status:    "success",
+		CommentID: commentID,
+	})
 }
 
 func (h *RcaHandler) VoteIncidentFeedback(c *gin.Context) {
@@ -436,6 +499,10 @@ func (h *RcaHandler) CreateAlertComment(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	if strings.TrimSpace(req.Body) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "body is required"})
+		return
+	}
 
 	comment, err := h.svc.CreateFeedbackComment("alert", alertID, user.ID, user.LoginID, req.Body)
 	if err != nil {
@@ -444,6 +511,63 @@ func (h *RcaHandler) CreateAlertComment(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, comment)
+}
+
+func (h *RcaHandler) UpdateAlertComment(c *gin.Context) {
+	alertID := c.Param("id")
+	commentID, err := strconv.ParseInt(c.Param("commentId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid comment_id"})
+		return
+	}
+
+	user := GetAuthUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req model.UpdateFeedbackCommentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if strings.TrimSpace(req.Body) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "body is required"})
+		return
+	}
+
+	comment, err := h.svc.UpdateFeedbackComment("alert", alertID, commentID, user.ID, req.Body)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, comment)
+}
+
+func (h *RcaHandler) DeleteAlertComment(c *gin.Context) {
+	alertID := c.Param("id")
+	commentID, err := strconv.ParseInt(c.Param("commentId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid comment_id"})
+		return
+	}
+
+	user := GetAuthUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	if err := h.svc.DeleteFeedbackComment("alert", alertID, commentID, user.ID); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, model.FeedbackCommentMutationResponse{
+		Status:    "success",
+		CommentID: commentID,
+	})
 }
 
 func (h *RcaHandler) VoteAlertFeedback(c *gin.Context) {

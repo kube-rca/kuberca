@@ -119,6 +119,58 @@ func (db *Postgres) CreateComment(targetType, targetID string, userID int64, aut
 	return &comment, nil
 }
 
+func (db *Postgres) UpdateComment(targetType, targetID string, commentID, userID int64, body string) (*model.FeedbackComment, error) {
+	normalizedTargetType, err := normalizeTargetType(targetType)
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+		UPDATE feedback_comments
+		SET body = $5, updated_at = NOW()
+		WHERE comment_id = $1 AND target_type = $2 AND target_id = $3 AND user_id = $4
+		RETURNING comment_id, target_type, target_id, user_id, author_login_id, body, created_at
+	`
+
+	var comment model.FeedbackComment
+	err = db.Pool.QueryRow(context.Background(), query, commentID, normalizedTargetType, targetID, userID, body).Scan(
+		&comment.CommentID,
+		&comment.TargetType,
+		&comment.TargetID,
+		&comment.UserID,
+		&comment.AuthorLoginID,
+		&comment.Body,
+		&comment.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("comment not found or no permission")
+		}
+		return nil, err
+	}
+	return &comment, nil
+}
+
+func (db *Postgres) DeleteComment(targetType, targetID string, commentID, userID int64) error {
+	normalizedTargetType, err := normalizeTargetType(targetType)
+	if err != nil {
+		return err
+	}
+
+	result, err := db.Pool.Exec(context.Background(), `
+		DELETE FROM feedback_comments
+		WHERE comment_id = $1 AND target_type = $2 AND target_id = $3 AND user_id = $4
+	`, commentID, normalizedTargetType, targetID, userID)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("comment not found or no permission")
+	}
+	return nil
+}
+
 func (db *Postgres) GetComments(targetType, targetID string, limit int32) ([]model.FeedbackComment, error) {
 	normalizedTargetType, err := normalizeTargetType(targetType)
 	if err != nil {

@@ -25,6 +25,10 @@ type CreateFeedbackCommentRequest struct {
 	Body string `json:"body" binding:"required"`
 }
 
+type UpdateFeedbackCommentRequest struct {
+	Body string `json:"body" binding:"required"`
+}
+
 type VoteFeedbackRequest struct {
 	// up | down | none (none이면 기존 투표 취소)
 	VoteType string `json:"vote_type" binding:"required"`
@@ -32,4 +36,9 @@ type VoteFeedbackRequest struct {
 
 type VoteFeedbackResponse struct {
 	Status string `json:"status"`
+}
+
+type FeedbackCommentMutationResponse struct {
+	Status    string `json:"status"`
+	CommentID int64  `json:"comment_id"`
 }
