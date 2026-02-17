@@ -212,6 +212,40 @@ func (db *Postgres) GetAlertDetail(alertID string) (*model.AlertDetailResponse, 
 	return &a, nil
 }
 
+// GetAlertDetailInsensitive - Alert 상세 조회 (대소문자 무시)
+func (db *Postgres) GetAlertDetailInsensitive(alertID string) (*model.AlertDetailResponse, error) {
+	query := `
+		SELECT
+			alert_id, incident_id, alarm_title, severity, status,
+			fired_at, resolved_at, analysis_summary, analysis_detail,
+			fingerprint, thread_ts, labels, annotations
+		FROM alerts
+		WHERE lower(alert_id) = lower($1)
+		LIMIT 1
+	`
+
+	var a model.AlertDetailResponse
+	err := db.Pool.QueryRow(context.Background(), query, alertID).Scan(
+		&a.AlertID,
+		&a.IncidentID,
+		&a.AlarmTitle,
+		&a.Severity,
+		&a.Status,
+		&a.FiredAt,
+		&a.ResolvedAt,
+		&a.AnalysisSummary,
+		&a.AnalysisDetail,
+		&a.Fingerprint,
+		&a.ThreadTS,
+		&a.Labels,
+		&a.Annotations,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &a, nil
+}
+
 // UpdateAlertThreadTS - Alert에 Slack thread_ts 저장
 func (db *Postgres) UpdateAlertThreadTS(alertID, threadTS string) error {
 	query := `

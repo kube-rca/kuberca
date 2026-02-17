@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/kube-rca/backend/internal/config"
@@ -210,30 +211,48 @@ func (c *AgentClient) RequestChat(ctx context.Context, req AgentChatRequest) (*A
 		return nil, fmt.Errorf("failed to marshal chat request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/chat", bytes.NewBuffer(payload))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create chat request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
+	chatPaths := []string{"/chat", "/api/chat", "/v1/chat"}
+	var lastErr error
 
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("failed to send chat request to agent: %w", err)
-	}
-	defer resp.Body.Close()
+	for _, path := range chatPaths {
+		httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+path, bytes.NewBuffer(payload))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create chat request: %w", err)
+		}
+		httpReq.Header.Set("Content-Type", "application/json")
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read chat response: %w", err)
+		resp, err := c.httpClient.Do(httpReq)
+		if err != nil {
+			lastErr = fmt.Errorf("failed to send chat request to agent (%s): %w", path, err)
+			continue
+		}
+
+		body, readErr := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if readErr != nil {
+			lastErr = fmt.Errorf("failed to read chat response (%s): %w", path, readErr)
+			continue
+		}
+
+		if resp.StatusCode == http.StatusNotFound {
+			lastErr = fmt.Errorf("agent chat returned status 404 on %s", path)
+			continue
+		}
+		if resp.StatusCode != http.StatusOK {
+			lastErr = fmt.Errorf("agent chat returned status %d (%s): %s", resp.StatusCode, path, strings.TrimSpace(string(body)))
+			break
+		}
+
+		var chatResp AgentChatResponse
+		if err := json.Unmarshal(body, &chatResp); err != nil {
+			lastErr = fmt.Errorf("failed to parse chat response (%s): %w", path, err)
+			break
+		}
+		return &chatResp, nil
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("agent chat returned status %d: %s", resp.StatusCode, string(body))
+	if lastErr != nil {
+		return nil, lastErr
 	}
-
-	var chatResp AgentChatResponse
-	if err := json.Unmarshal(body, &chatResp); err != nil {
-		return nil, fmt.Errorf("failed to parse chat response: %w", err)
-	}
-	return &chatResp, nil
+	return nil, fmt.Errorf("agent chat request failed with unknown error")
 }

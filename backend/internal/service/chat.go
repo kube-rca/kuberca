@@ -47,7 +47,7 @@ func (s *ChatService) Chat(ctx context.Context, req model.ChatRequest) (*model.C
 	}
 
 	if req.IncidentID != "" {
-		incident, err := s.repo.GetIncidentDetail(req.IncidentID)
+		incident, err := s.repo.GetIncidentDetailInsensitive(req.IncidentID)
 		if err != nil {
 			return nil, fmt.Errorf("%w: failed to load incident_id=%s", ErrInvalidChatRequest, req.IncidentID)
 		}
@@ -70,7 +70,7 @@ func (s *ChatService) Chat(ctx context.Context, req model.ChatRequest) (*model.C
 	}
 
 	if req.AlertID != "" {
-		alert, err := s.repo.GetAlertDetail(req.AlertID)
+		alert, err := s.repo.GetAlertDetailInsensitive(req.AlertID)
 		if err != nil {
 			return nil, fmt.Errorf("%w: failed to load alert_id=%s", ErrInvalidChatRequest, req.AlertID)
 		}

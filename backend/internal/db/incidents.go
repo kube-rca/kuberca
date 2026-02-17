@@ -157,6 +157,38 @@ func (db *Postgres) GetIncidentDetail(id string) (*model.IncidentDetailResponse,
 	return &i, nil
 }
 
+// GetIncidentDetailInsensitive - Incident 상세 조회 (대소문자 무시)
+func (db *Postgres) GetIncidentDetailInsensitive(id string) (*model.IncidentDetailResponse, error) {
+	query := `
+		SELECT
+			incident_id, title, severity, status,
+			fired_at, resolved_at, analysis_summary, analysis_detail, similar_incidents,
+			created_by, resolved_by
+		FROM incidents
+		WHERE lower(incident_id) = lower($1)
+		LIMIT 1
+	`
+
+	var i model.IncidentDetailResponse
+	err := db.Pool.QueryRow(context.Background(), query, id).Scan(
+		&i.IncidentID,
+		&i.Title,
+		&i.Severity,
+		&i.Status,
+		&i.FiredAt,
+		&i.ResolvedAt,
+		&i.AnalysisSummary,
+		&i.AnalysisDetail,
+		&i.SimilarIncidents,
+		&i.CreatedBy,
+		&i.ResolvedBy,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &i, nil
+}
+
 // UpdateIncident - Incident 수정
 func (db *Postgres) UpdateIncident(id string, req model.UpdateIncidentRequest) error {
 	query := `
