@@ -84,10 +84,12 @@ func main() {
 	// 3. 비즈니스 로직 서비스 초기화
 	// AgentService: Agent 요청 및 Slack 쓰레드 응답 처리 + DB 저장
 	agentService := service.NewAgentService(agentClient, slackClient, pgRepo)
+	chatService := service.NewChatService(pgRepo, agentClient)
 	// AlertService: 알림 필터링 및 Slack 전송 로직 담당 + DB 저장
 	alertService := service.NewAlertService(slackClient, agentService, pgRepo)
 	// RcaService: Incident/Alert 조회 및 종료 처리 + Agent 최종 분석 요청 + 임베딩 생성
 	rcaSvc := service.NewRcaService(pgRepo, agentService, embeddingService)
+	chatHandler := handler.NewChatHandler(chatService)
 
 	// 4. HTTP 핸들러 초기화
 	// Alertmanager 웹훅 요청 수신 및 응답 처리
@@ -148,6 +150,7 @@ func main() {
 
 		protected.POST("/embeddings", embeddingHandler.CreateEmbedding)
 		protected.POST("/embeddings/search", embeddingHandler.SearchEmbeddings)
+		protected.POST("/chat", chatHandler.Chat)
 	}
 
 	// Alertmanager 웹훅 엔드포인트

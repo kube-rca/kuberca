@@ -11,6 +11,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -80,6 +81,25 @@ type IncidentSummaryResponse struct {
 	Title   string `json:"title"`
 	Summary string `json:"summary"`
 	Detail  string `json:"detail"`
+}
+
+// AgentChatRequest - Agent 채팅 요청
+type AgentChatRequest struct {
+	Message        string         `json:"message"`
+	ConversationID string         `json:"conversation_id,omitempty"`
+	Context        map[string]any `json:"context,omitempty"`
+	Metadata       map[string]any `json:"metadata,omitempty"`
+}
+
+// AgentChatResponse - Agent 채팅 응답 (여러 포맷 대응)
+type AgentChatResponse struct {
+	Status         string `json:"status"`
+	Answer         string `json:"answer,omitempty"`
+	Message        string `json:"message,omitempty"`
+	Response       string `json:"response,omitempty"`
+	OutputText     string `json:"output_text,omitempty"`
+	Analysis       string `json:"analysis,omitempty"`
+	ConversationID string `json:"conversation_id,omitempty"`
 }
 
 // AgentClient 객체 생성
@@ -181,4 +201,39 @@ func (c *AgentClient) RequestIncidentSummary(req IncidentSummaryRequest) (*Incid
 	}
 
 	return &summaryResp, nil
+}
+
+// POST /chat - Agent 채팅 요청
+func (c *AgentClient) RequestChat(ctx context.Context, req AgentChatRequest) (*AgentChatResponse, error) {
+	payload, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal chat request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/chat", bytes.NewBuffer(payload))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create chat request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send chat request to agent: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read chat response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("agent chat returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var chatResp AgentChatResponse
+	if err := json.Unmarshal(body, &chatResp); err != nil {
+		return nil, fmt.Errorf("failed to parse chat response: %w", err)
+	}
+	return &chatResp, nil
 }
