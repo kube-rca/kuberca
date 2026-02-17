@@ -14,6 +14,7 @@ import { fetchRCAs, fetchAlerts, fetchMutedIncidents, AlertItem } from './utils/
 import { fetchAuthConfig, refreshAccessToken, logout } from './utils/auth';
 import { ITEMS_PER_PAGE } from './constants';
 import { Header } from './components/Header';
+import { Sidebar } from './components/Sidebar';
 import UnifiedSearchPanel from './components/UnifiedSearchPanel';
 import SettingsPage from './components/SettingsPage';
 import WebhookSettings from './components/WebhookSettings';
@@ -308,206 +309,210 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
       <Header onLogout={handleLogout} />
-      <div className="pt-20 pb-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
-        <div className="mb-6">
-          <UnifiedSearchPanel availableLabels={availableLabels} availableNamespaces={availableNamespaces} />
-        </div>
-
-        <Routes>
-          <Route path="/incidents/:id" element={<IncidentDetailRoute />} />
-          <Route path="/alerts/:id" element={<AlertDetailRoute />} />
-          <Route path="/muted/:id" element={<MuteDetailRoute />} />
-
-          {/* Incident Dashboard */}
-          <Route path="/" element={
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors duration-300">
-              <div className="mb-6 flex flex-col lg:flex-row justify-between items-center gap-4">
-                <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">Incident Dashboard</h1>
-                <div className="flex flex-col sm:flex-row items-center justify-end gap-3 w-full sm:w-auto">
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setStatusFilter(value);
-                      updateFilter('status', value === 'all' ? [] : [value]);
-                    }}
-                    className={selectStyle}
-                  >
-                    <option value="all">All Status</option>
-                    <option value="firing">Firing</option>
-                    <option value="resolved">Resolved</option>
-                  </select>
-                  <select
-                    value={severityFilter}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setSeverityFilter(value);
-                      updateFilter('severity', value === 'all' ? [] : [value]);
-                    }}
-                    className={selectStyle}
-                  >
-                    <option value="all">All Severities</option>
-                    <option value="warning">Warning</option>
-                    <option value="critical">Critical</option>
-                  </select>
-                  <TimeRangeSelector
-                    value={timeRange}
-                    onChange={(value) => {
-                      setTimeRange(value);
-                      updateFilter('timeRange', mapLegacyTimeToKey(value));
-                    }}
-                  />
-                </div>
-              </div>
-
-              {loading ? (
-                <div className="flex justify-center items-center py-12 text-gray-600 dark:text-gray-400">데이터를 불러오는 중...</div>
-              ) : error ? (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-4 text-red-600 dark:text-red-400">{error}</div>
-              ) : (
-                <>
-                  <RCATable rcas={paginatedRCAs} onTitleClick={handleTitleClick} />
-                  {filteredRCAs.length > 0 && (
-                    <div className="mt-6 flex justify-center">
-                      <Pagination currentPage={currentPage} totalPages={Math.ceil(filteredRCAs.length / ITEMS_PER_PAGE)} onPageChange={setCurrentPage} />
-                    </div>
-                  )}
-                  {filteredRCAs.length === 0 && (
-                    <div className="flex justify-center items-center py-12 text-gray-500 dark:text-gray-400">
-                      데이터가 없습니다.
-                    </div>
-                  )}
-                </>
-              )}
+      <div className="pt-16">
+        <Sidebar />
+        <div className="md:ml-64 px-4 sm:px-6 lg:px-8 py-6">
+          <div className="w-full max-w-[1600px] mx-auto">
+            <div className="mb-6">
+              <UnifiedSearchPanel availableLabels={availableLabels} availableNamespaces={availableNamespaces} />
             </div>
-          } />
 
-          {/* Alert Dashboard */}
-          <Route path="/alerts" element={
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors duration-300">
-              <div className="mb-6 flex flex-col lg:flex-row justify-between items-center gap-4">
-                <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">Alert Dashboard</h1>
-                <div className="flex flex-col sm:flex-row items-center justify-end gap-3 w-full sm:w-auto">
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setStatusFilter(value);
-                      updateFilter('status', value === 'all' ? [] : [value]);
-                    }}
-                    className={selectStyle}
-                  >
-                    <option value="all">All Status</option>
-                    <option value="firing">Firing</option>
-                    <option value="resolved">Resolved</option>
-                  </select>
-                  <select
-                    value={severityFilter}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setSeverityFilter(value);
-                      updateFilter('severity', value === 'all' ? [] : [value]);
-                    }}
-                    className={selectStyle}
-                  >
-                    <option value="all">All Severities</option>
-                    <option value="warning">Warning</option>
-                    <option value="critical">Critical</option>
-                  </select>
-                  <TimeRangeSelector
-                    value={timeRange}
-                    onChange={(value) => {
-                      setTimeRange(value);
-                      updateFilter('timeRange', mapLegacyTimeToKey(value));
-                    }}
-                  />
-                </div>
-              </div>
+            <Routes>
+              <Route path="/incidents/:id" element={<IncidentDetailRoute />} />
+              <Route path="/alerts/:id" element={<AlertDetailRoute />} />
+              <Route path="/muted/:id" element={<MuteDetailRoute />} />
 
-              {alertLoading ? (
-                <div className="flex justify-center items-center py-12 text-gray-600 dark:text-gray-400">데이터를 불러오는 중...</div>
-              ) : alertError ? (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-4 text-red-600 dark:text-red-400">{alertError}</div>
-              ) : (
-                <>
-                  <AlertTable alerts={paginatedAlerts} onTitleClick={handleAlertTitleClick} />
-                  {filteredAlerts.length > 0 && (
-                    <div className="mt-6 flex justify-center">
-                      <Pagination currentPage={alertCurrentPage} totalPages={Math.ceil(filteredAlerts.length / ITEMS_PER_PAGE)} onPageChange={setAlertCurrentPage} />
+              {/* Incident Dashboard */}
+              <Route path="/" element={
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors duration-300">
+                  <div className="mb-6 flex flex-col lg:flex-row justify-between items-center gap-4">
+                    <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">Incident Dashboard</h1>
+                    <div className="flex flex-col sm:flex-row items-center justify-end gap-3 w-full sm:w-auto">
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setStatusFilter(value);
+                          updateFilter('status', value === 'all' ? [] : [value]);
+                        }}
+                        className={selectStyle}
+                      >
+                        <option value="all">All Status</option>
+                        <option value="firing">Firing</option>
+                        <option value="resolved">Resolved</option>
+                      </select>
+                      <select
+                        value={severityFilter}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setSeverityFilter(value);
+                          updateFilter('severity', value === 'all' ? [] : [value]);
+                        }}
+                        className={selectStyle}
+                      >
+                        <option value="all">All Severities</option>
+                        <option value="warning">Warning</option>
+                        <option value="critical">Critical</option>
+                      </select>
+                      <TimeRangeSelector
+                        value={timeRange}
+                        onChange={(value) => {
+                          setTimeRange(value);
+                          updateFilter('timeRange', mapLegacyTimeToKey(value));
+                        }}
+                      />
                     </div>
+                  </div>
+
+                  {loading ? (
+                    <div className="flex justify-center items-center py-12 text-gray-600 dark:text-gray-400">데이터를 불러오는 중...</div>
+                  ) : error ? (
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-4 text-red-600 dark:text-red-400">{error}</div>
+                  ) : (
+                    <>
+                      <RCATable rcas={paginatedRCAs} onTitleClick={handleTitleClick} />
+                      {filteredRCAs.length > 0 && (
+                        <div className="mt-6 flex justify-center">
+                          <Pagination currentPage={currentPage} totalPages={Math.ceil(filteredRCAs.length / ITEMS_PER_PAGE)} onPageChange={setCurrentPage} />
+                        </div>
+                      )}
+                      {filteredRCAs.length === 0 && (
+                        <div className="flex justify-center items-center py-12 text-gray-500 dark:text-gray-400">
+                          데이터가 없습니다.
+                        </div>
+                      )}
+                    </>
                   )}
-                  {filteredAlerts.length === 0 && (
-                    <div className="flex justify-center items-center py-12 text-gray-500 dark:text-gray-400">표시할 Alert이 없습니다.</div>
-                  )}
-                </>
-              )}
-            </div>
-          } />
-          
-          {/* Muted Route */}
-          <Route path="/muted" element={
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors duration-300">
-              <div className="mb-6 flex flex-col lg:flex-row justify-between items-center gap-4">
-                <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">Archived Incidents</h1>
-                <div className="flex flex-col sm:flex-row items-center justify-end gap-3 w-full sm:w-auto">
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setStatusFilter(value);
-                      updateFilter('status', value === 'all' ? [] : [value]);
-                    }}
-                    className={selectStyle}
-                  >
-                    <option value="all">All Status</option>
-                    <option value="firing">Firing</option>
-                    <option value="resolved">Resolved</option>
-                  </select>
-                  <select
-                    value={severityFilter}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setSeverityFilter(value);
-                      updateFilter('severity', value === 'all' ? [] : [value]);
-                    }}
-                    className={selectStyle}
-                  >
-                    <option value="all">All Severities</option>
-                    <option value="warning">Warning</option>
-                    <option value="critical">Critical</option>
-                  </select>
-                  <TimeRangeSelector
-                    value={timeRange}
-                    onChange={(value) => {
-                      setTimeRange(value);
-                      updateFilter('timeRange', mapLegacyTimeToKey(value));
-                    }}
-                  />
                 </div>
-              </div>
+              } />
+
+              {/* Alert Dashboard */}
+              <Route path="/alerts" element={
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors duration-300">
+                  <div className="mb-6 flex flex-col lg:flex-row justify-between items-center gap-4">
+                    <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">Alert Dashboard</h1>
+                    <div className="flex flex-col sm:flex-row items-center justify-end gap-3 w-full sm:w-auto">
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setStatusFilter(value);
+                          updateFilter('status', value === 'all' ? [] : [value]);
+                        }}
+                        className={selectStyle}
+                      >
+                        <option value="all">All Status</option>
+                        <option value="firing">Firing</option>
+                        <option value="resolved">Resolved</option>
+                      </select>
+                      <select
+                        value={severityFilter}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setSeverityFilter(value);
+                          updateFilter('severity', value === 'all' ? [] : [value]);
+                        }}
+                        className={selectStyle}
+                      >
+                        <option value="all">All Severities</option>
+                        <option value="warning">Warning</option>
+                        <option value="critical">Critical</option>
+                      </select>
+                      <TimeRangeSelector
+                        value={timeRange}
+                        onChange={(value) => {
+                          setTimeRange(value);
+                          updateFilter('timeRange', mapLegacyTimeToKey(value));
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {alertLoading ? (
+                    <div className="flex justify-center items-center py-12 text-gray-600 dark:text-gray-400">데이터를 불러오는 중...</div>
+                  ) : alertError ? (
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-4 text-red-600 dark:text-red-400">{alertError}</div>
+                  ) : (
+                    <>
+                      <AlertTable alerts={paginatedAlerts} onTitleClick={handleAlertTitleClick} />
+                      {filteredAlerts.length > 0 && (
+                        <div className="mt-6 flex justify-center">
+                          <Pagination currentPage={alertCurrentPage} totalPages={Math.ceil(filteredAlerts.length / ITEMS_PER_PAGE)} onPageChange={setAlertCurrentPage} />
+                        </div>
+                      )}
+                      {filteredAlerts.length === 0 && (
+                        <div className="flex justify-center items-center py-12 text-gray-500 dark:text-gray-400">표시할 Alert이 없습니다.</div>
+                      )}
+                    </>
+                  )}
+                </div>
+              } />
               
-              {muteLoading ? (
-                <div className="flex justify-center items-center py-12 text-gray-600 dark:text-gray-400">데이터를 불러오는 중...</div>
-              ) : muteError ? (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-4 text-red-600 dark:text-red-400">{muteError}</div>
-              ) : (
-                <>
-                  <ArchivedTable rcas={paginatedMutedIncidents} onTitleClick={handleMuteTitleClick} />
-                  {filteredMutedIncidents.length > 0 && (
-                     <div className="mt-6 flex justify-center">
-                        <Pagination currentPage={muteCurrentPage} totalPages={Math.ceil(filteredMutedIncidents.length / ITEMS_PER_PAGE)} onPageChange={setMuteCurrentPage} />
-                     </div>
+              {/* Muted Route */}
+              <Route path="/muted" element={
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors duration-300">
+                  <div className="mb-6 flex flex-col lg:flex-row justify-between items-center gap-4">
+                    <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">Archived Incidents</h1>
+                    <div className="flex flex-col sm:flex-row items-center justify-end gap-3 w-full sm:w-auto">
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setStatusFilter(value);
+                          updateFilter('status', value === 'all' ? [] : [value]);
+                        }}
+                        className={selectStyle}
+                      >
+                        <option value="all">All Status</option>
+                        <option value="firing">Firing</option>
+                        <option value="resolved">Resolved</option>
+                      </select>
+                      <select
+                        value={severityFilter}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setSeverityFilter(value);
+                          updateFilter('severity', value === 'all' ? [] : [value]);
+                        }}
+                        className={selectStyle}
+                      >
+                        <option value="all">All Severities</option>
+                        <option value="warning">Warning</option>
+                        <option value="critical">Critical</option>
+                      </select>
+                      <TimeRangeSelector
+                        value={timeRange}
+                        onChange={(value) => {
+                          setTimeRange(value);
+                          updateFilter('timeRange', mapLegacyTimeToKey(value));
+                        }}
+                      />
+                    </div>
+                  </div>
+                  
+                  {muteLoading ? (
+                    <div className="flex justify-center items-center py-12 text-gray-600 dark:text-gray-400">데이터를 불러오는 중...</div>
+                  ) : muteError ? (
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-4 text-red-600 dark:text-red-400">{muteError}</div>
+                  ) : (
+                    <>
+                      <ArchivedTable rcas={paginatedMutedIncidents} onTitleClick={handleMuteTitleClick} />
+                      {filteredMutedIncidents.length > 0 && (
+                         <div className="mt-6 flex justify-center">
+                            <Pagination currentPage={muteCurrentPage} totalPages={Math.ceil(filteredMutedIncidents.length / ITEMS_PER_PAGE)} onPageChange={setMuteCurrentPage} />
+                         </div>
+                      )}
+                    </>
                   )}
-                </>
-              )}
-            </div>
-          } />
+                </div>
+              } />
 
-          {/* Settings Route */}
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/settings/webhooks" element={<WebhookSettings />} />
-        </Routes>
+              {/* Settings Route */}
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/settings/webhooks" element={<WebhookSettings />} />
+            </Routes>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,4 @@
 import { useTheme } from '../context/ThemeContext';
-import { NavLink } from 'react-router-dom';
 
 interface HeaderProps {
   onLogout: () => void;
@@ -8,35 +7,12 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ onLogout }) => {
   const { theme, toggleTheme } = useTheme();
 
-  const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-    `px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-      isActive
-        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200'
-        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-    }`;
-
   return (
     <header className="fixed top-0 left-0 w-full h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center px-6 z-50 transition-colors duration-300">
       {/* 로고 영역 (좌측) */}
       <h1 className="text-xl font-bold text-gray-800 dark:text-white">
         Kube-RCA
       </h1>
-
-      {/* 네비게이션 (중앙) */}
-      <nav className="absolute left-1/2 transform -translate-x-1/2 flex items-center gap-2">
-        <NavLink to="/" end className={navLinkClass}>
-          Incident Dashboard
-        </NavLink>
-        <NavLink to="/alerts" className={navLinkClass}>
-          Alert Dashboard
-        </NavLink>
-        <NavLink to="/muted" className={navLinkClass}>
-          Archived Incidents
-        </NavLink>
-        <NavLink to="/settings" className={navLinkClass}>
-          Settings
-        </NavLink>
-      </nav>
 
       {/* 우측 컨트롤 영역: 로그아웃 + 다크모드 토글 */}
       <div className="ml-auto flex items-center gap-4">
