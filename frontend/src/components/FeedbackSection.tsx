@@ -51,6 +51,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [commentMenuId, setCommentMenuId] = useState<number | null>(null);
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editingDraft, setEditingDraft] = useState('');
   const [commentActionLoadingId, setCommentActionLoadingId] = useState<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const moreMenuRef = useRef<HTMLDivElement | null>(null);
@@ -76,11 +77,15 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
-      if (!moreMenuRef.current) return;
-      if (!moreMenuRef.current.contains(event.target as Node)) {
+      const target = event.target as HTMLElement;
+
+      if (moreMenuRef.current && !moreMenuRef.current.contains(target)) {
         setMoreMenuOpen(false);
       }
-      setCommentMenuId(null);
+
+      if (!target.closest('[data-comment-menu]')) {
+        setCommentMenuId(null);
+      }
     };
 
     document.addEventListener('mousedown', handleOutsideClick);
@@ -123,20 +128,16 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
   const startEditComment = (comment: FeedbackCommentResponse) => {
     setCommentMenuId(null);
     setEditingCommentId(comment.comment_id);
-    setDraft(comment.body);
-    setTab('write');
-    setTimeout(() => {
-      textareaRef.current?.focus();
-    }, 0);
+    setEditingDraft(comment.body);
   };
 
   const cancelEditComment = () => {
     setEditingCommentId(null);
-    setDraft('');
+    setEditingDraft('');
   };
 
   const saveEditComment = async (commentId: number) => {
-    const body = draft.trim();
+    const body = editingDraft.trim();
     if (!body) {
       alert('코멘트 내용을 입력해주세요.');
       return;
@@ -291,7 +292,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                   <span className="font-semibold text-gray-900 dark:text-gray-100">{comment.author_login_id}</span>
                   <span className="text-gray-500 dark:text-gray-400 ml-2">{formatCommentTimestamp(comment.created_at)}</span>
                 </div>
-                <div className="relative">
+                <div className="relative" data-comment-menu="true">
                   <button
                     type="button"
                     onClick={() => setCommentMenuId((prev) => (prev === comment.comment_id ? null : comment.comment_id))}
@@ -322,18 +323,45 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                 </div>
               </header>
               <div className="px-4 py-4 text-sm text-gray-800 dark:text-gray-200">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    p: ({ node: _node, ...props }) => <p className="mb-3 last:mb-0 leading-relaxed" {...props} />,
-                    ul: ({ node: _node, ...props }) => <ul className="list-disc pl-5 mb-3 space-y-1" {...props} />,
-                    code: ({ node: _node, ...props }) => (
-                      <code className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-1 py-0.5 font-mono text-xs" {...props} />
-                    ),
-                  }}
-                >
-                  {comment.body}
-                </ReactMarkdown>
+                {editingCommentId === comment.comment_id ? (
+                  <div className="space-y-2">
+                    <textarea
+                      value={editingDraft}
+                      onChange={(e) => setEditingDraft(e.target.value)}
+                      className="w-full min-h-[96px] rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 p-3 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={cancelEditComment}
+                        className="px-3 py-1.5 rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-xs font-semibold hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => saveEditComment(comment.comment_id)}
+                        disabled={commentActionLoadingId === comment.comment_id}
+                        className="px-3 py-1.5 rounded bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {commentActionLoadingId === comment.comment_id ? 'Saving...' : 'Save'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      p: ({ node: _node, ...props }) => <p className="mb-3 last:mb-0 leading-relaxed" {...props} />,
+                      ul: ({ node: _node, ...props }) => <ul className="list-disc pl-5 mb-3 space-y-1" {...props} />,
+                      code: ({ node: _node, ...props }) => (
+                        <code className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-1 py-0.5 font-mono text-xs" {...props} />
+                      ),
+                    }}
+                  >
+                    {comment.body}
+                  </ReactMarkdown>
+                )}
               </div>
             </article>
           );
@@ -341,20 +369,6 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
       </div>
 
       <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-visible">
-        {editingCommentId !== null && (
-          <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-blue-50 dark:bg-blue-900/20">
-            <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
-              Editing comment #{editingCommentId}
-            </span>
-            <button
-              type="button"
-              onClick={cancelEditComment}
-              className="text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-            >
-              Cancel edit
-            </button>
-          </div>
-        )}
         <div className="flex border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
           <button
             type="button"
@@ -470,13 +484,11 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
       <div className="mt-3 flex justify-end">
         <button
           type="button"
-          onClick={() => (editingCommentId !== null ? saveEditComment(editingCommentId) : handleSubmit())}
+          onClick={handleSubmit}
           disabled={!draft.trim() || submitting || commentActionLoadingId !== null}
           className="px-4 py-2 rounded-md bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          {editingCommentId !== null
-            ? (commentActionLoadingId !== null ? 'Saving...' : 'Save changes')
-            : (submitting ? 'Saving...' : 'Comment')}
+          {submitting ? 'Saving...' : 'Comment'}
         </button>
       </div>
     </section>
