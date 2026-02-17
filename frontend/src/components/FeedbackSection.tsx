@@ -3,8 +3,10 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
   createFeedbackComment,
+  deleteFeedbackComment,
   fetchFeedbackSummary,
   FeedbackCommentResponse,
+  updateFeedbackComment,
   voteFeedback,
 } from '../utils/api';
 
@@ -28,6 +30,15 @@ const avatarColorByName = (name: string) => {
   return palette[sum % palette.length];
 };
 
+const formatCommentTimestamp = (value: string): string => {
+  if (!value) return '';
+  const normalized = value.replace('T', ' ');
+  if (normalized.length >= 16) {
+    return normalized.slice(0, 16);
+  }
+  return normalized;
+};
+
 const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId }) => {
   const [selectedVote, setSelectedVote] = useState<VoteType>(null);
   const [upVotes, setUpVotes] = useState(0);
@@ -38,6 +49,9 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [commentMenuId, setCommentMenuId] = useState<number | null>(null);
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [commentActionLoadingId, setCommentActionLoadingId] = useState<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const moreMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -66,6 +80,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
       if (!moreMenuRef.current.contains(event.target as Node)) {
         setMoreMenuOpen(false);
       }
+      setCommentMenuId(null);
     };
 
     document.addEventListener('mousedown', handleOutsideClick);
@@ -104,6 +119,60 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
   };
 
   const title = useMemo(() => (targetType === 'incident' ? 'Incident Feedback' : 'Alert Feedback'), [targetType]);
+
+  const startEditComment = (comment: FeedbackCommentResponse) => {
+    setCommentMenuId(null);
+    setEditingCommentId(comment.comment_id);
+    setDraft(comment.body);
+    setTab('write');
+    setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 0);
+  };
+
+  const cancelEditComment = () => {
+    setEditingCommentId(null);
+    setDraft('');
+  };
+
+  const saveEditComment = async (commentId: number) => {
+    const body = draft.trim();
+    if (!body) {
+      alert('코멘트 내용을 입력해주세요.');
+      return;
+    }
+
+    setCommentActionLoadingId(commentId);
+    try {
+      const updated = await updateFeedbackComment(targetType, targetId, commentId, body);
+      setComments((prev) => prev.map((item) => (item.comment_id === commentId ? updated : item)));
+      cancelEditComment();
+    } catch (error) {
+      console.error('Failed to update comment:', error);
+      alert('코멘트 수정에 실패했습니다.');
+    } finally {
+      setCommentActionLoadingId(null);
+    }
+  };
+
+  const removeComment = async (commentId: number) => {
+    if (!window.confirm('코멘트를 삭제하시겠습니까?')) return;
+
+    setCommentActionLoadingId(commentId);
+    try {
+      await deleteFeedbackComment(targetType, targetId, commentId);
+      setComments((prev) => prev.filter((item) => item.comment_id !== commentId));
+      if (editingCommentId === commentId) {
+        cancelEditComment();
+      }
+    } catch (error) {
+      console.error('Failed to delete comment:', error);
+      alert('코멘트 삭제에 실패했습니다.');
+    } finally {
+      setCommentActionLoadingId(null);
+      setCommentMenuId(null);
+    }
+  };
 
   const applySelectionTransform = (transform: (selected: string) => { text: string; cursorOffset?: number }) => {
     const textarea = textareaRef.current;
@@ -213,14 +282,43 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
         {comments.map((comment) => {
           const initial = comment.author_login_id[0]?.toUpperCase() || 'U';
           return (
-            <article key={comment.comment_id} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            <article key={comment.comment_id} className="relative border border-gray-200 dark:border-gray-700 rounded-lg overflow-visible">
               <header className="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3">
                 <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold ${avatarColorByName(comment.author_login_id)}`}>
                   {initial}
                 </div>
-                <div className="text-sm">
+                <div className="text-sm flex-1">
                   <span className="font-semibold text-gray-900 dark:text-gray-100">{comment.author_login_id}</span>
-                  <span className="text-gray-500 dark:text-gray-400 ml-2">{comment.created_at}</span>
+                  <span className="text-gray-500 dark:text-gray-400 ml-2">{formatCommentTimestamp(comment.created_at)}</span>
+                </div>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setCommentMenuId((prev) => (prev === comment.comment_id ? null : comment.comment_id))}
+                    className="h-7 w-7 rounded text-gray-500 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700"
+                    aria-label="Comment actions"
+                  >
+                    ...
+                  </button>
+                  {commentMenuId === comment.comment_id && (
+                    <div className="absolute right-0 top-8 z-30 w-28 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg">
+                      <button
+                        type="button"
+                        onClick={() => startEditComment(comment)}
+                        className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeComment(comment.comment_id)}
+                        className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                        disabled={commentActionLoadingId === comment.comment_id}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </div>
               </header>
               <div className="px-4 py-4 text-sm text-gray-800 dark:text-gray-200">
@@ -243,6 +341,20 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
       </div>
 
       <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-visible">
+        {editingCommentId !== null && (
+          <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-blue-50 dark:bg-blue-900/20">
+            <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+              Editing comment #{editingCommentId}
+            </span>
+            <button
+              type="button"
+              onClick={cancelEditComment}
+              className="text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+            >
+              Cancel edit
+            </button>
+          </div>
+        )}
         <div className="flex border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
           <button
             type="button"
@@ -358,11 +470,13 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
       <div className="mt-3 flex justify-end">
         <button
           type="button"
-          onClick={handleSubmit}
-          disabled={!draft.trim() || submitting}
+          onClick={() => (editingCommentId !== null ? saveEditComment(editingCommentId) : handleSubmit())}
+          disabled={!draft.trim() || submitting || commentActionLoadingId !== null}
           className="px-4 py-2 rounded-md bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          {submitting ? 'Saving...' : 'Comment'}
+          {editingCommentId !== null
+            ? (commentActionLoadingId !== null ? 'Saving...' : 'Save changes')
+            : (submitting ? 'Saving...' : 'Comment')}
         </button>
       </div>
     </section>

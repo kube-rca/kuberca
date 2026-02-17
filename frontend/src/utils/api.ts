@@ -347,6 +347,41 @@ export const voteFeedback = async (
   }
 };
 
+export const updateFeedbackComment = async (
+  targetType: FeedbackTargetType,
+  targetId: string,
+  commentId: number,
+  body: string
+): Promise<FeedbackCommentResponse> => {
+  const response = await requestWithAuth(`${getFeedbackBasePath(targetType, targetId)}/comments/${commentId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ body }),
+  });
+
+  if (!response.ok) {
+    throw new Error('코멘트 수정에 실패했습니다.');
+  }
+
+  return response.json();
+};
+
+export const deleteFeedbackComment = async (
+  targetType: FeedbackTargetType,
+  targetId: string,
+  commentId: number
+): Promise<void> => {
+  const response = await requestWithAuth(`${getFeedbackBasePath(targetType, targetId)}/comments/${commentId}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    throw new Error('코멘트 삭제에 실패했습니다.');
+  }
+};
+
 // ============================================================================
 // Chat API
 // ============================================================================
