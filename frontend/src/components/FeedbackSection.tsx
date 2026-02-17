@@ -206,7 +206,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
     const block = `${draft.slice(lineStart, start)}${selected}`;
     const prefixed = block
       .split('\n')
-      .map((line) => (line.trim() ? `${prefix}${line}` : line))
+      .map((line) => (line.trim() ? `${prefix}${line}` : line || prefix))
       .join('\n');
 
     const updated = `${draft.slice(0, lineStart)}${prefixed}${draft.slice(end)}`;
@@ -302,7 +302,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                     ...
                   </button>
                   {commentMenuId === comment.comment_id && (
-                    <div className="absolute right-0 top-8 z-30 w-28 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg">
+                    <div className="absolute right-0 top-8 z-[100] w-28 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg">
                       <button
                         type="button"
                         onClick={() => startEditComment(comment)}
@@ -448,7 +448,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                 ...
               </button>
               {moreMenuOpen && (
-                <div className="absolute right-0 top-9 z-20 w-52 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg">
+                <div className="absolute right-0 top-9 z-[100] w-52 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg">
                   <button type="button" onClick={() => handleMoreAction('unordered')} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Unordered list</button>
                   <button type="button" onClick={() => handleMoreAction('numbered')} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Numbered list</button>
                   <button type="button" onClick={() => handleMoreAction('task')} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Task list</button>
