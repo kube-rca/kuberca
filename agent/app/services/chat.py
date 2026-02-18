@@ -21,8 +21,10 @@ def _build_chat_prompt(request: ChatRequest, masker: RegexMasker) -> str:
     base = (
         "You are kube-rca-agent. A user is asking a question about an incident. "
         "Answer based on the incident/alert context provided and any prior analysis. "
-        "You have tools for K8s, Prometheus, and Tempo—use them if needed to look up metrics, logs, or traces. "
-        "For questions like 'What metric triggered this alert?', check context/artifacts for Prometheus queries (query field). "
+        "You have tools for K8s, Prometheus, and Tempo—"
+        "use them if needed to look up metrics, logs, or traces. "
+        "For questions like 'What metric triggered this alert?', "
+        "check context/artifacts for Prometheus queries (query field). "
         "Respond concisely in Korean unless the user asks in another language.\n\n"
     )
     ctx = request.context
