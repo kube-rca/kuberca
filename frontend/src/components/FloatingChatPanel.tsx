@@ -75,7 +75,6 @@ const FloatingChatPanel = ({ onDockedChange }: FloatingChatPanelProps) => {
     makeMessage('assistant', '질문을 입력하면 Incident/Alert 컨텍스트를 함께 분석해 답변합니다.'),
   ]);
 
-  const autoTriggeredRef = useRef<Set<string>>(new Set());
   const listRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -125,31 +124,6 @@ const FloatingChatPanel = ({ onDockedChange }: FloatingChatPanelProps) => {
       setSending(false);
     }
   };
-
-  useEffect(() => {
-    const isDetailPage = routeContext.page === 'incident_detail' || routeContext.page === 'alert_detail';
-    if (!isDetailPage || autoTriggeredRef.current.has(routeContext.routeKey)) {
-      return;
-    }
-
-    autoTriggeredRef.current.add(routeContext.routeKey);
-    setIsOpen(true);
-
-    const request: ChatRequest = {
-      message: '',
-      auto: true,
-      page: routeContext.page,
-      conversation_id: '',
-      incident_id: routeContext.routeIncidentId,
-      alert_id: routeContext.routeAlertId,
-      incident_title: '',
-      incident_content: '',
-      alert_title: '',
-      alert_content: '',
-    };
-
-    void sendChat(request, '현재 상세 페이지 기준으로 자동 요약을 요청합니다.');
-  }, [routeContext.page, routeContext.routeAlertId, routeContext.routeIncidentId, routeContext.routeKey]);
 
   const handleSubmit = async () => {
     const message = input.trim();
