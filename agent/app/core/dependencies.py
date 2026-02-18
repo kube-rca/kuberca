@@ -12,6 +12,7 @@ from app.clients.tempo import TempoClient
 from app.core.config import Settings, load_settings
 from app.core.masking import RegexMasker, build_masker
 from app.services.analysis import AnalysisService
+from app.services.chat import ChatService
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +88,14 @@ def get_tempo_client() -> TempoClient | None:
     if not client.enabled:
         return None
     return client
+
+
+@lru_cache
+def get_chat_service() -> ChatService:
+    return ChatService(
+        analysis_engine=get_analysis_engine(),
+        masker=get_masker(),
+    )
 
 
 @lru_cache
