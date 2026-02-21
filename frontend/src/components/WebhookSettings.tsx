@@ -22,6 +22,33 @@ interface WebhookHeader {
   value: string;
 }
 
+// 변수 삽입 버튼 공통 컴포넌트
+const VariableButton: React.FC<{
+  variable: { label: string; value: string };
+  body: string;
+  setBody: (v: string) => void;
+}> = ({ variable, body, setBody }) => (
+  <button
+    onClick={() => {
+      const textarea = document.getElementById('webhook-body-editor') as HTMLTextAreaElement;
+      if (!textarea) return;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      setBody(body.substring(0, start) + variable.value + body.substring(end));
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + variable.value.length, start + variable.value.length);
+      }, 0);
+    }}
+    className="w-full text-left px-2.5 py-1.5 text-sm bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-md shadow-sm hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-200 group"
+  >
+    <div className="flex flex-col">
+      <span className="font-mono text-blue-600 dark:text-blue-400 text-xs font-semibold group-hover:text-blue-700 dark:group-hover:text-blue-300">{variable.value}</span>
+      <span className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">{variable.label}</span>
+    </div>
+  </button>
+);
+
 const WebhookSettings: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id?: string }>();
@@ -227,9 +254,12 @@ const WebhookSettings: React.FC = () => {
                 <p className="mt-1 text-sm text-red-500 dark:text-red-400">{jsonError}</p>
               )}
             </div>
-            <div className="w-1/3 bg-slate-100 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+            <div className="w-1/3 bg-slate-100 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 overflow-y-auto max-h-[480px]">
               <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 uppercase tracking-wider">Available Variables</h3>
-              <div className="space-y-2">
+
+              {/* Incident Variables */}
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 mt-1">Incident</p>
+              <div className="space-y-1.5 mb-4">
                 {[
                   { label: 'Incident ID',  value: '{{incident.id}}' },
                   { label: 'Title',        value: '{{incident.title}}' },
@@ -238,30 +268,29 @@ const WebhookSettings: React.FC = () => {
                   { label: 'Created At',   value: '{{incident.created_at}}' },
                   { label: 'Summary',      value: '{{incident.summary}}' },
                 ].map((variable) => (
-                  <button
-                    key={variable.value}
-                    onClick={() => {
-                      const textarea = document.getElementById('webhook-body-editor') as HTMLTextAreaElement;
-                      if (!textarea) return;
-                      const start = textarea.selectionStart;
-                      const end = textarea.selectionEnd;
-                      const newBody = body.substring(0, start) + variable.value + body.substring(end);
-                      setBody(newBody);
-                      setTimeout(() => {
-                        textarea.focus();
-                        textarea.setSelectionRange(start + variable.value.length, start + variable.value.length);
-                      }, 0);
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-md shadow-sm hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-200 group"
-                  >
-                    <div className="flex flex-col">
-                      <span className="font-mono text-blue-600 dark:text-blue-400 text-xs font-semibold group-hover:text-blue-700 dark:group-hover:text-blue-300">{variable.value}</span>
-                      <span className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">{variable.label}</span>
-                    </div>
-                  </button>
+                  <VariableButton key={variable.value} variable={variable} body={body} setBody={setBody} />
+                ))}
+              </div>
+
+              {/* Alert (Slack) Variables */}
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">Alert</p>
+              <div className="space-y-1.5">
+                {[
+                  { label: 'Alert Name',   value: '{{alert.alertname}}' },
+                  { label: 'Severity',     value: '{{alert.severity}}' },
+                  { label: 'Namespace',    value: '{{alert.namespace}}' },
+                  { label: 'Status',       value: '{{alert.status}}' },
+                  { label: 'Description',  value: '{{alert.description}}' },
+                  { label: 'Summary',      value: '{{alert.summary}}' },
+                  { label: 'Started At',   value: '{{alert.started_at}}' },
+                  { label: 'Ended At',     value: '{{alert.ended_at}}' },
+                  { label: 'Fingerprint',  value: '{{alert.fingerprint}}' },
+                ].map((variable) => (
+                  <VariableButton key={variable.value} variable={variable} body={body} setBody={setBody} />
                 ))}
               </div>
             </div>
+
           </div>
         </div>
 
