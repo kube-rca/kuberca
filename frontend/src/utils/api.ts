@@ -421,3 +421,121 @@ export const chatWithAgent = async (payload: ChatRequest): Promise<ChatResponse>
 
   return response.json();
 };
+
+// ============================================================================
+// Webhook Settings API
+// ============================================================================
+
+export interface WebhookHeaderItem {
+  key: string;
+  value: string;
+}
+
+export interface WebhookConfigPayload {
+  url: string;
+  method: string;
+  headers: WebhookHeaderItem[];
+  body: string;
+}
+
+export interface WebhookConfig extends WebhookConfigPayload {
+  id: number;
+  updated_at: string;
+}
+
+/** 웹훅 설정 목록 조회 */
+export const fetchWebhookList = async (): Promise<WebhookConfig[]> => {
+  const response = await requestWithAuth('/api/v1/settings/webhooks', { method: 'GET' });
+  if (!response.ok) throw new Error(`웹훅 목록 조회 실패 (${response.status})`);
+  const json = await response.json();
+  return json.data ?? [];
+};
+
+/** ID로 단건 조회 */
+export const fetchWebhookById = async (id: number): Promise<WebhookConfig> => {
+  const response = await requestWithAuth(`/api/v1/settings/webhooks/${id}`, { method: 'GET' });
+  if (!response.ok) throw new Error(`웹훅 설정 조회 실패 (${response.status})`);
+  const json = await response.json();
+  return json.data;
+};
+
+/** 신규 웹훅 설정 생성 */
+export const createWebhookConfig = async (payload: WebhookConfigPayload): Promise<number> => {
+  const response = await requestWithAuth('/api/v1/settings/webhooks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `웹훅 설정 생성 실패 (${response.status})`);
+  }
+  const json = await response.json();
+  return json.id;
+};
+
+/** 기존 웹훅 설정 수정 */
+export const updateWebhookConfig = async (id: number, payload: WebhookConfigPayload): Promise<void> => {
+  const response = await requestWithAuth(`/api/v1/settings/webhooks/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `웹훅 설정 수정 실패 (${response.status})`);
+  }
+};
+
+/** 웹훅 설정 삭제 */
+export const deleteWebhookConfig = async (id: number): Promise<void> => {
+  const response = await requestWithAuth(`/api/v1/settings/webhooks/${id}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error(`웹훅 설정 삭제 실패 (${response.status})`);
+};
+
+
+export interface WebhookSettings {
+  url: string;
+  method: string;
+  headers: WebhookHeaderItem[];
+  body: string;
+}
+
+export interface WebhookSettingsDetail extends WebhookSettings {
+  id: number;
+  updated_at: string;
+}
+
+/**
+ * 웹훅 설정을 저장합니다.
+ */
+export const saveWebhookSettings = async (settings: WebhookSettings): Promise<void> => {
+  const response = await requestWithAuth('/api/v1/settings/webhook', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(settings),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `웹훅 설정 저장 실패 (${response.status})`);
+  }
+};
+
+/**
+ * 저장된 웹훅 설정을 불러옵니다.
+ */
+export const fetchWebhookSettings = async (): Promise<WebhookSettingsDetail | null> => {
+  const response = await requestWithAuth('/api/v1/settings/webhook', {
+    method: 'GET',
+  });
+
+  if (!response.ok) {
+    throw new Error(`웹훅 설정 조회 실패 (${response.status})`);
+  }
+
+  const json = await response.json();
+  return json.data ?? null;
+};
