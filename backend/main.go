@@ -52,6 +52,11 @@ func main() {
 		log.Fatalf("Failed to ensure feedback schema: %v", err)
 	}
 
+	// Webhook 설정 스키마 생성
+	if err := pgRepo.EnsureWebhookSchema(); err != nil {
+		log.Fatalf("Failed to ensure webhook schema: %v", err)
+	}
+
 	// Embedding 스키마 생성 (pgvector 확장 및 embeddings 테이블)
 	// todo: pgvector 확장 먼저 db에 설치해아함
 	if err := pgRepo.EnsureEmbeddingSchema(ctx); err != nil {
@@ -90,11 +95,13 @@ func main() {
 	// RcaService: Incident/Alert 조회 및 종료 처리 + Agent 최종 분석 요청 + 임베딩 생성
 	rcaSvc := service.NewRcaService(pgRepo, agentService, embeddingService)
 	chatHandler := handler.NewChatHandler(chatService)
+	webhookSvc := service.NewWebhookService(pgRepo)
 
 	// 4. HTTP 핸들러 초기화
 	// Alertmanager 웹훅 요청 수신 및 응답 처리
 	alertHandler := handler.NewAlertHandler(alertService)
 	rcaHndlr := handler.NewRcaHandler(rcaSvc)
+	webhookHndlr := handler.NewWebhookSettingsHandler(webhookSvc)
 
 	// HTTP 라우터 설정
 	router := gin.New()
@@ -155,6 +162,13 @@ func main() {
 		protected.POST("/embeddings", embeddingHandler.CreateEmbedding)
 		protected.POST("/embeddings/search", embeddingHandler.SearchEmbeddings)
 		protected.POST("/chat", chatHandler.Chat)
+
+		// Settings 엔드포인트 (Webhook 설정 CRUD)
+		protected.GET("/settings/webhooks", webhookHndlr.ListWebhookConfigs)
+		protected.POST("/settings/webhooks", webhookHndlr.CreateWebhookConfig)
+		protected.GET("/settings/webhooks/:id", webhookHndlr.GetWebhookConfig)
+		protected.PUT("/settings/webhooks/:id", webhookHndlr.UpdateWebhookConfig)
+		protected.DELETE("/settings/webhooks/:id", webhookHndlr.DeleteWebhookConfig)
 	}
 
 	// Alertmanager 웹훅 엔드포인트
