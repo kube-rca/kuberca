@@ -1,15 +1,15 @@
 ```mermaid
 erDiagram
-  %% STRANDS_* and KUBE_RCA_SESSION_SUMMARY are used when session DB is enabled.
+  %% strands_* and kube_rca_session_summaries are used when session DB is enabled.
   USER ||--o{ REFRESH_TOKEN : issues
   INCIDENT ||--o{ ALERT : contains
   INCIDENT ||--o{ EMBEDDING : references
   INCIDENT ||--o{ ALERT_ANALYSIS : records
   ALERT ||--o{ ALERT_ANALYSIS : records
   ALERT_ANALYSIS ||--o{ ALERT_ANALYSIS_ARTIFACT : includes
-  STRANDS_SESSION ||--o{ STRANDS_AGENT : optional
-  STRANDS_AGENT ||--o{ STRANDS_MESSAGE : optional
-  STRANDS_SESSION ||--o{ KUBE_RCA_SESSION_SUMMARY : optional
+  strands_sessions ||--o{ strands_agents : optional
+  strands_agents ||--o{ strands_messages : optional
+  strands_sessions ||--o{ kube_rca_session_summaries : optional
 
   USER {
     bigint id PK
@@ -98,25 +98,25 @@ erDiagram
     datetime created_at
   }
 
-  STRANDS_SESSION {
+  strands_sessions {
     string session_id PK
     jsonb data
   }
 
-  STRANDS_AGENT {
+  strands_agents {
     string session_id PK
     string agent_id PK
     jsonb data
   }
 
-  STRANDS_MESSAGE {
+  strands_messages {
     string session_id PK
     string agent_id PK
     int message_id PK
     jsonb data
   }
 
-  KUBE_RCA_SESSION_SUMMARY {
+  kube_rca_session_summaries {
     bigint summary_id PK
     string session_id
     text summary

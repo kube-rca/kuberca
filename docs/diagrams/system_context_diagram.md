@@ -3,7 +3,6 @@ flowchart LR
   %% External
   AM[Alertmanager]
   SL[Slack Bot]
-  SC[Slack Slash Command]
   LLM[LLM API Gemini OpenAI Anthropic]
   PR[Prometheus]
   K8S[Kubernetes API]
@@ -26,7 +25,6 @@ flowchart LR
 
   AM -->|Webhook alert| BE
   BE -->|Slack message| SL
-  SC -.->|Slash query| BE
 
   FE -->|Auth incidents alerts embedding API| BE
   BE -->|POST /analyze, /summarize-incident| AG
