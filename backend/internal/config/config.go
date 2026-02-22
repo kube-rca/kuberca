@@ -57,6 +57,7 @@ type AuthConfig struct {
 }
 
 type FlappingConfig struct {
+	Enabled                bool
 	DetectionWindowMinutes int
 	CycleThreshold         int
 	ClearanceWindowMinutes int
@@ -101,6 +102,7 @@ func Load() Config {
 			CorsAllowedOrigins: os.Getenv("CORS_ALLOWED_ORIGINS"),
 		},
 		Flapping: FlappingConfig{
+			Enabled:                getenvBool("FLAP_ENABLED", true),
 			DetectionWindowMinutes: getenvInt("FLAP_DETECTION_WINDOW_MINUTES", 30),
 			CycleThreshold:         getenvInt("FLAP_CYCLE_THRESHOLD", 3),
 			ClearanceWindowMinutes: getenvInt("FLAP_CLEARANCE_WINDOW_MINUTES", 30),
@@ -119,6 +121,15 @@ func getenvInt(key string, fallback int) int {
 	if val := os.Getenv(key); val != "" {
 		if intVal, err := strconv.Atoi(val); err == nil {
 			return intVal
+		}
+	}
+	return fallback
+}
+
+func getenvBool(key string, fallback bool) bool {
+	if val := os.Getenv(key); val != "" {
+		if boolVal, err := strconv.ParseBool(val); err == nil {
+			return boolVal
 		}
 	}
 	return fallback

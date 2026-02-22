@@ -203,6 +203,11 @@ func (s *AlertService) shouldSendToSlack(alert model.Alert) bool {
 // detectFlapping - Alert flapping 감지
 // Returns: (isFlapping, isNewFlapping)
 func (s *AlertService) detectFlapping(alert model.Alert) (bool, bool) {
+	// Flapping 기능이 비활성화된 경우 스킵
+	if !s.flappingConfig.Enabled {
+		return false, false
+	}
+
 	// 현재 Alert 상태 조회
 	currentStatus, err := s.db.GetAlertCurrentStatus(alert.Fingerprint)
 	if err != nil {
