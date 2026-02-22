@@ -13,6 +13,10 @@ backend:
     port: 5432
     user: kube-rca
     database: kube-rca
+  flapping:
+    detectionWindowMinutes: 30
+    cycleThreshold: 3
+    clearanceWindowMinutes: 30
   ingress:
     enabled: false
     ingressClassName: nginx

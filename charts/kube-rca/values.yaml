@@ -158,6 +158,14 @@ backend:
       # -- Secret key for Slack channel ID.
       channelIdKey: kube-rca-slack-channel-id
 
+  flapping:
+    # -- Time window (minutes) for detecting flapping cycles (FLAP_DETECTION_WINDOW_MINUTES).
+    detectionWindowMinutes: 30
+    # -- Number of firing→resolved cycles to trigger flapping detection (FLAP_CYCLE_THRESHOLD).
+    cycleThreshold: 3
+    # -- Time (minutes) after last resolved to clear flapping status (FLAP_CLEARANCE_WINDOW_MINUTES).
+    clearanceWindowMinutes: 30
+
   auth:
     # -- Enable backend auth.
     enabled: true

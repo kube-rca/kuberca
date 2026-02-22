@@ -144,6 +144,13 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.backend.embedding.apiKey.existingSecret | quote }}
                   key: {{ .Values.backend.embedding.apiKey.key | quote }}
+            {{- $flapping := default (dict) .Values.backend.flapping }}
+            - name: FLAP_DETECTION_WINDOW_MINUTES
+              value: {{ default 30 $flapping.detectionWindowMinutes | quote }}
+            - name: FLAP_CYCLE_THRESHOLD
+              value: {{ default 3 $flapping.cycleThreshold | quote }}
+            - name: FLAP_CLEARANCE_WINDOW_MINUTES
+              value: {{ default 30 $flapping.clearanceWindowMinutes | quote }}
           livenessProbe:
             httpGet:
               path: /ping
