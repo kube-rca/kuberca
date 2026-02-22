@@ -263,6 +263,14 @@ Notes:
 | `PROMPT_SUMMARY_MAX_ITEMS` | Max session summaries | `3` |
 | `MASKING_REGEX_LIST_JSON` | JSON array of regex patterns for masking before LLM/DB response flows | `[]` |
 
+### LLM Retry
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `LLM_RETRY_MAX_ATTEMPTS` | Max retry attempts for transient LLM API errors (5xx, 429) | `5` |
+| `LLM_RETRY_MIN_WAIT` | Minimum backoff wait time in seconds | `1.0` |
+| `LLM_RETRY_MAX_WAIT` | Maximum backoff wait time in seconds | `60.0` |
+
 ### Session Storage (Required when LLM provider key is set)
 
 | Variable | Description |
