@@ -98,6 +98,13 @@ spec:
               value: {{ $cacheSize | quote }}
             - name: AGENT_CACHE_TTL_SECONDS
               value: {{ $cacheTtl | quote }}
+            {{- $retry := default (dict) .Values.agent.retry }}
+            - name: LLM_RETRY_MAX_ATTEMPTS
+              value: {{ default 5 $retry.maxAttempts | quote }}
+            - name: LLM_RETRY_MIN_WAIT
+              value: {{ default 1.0 $retry.minWait | quote }}
+            - name: LLM_RETRY_MAX_WAIT
+              value: {{ default 60.0 $retry.maxWait | quote }}
             {{- $sessionDB := default (dict) .Values.agent.sessionDB }}
             {{- $sessionDBHost := default "" $sessionDB.host }}
             {{- if $sessionDBHost }}

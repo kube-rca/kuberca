@@ -338,6 +338,13 @@ agent:
     size: 128
     # -- Cache TTL in seconds (AGENT_CACHE_TTL_SECONDS, 0 = disable).
     ttlSeconds: 0
+  retry:
+    # -- Max retry attempts for transient LLM API errors (5xx, 429).
+    maxAttempts: 5
+    # -- Minimum exponential backoff wait time in seconds.
+    minWait: 1.0
+    # -- Maximum exponential backoff wait time in seconds.
+    maxWait: 60.0
   # -- Node labels for agent pods assignment.
   nodeSelector: {}
   # -- Tolerations for agent pods assignment.
