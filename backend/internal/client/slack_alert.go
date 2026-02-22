@@ -104,3 +104,97 @@ func (c *SlackClient) getEmojiByStatus(status string) string {
 	}
 	return "🔥"
 }
+
+// SendFlappingDetection - Flapping 감지 시 오렌지 경고 메시지 전송
+func (c *SlackClient) SendFlappingDetection(alert model.Alert, incidentID string, cycleCount int) error {
+	if !c.IsConfigured() {
+		return fmt.Errorf("slack bot token or channel ID not configured")
+	}
+
+	// 기존 thread_ts 조회 (같은 스레드에 계속 전송)
+	var threadTS string
+	if ts, ok := c.GetThreadTS(alert.Fingerprint); ok {
+		threadTS = ts
+	}
+
+	emoji := "⚠️"
+	title := fmt.Sprintf("%s [FLAPPING DETECTED] %s", emoji, alert.Labels["alertname"])
+
+	description := fmt.Sprintf(
+		"이 알림이 30분 내에 %d회 반복(firing→resolved)되어 Flapping으로 감지되었습니다.\n"+
+			"안정화될 때까지 추가 알림 및 AI 분석이 일시 중지됩니다.\n"+
+			"상태는 계속 추적되며, 30분간 안정 시 자동으로 해제됩니다.",
+		cycleCount,
+	)
+
+	fields := []SlackField{
+		{Title: "Alert Name", Value: alert.Labels["alertname"], Short: true},
+		{Title: "Namespace", Value: alert.Labels["namespace"], Short: true},
+		{Title: "Severity", Value: alert.Labels["severity"], Short: true},
+		{Title: "Cycle Count", Value: fmt.Sprintf("%d cycles", cycleCount), Short: true},
+		{Title: "Current Status", Value: alert.Status, Short: true},
+	}
+
+	// Incident 링크 추가
+	if incidentID != "" && c.frontendURL != "" {
+		incidentLink := fmt.Sprintf("<%s/incidents/%s|🔍 Incident 대시보드>", c.frontendURL, incidentID)
+		fields = append(fields, SlackField{Title: "Incident", Value: incidentLink, Short: false})
+	}
+
+	msg := SlackMessage{
+		Channel:  c.channelID,
+		ThreadTS: threadTS, // 기존 스레드에 계속 전송
+		Attachments: []SlackAttachment{
+			{
+				Color:      "#ff9800", // Orange for flapping warning
+				Title:      title,
+				Text:       description,
+				Fields:     fields,
+				Footer:     "kube-rca",
+				FooterIcon: "https://kubernetes.io/images/favicon.png",
+				Ts:         time.Now().Unix(),
+			},
+		},
+	}
+
+	resp, err := c.send(msg)
+	if err != nil {
+		return err
+	}
+
+	// 새 메시지인 경우 thread_ts 저장
+	if threadTS == "" && resp.TS != "" {
+		c.StoreThreadTS(alert.Fingerprint, resp.TS)
+	}
+
+	return nil
+}
+
+// SendFlappingCleared - Flapping 해제 시 녹색 성공 메시지 전송
+func (c *SlackClient) SendFlappingCleared(fingerprint, threadTS string) error {
+	if !c.IsConfigured() {
+		return fmt.Errorf("slack bot token or channel ID not configured")
+	}
+
+	emoji := "✅"
+	title := fmt.Sprintf("%s Flapping Cleared", emoji)
+	description := "이 알림이 30분 이상 안정 상태를 유지하여 Flapping 상태가 해제되었습니다.\n정상 알림 모니터링이 재개됩니다."
+
+	msg := SlackMessage{
+		Channel:  c.channelID,
+		ThreadTS: threadTS,
+		Attachments: []SlackAttachment{
+			{
+				Color:      "#36a64f", // Green for cleared
+				Title:      title,
+				Text:       description,
+				Footer:     "kube-rca",
+				FooterIcon: "https://kubernetes.io/images/favicon.png",
+				Ts:         time.Now().Unix(),
+			},
+		},
+	}
+
+	_, err := c.send(msg)
+	return err
+}

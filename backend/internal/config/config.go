@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -12,6 +13,7 @@ type Config struct {
 	Embedding EmbeddingConfig
 	Postgres  PostgresConfig
 	Auth      AuthConfig
+	Flapping  FlappingConfig
 }
 
 type SlackConfig struct {
@@ -54,6 +56,12 @@ type AuthConfig struct {
 	CorsAllowedOrigins string
 }
 
+type FlappingConfig struct {
+	DetectionWindowMinutes int
+	CycleThreshold         int
+	ClearanceWindowMinutes int
+}
+
 func Load() Config {
 	_ = godotenv.Load()
 	return Config{
@@ -92,12 +100,26 @@ func Load() Config {
 			CookiePath:         getenv("AUTH_COOKIE_PATH", "/"),
 			CorsAllowedOrigins: os.Getenv("CORS_ALLOWED_ORIGINS"),
 		},
+		Flapping: FlappingConfig{
+			DetectionWindowMinutes: getenvInt("FLAP_DETECTION_WINDOW_MINUTES", 30),
+			CycleThreshold:         getenvInt("FLAP_CYCLE_THRESHOLD", 3),
+			ClearanceWindowMinutes: getenvInt("FLAP_CLEARANCE_WINDOW_MINUTES", 30),
+		},
 	}
 }
 
 func getenv(key, fallback string) string {
 	if val := os.Getenv(key); val != "" {
 		return val
+	}
+	return fallback
+}
+
+func getenvInt(key string, fallback int) int {
+	if val := os.Getenv(key); val != "" {
+		if intVal, err := strconv.Atoi(val); err == nil {
+			return intVal
+		}
 	}
 	return fallback
 }

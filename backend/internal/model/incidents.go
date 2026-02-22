@@ -85,6 +85,9 @@ type AlertDetailResponse struct {
 	ThreadTS        string          `json:"thread_ts"`
 	Labels          json.RawMessage `json:"labels" swaggertype:"object"`
 	Annotations     json.RawMessage `json:"annotations" swaggertype:"object"`
+	IsFlapping      bool            `json:"is_flapping"`
+	FlapCycleCount  int             `json:"flap_cycle_count,omitempty"`
+	FlapWindowStart *time.Time      `json:"flap_window_start,omitempty"`
 }
 
 // ============================================================================
