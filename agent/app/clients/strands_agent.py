@@ -9,8 +9,10 @@ from typing import Any, Protocol
 
 from strands import Agent, tool
 from strands.session import RepositorySessionManager
+from strands.types.content import Messages
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential, wait_random
 
+from app.clients.conversation_manager import SafeSlidingWindowConversationManager
 from app.clients.k8s import KubernetesClient
 from app.clients.llm_providers import LLMProvider, ModelConfig, create_model
 from app.clients.prometheus import PrometheusClient
@@ -37,6 +39,26 @@ def _is_retryable(exc: BaseException) -> bool:
     if cause is not None:
         return _is_retryable(cause)
     return False
+
+
+def _is_gemini_invalid_turn_order(exc: BaseException) -> bool:
+    """Return True if *exc* is a Gemini 400 caused by invalid function-call turn order."""
+    for err in (exc, getattr(exc, "__cause__", None), getattr(exc, "original_exception", None)):
+        if err is None:
+            continue
+        module = getattr(type(err), "__module__", "") or ""
+        if "google" not in module:
+            continue
+        status = getattr(err, "code", None) or getattr(err, "status_code", None)
+        if status == 400 and "function call turn" in str(err).lower():
+            return True
+    return False
+
+
+def _sanitize_message_order(messages: Messages) -> None:
+    """Remove leading non-user messages so the conversation starts with a user turn."""
+    while messages and messages[0].get("role") != "user":
+        messages.pop(0)
 
 
 def _log_retry(retry_state: object) -> None:
@@ -129,7 +151,14 @@ class StrandsAnalysisEngine:
         def _call() -> str:
             return str(agent(prompt))
 
-        return _call()
+        try:
+            return _call()
+        except Exception as exc:
+            if _is_gemini_invalid_turn_order(exc):
+                logger.warning("Gemini turn-order error detected, sanitizing messages and retrying")
+                _sanitize_message_order(agent.messages)
+                return str(agent(prompt))
+            raise
 
     def _resolve_session_id(self, incident_id: str | None) -> str:
         cache_key = incident_id.strip() if incident_id else ""
@@ -176,7 +205,13 @@ class StrandsAnalysisEngine:
             session_id=session_id,
             session_repository=self._session_repo,
         )
-        return Agent(model=model, tools=self._tools, session_manager=session_manager)
+        conversation_manager = SafeSlidingWindowConversationManager(window_size=40)
+        return Agent(
+            model=model,
+            tools=self._tools,
+            session_manager=session_manager,
+            conversation_manager=conversation_manager,
+        )
 
     def _create_model(self) -> object:
         """Create the LLM model based on configuration.
