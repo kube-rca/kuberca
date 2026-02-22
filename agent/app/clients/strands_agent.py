@@ -25,6 +25,34 @@ from app.core.masking import RegexMasker
 logger = logging.getLogger(__name__)
 
 
+def _iter_exception_chain(exc: BaseException) -> list[BaseException]:
+    """Return chained exceptions (__cause__/__context__/original_exception)."""
+    errors: list[BaseException] = []
+    stack: list[BaseException | None] = [exc]
+    visited: set[int] = set()
+    while stack:
+        current = stack.pop()
+        if current is None:
+            continue
+        marker = id(current)
+        if marker in visited:
+            continue
+        visited.add(marker)
+        errors.append(current)
+        stack.append(getattr(current, "__cause__", None))
+        stack.append(getattr(current, "__context__", None))
+        stack.append(getattr(current, "original_exception", None))
+    return errors
+
+
+def _is_invalid_conversation_manager_state(exc: BaseException) -> bool:
+    """Return True when Strands session restore rejects conversation manager state."""
+    for err in _iter_exception_chain(exc):
+        if isinstance(err, ValueError) and "invalid conversation manager state" in str(err).lower():
+            return True
+    return False
+
+
 def _is_retryable(exc: BaseException) -> bool:
     """Return True for transient server errors (5xx, 429) that warrant a retry."""
     # Gemini SDK — google.api_core.exceptions.ServerError
@@ -133,10 +161,67 @@ class StrandsAnalysisEngine:
 
     def analyze(self, prompt: str, incident_id: str | None = None) -> str:
         session_id = self._resolve_session_id(incident_id)
+        try:
+            return self._analyze_once(prompt, session_id)
+        except Exception as exc:
+            if not _is_invalid_conversation_manager_state(exc):
+                raise
+
+            expected_manager = SafeSlidingWindowConversationManager.__name__
+            found_manager = self._read_stored_manager_name(session_id)
+            logger.warning(
+                "chat_session_recovery_started "
+                "session_id=%s error_type=%s expected_manager=%s found_manager=%s",
+                session_id,
+                type(exc).__name__,
+                expected_manager,
+                found_manager or "unknown",
+            )
+            self._reset_session_state(session_id)
+
+            try:
+                result = self._analyze_once(prompt, session_id)
+            except Exception:
+                logger.exception(
+                    "chat_session_recovery_failed "
+                    "session_id=%s expected_manager=%s found_manager=%s",
+                    session_id,
+                    expected_manager,
+                    found_manager or "unknown",
+                )
+                raise
+
+            logger.info(
+                "chat_session_recovery_succeeded "
+                "session_id=%s expected_manager=%s found_manager=%s",
+                session_id,
+                expected_manager,
+                found_manager or "unknown",
+            )
+            return result
+
+    def _analyze_once(self, prompt: str, session_id: str) -> str:
         entry = self._get_cache_entry(session_id)
         with self._session_repo.session_lock(session_id):
             with entry.lock:
                 return self._invoke_with_retry(entry.agent, prompt)
+
+    def _read_stored_manager_name(self, session_id: str) -> str | None:
+        try:
+            return self._session_repo.read_conversation_manager_name(session_id)
+        except Exception:  # noqa: BLE001
+            logger.warning(
+                "Failed to read stored conversation manager state for session=%s",
+                session_id,
+            )
+            return None
+
+    def _reset_session_state(self, session_id: str) -> None:
+        with self._cache_lock:
+            self._agent_cache.pop(session_id, None)
+
+        with self._session_repo.session_lock(session_id):
+            self._session_repo.delete_session(session_id)
 
     def _invoke_with_retry(self, agent: Agent, prompt: str) -> str:
         """Invoke the LLM agent with tenacity retry on transient errors."""

@@ -11,6 +11,28 @@ from app.schemas.chat import ChatRequest
 logger = logging.getLogger(__name__)
 
 
+def _is_invalid_session_restore_error(exc: BaseException) -> bool:
+    """Detect Strands session restore errors caused by incompatible state."""
+    stack: list[BaseException | None] = [exc]
+    visited: set[int] = set()
+    while stack:
+        current = stack.pop()
+        if current is None:
+            continue
+        marker = id(current)
+        if marker in visited:
+            continue
+        visited.add(marker)
+        if isinstance(current, ValueError) and "invalid conversation manager state" in str(
+            current
+        ).lower():
+            return True
+        stack.append(getattr(current, "__cause__", None))
+        stack.append(getattr(current, "__context__", None))
+        stack.append(getattr(current, "original_exception", None))
+    return False
+
+
 def _to_pretty_json(payload: dict[str, Any]) -> str:
     return json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True)
 
@@ -25,7 +47,7 @@ def _build_chat_prompt(request: ChatRequest, masker: RegexMasker) -> str:
         "use them if needed to look up metrics, logs, or traces. "
         "For questions like 'What metric triggered this alert?', "
         "check context/artifacts for Prometheus queries (query field). "
-        "Respond concisely in Korean unless the user asks in another language.\n\n"
+        "Respond concisely in English unless the user asks in another language.\n\n"
     )
     ctx = request.context
     if ctx:
@@ -71,4 +93,17 @@ class ChatService:
             return reply, request.conversation_id
         except Exception as exc:  # noqa: BLE001
             self._logger.exception("Chat failed")
-            return self._masker.mask_text(f"Chat failed: {exc}"), request.conversation_id
+            if _is_invalid_session_restore_error(exc):
+                return (
+                    self._masker.mask_text(
+                        "Failed to restore the conversation session. "
+                        "Please start a new chat and try again."
+                    ),
+                    request.conversation_id,
+                )
+            return (
+                self._masker.mask_text(
+                    "An error occurred while processing chat. Please try again shortly."
+                ),
+                request.conversation_id,
+            )

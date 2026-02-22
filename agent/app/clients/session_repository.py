@@ -106,6 +106,39 @@ class PostgresSessionRepository(SessionRepository):
             return None
         return Session.from_dict(row["data"])
 
+    def read_conversation_manager_name(self, session_id: str) -> str | None:
+        """Return stored conversation manager class name for a session, if present."""
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT data FROM strands_agents
+                    WHERE session_id = %s
+                    ORDER BY agent_id ASC
+                    LIMIT 1
+                    """,
+                    (session_id,),
+                )
+                row = cur.fetchone()
+        if not row:
+            return None
+        data = row["data"]
+        if not isinstance(data, dict):
+            return None
+        manager_state = data.get("conversation_manager_state")
+        if not isinstance(manager_state, dict):
+            return None
+        manager_name = manager_state.get("__name__")
+        return manager_name if isinstance(manager_name, str) else None
+
+    def delete_session(self, session_id: str) -> None:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "DELETE FROM strands_sessions WHERE session_id = %s",
+                    (session_id,),
+                )
+
     def create_agent(self, session_id: str, session_agent: SessionAgent, **kwargs: Any) -> None:
         try:
             with self._connect() as conn:
