@@ -23,6 +23,16 @@ def _get_non_negative_int_env(name: str, default: int) -> int:
     return max(0, _get_int_env(name, default))
 
 
+def _get_float_env(name: str, default: float) -> float:
+    value = os.getenv(name)
+    if not value:
+        return default
+    try:
+        return float(value)
+    except ValueError:
+        return default
+
+
 def _get_string_list_json_env(name: str) -> list[str]:
     value = os.getenv(name, "").strip()
     if not value:
@@ -90,6 +100,10 @@ class Settings:
     prompt_max_events: int
     prompt_summary_max_items: int
     masking_regex_list: list[str]
+    # LLM Retry
+    llm_retry_max_attempts: int = 5
+    llm_retry_min_wait: float = 1.0
+    llm_retry_max_wait: float = 60.0
 
     @property
     def session_store_dsn(self) -> str:
@@ -142,4 +156,8 @@ def load_settings() -> Settings:
         prompt_max_events=_get_non_negative_int_env("PROMPT_MAX_EVENTS", 25),
         prompt_summary_max_items=max(1, _get_int_env("PROMPT_SUMMARY_MAX_ITEMS", 3)),
         masking_regex_list=masking_regex_list,
+        # LLM Retry
+        llm_retry_max_attempts=_get_int_env("LLM_RETRY_MAX_ATTEMPTS", 5),
+        llm_retry_min_wait=_get_float_env("LLM_RETRY_MIN_WAIT", 1.0),
+        llm_retry_max_wait=_get_float_env("LLM_RETRY_MAX_WAIT", 60.0),
     )

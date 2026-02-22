@@ -9,6 +9,7 @@ from typing import Any, Protocol
 
 from strands import Agent, tool
 from strands.session import RepositorySessionManager
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential, wait_random
 
 from app.clients.k8s import KubernetesClient
 from app.clients.llm_providers import LLMProvider, ModelConfig, create_model
@@ -20,6 +21,38 @@ from app.core.config import Settings
 from app.core.masking import RegexMasker
 
 logger = logging.getLogger(__name__)
+
+
+def _is_retryable(exc: BaseException) -> bool:
+    """Return True for transient server errors (5xx, 429) that warrant a retry."""
+    # Gemini SDK — google.api_core.exceptions.ServerError
+    if type(exc).__name__ == "ServerError" and "google" in getattr(type(exc), "__module__", ""):
+        return True
+    # OpenAI / Anthropic (stainless-based SDKs expose status_code)
+    status = getattr(exc, "status_code", None)
+    if status is not None and status in (429, 500, 502, 503, 504):
+        return True
+    # Strands may wrap the original exception as __cause__
+    cause = getattr(exc, "__cause__", None)
+    if cause is not None:
+        return _is_retryable(cause)
+    return False
+
+
+def _log_retry(retry_state: object) -> None:
+    """Log each retry attempt at WARNING level."""
+    attempt = getattr(retry_state, "attempt_number", "?")
+    outcome = getattr(retry_state, "outcome", None)
+    exc = outcome.exception() if outcome else None
+    wait = getattr(retry_state, "next_action", None)
+    sleep_seconds = getattr(wait, "sleep", None) if wait else None
+    logger.warning(
+        "LLM call retry attempt=%s, wait=%.1fs, error=%s: %s",
+        attempt,
+        sleep_seconds if sleep_seconds is not None else 0.0,
+        type(exc).__name__ if exc else "unknown",
+        exc,
+    )
 
 
 @dataclass
@@ -63,6 +96,11 @@ class StrandsAnalysisEngine:
         self._cache_ttl_seconds = settings.agent_cache_ttl_seconds
         self._session_repo = PostgresSessionRepository(settings.session_store_dsn)
 
+        # LLM retry settings
+        self._retry_max_attempts = max(1, settings.llm_retry_max_attempts)
+        self._retry_min_wait = settings.llm_retry_min_wait
+        self._retry_max_wait = settings.llm_retry_max_wait
+
         # Log provider info
         if model_config:
             logger.info(
@@ -76,7 +114,22 @@ class StrandsAnalysisEngine:
         entry = self._get_cache_entry(session_id)
         with self._session_repo.session_lock(session_id):
             with entry.lock:
-                return str(entry.agent(prompt))
+                return self._invoke_with_retry(entry.agent, prompt)
+
+    def _invoke_with_retry(self, agent: Agent, prompt: str) -> str:
+        """Invoke the LLM agent with tenacity retry on transient errors."""
+
+        @retry(
+            retry=retry_if_exception(_is_retryable),
+            wait=wait_exponential(multiplier=1, min=self._retry_min_wait, max=self._retry_max_wait)
+            + wait_random(0, 2),
+            stop=stop_after_attempt(self._retry_max_attempts),
+            before_sleep=_log_retry,
+        )
+        def _call() -> str:
+            return str(agent(prompt))
+
+        return _call()
 
     def _resolve_session_id(self, incident_id: str | None) -> str:
         cache_key = incident_id.strip() if incident_id else ""
