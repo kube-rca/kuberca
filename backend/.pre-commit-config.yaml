@@ -1,6 +1,29 @@
 repos:
   - repo: local
     hooks:
+      - id: go-fmt-check
+        name: go fmt check
+        entry: bash
+        args:
+          - -c
+          - |
+              unformatted=$(gofmt -l .)
+              if [ -n "$unformatted" ]; then
+                echo "pre-commit: The following files need formatting (run 'go fmt ./...'):" >&2
+                echo "$unformatted" >&2
+                exit 1
+              fi
+        language: system
+        types: [go]
+        pass_filenames: false
+        stages: [pre-commit]
+      - id: go-vet
+        name: go vet
+        entry: go vet ./...
+        language: system
+        types: [go]
+        pass_filenames: false
+        stages: [pre-commit]
       - id: update-openapi
         name: Update OpenAPI docs
         entry: go run github.com/swaggo/swag/cmd/swag@v1.16.6 init -g openapi.go --parseInternal --output docs

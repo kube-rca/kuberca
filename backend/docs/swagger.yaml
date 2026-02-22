@@ -54,8 +54,14 @@ definitions:
         type: string
       fired_at:
         type: string
+      flap_cycle_count:
+        type: integer
+      flap_window_start:
+        type: string
       incident_id:
         type: string
+      is_flapping:
+        type: boolean
       labels:
         type: object
       resolved_at:
@@ -78,6 +84,8 @@ definitions:
       incident_id:
         description: null 가능 (아직 Incident에 연결되지 않은 경우)
         type: string
+      labels:
+        type: object
       namespace:
         type: string
       resolved_at:
@@ -332,6 +340,68 @@ definitions:
         type: string
       similarity:
         type: number
+    type: object
+  model.WebhookConfig:
+    properties:
+      body:
+        type: string
+      headers:
+        items:
+          $ref: '#/definitions/model.WebhookHeader'
+        type: array
+      id:
+        type: integer
+      method:
+        type: string
+      updated_at:
+        type: string
+      url:
+        type: string
+    type: object
+  model.WebhookConfigListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/model.WebhookConfig'
+        type: array
+      status:
+        type: string
+    type: object
+  model.WebhookConfigMutationResponse:
+    properties:
+      id:
+        type: integer
+      message:
+        type: string
+      status:
+        type: string
+    type: object
+  model.WebhookConfigRequest:
+    properties:
+      body:
+        type: string
+      headers:
+        items:
+          $ref: '#/definitions/model.WebhookHeader'
+        type: array
+      method:
+        type: string
+      url:
+        type: string
+    type: object
+  model.WebhookConfigResponse:
+    properties:
+      data:
+        $ref: '#/definitions/model.WebhookConfig'
+      status:
+        type: string
+    type: object
+  model.WebhookHeader:
+    properties:
+      key:
+        type: string
+      value:
+        type: string
     type: object
 info:
   contact: {}
@@ -857,6 +927,156 @@ paths:
       summary: Create mock incident
       tags:
       - incidents
+  /api/v1/settings/webhooks:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.WebhookConfigListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List webhook configs
+      tags:
+      - settings
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Webhook config
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.WebhookConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.WebhookConfigMutationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a webhook config
+      tags:
+      - settings
+  /api/v1/settings/webhooks/{id}:
+    delete:
+      parameters:
+      - description: Webhook Config ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.WebhookConfigMutationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a webhook config
+      tags:
+      - settings
+    get:
+      parameters:
+      - description: Webhook Config ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.WebhookConfigResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a webhook config by ID
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Webhook Config ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Webhook config
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.WebhookConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.WebhookConfigMutationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a webhook config
+      tags:
+      - settings
   /ping:
     get:
       produces:
