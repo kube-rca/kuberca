@@ -145,6 +145,8 @@ spec:
                   name: {{ .Values.backend.embedding.apiKey.existingSecret | quote }}
                   key: {{ .Values.backend.embedding.apiKey.key | quote }}
             {{- $flapping := default (dict) .Values.backend.flapping }}
+            - name: FLAP_ENABLED
+              value: {{ default true $flapping.enabled | quote }}
             - name: FLAP_DETECTION_WINDOW_MINUTES
               value: {{ default 30 $flapping.detectionWindowMinutes | quote }}
             - name: FLAP_CYCLE_THRESHOLD

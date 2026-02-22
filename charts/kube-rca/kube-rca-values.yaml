@@ -14,6 +14,7 @@ backend:
     user: kube-rca
     database: kube-rca
   flapping:
+    enabled: true
     detectionWindowMinutes: 30
     cycleThreshold: 3
     clearanceWindowMinutes: 30

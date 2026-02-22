@@ -159,6 +159,8 @@ backend:
       channelIdKey: kube-rca-slack-channel-id
 
   flapping:
+    # -- Enable alert flapping detection (FLAP_ENABLED).
+    enabled: true
     # -- Time window (minutes) for detecting flapping cycles (FLAP_DETECTION_WINDOW_MINUTES).
     detectionWindowMinutes: 30
     # -- Number of firing→resolved cycles to trigger flapping detection (FLAP_CYCLE_THRESHOLD).
