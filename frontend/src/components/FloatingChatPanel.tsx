@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useLocation } from 'react-router-dom';
-import { chatWithAgent, ChatRequest } from '../utils/api';
+import { chatWithAgent, ChatRequest, fetchAlertDetail } from '../utils/api';
 
 type ChatMessage = {
   id: string;
@@ -89,18 +89,42 @@ const FloatingChatPanel = ({ onDockedChange }: FloatingChatPanelProps) => {
   }, [isOpen, messages]);
 
   useEffect(() => {
-    if (manualIncidentId) {
-      return;
-    }
-    setManualIncidentId(routeContext.routeIncidentId);
-  }, [manualIncidentId, routeContext.routeIncidentId]);
+    let cancelled = false;
 
-  useEffect(() => {
-    if (manualAlertId) {
-      return;
-    }
-    setManualAlertId(routeContext.routeAlertId);
-  }, [manualAlertId, routeContext.routeAlertId]);
+    const syncContextFromRoute = async () => {
+      if (routeContext.page === 'incident_detail') {
+        setManualIncidentId(routeContext.routeIncidentId);
+        setManualAlertId('');
+        return;
+      }
+
+      if (routeContext.page === 'alert_detail') {
+        setManualAlertId(routeContext.routeAlertId);
+        setManualIncidentId('');
+        try {
+          const detail = await fetchAlertDetail(routeContext.routeAlertId);
+          if (cancelled) {
+            return;
+          }
+          setManualIncidentId(detail.incident_id || '');
+        } catch {
+          if (!cancelled) {
+            setManualIncidentId('');
+          }
+        }
+        return;
+      }
+
+      // Dashboard 이동 시 컨텍스트 입력값을 비웁니다.
+      setManualIncidentId('');
+      setManualAlertId('');
+    };
+
+    void syncContextFromRoute();
+    return () => {
+      cancelled = true;
+    };
+  }, [routeContext.page, routeContext.routeIncidentId, routeContext.routeAlertId, routeContext.routeKey]);
 
   const sendChat = async (request: ChatRequest, userPreview?: string) => {
     if (sending) {
