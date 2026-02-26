@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -39,19 +39,66 @@ const formatCommentTimestamp = (value: string): string => {
   return normalized;
 };
 
+const useEditorHistory = (initialValue = '') => {
+  const [value, setValue] = useState(initialValue);
+  const historyRef = useRef<string[]>([initialValue]);
+  const indexRef = useRef(0);
+
+  const commit = useCallback((next: string) => {
+    const current = historyRef.current[indexRef.current];
+    if (next === current) {
+      setValue(next);
+      return;
+    }
+    const nextHistory = historyRef.current.slice(0, indexRef.current + 1);
+    nextHistory.push(next);
+    historyRef.current = nextHistory;
+    indexRef.current = nextHistory.length - 1;
+    setValue(next);
+  }, []);
+
+  const reset = useCallback((next: string) => {
+    historyRef.current = [next];
+    indexRef.current = 0;
+    setValue(next);
+  }, []);
+
+  const undo = useCallback(() => {
+    if (indexRef.current === 0) {
+      return false;
+    }
+    indexRef.current -= 1;
+    setValue(historyRef.current[indexRef.current]);
+    return true;
+  }, []);
+
+  const redo = useCallback(() => {
+    if (indexRef.current >= historyRef.current.length - 1) {
+      return false;
+    }
+    indexRef.current += 1;
+    setValue(historyRef.current[indexRef.current]);
+    return true;
+  }, []);
+
+  return { value, setValue: commit, reset, undo, redo };
+};
+
 const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId }) => {
   const [selectedVote, setSelectedVote] = useState<VoteType>(null);
   const [upVotes, setUpVotes] = useState(0);
   const [downVotes, setDownVotes] = useState(0);
   const [comments, setComments] = useState<FeedbackCommentResponse[]>([]);
   const [tab, setTab] = useState<EditorTab>('write');
-  const [draft, setDraft] = useState('');
+  const draftEditor = useEditorHistory('');
+  const draft = draftEditor.value;
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [commentMenuId, setCommentMenuId] = useState<number | null>(null);
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
-  const [editingDraft, setEditingDraft] = useState('');
+  const editingDraftEditor = useEditorHistory('');
+  const editingDraft = editingDraftEditor.value;
   const [editingTab, setEditingTab] = useState<EditorTab>('write');
   const [editingMoreMenuOpen, setEditingMoreMenuOpen] = useState(false);
   const [commentActionLoadingId, setCommentActionLoadingId] = useState<number | null>(null);
@@ -120,7 +167,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
     try {
       const newComment = await createFeedbackComment(targetType, targetId, body);
       setComments((prev) => [...prev, newComment]);
-      setDraft('');
+      draftEditor.reset('');
       setTab('write');
     } catch (error) {
       console.error('Failed to save comment:', error);
@@ -135,13 +182,13 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
   const startEditComment = (comment: FeedbackCommentResponse) => {
     setCommentMenuId(null);
     setEditingCommentId(comment.comment_id);
-    setEditingDraft(comment.body);
+    editingDraftEditor.reset(comment.body);
     setEditingTab('write');
   };
 
   const cancelEditComment = () => {
     setEditingCommentId(null);
-    setEditingDraft('');
+    editingDraftEditor.reset('');
   };
 
   const saveEditComment = async (commentId: number) => {
@@ -185,13 +232,21 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
 
   type EditorContext = {
     draft: string;
-    setDraft: React.Dispatch<React.SetStateAction<string>>;
+    setDraft: (value: string) => void;
+    undo: () => boolean;
+    redo: () => boolean;
     textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   };
 
   const applySelectionTransform = (
     transform: (selected: string) => { text: string; cursorOffset?: number },
-    ctx: EditorContext = { draft, setDraft: setDraft as React.Dispatch<React.SetStateAction<string>>, textareaRef }
+    ctx: EditorContext = {
+      draft,
+      setDraft: draftEditor.setValue,
+      undo: draftEditor.undo,
+      redo: draftEditor.redo,
+      textareaRef,
+    }
   ) => {
     const textarea = ctx.textareaRef.current;
     if (!textarea) return;
@@ -200,20 +255,23 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
     const end = textarea.selectionEnd;
     const selected = ctx.draft.slice(start, end);
     const next = transform(selected);
-
-    const updated = `${ctx.draft.slice(0, start)}${next.text}${ctx.draft.slice(end)}`;
-    ctx.setDraft(updated);
-
     const nextPos = start + (next.cursorOffset ?? next.text.length);
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(nextPos, nextPos);
-    }, 0);
+
+    textarea.focus();
+    textarea.setRangeText(next.text, start, end, 'end');
+    ctx.setDraft(textarea.value);
+    textarea.setSelectionRange(nextPos, nextPos);
   };
 
   const applyLinePrefix = (
     prefix: string,
-    ctx: EditorContext = { draft, setDraft: setDraft as React.Dispatch<React.SetStateAction<string>>, textareaRef }
+    ctx: EditorContext = {
+      draft,
+      setDraft: draftEditor.setValue,
+      undo: draftEditor.undo,
+      redo: draftEditor.redo,
+      textareaRef,
+    }
   ) => {
     const textarea = ctx.textareaRef.current;
     if (!textarea) return;
@@ -229,11 +287,69 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
       .map((line) => (line.trim() ? `${prefix}${line}` : line || prefix))
       .join('\n');
 
-    const updated = `${ctx.draft.slice(0, lineStart)}${prefixed}${ctx.draft.slice(end)}`;
-    ctx.setDraft(updated);
-    setTimeout(() => {
-      textarea.focus();
-    }, 0);
+    textarea.focus();
+    textarea.setRangeText(prefixed, lineStart, end, 'end');
+    ctx.setDraft(textarea.value);
+  };
+
+  const handleEditorKeyDown = (
+    event: KeyboardEvent<HTMLTextAreaElement>,
+    ctx: EditorContext
+  ) => {
+    const isMod = event.metaKey || event.ctrlKey;
+    if (!isMod) {
+      return;
+    }
+
+    const key = event.key.toLowerCase();
+
+    if (key === 'z') {
+      event.preventDefault();
+      if (event.shiftKey) {
+        ctx.redo();
+      } else {
+        ctx.undo();
+      }
+      return;
+    }
+
+    if (key === 'y') {
+      event.preventDefault();
+      ctx.redo();
+      return;
+    }
+
+    if (key === 'b') {
+      event.preventDefault();
+      applySelectionTransform((s) => ({ text: `**${s || 'bold text'}**`, cursorOffset: s ? undefined : 2 }), ctx);
+      return;
+    }
+
+    if (key === 'i') {
+      event.preventDefault();
+      applySelectionTransform((s) => ({ text: `*${s || 'italic text'}*`, cursorOffset: s ? undefined : 1 }), ctx);
+      return;
+    }
+
+    if (key === 'k') {
+      event.preventDefault();
+      applySelectionTransform(
+        (s) => ({ text: `[${s || 'link text'}](https://example.com)`, cursorOffset: s ? undefined : 1 }),
+        ctx
+      );
+      return;
+    }
+
+    if (key === 'e') {
+      event.preventDefault();
+      applySelectionTransform((s) => ({ text: `\`${s || 'code'}\``, cursorOffset: s ? undefined : 1 }), ctx);
+      return;
+    }
+
+    if (event.shiftKey && key === 'h') {
+      event.preventDefault();
+      applyLinePrefix('### ', ctx);
+    }
   };
 
   const handleMoreAction = (
@@ -245,7 +361,9 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
 
     const editCtx: EditorContext = ctx ?? {
       draft,
-      setDraft: setDraft as React.Dispatch<React.SetStateAction<string>>,
+      setDraft: draftEditor.setValue,
+      undo: draftEditor.undo,
+      redo: draftEditor.redo,
       textareaRef,
     };
     if (action === 'unordered') {
@@ -269,6 +387,16 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
       return;
     }
     applySelectionTransform((s) => ({ text: s ? `/${s}` : '/command' }), editCtx);
+  };
+
+  const clearEditor = (ctx: EditorContext) => {
+    ctx.setDraft('');
+    setTimeout(() => {
+      const textarea = ctx.textareaRef.current;
+      if (!textarea) return;
+      textarea.focus();
+      textarea.setSelectionRange(0, 0);
+    }, 0);
   };
 
   return (
@@ -378,7 +506,15 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                       <div className="flex items-center gap-1 px-2 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 overflow-x-auto">
                         <button
                           type="button"
-                          onClick={() => applyLinePrefix('### ', { draft: editingDraft, setDraft: setEditingDraft, textareaRef: editingTextareaRef })}
+                          onClick={() =>
+                            applyLinePrefix('### ', {
+                              draft: editingDraft,
+                              setDraft: editingDraftEditor.setValue,
+                              undo: editingDraftEditor.undo,
+                              redo: editingDraftEditor.redo,
+                              textareaRef: editingTextareaRef,
+                            })
+                          }
                           className="h-8 w-8 rounded text-lg font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
                           title="Heading"
                         >
@@ -386,7 +522,18 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                         </button>
                         <button
                           type="button"
-                          onClick={() => applySelectionTransform((s) => ({ text: `**${s || 'bold text'}**`, cursorOffset: s ? undefined : 2 }), { draft: editingDraft, setDraft: setEditingDraft, textareaRef: editingTextareaRef })}
+                          onClick={() =>
+                            applySelectionTransform(
+                              (s) => ({ text: `**${s || 'bold text'}**`, cursorOffset: s ? undefined : 2 }),
+                              {
+                                draft: editingDraft,
+                                setDraft: editingDraftEditor.setValue,
+                                undo: editingDraftEditor.undo,
+                                redo: editingDraftEditor.redo,
+                                textareaRef: editingTextareaRef,
+                              }
+                            )
+                          }
                           className="h-8 w-8 rounded text-lg font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
                           title="Bold"
                         >
@@ -394,7 +541,18 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                         </button>
                         <button
                           type="button"
-                          onClick={() => applySelectionTransform((s) => ({ text: `*${s || 'italic text'}*`, cursorOffset: s ? undefined : 1 }), { draft: editingDraft, setDraft: setEditingDraft, textareaRef: editingTextareaRef })}
+                          onClick={() =>
+                            applySelectionTransform(
+                              (s) => ({ text: `*${s || 'italic text'}*`, cursorOffset: s ? undefined : 1 }),
+                              {
+                                draft: editingDraft,
+                                setDraft: editingDraftEditor.setValue,
+                                undo: editingDraftEditor.undo,
+                                redo: editingDraftEditor.redo,
+                                textareaRef: editingTextareaRef,
+                              }
+                            )
+                          }
                           className="h-8 w-8 rounded text-lg italic text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
                           title="Italic"
                         >
@@ -402,7 +560,18 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                         </button>
                         <button
                           type="button"
-                          onClick={() => applySelectionTransform((s) => ({ text: `\`${s || 'code'}\``, cursorOffset: s ? undefined : 1 }), { draft: editingDraft, setDraft: setEditingDraft, textareaRef: editingTextareaRef })}
+                          onClick={() =>
+                            applySelectionTransform(
+                              (s) => ({ text: `\`${s || 'code'}\``, cursorOffset: s ? undefined : 1 }),
+                              {
+                                draft: editingDraft,
+                                setDraft: editingDraftEditor.setValue,
+                                undo: editingDraftEditor.undo,
+                                redo: editingDraftEditor.redo,
+                                textareaRef: editingTextareaRef,
+                              }
+                            )
+                          }
                           className="h-8 w-8 rounded text-lg text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
                           title="Code"
                         >
@@ -413,7 +582,13 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                           onClick={() =>
                             applySelectionTransform(
                               (s) => ({ text: `[${s || 'link text'}](https://example.com)`, cursorOffset: s ? undefined : 1 }),
-                              { draft: editingDraft, setDraft: setEditingDraft, textareaRef: editingTextareaRef }
+                              {
+                                draft: editingDraft,
+                                setDraft: editingDraftEditor.setValue,
+                                undo: editingDraftEditor.undo,
+                                redo: editingDraftEditor.redo,
+                                textareaRef: editingTextareaRef,
+                              }
                             )
                           }
                           className="h-8 w-8 rounded text-lg text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
@@ -433,23 +608,49 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                           </button>
                           {editingMoreMenuOpen && (
                             <div className="absolute right-0 top-9 z-[100] w-52 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg">
-                              <button type="button" onClick={() => handleMoreAction('unordered', { draft: editingDraft, setDraft: setEditingDraft, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Unordered list</button>
-                              <button type="button" onClick={() => handleMoreAction('numbered', { draft: editingDraft, setDraft: setEditingDraft, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Numbered list</button>
-                              <button type="button" onClick={() => handleMoreAction('task', { draft: editingDraft, setDraft: setEditingDraft, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Task list</button>
+                              <button type="button" onClick={() => handleMoreAction('unordered', { draft: editingDraft, setDraft: editingDraftEditor.setValue, undo: editingDraftEditor.undo, redo: editingDraftEditor.redo, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Unordered list</button>
+                              <button type="button" onClick={() => handleMoreAction('numbered', { draft: editingDraft, setDraft: editingDraftEditor.setValue, undo: editingDraftEditor.undo, redo: editingDraftEditor.redo, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Numbered list</button>
+                              <button type="button" onClick={() => handleMoreAction('task', { draft: editingDraft, setDraft: editingDraftEditor.setValue, undo: editingDraftEditor.undo, redo: editingDraftEditor.redo, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Task list</button>
                               <div className="h-px bg-gray-200 dark:bg-gray-700" />
-                              <button type="button" onClick={() => handleMoreAction('mention', { draft: editingDraft, setDraft: setEditingDraft, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">@ Mention</button>
-                              <button type="button" onClick={() => handleMoreAction('reference', { draft: editingDraft, setDraft: setEditingDraft, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Reference</button>
-                              <button type="button" onClick={() => handleMoreAction('slash', { draft: editingDraft, setDraft: setEditingDraft, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Slash commands</button>
+                              <button type="button" onClick={() => handleMoreAction('mention', { draft: editingDraft, setDraft: editingDraftEditor.setValue, undo: editingDraftEditor.undo, redo: editingDraftEditor.redo, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">@ Mention</button>
+                              <button type="button" onClick={() => handleMoreAction('reference', { draft: editingDraft, setDraft: editingDraftEditor.setValue, undo: editingDraftEditor.undo, redo: editingDraftEditor.redo, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Reference</button>
+                              <button type="button" onClick={() => handleMoreAction('slash', { draft: editingDraft, setDraft: editingDraftEditor.setValue, undo: editingDraftEditor.undo, redo: editingDraftEditor.redo, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Slash commands</button>
                             </div>
                           )}
                         </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            clearEditor({
+                              draft: editingDraft,
+                              setDraft: editingDraftEditor.setValue,
+                              undo: editingDraftEditor.undo,
+                              redo: editingDraftEditor.redo,
+                              textareaRef: editingTextareaRef,
+                            })
+                          }
+                          className="ml-auto h-8 w-8 rounded text-base text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                          title="Clear"
+                          aria-label="Clear editor"
+                        >
+                          ⌫
+                        </button>
                       </div>
                     )}
                     {editingTab === 'write' ? (
                       <textarea
                         ref={editingTextareaRef}
                         value={editingDraft}
-                        onChange={(e) => setEditingDraft(e.target.value)}
+                        onChange={(e) => editingDraftEditor.setValue(e.target.value)}
+                        onKeyDown={(e) =>
+                          handleEditorKeyDown(e, {
+                            draft: editingDraft,
+                            setDraft: editingDraftEditor.setValue,
+                            undo: editingDraftEditor.undo,
+                            redo: editingDraftEditor.redo,
+                            textareaRef: editingTextareaRef,
+                          })
+                        }
                         className="w-full min-h-[160px] p-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none text-sm"
                       />
                     ) : (
@@ -601,6 +802,23 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                 </div>
               )}
             </div>
+            <button
+              type="button"
+              onClick={() =>
+                clearEditor({
+                  draft,
+                  setDraft: draftEditor.setValue,
+                  undo: draftEditor.undo,
+                  redo: draftEditor.redo,
+                  textareaRef,
+                })
+              }
+              className="ml-auto h-8 w-8 rounded text-base text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+              title="Clear"
+              aria-label="Clear editor"
+            >
+              ⌫
+            </button>
           </div>
         )}
 
@@ -608,7 +826,16 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
           <textarea
             ref={textareaRef}
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => draftEditor.setValue(e.target.value)}
+            onKeyDown={(e) =>
+              handleEditorKeyDown(e, {
+                draft,
+                setDraft: draftEditor.setValue,
+                undo: draftEditor.undo,
+                redo: draftEditor.redo,
+                textareaRef,
+              })
+            }
             placeholder={`Add a comment for ${targetType} ${targetId}...`}
             className="w-full min-h-[160px] p-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none"
           />
