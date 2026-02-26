@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // [추가] 페이지 이동 훅
+import { useLocation, useNavigate } from 'react-router-dom'; // [추가] 페이지 이동 훅
 import { useSearch } from '../context/SearchContext';
 
 interface UnifiedSearchPanelProps {
@@ -14,6 +14,18 @@ const UnifiedSearchPanel: React.FC<UnifiedSearchPanelProps> = ({ availableLabels
   
   // [추가] 네비게이션 훅 사용
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Dashboard 페이지에 따라 검색 Target 기본값 동기화
+  useEffect(() => {
+    if (location.pathname === '/alerts' && scope !== 'ALERT') {
+      setScope('ALERT');
+      return;
+    }
+    if ((location.pathname === '/' || location.pathname.startsWith('/muted')) && scope !== 'INCIDENT') {
+      setScope('INCIDENT');
+    }
+  }, [location.pathname, scope, setScope]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

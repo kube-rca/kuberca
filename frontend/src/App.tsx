@@ -307,6 +307,7 @@ function App() {
 
   // 스타일
   const selectStyle = "px-4 py-2 text-sm font-medium border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm cursor-pointer text-left";
+  const isSettingsRoute = location.pathname.startsWith('/settings');
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
@@ -315,9 +316,11 @@ function App() {
         <Sidebar />
         <div className={`md:ml-64 px-4 sm:px-6 lg:px-8 py-6 transition-all duration-300 ${isChatDocked ? "md:mr-[26rem]" : ""}`}>
           <div className="w-full max-w-[1600px] mx-auto">
-            <div className="mb-6">
-              <UnifiedSearchPanel availableLabels={availableLabels} availableNamespaces={availableNamespaces} />
-            </div>
+            {!isSettingsRoute && (
+              <div className="mb-6">
+                <UnifiedSearchPanel availableLabels={availableLabels} availableNamespaces={availableNamespaces} />
+              </div>
+            )}
 
             <Routes>
               <Route path="/incidents/:id" element={<IncidentDetailRoute />} />
