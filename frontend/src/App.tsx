@@ -18,6 +18,7 @@ import { Sidebar } from './components/Sidebar';
 import UnifiedSearchPanel from './components/UnifiedSearchPanel';
 import SettingsPage from './components/SettingsPage';
 import WebhookSettings from './components/WebhookSettings';
+import WebhookList from './components/WebhookList';
 import FloatingChatPanel from './components/FloatingChatPanel';
 import { useSearch } from './context/SearchContext';
 // [필수] 우리가 만든 로직 Import
@@ -512,9 +513,11 @@ function App() {
                 </div>
               } />
 
-              {/* Settings Route */}
+              {/* Settings Routes */}
               <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/settings/webhooks" element={<WebhookSettings />} />
+              <Route path="/settings/webhooks" element={<WebhookList />} />
+              <Route path="/settings/webhooks/new" element={<WebhookSettings />} />
+              <Route path="/settings/webhooks/:id" element={<WebhookSettings />} />
             </Routes>
           </div>
         </div>

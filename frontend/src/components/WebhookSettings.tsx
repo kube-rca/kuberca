@@ -1,50 +1,94 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-json';
 import 'prismjs/themes/prism.css';
 import { useUndo } from '../hooks/useUndo';
+import { fetchWebhookById, createWebhookConfig, updateWebhookConfig, WebhookHeaderItem } from '../utils/api';
 
 // Custom styler to highlight variables
 const highlightWithPrism = (code: string) => {
   let highlighted = Prism.highlight(code, Prism.languages.json, 'json');
-  
   highlighted = highlighted.replace(
     /{{[\w.]+}}/g,
     (match) => `<span class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded px-0.5 font-bold">${match}</span>`
   );
-  
   return highlighted;
 };
-
-
 
 interface WebhookHeader {
   key: string;
   value: string;
 }
 
+// 변수 삽입 버튼 공통 컴포넌트
+const VariableButton: React.FC<{
+  variable: { label: string; value: string };
+  body: string;
+  setBody: (v: string) => void;
+}> = ({ variable, body, setBody }) => (
+  <button
+    onClick={() => {
+      const textarea = document.getElementById('webhook-body-editor') as HTMLTextAreaElement;
+      if (!textarea) return;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      setBody(body.substring(0, start) + variable.value + body.substring(end));
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + variable.value.length, start + variable.value.length);
+      }, 0);
+    }}
+    className="w-full text-left px-2.5 py-1.5 text-sm bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-md shadow-sm hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-200 group"
+  >
+    <div className="flex flex-col">
+      <span className="font-mono text-blue-600 dark:text-blue-400 text-xs font-semibold group-hover:text-blue-700 dark:group-hover:text-blue-300">{variable.value}</span>
+      <span className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">{variable.label}</span>
+    </div>
+  </button>
+);
+
 const WebhookSettings: React.FC = () => {
   const navigate = useNavigate();
+  const { id } = useParams<{ id?: string }>();
+  const isEditMode = Boolean(id);
+
   const [url, setUrl] = useState('');
   const [method, setMethod] = useState('POST');
   const [headers, setHeaders] = useState<WebhookHeader[]>([{ key: '', value: '' }]);
   const { state: body, setState: setBody, undo, redo } = useUndo('{\n  "text": "Hello World"\n}');
   const [jsonError, setJsonError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // JSON 유효성 검사
   React.useEffect(() => {
     try {
       JSON.parse(body);
       setJsonError(null);
     } catch (e) {
-      if (e instanceof Error) {
-        setJsonError(e.message);
-      } else {
-        setJsonError('Invalid JSON');
-      }
+      setJsonError(e instanceof Error ? e.message : 'Invalid JSON');
     }
   }, [body]);
+
+  // 편집 모드: 기존 설정 로드
+  React.useEffect(() => {
+    if (!isEditMode || !id) return;
+    fetchWebhookById(Number(id))
+      .then((cfg) => {
+        setUrl(cfg.url);
+        setMethod(cfg.method);
+        if (Array.isArray(cfg.headers) && cfg.headers.length > 0) {
+          setHeaders(cfg.headers);
+        }
+        if (cfg.body) setBody(cfg.body);
+      })
+      .catch((err) => {
+        setSaveMessage({ type: 'error', text: `설정 로드 실패: ${err instanceof Error ? err.message : err}` });
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleHeaderChange = (index: number, field: 'key' | 'value', value: string) => {
     const newHeaders = [...headers];
@@ -52,31 +96,49 @@ const WebhookSettings: React.FC = () => {
     setHeaders(newHeaders);
   };
 
-  const addHeader = () => {
-    setHeaders([...headers, { key: '', value: '' }]);
-  };
+  const addHeader = () => setHeaders([...headers, { key: '', value: '' }]);
 
   const removeHeader = (index: number) => {
-    const newHeaders = headers.filter((_: WebhookHeader, i: number) => i !== index);
-    setHeaders(newHeaders);
+    setHeaders(headers.filter((_: WebhookHeader, i: number) => i !== index));
   };
 
-  const handleSave = () => {
-    // Mock save functionality
-    console.log('Saved Webhook Settings:', { url, method, headers, body });
-    alert('Webhook settings saved (Check console for details)');
+  const handleSave = async () => {
+    if (isSaving || jsonError) return;
+    setIsSaving(true);
+    setSaveMessage(null);
+    try {
+      const filteredHeaders: WebhookHeaderItem[] = headers.filter((h) => h.key.trim() !== '');
+      const payload = { url, method, headers: filteredHeaders, body };
+
+      if (isEditMode && id) {
+        await updateWebhookConfig(Number(id), payload);
+      } else {
+        await createWebhookConfig(payload);
+      }
+
+      // 저장 성공 → 목록으로 이동
+      navigate('/settings/webhooks');
+    } catch (err) {
+      setSaveMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : '저장에 실패했습니다.',
+      });
+      setIsSaving(false);
+    }
   };
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors duration-300">
-       <div className="flex items-center mb-6">
-        <button 
-          onClick={() => navigate('/settings')}
+      <div className="flex items-center mb-6">
+        <button
+          onClick={() => navigate('/settings/webhooks')}
           className="mr-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
         >
           &larr; Back
         </button>
-        <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">Webhook Management</h1>
+        <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">
+          {isEditMode ? 'Edit Webhook' : 'New Webhook'}
+        </h1>
       </div>
 
       <div className="space-y-6 max-w-4xl">
@@ -151,13 +213,13 @@ const WebhookSettings: React.FC = () => {
           <div className="flex gap-4">
             <div className="flex-1">
               <div className={`relative w-full border rounded-md bg-white dark:bg-gray-700 overflow-hidden ${
-                  jsonError 
-                    ? 'border-red-500 ring-1 ring-red-500' 
+                  jsonError
+                    ? 'border-red-500 ring-1 ring-red-500'
                     : 'border-gray-300 dark:border-gray-600 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500'
                 }`}>
                 <Editor
                   value={body}
-                  onValueChange={code => setBody(code)}
+                  onValueChange={(code) => setBody(code)}
                   highlight={highlightWithPrism}
                   padding={10}
                   textareaId="webhook-body-editor"
@@ -169,93 +231,95 @@ const WebhookSettings: React.FC = () => {
                   }}
                   onKeyDown={(e) => {
                     const { key, ctrlKey, metaKey, shiftKey } = e;
-                    
-                    // Undo/Redo
                     if ((ctrlKey || metaKey) && key === 'z') {
                       e.preventDefault();
-                      if (shiftKey) {
-                        redo();
-                      } else {
-                        undo();
-                      }
+                      shiftKey ? redo() : undo();
                       return;
                     }
-
-                    // Tab indentation
                     if (key === 'Tab') {
-                        e.preventDefault();
-                        const textarea = e.target as HTMLTextAreaElement;
-                        const start = textarea.selectionStart;
-                        const end = textarea.selectionEnd;
-                        
-                        const newBody = body.substring(0, start) + '  ' + body.substring(end);
-                        setBody(newBody);
-                        
-                        setTimeout(() => {
-                            textarea.selectionStart = textarea.selectionEnd = start + 2;
-                        }, 0);
+                      e.preventDefault();
+                      const textarea = e.target as HTMLTextAreaElement;
+                      const start = textarea.selectionStart;
+                      const end = textarea.selectionEnd;
+                      const newBody = body.substring(0, start) + '  ' + body.substring(end);
+                      setBody(newBody);
+                      setTimeout(() => {
+                        textarea.selectionStart = textarea.selectionEnd = start + 2;
+                      }, 0);
                     }
                   }}
                 />
               </div>
               {jsonError && (
-                <p className="mt-1 text-sm text-red-500 dark:text-red-400">
-                  {jsonError}
-                </p>
+                <p className="mt-1 text-sm text-red-500 dark:text-red-400">{jsonError}</p>
               )}
             </div>
-            <div className="w-1/3 bg-slate-100 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+            <div className="w-1/3 bg-slate-100 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 overflow-y-auto max-h-[480px]">
               <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 uppercase tracking-wider">Available Variables</h3>
-              <div className="space-y-2">
-                {[
-                  { label: 'Incident ID', value: '{{incident.id}}' },
-                  { label: 'Title', value: '{{incident.title}}' },
-                  { label: 'Severity', value: '{{incident.severity}}' },
-                  { label: 'Status', value: '{{incident.status}}' },
-                  { label: 'Created At', value: '{{incident.created_at}}' },
-                  { label: 'Summary', value: '{{incident.summary}}' },
-                ].map((variable) => (
-                  <button
-                    key={variable.value}
-                    onClick={() => {
-                      const textarea = document.getElementById('webhook-body-editor') as HTMLTextAreaElement;
-                      if (!textarea) return;
 
-                      const start = textarea.selectionStart;
-                      const end = textarea.selectionEnd;
-                      const text = body;
-                      const before = text.substring(0, start);
-                      const after = text.substring(end, text.length);
-                      
-                      const newBody = before + variable.value + after;
-                      setBody(newBody);
-                      
-                      // Restore focus and cursor position next tick
-                      setTimeout(() => {
-                        textarea.focus();
-                        textarea.setSelectionRange(start + variable.value.length, start + variable.value.length);
-                      }, 0);
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-md shadow-sm hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-200 group"
-                  >
-                    <div className="flex flex-col">
-                      <span className="font-mono text-blue-600 dark:text-blue-400 text-xs font-semibold group-hover:text-blue-700 dark:group-hover:text-blue-300">{variable.value}</span>
-                      <span className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">{variable.label}</span>
-                    </div>
-                  </button>
+              {/* Incident Variables */}
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 mt-1">Incident</p>
+              <div className="space-y-1.5 mb-4">
+                {[
+                  { label: 'Incident ID',  value: '{{incident.id}}' },
+                  { label: 'Title',        value: '{{incident.title}}' },
+                  { label: 'Severity',     value: '{{incident.severity}}' },
+                  { label: 'Status',       value: '{{incident.status}}' },
+                  { label: 'Created At',   value: '{{incident.created_at}}' },
+                  { label: 'Summary',      value: '{{incident.summary}}' },
+                ].map((variable) => (
+                  <VariableButton key={variable.value} variable={variable} body={body} setBody={setBody} />
+                ))}
+              </div>
+
+              {/* Alert (Slack) Variables */}
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">Alert</p>
+              <div className="space-y-1.5">
+                {[
+                  { label: 'Alert Name',   value: '{{alert.alertname}}' },
+                  { label: 'Severity',     value: '{{alert.severity}}' },
+                  { label: 'Namespace',    value: '{{alert.namespace}}' },
+                  { label: 'Status',       value: '{{alert.status}}' },
+                  { label: 'Description',  value: '{{alert.description}}' },
+                  { label: 'Summary',      value: '{{alert.summary}}' },
+                  { label: 'Started At',   value: '{{alert.started_at}}' },
+                  { label: 'Ended At',     value: '{{alert.ended_at}}' },
+                  { label: 'Fingerprint',  value: '{{alert.fingerprint}}' },
+                ].map((variable) => (
+                  <VariableButton key={variable.value} variable={variable} body={body} setBody={setBody} />
                 ))}
               </div>
             </div>
+
           </div>
         </div>
 
+        {/* Save Button */}
         <div className="pt-4">
-          <button
-            onClick={handleSave}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-          >
-            Save Settings
-          </button>
+          {saveMessage && (
+            <p className={`mb-3 text-sm ${
+              saveMessage.type === 'success'
+                ? 'text-green-600 dark:text-green-400'
+                : 'text-red-600 dark:text-red-400'
+            }`}>
+              {saveMessage.text}
+            </p>
+          )}
+          <div className="flex gap-3">
+            <button
+              onClick={handleSave}
+              disabled={isSaving || !!jsonError}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSaving ? 'Saving...' : isEditMode ? 'Update Settings' : 'Save Settings'}
+            </button>
+            <button
+              onClick={() => navigate('/settings/webhooks')}
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     </div>
