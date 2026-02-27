@@ -206,8 +206,8 @@ backend:
         # - kkamji.net
         # - example.com
       # -- Allowed individual emails for OIDC login (OIDC_ALLOWED_EMAILS). Specific emails allowed regardless of domain.
-      allowedEmails:
-        - rlaxowl5460@gmail.com
+      allowedEmails: []
+        # - friend@gmail.com
       secret:
         # -- Existing Secret name for OIDC credentials. If empty, chart-managed Secret is used.
         existingSecret: ""

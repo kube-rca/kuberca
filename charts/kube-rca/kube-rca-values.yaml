@@ -5,6 +5,13 @@ backend:
   auth:
     secret:
       existingSecret: kube-rca-auth
+    oidc:
+      enabled: true
+      redirectUri: "https://kuberca.kkamji.net/api/v1/auth/oidc/callback"
+      allowedEmails:
+        - rlaxowl5460@gmail.com
+      secret:
+        existingSecret: kube-rca-auth
     cors:
       allowedOrigins:
         - https://kuberca.kkamji.net

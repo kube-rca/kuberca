@@ -4,11 +4,104 @@
 
 Deploy kube-rca backend and frontend
 
-## Requirements
+## Quick Start
+
+```bash
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm install kube-rca ./charts/kube-rca -n kube-rca --create-namespace
+```
+
+## Architecture
+
+Frontend ingress automatically routes `/api/*` to the backend service, so a single domain serves both UI and API.
+
+```
+your-domain.com/         → frontend (React)
+your-domain.com/api/*    → backend  (Go/Gin)
+```
 
 | Repository | Name | Version |
 |------------|------|---------|
 | https://charts.bitnami.com/bitnami | postgresql | 18.1.13 |
+
+## OIDC Setup Guide (Google)
+
+KubeRCA supports Google OIDC login. Follow these steps to enable it.
+
+### Step 1: Create Google OAuth 2.0 Credentials
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Select or create a project
+3. Navigate to **APIs & Services > OAuth consent screen**
+   - User Type: **External**
+   - App name: `kube-rca` (or any name)
+   - Scopes: add `email`, `profile`, `openid`
+   - If app status is "Testing", add allowed users under **Test users**
+4. Navigate to **APIs & Services > Credentials > + CREATE CREDENTIALS > OAuth client ID**
+   - Application type: **Web application**
+   - Authorized redirect URIs: add your callback URL
+     ```
+     https://<YOUR_DOMAIN>/api/v1/auth/oidc/callback
+     ```
+   - Click **CREATE** and copy the **Client ID** and **Client Secret**
+
+### Step 2: Create a Kubernetes Secret
+
+Store the OAuth credentials in a Kubernetes Secret:
+
+```bash
+kubectl create secret generic kube-rca-oidc \
+  -n kube-rca \
+  --from-literal=oidc-client-id="YOUR_CLIENT_ID" \
+  --from-literal=oidc-client-secret="YOUR_CLIENT_SECRET"
+```
+
+> **Tip:** You can also add these keys to an existing Secret (e.g., `kube-rca-auth`) instead of creating a new one.
+
+### Step 3: Configure Helm Values
+
+Create or update your override values file:
+
+```yaml
+backend:
+  auth:
+    oidc:
+      enabled: true
+      redirectUri: "https://<YOUR_DOMAIN>/api/v1/auth/oidc/callback"
+      # Allow specific emails (recommended for small teams)
+      allowedEmails:
+        - user@gmail.com
+      # Or allow entire domains
+      # allowedDomains:
+      #   - your-company.com
+      secret:
+        existingSecret: kube-rca-oidc  # Secret name from Step 2
+```
+
+Then install/upgrade:
+
+```bash
+helm upgrade --install kube-rca ./charts/kube-rca \
+  -n kube-rca \
+  -f my-values.yaml
+```
+
+### Step 4: Verify
+
+After deployment, visit `https://<YOUR_DOMAIN>` and click the Google login button.
+
+### OIDC Configuration Reference
+
+| Value | Description | Default |
+|-------|-------------|---------|
+| `backend.auth.oidc.enabled` | Enable OIDC authentication | `false` |
+| `backend.auth.oidc.issuer` | OIDC issuer URL | `https://accounts.google.com` |
+| `backend.auth.oidc.redirectUri` | Callback URL (must match Google Console) | `""` |
+| `backend.auth.oidc.allowedDomains` | Allowed email domains (e.g., `your-company.com`) | `[]` |
+| `backend.auth.oidc.allowedEmails` | Allowed individual emails | `[]` |
+| `backend.auth.oidc.secret.existingSecret` | K8s Secret with `oidc-client-id` and `oidc-client-secret` keys | `""` |
+
+> **Note:** If both `allowedDomains` and `allowedEmails` are empty, all authenticated Google users can log in.
 
 ## Values
 
@@ -88,7 +181,7 @@ Deploy kube-rca backend and frontend
 | backend.auth.jwt.refreshTtl | string | `"168h"` | Refresh token TTL (e.g. 168h). |
 | backend.auth.jwt.secret | string | `""` | JWT secret (auto-generated when empty and no existingSecret). |
 | backend.auth.oidc.allowedDomains | list | `[]` | Allowed email domains for OIDC login (OIDC_ALLOWED_DOMAINS). Users with matching email domains are allowed. |
-| backend.auth.oidc.allowedEmails | list | `["rlaxowl5460@gmail.com"]` | Allowed individual emails for OIDC login (OIDC_ALLOWED_EMAILS). Specific emails allowed regardless of domain. |
+| backend.auth.oidc.allowedEmails | list | `[]` | Allowed individual emails for OIDC login (OIDC_ALLOWED_EMAILS). Specific emails allowed regardless of domain. |
 | backend.auth.oidc.enabled | bool | `false` | Enable OIDC authentication (OIDC_ENABLED). |
 | backend.auth.oidc.issuer | string | `"https://accounts.google.com"` | OIDC issuer URL (OIDC_ISSUER). |
 | backend.auth.oidc.redirectUri | string | `""` | OIDC redirect URI (OIDC_REDIRECT_URI). Must match the callback URL registered with the provider. |
@@ -210,4 +303,4 @@ Deploy kube-rca backend and frontend
 | postgresql.primary.initdb.scripts."enable-pgvector.sh" | string | `"#!/bin/sh\nset -e\nDB_USER=\"postgres\"\nif [ -n \"${POSTGRES_POSTGRES_PASSWORD_FILE:-}\" ] && [ -f \"$POSTGRES_POSTGRES_PASSWORD_FILE\" ]; then\n  PGPASSWORD=\"$(cat \"$POSTGRES_POSTGRES_PASSWORD_FILE\")\"\nelif [ -n \"${POSTGRES_POSTGRES_PASSWORD:-}\" ]; then\n  PGPASSWORD=\"$POSTGRES_POSTGRES_PASSWORD\"\nelse\n  DB_USER=\"${POSTGRES_USER:-postgres}\"\n  if [ -n \"${POSTGRES_PASSWORD_FILE:-}\" ] && [ -f \"$POSTGRES_PASSWORD_FILE\" ]; then\n    PGPASSWORD=\"$(cat \"$POSTGRES_PASSWORD_FILE\")\"\n  elif [ -n \"${POSTGRES_PASSWORD:-}\" ]; then\n    PGPASSWORD=\"$POSTGRES_PASSWORD\"\n  fi\nfi\nexport PGPASSWORD\nDB_NAME=\"${POSTGRES_DATABASE:-kube-rca}\"\npsql -U \"$DB_USER\" -d \"$DB_NAME\" -c \"CREATE EXTENSION IF NOT EXISTS vector;\"\n"` |  |
 
 ----------------------------------------------
-Autogenerated from chart metadata using [helm-docs v1.14.2](https://github.com/norwoodj/helm-docs/releases/v1.14.2)
+Autogenerated from chart metadata using [helm-docs](https://github.com/norwoodj/helm-docs)
