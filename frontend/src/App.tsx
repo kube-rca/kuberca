@@ -104,14 +104,15 @@ function App() {
     }
   };
 
-  // URL Sync (기존 쿼리 파라미터 유지용)
+  // URL Sync (기존 쿼리 파라미터 유지용, 인증 후에만 실행)
   useEffect(() => {
+    if (!isAuthenticated) return;
     const params: Record<string, string> = {};
     if (statusFilter !== 'all') params.status = statusFilter;
     if (severityFilter !== 'all') params.severity = severityFilter;
     if (timeRange !== 'All Time') params.time = timeRange;
     setSearchParams(params, { replace: true });
-  }, [statusFilter, severityFilter, timeRange, setSearchParams]);
+  }, [isAuthenticated, statusFilter, severityFilter, timeRange, setSearchParams]);
 
   const getCurrentTimeStr = () => {
     const now = new Date();
