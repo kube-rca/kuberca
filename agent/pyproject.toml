@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "kube-rca-agent"
-version = "1.0.0"
+version = "1.1.0"
 description = "Kube-RCA agent service"
 readme = "README.md"
 requires-python = ">=3.10"  # Strands Agents supports Python 3.10+.
