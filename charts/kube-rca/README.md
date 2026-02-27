@@ -88,7 +88,7 @@ helm upgrade --install kube-rca ./charts/kube-rca \
 
 ### Step 4: Verify
 
-After deployment, visit `https://<YOUR_DOMAIN>` and click the Google login button.
+After deployment, visit `https://<YOUR_DOMAIN>` and click the login button.
 
 ### OIDC Configuration Reference
 
@@ -96,12 +96,55 @@ After deployment, visit `https://<YOUR_DOMAIN>` and click the Google login butto
 |-------|-------------|---------|
 | `backend.auth.oidc.enabled` | Enable OIDC authentication | `false` |
 | `backend.auth.oidc.issuer` | OIDC issuer URL | `https://accounts.google.com` |
-| `backend.auth.oidc.redirectUri` | Callback URL (must match Google Console) | `""` |
+| `backend.auth.oidc.redirectUri` | Callback URL (must match provider console) | `""` |
 | `backend.auth.oidc.allowedDomains` | Allowed email domains (e.g., `your-company.com`) | `[]` |
 | `backend.auth.oidc.allowedEmails` | Allowed individual emails | `[]` |
 | `backend.auth.oidc.secret.existingSecret` | K8s Secret with `oidc-client-id` and `oidc-client-secret` keys | `""` |
 
-> **Note:** If both `allowedDomains` and `allowedEmails` are empty, all authenticated Google users can log in.
+> **Note:** If both `allowedDomains` and `allowedEmails` are empty, all authenticated users will be denied.
+
+### Supported OIDC Providers
+
+The login button automatically adapts based on the `issuer` URL. No additional configuration needed.
+
+| Provider | Issuer URL | Button |
+|----------|-----------|--------|
+| Google | `https://accounts.google.com` | Google로 로그인 |
+| Keycloak | `https://keycloak.example.com/realms/my-realm` | Keycloak으로 로그인 |
+| Okta | `https://your-org.okta.com` | Okta로 로그인 |
+| Azure AD | `https://login.microsoftonline.com/{tenant-id}/v2.0` | Microsoft로 로그인 |
+| GitLab | `https://gitlab.com` or self-hosted | GitLab으로 로그인 |
+| Other | Any OIDC-compliant issuer | SSO로 로그인 |
+
+#### Example: Keycloak
+
+```yaml
+backend:
+  auth:
+    oidc:
+      enabled: true
+      issuer: "https://keycloak.example.com/realms/my-realm"
+      redirectUri: "https://<YOUR_DOMAIN>/api/v1/auth/oidc/callback"
+      allowedDomains:
+        - your-company.com
+      secret:
+        existingSecret: kube-rca-oidc
+```
+
+#### Example: Azure AD
+
+```yaml
+backend:
+  auth:
+    oidc:
+      enabled: true
+      issuer: "https://login.microsoftonline.com/<TENANT_ID>/v2.0"
+      redirectUri: "https://<YOUR_DOMAIN>/api/v1/auth/oidc/callback"
+      allowedDomains:
+        - your-company.com
+      secret:
+        existingSecret: kube-rca-oidc
+```
 
 ## Values
 
@@ -122,7 +165,7 @@ After deployment, visit `https://<YOUR_DOMAIN>` and click the Google login butto
 | agent.gemini.secret.key | string | `"ai-studio-api-key"` | Secret key name for the Gemini API key. |
 | agent.image.pullPolicy | string | `"IfNotPresent"` | Agent image pull policy. |
 | agent.image.repository | string | `"public.ecr.aws/r5b7j2e4/kube-rca-ecr/agent"` | Agent image repository. |
-| agent.image.tag | string | `""` | Agent image tag. |
+| agent.image.tag | string | `"agent-1.1.0"` | Agent image tag. |
 | agent.ingress.annotations | object | `{}` | Annotations for agent ingress. |
 | agent.ingress.enabled | bool | `false` | Enable agent ingress. |
 | agent.ingress.hosts | list | `[]` | Hostnames for agent ingress. |
@@ -204,7 +247,7 @@ After deployment, visit `https://<YOUR_DOMAIN>` and click the Google login butto
 | backend.flapping.enabled | bool | `true` | Enable alert flapping detection (FLAP_ENABLED). |
 | backend.image.pullPolicy | string | `"IfNotPresent"` | Backend image pull policy. |
 | backend.image.repository | string | `"public.ecr.aws/r5b7j2e4/kube-rca-ecr/backend"` | Backend image repository. |
-| backend.image.tag | string | `""` | Backend image tag. |
+| backend.image.tag | string | `"backend-0.4.0"` | Backend image tag. |
 | backend.ingress.annotations | object | `{}` | Annotations for backend ingress. |
 | backend.ingress.enabled | bool | `false` | Enable backend ingress. |
 | backend.ingress.hosts | list | `[]` | Hostnames for backend ingress. |
@@ -234,7 +277,7 @@ After deployment, visit `https://<YOUR_DOMAIN>` and click the Google login butto
 | frontend.containerPort | int | `80` | Frontend container port. |
 | frontend.image.pullPolicy | string | `"IfNotPresent"` | Frontend image pull policy. |
 | frontend.image.repository | string | `"public.ecr.aws/r5b7j2e4/kube-rca-ecr/frontend"` | Frontend image repository. |
-| frontend.image.tag | string | `""` | Frontend image tag. |
+| frontend.image.tag | string | `"frontend-0.3.0"` | Frontend image tag. |
 | frontend.ingress.annotations | object | `{}` | Annotations for frontend ingress. |
 | frontend.ingress.enabled | bool | `false` | Enable frontend ingress. |
 | frontend.ingress.hosts | list | `[]` | Hostnames for frontend ingress. |
