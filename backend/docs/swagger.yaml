@@ -157,6 +157,10 @@ definitions:
     properties:
       allowSignup:
         type: boolean
+      oidcEnabled:
+        type: boolean
+      oidcLoginUrl:
+        type: string
     type: object
   model.AuthLogoutResponse:
     properties:
@@ -165,6 +169,12 @@ definitions:
     type: object
   model.AuthMeResponse:
     properties:
+      authProvider:
+        type: string
+      displayName:
+        type: string
+      email:
+        type: string
       loginId:
         type: string
       userId:
@@ -576,6 +586,36 @@ paths:
       security:
       - BearerAuth: []
       summary: Get current user
+      tags:
+      - auth
+  /api/v1/auth/oidc/callback:
+    get:
+      description: Handles the OIDC provider callback, verifies state/nonce, exchanges
+        code for tokens.
+      parameters:
+      - description: Authorization code
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: State parameter
+        in: query
+        name: state
+        required: true
+        type: string
+      responses:
+        "302":
+          description: Redirect to frontend with error
+      summary: OIDC callback
+      tags:
+      - auth
+  /api/v1/auth/oidc/login:
+    get:
+      description: Generates state, nonce, PKCE and redirects to the OIDC provider.
+      responses:
+        "302":
+          description: Redirect to OIDC provider
+      summary: Initiate OIDC login
       tags:
       - auth
   /api/v1/auth/refresh:

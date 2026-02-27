@@ -30,6 +30,14 @@ func (db *Postgres) EnsureAuthSchema(ctx context.Context) error {
 		)
 		`,
 		`CREATE INDEX IF NOT EXISTS refresh_tokens_user_id_idx ON refresh_tokens(user_id)`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider TEXT NOT NULL DEFAULT 'local'`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS oidc_sub TEXT`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS picture_url TEXT`,
+		`ALTER TABLE users ALTER COLUMN password_hash SET DEFAULT ''`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS users_oidc_provider_sub_idx ON users(auth_provider, oidc_sub) WHERE oidc_sub IS NOT NULL`,
+		`CREATE INDEX IF NOT EXISTS users_email_idx ON users(email) WHERE email IS NOT NULL`,
 	}
 
 	for _, query := range queries {
@@ -44,13 +52,18 @@ func (db *Postgres) CreateUser(ctx context.Context, loginID, passwordHash string
 	query := `
 		INSERT INTO users (login_id, password_hash, created_at, updated_at)
 		VALUES ($1, $2, NOW(), NOW())
-		RETURNING id, login_id, password_hash, created_at, updated_at
+		RETURNING id, login_id, password_hash, auth_provider, oidc_sub, email, display_name, picture_url, created_at, updated_at
 	`
 	var user model.User
 	err := db.Pool.QueryRow(ctx, query, loginID, passwordHash).Scan(
 		&user.ID,
 		&user.LoginID,
 		&user.PasswordHash,
+		&user.AuthProvider,
+		&user.OIDCSub,
+		&user.Email,
+		&user.DisplayName,
+		&user.PictureURL,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -62,7 +75,7 @@ func (db *Postgres) CreateUser(ctx context.Context, loginID, passwordHash string
 
 func (db *Postgres) GetUserByLoginID(ctx context.Context, loginID string) (*model.User, error) {
 	query := `
-		SELECT id, login_id, password_hash, created_at, updated_at
+		SELECT id, login_id, password_hash, auth_provider, oidc_sub, email, display_name, picture_url, created_at, updated_at
 		FROM users
 		WHERE login_id = $1
 	`
@@ -71,6 +84,11 @@ func (db *Postgres) GetUserByLoginID(ctx context.Context, loginID string) (*mode
 		&user.ID,
 		&user.LoginID,
 		&user.PasswordHash,
+		&user.AuthProvider,
+		&user.OIDCSub,
+		&user.Email,
+		&user.DisplayName,
+		&user.PictureURL,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -82,7 +100,7 @@ func (db *Postgres) GetUserByLoginID(ctx context.Context, loginID string) (*mode
 
 func (db *Postgres) GetUserByID(ctx context.Context, userID int64) (*model.User, error) {
 	query := `
-		SELECT id, login_id, password_hash, created_at, updated_at
+		SELECT id, login_id, password_hash, auth_provider, oidc_sub, email, display_name, picture_url, created_at, updated_at
 		FROM users
 		WHERE id = $1
 	`
@@ -91,6 +109,11 @@ func (db *Postgres) GetUserByID(ctx context.Context, userID int64) (*model.User,
 		&user.ID,
 		&user.LoginID,
 		&user.PasswordHash,
+		&user.AuthProvider,
+		&user.OIDCSub,
+		&user.Email,
+		&user.DisplayName,
+		&user.PictureURL,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -165,6 +188,81 @@ func (db *Postgres) RotateRefreshToken(ctx context.Context, oldTokenID int64, us
 	}
 
 	return tx.Commit(ctx)
+}
+
+func (db *Postgres) GetUserByOIDCSub(ctx context.Context, provider, sub string) (*model.User, error) {
+	query := `
+		SELECT id, login_id, password_hash, auth_provider, oidc_sub, email, display_name, picture_url, created_at, updated_at
+		FROM users
+		WHERE auth_provider = $1 AND oidc_sub = $2
+	`
+	var user model.User
+	err := db.Pool.QueryRow(ctx, query, provider, sub).Scan(
+		&user.ID,
+		&user.LoginID,
+		&user.PasswordHash,
+		&user.AuthProvider,
+		&user.OIDCSub,
+		&user.Email,
+		&user.DisplayName,
+		&user.PictureURL,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (db *Postgres) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
+	query := `
+		SELECT id, login_id, password_hash, auth_provider, oidc_sub, email, display_name, picture_url, created_at, updated_at
+		FROM users
+		WHERE email = $1
+	`
+	var user model.User
+	err := db.Pool.QueryRow(ctx, query, email).Scan(
+		&user.ID,
+		&user.LoginID,
+		&user.PasswordHash,
+		&user.AuthProvider,
+		&user.OIDCSub,
+		&user.Email,
+		&user.DisplayName,
+		&user.PictureURL,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (db *Postgres) CreateOIDCUser(ctx context.Context, loginID, provider, sub, email, displayName, pictureURL string) (*model.User, error) {
+	query := `
+		INSERT INTO users (login_id, password_hash, auth_provider, oidc_sub, email, display_name, picture_url, created_at, updated_at)
+		VALUES ($1, '', $2, $3, $4, $5, $6, NOW(), NOW())
+		RETURNING id, login_id, password_hash, auth_provider, oidc_sub, email, display_name, picture_url, created_at, updated_at
+	`
+	var user model.User
+	err := db.Pool.QueryRow(ctx, query, loginID, provider, sub, email, displayName, pictureURL).Scan(
+		&user.ID,
+		&user.LoginID,
+		&user.PasswordHash,
+		&user.AuthProvider,
+		&user.OIDCSub,
+		&user.Email,
+		&user.DisplayName,
+		&user.PictureURL,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
 }
 
 func IsNoRows(err error) bool {

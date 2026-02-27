@@ -284,6 +284,50 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/auth/oidc/callback": {
+            "get": {
+                "description": "Handles the OIDC provider callback, verifies state/nonce, exchanges code for tokens.",
+                "tags": [
+                    "auth"
+                ],
+                "summary": "OIDC callback",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization code",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "State parameter",
+                        "name": "state",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirect to frontend with error"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/oidc/login": {
+            "get": {
+                "description": "Generates state, nonce, PKCE and redirects to the OIDC provider.",
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Initiate OIDC login",
+                "responses": {
+                    "302": {
+                        "description": "Redirect to OIDC provider"
+                    }
+                }
+            }
+        },
         "/api/v1/auth/refresh": {
             "post": {
                 "description": "Uses refresh token cookie (kube_rca_refresh).",
@@ -1354,6 +1398,12 @@ const docTemplate = `{
             "properties": {
                 "allowSignup": {
                     "type": "boolean"
+                },
+                "oidcEnabled": {
+                    "type": "boolean"
+                },
+                "oidcLoginUrl": {
+                    "type": "string"
                 }
             }
         },
@@ -1368,6 +1418,15 @@ const docTemplate = `{
         "model.AuthMeResponse": {
             "type": "object",
             "properties": {
+                "authProvider": {
+                    "type": "string"
+                },
+                "displayName": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
                 "loginId": {
                     "type": "string"
                 },

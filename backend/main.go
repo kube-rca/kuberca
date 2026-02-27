@@ -75,6 +75,19 @@ func main() {
 	}
 	authHandler := handler.NewAuthHandler(authService)
 
+	// OIDC 초기화 (조건부 - 실패 시 graceful disable)
+	oidcService, err := service.NewOIDCService(ctx, cfg.OIDC, authService, pgRepo)
+	if err != nil {
+		log.Printf("WARNING: OIDC initialization failed, OIDC login disabled: %v", err)
+		oidcService = nil
+	}
+	var oidcHandler *handler.OIDCHandler
+	if oidcService != nil && oidcService.Enabled() {
+		oidcHandler = handler.NewOIDCHandler(oidcService)
+		authHandler.SetOIDCConfig(true, "/api/v1/auth/oidc/login")
+		log.Println("OIDC authentication enabled")
+	}
+
 	embeddingClient, err := client.NewEmbeddingClient(cfg.Embedding)
 	if err != nil {
 		log.Fatalf("Failed to initialize embedding client: %v", err)
@@ -131,6 +144,10 @@ func main() {
 		auth.POST("/logout", authHandler.Logout)
 		auth.GET("/config", authHandler.Config)
 		auth.GET("/me", handler.AuthMiddleware(authService), authHandler.Me)
+		if oidcHandler != nil {
+			auth.GET("/oidc/login", oidcHandler.Login)
+			auth.GET("/oidc/callback", oidcHandler.Callback)
+		}
 
 		protected := v1.Group("")
 		protected.Use(handler.AuthMiddleware(authService))

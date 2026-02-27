@@ -9,11 +9,18 @@ import (
 )
 
 type AuthHandler struct {
-	svc *service.AuthService
+	svc          *service.AuthService
+	oidcEnabled  bool
+	oidcLoginURL string
 }
 
 func NewAuthHandler(svc *service.AuthService) *AuthHandler {
 	return &AuthHandler{svc: svc}
+}
+
+func (h *AuthHandler) SetOIDCConfig(enabled bool, loginURL string) {
+	h.oidcEnabled = enabled
+	h.oidcLoginURL = loginURL
 }
 
 // Register godoc
@@ -126,7 +133,9 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 // @Router /api/v1/auth/config [get]
 func (h *AuthHandler) Config(c *gin.Context) {
 	c.JSON(http.StatusOK, model.AuthConfigResponse{
-		AllowSignup: h.svc.AllowSignup(),
+		AllowSignup:  h.svc.AllowSignup(),
+		OIDCEnabled:  h.oidcEnabled,
+		OIDCLoginURL: h.oidcLoginURL,
 	})
 }
 
@@ -139,14 +148,28 @@ func (h *AuthHandler) Config(c *gin.Context) {
 // @Failure 401 {object} model.ErrorResponse
 // @Router /api/v1/auth/me [get]
 func (h *AuthHandler) Me(c *gin.Context) {
-	user := GetAuthUser(c)
-	if user == nil {
+	authUser := GetAuthUser(c)
+	if authUser == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
+
+	fullUser, err := h.svc.GetUserByID(c.Request.Context(), authUser.ID)
+	if err != nil {
+		c.JSON(http.StatusOK, model.AuthMeResponse{
+			UserID:       authUser.ID,
+			LoginID:      authUser.LoginID,
+			AuthProvider: "local",
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, model.AuthMeResponse{
-		UserID:  user.ID,
-		LoginID: user.LoginID,
+		UserID:       fullUser.ID,
+		LoginID:      fullUser.LoginID,
+		Email:        fullUser.Email,
+		DisplayName:  fullUser.DisplayName,
+		AuthProvider: fullUser.AuthProvider,
 	})
 }
 

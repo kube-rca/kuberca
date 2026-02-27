@@ -13,7 +13,9 @@ type AuthResponse struct {
 }
 
 type AuthConfigResponse struct {
-	AllowSignup bool `json:"allowSignup"`
+	AllowSignup  bool   `json:"allowSignup"`
+	OIDCEnabled  bool   `json:"oidcEnabled"`
+	OIDCLoginURL string `json:"oidcLoginUrl,omitempty"`
 }
 
 type AuthUser struct {
@@ -25,6 +27,11 @@ type User struct {
 	ID           int64
 	LoginID      string
 	PasswordHash string
+	AuthProvider string
+	OIDCSub      *string
+	Email        *string
+	DisplayName  *string
+	PictureURL   *string
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }

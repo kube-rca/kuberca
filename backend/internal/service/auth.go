@@ -147,6 +147,10 @@ func (s *AuthService) AllowSignup() bool {
 	return s.allowSignup
 }
 
+func (s *AuthService) GetUserByID(ctx context.Context, userID int64) (*model.User, error) {
+	return s.repo.GetUserByID(ctx, userID)
+}
+
 func (s *AuthService) CookieConfig() CookieConfig {
 	return s.cookieCfg
 }
@@ -173,7 +177,7 @@ func (s *AuthService) Register(ctx context.Context, loginID, password string) (s
 		return "", "", 0, err
 	}
 
-	return s.issueTokens(ctx, user)
+	return s.IssueTokens(ctx, user)
 }
 
 func (s *AuthService) Login(ctx context.Context, loginID, password string) (string, string, int64, error) {
@@ -193,7 +197,7 @@ func (s *AuthService) Login(ctx context.Context, loginID, password string) (stri
 		return "", "", 0, ErrUnauthorized
 	}
 
-	return s.issueTokens(ctx, user)
+	return s.IssueTokens(ctx, user)
 }
 
 func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (string, string, int64, error) {
@@ -268,7 +272,7 @@ func (s *AuthService) ParseAccessToken(tokenStr string) (*model.AuthUser, error)
 	}, nil
 }
 
-func (s *AuthService) issueTokens(ctx context.Context, user *model.User) (string, string, int64, error) {
+func (s *AuthService) IssueTokens(ctx context.Context, user *model.User) (string, string, int64, error) {
 	accessToken, expiresIn, err := s.generateAccessToken(user)
 	if err != nil {
 		return "", "", 0, err

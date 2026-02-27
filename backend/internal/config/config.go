@@ -13,6 +13,7 @@ type Config struct {
 	Embedding EmbeddingConfig
 	Postgres  PostgresConfig
 	Auth      AuthConfig
+	OIDC      OIDCConfig
 	Flapping  FlappingConfig
 }
 
@@ -54,6 +55,16 @@ type AuthConfig struct {
 	CookieDomain       string
 	CookiePath         string
 	CorsAllowedOrigins string
+}
+
+type OIDCConfig struct {
+	Enabled        bool
+	Issuer         string
+	ClientID       string
+	ClientSecret   string
+	RedirectURI    string
+	AllowedDomains string
+	AllowedEmails  string
 }
 
 type FlappingConfig struct {
@@ -100,6 +111,15 @@ func Load() Config {
 			CookieDomain:       os.Getenv("AUTH_COOKIE_DOMAIN"),
 			CookiePath:         getenv("AUTH_COOKIE_PATH", "/"),
 			CorsAllowedOrigins: os.Getenv("CORS_ALLOWED_ORIGINS"),
+		},
+		OIDC: OIDCConfig{
+			Enabled:        getenvBool("OIDC_ENABLED", false),
+			Issuer:         getenv("OIDC_ISSUER", "https://accounts.google.com"),
+			ClientID:       os.Getenv("OIDC_CLIENT_ID"),
+			ClientSecret:   os.Getenv("OIDC_CLIENT_SECRET"),
+			RedirectURI:    os.Getenv("OIDC_REDIRECT_URI"),
+			AllowedDomains: os.Getenv("OIDC_ALLOWED_DOMAINS"),
+			AllowedEmails:  os.Getenv("OIDC_ALLOWED_EMAILS"),
 		},
 		Flapping: FlappingConfig{
 			Enabled:                getenvBool("FLAP_ENABLED", true),
