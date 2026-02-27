@@ -11,6 +11,7 @@ export interface AuthConfigResponse {
   allowSignup: boolean;
   oidcEnabled: boolean;
   oidcLoginUrl: string;
+  oidcProvider: string;
 }
 
 export const getAccessToken = () => accessToken;
@@ -88,7 +89,7 @@ export const logout = async (): Promise<void> => {
 export const fetchAuthConfig = async (): Promise<AuthConfigResponse> => {
   const response = await fetch(`${API_BASE_URL}/api/v1/auth/config`);
   if (!response.ok) {
-    return { allowSignup: false, oidcEnabled: false, oidcLoginUrl: '' };
+    return { allowSignup: false, oidcEnabled: false, oidcLoginUrl: '', oidcProvider: '' };
   }
   return response.json() as Promise<AuthConfigResponse>;
 };
