@@ -370,7 +370,7 @@ frontend:
     # -- Frontend image repository.
     repository: "public.ecr.aws/r5b7j2e4/kube-rca-ecr/frontend"
     # -- Frontend image tag.
-    tag: ""
+    tag: "frontend-0.3.0"
     # -- Frontend image pull policy.
     pullPolicy: IfNotPresent
   service:
