@@ -88,6 +88,8 @@ function App() {
   const [authReady, setAuthReady] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [allowSignup, setAllowSignup] = useState(false);
+  const [oidcEnabled, setOidcEnabled] = useState(false);
+  const [oidcLoginUrl, setOidcLoginUrl] = useState('');
   const [isChatDocked, setIsChatDocked] = useState(false);
 
   const mapLegacyTimeToKey = (range: string): string => {
@@ -130,6 +132,8 @@ function App() {
         const refreshed = await refreshAccessToken();
         if (!active) return;
         setAllowSignup(config.allowSignup);
+        setOidcEnabled(config.oidcEnabled || false);
+        setOidcLoginUrl(config.oidcLoginUrl || '');
         setIsAuthenticated(refreshed);
       } catch (err) {
         console.error('Auth init failed:', err);
@@ -303,7 +307,7 @@ function App() {
     return <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400">인증 정보를 확인하는 중입니다...</div>;
   }
   if (!isAuthenticated) {
-    return <AuthPanel allowSignup={allowSignup} onAuthenticated={() => setIsAuthenticated(true)} />;
+    return <AuthPanel allowSignup={allowSignup} oidcEnabled={oidcEnabled} oidcLoginUrl={oidcLoginUrl} onAuthenticated={() => setIsAuthenticated(true)} />;
   }
 
   // 스타일

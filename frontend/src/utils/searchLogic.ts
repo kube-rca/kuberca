@@ -19,7 +19,7 @@ const getCutoffTime = (range: string): number => {
 // --- [Helper] 라벨 파싱 및 비교 ---
 // itemLabels: Alert나 Incident가 가진 labels (object 또는 JSON string)
 // filterLabels: "key:value" 형태의 토큰 배열
-const matchLabels = (itemLabels: any, filterLabels: string[]): boolean => {
+const matchLabels = (itemLabels: Record<string, string> | string | null | undefined, filterLabels: string[]): boolean => {
   if (!filterLabels || filterLabels.length === 0) return true; // 필터 없으면 통과
   if (!itemLabels) return false;
 

@@ -124,6 +124,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
 
   useEffect(() => {
     loadFeedback();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetType, targetId]);
 
   useEffect(() => {
