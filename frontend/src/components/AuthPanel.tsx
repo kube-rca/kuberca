@@ -10,20 +10,30 @@ interface AuthPanelProps {
 
 type Mode = 'login' | 'register';
 
+function getOidcError(): string | null {
+  const params = new URLSearchParams(window.location.search);
+  const oidcError = params.get('error');
+  if (!oidcError) return null;
+
+  // URL에서 error 파라미터 제거 (새로고침 시 에러 반복 방지)
+  const url = new URL(window.location.href);
+  url.searchParams.delete('error');
+  window.history.replaceState({}, '', url.pathname + url.search);
+
+  if (oidcError === 'oidc_not_allowed') return '허용되지 않은 이메일입니다. 관리자에게 문의하세요.';
+  if (oidcError === 'oidc_failed') return 'Google 로그인에 실패했습니다. 다시 시도해주세요.';
+  if (oidcError === 'oidc_state_mismatch') return '인증 세션이 만료되었습니다. 다시 시도해주세요.';
+  if (oidcError === 'oidc_invalid_request') return '잘못된 인증 요청입니다.';
+  return 'Google 로그인 중 오류가 발생했습니다.';
+}
+
 const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, onAuthenticated }: AuthPanelProps) => {
   const [mode, setMode] = useState<Mode>('login');
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(() => {
-    const params = new URLSearchParams(window.location.search);
-    const oidcError = params.get('error');
-    if (oidcError === 'oidc_not_allowed') return '허용되지 않은 이메일입니다. 관리자에게 문의하세요.';
-    if (oidcError === 'oidc_failed') return 'Google 로그인에 실패했습니다. 다시 시도해주세요.';
-    if (oidcError === 'oidc_state_mismatch') return '인증 세션이 만료되었습니다. 다시 시도해주세요.';
-    if (oidcError === 'oidc_invalid_request') return '잘못된 인증 요청입니다.';
-    return null;
-  });
+  const [oidcError] = useState<string | null>(getOidcError);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -52,6 +62,15 @@ const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, onAuthenticated }: 
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
           {mode === 'login' ? '아이디와 비밀번호로 로그인하세요.' : '새 계정을 생성하세요.'}
         </p>
+
+        {oidcError && (
+          <div className="mb-4 rounded-md border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/30 px-4 py-3 text-sm text-red-700 dark:text-red-300 flex items-start gap-2">
+            <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+            </svg>
+            <span>{oidcError}</span>
+          </div>
+        )}
 
         {oidcEnabled && (
           <>
