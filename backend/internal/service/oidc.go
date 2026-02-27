@@ -79,6 +79,7 @@ func (s *OIDCService) AuthURL(state, nonce string) string {
 	return s.oauth2Config.AuthCodeURL(state,
 		oidc.Nonce(nonce),
 		oauth2.SetAuthURLParam("access_type", "online"),
+		oauth2.SetAuthURLParam("prompt", "select_account"),
 	)
 }
 
@@ -88,6 +89,7 @@ func (s *OIDCService) AuthURLWithPKCE(state, nonce, codeChallenge string) string
 		oauth2.SetAuthURLParam("code_challenge", codeChallenge),
 		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
 		oauth2.SetAuthURLParam("access_type", "online"),
+		oauth2.SetAuthURLParam("prompt", "select_account"),
 	)
 }
 
