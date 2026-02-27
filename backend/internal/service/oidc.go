@@ -191,6 +191,9 @@ func (s *OIDCService) findOrCreateUser(ctx context.Context, claims oidcClaims) (
 	}
 
 	loginID := claims.Email
+	if claims.Name != "" {
+		loginID = fmt.Sprintf("%s (%s)", claims.Name, claims.Email)
+	}
 	pictureURL := claims.Picture
 	if pictureURL != "" && !strings.HasPrefix(pictureURL, "https://") {
 		pictureURL = ""
