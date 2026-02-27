@@ -34,12 +34,19 @@
 13. Frontend는 인증 초기화를 위해 `/api/v1/auth/config` 및 `/api/v1/auth/refresh`를 호출합니다.
 14. 인증 후 Frontend는 Incident/Alert 목록 및 상세를 조회하고 수정합니다.
 
+### OIDC 인증 (선택적)
+15. OIDC 활성화 시 Frontend는 `/api/v1/auth/config`에서 `oidcEnabled`와 `oidcLoginUrl`을 수신합니다.
+16. 사용자가 OIDC 로그인 클릭 시 `GET /api/v1/auth/oidc/login`으로 Google에 리다이렉트됩니다 (state + PKCE 쿠키 설정).
+17. Google 인증 후 `GET /api/v1/auth/oidc/callback`에서 code→token 교환, ID Token 검증, Allowlist 체크를 수행합니다.
+18. 검증 통과 시 OIDC 사용자를 DB에 생성/조회하고 JWT + Refresh Cookie를 발급합니다.
+
 ## 구성 요소
 
 - Backend (Gin, 기본 포트 `:8080`)
   - `GET /ping`, `GET /`, `GET /openapi.json`
   - `POST /webhook/alertmanager`
   - `POST /api/v1/auth/register|login|refresh|logout`, `GET /api/v1/auth/config|me`
+  - `GET /api/v1/auth/oidc/login` (OIDC 리다이렉트), `GET /api/v1/auth/oidc/callback` (OIDC 콜백)
   - `GET /api/v1/incidents`, `GET /api/v1/incidents/:id`, `PUT /api/v1/incidents/:id`
   - `PATCH /api/v1/incidents/:id`, `POST /api/v1/incidents/:id/resolve`
   - `GET /api/v1/incidents/:id/alerts`, `POST /api/v1/incidents/mock`
@@ -47,7 +54,8 @@
   - `POST /api/v1/embeddings`, `POST /api/v1/embeddings/search`
   - 환경 변수: `SLACK_BOT_TOKEN`, `SLACK_CHANNEL_ID`, `AGENT_URL`, `AI_API_KEY`, `DATABASE_URL`, `JWT_SECRET`,
     `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `ALLOW_SIGNUP`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `AUTH_COOKIE_*`,
-    `CORS_ALLOWED_ORIGINS`
+    `CORS_ALLOWED_ORIGINS`, `OIDC_ENABLED`, `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`,
+    `OIDC_REDIRECT_URI`, `OIDC_ALLOWED_DOMAINS`, `OIDC_ALLOWED_EMAILS`
 - Agent (FastAPI, 기본 포트 `:8000`)
   - `GET /ping`, `GET /healthz`, `GET /`
   - `POST /analyze` - 개별 Alert 실시간 분석

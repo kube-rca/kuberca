@@ -10,6 +10,7 @@ flowchart LR
   LO[Loki]
   TP[Tempo]
   AL[Alloy]
+  OIDC[OIDC Provider Google/Keycloak]
 
   %% Internal
   subgraph Core[" "]
@@ -25,6 +26,9 @@ flowchart LR
 
   AM -->|Webhook alert| BE
   BE -->|Slack message| SL
+
+  FE -.->|OIDC redirect| OIDC
+  BE -->|Token exchange| OIDC
 
   FE -->|Auth incidents alerts embedding API| BE
   BE -->|POST /analyze, /summarize-incident| AG

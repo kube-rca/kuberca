@@ -15,6 +15,11 @@ erDiagram
     bigint id PK
     string login_id
     string password_hash
+    string auth_provider "default: local"
+    string oidc_sub "nullable"
+    string email "nullable"
+    string display_name "nullable"
+    string picture_url "nullable"
     datetime created_at
     datetime updated_at
   }
