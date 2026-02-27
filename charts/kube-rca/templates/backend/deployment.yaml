@@ -87,6 +87,38 @@ spec:
             - name: CORS_ALLOWED_ORIGINS
               value: {{ join "," $origins | quote }}
             {{- end }}
+            {{- $oidc := default (dict) $auth.oidc }}
+            {{- if $oidc.enabled }}
+            - name: OIDC_ENABLED
+              value: "true"
+            - name: OIDC_ISSUER
+              value: {{ default "https://accounts.google.com" $oidc.issuer | quote }}
+            - name: OIDC_REDIRECT_URI
+              value: {{ required "backend.auth.oidc.redirectUri is required when OIDC is enabled" $oidc.redirectUri | quote }}
+            {{- $oidcSecret := default (dict) $oidc.secret }}
+            {{- $oidcSecretName := default $authSecretName $oidcSecret.existingSecret }}
+            {{- $oidcKeys := default (dict) $oidcSecret.keys }}
+            - name: OIDC_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $oidcSecretName | quote }}
+                  key: {{ default "oidc-client-id" $oidcKeys.clientId | quote }}
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $oidcSecretName | quote }}
+                  key: {{ default "oidc-client-secret" $oidcKeys.clientSecret | quote }}
+            {{- $oidcAllowedDomains := default (list) $oidc.allowedDomains }}
+            {{- if $oidcAllowedDomains }}
+            - name: OIDC_ALLOWED_DOMAINS
+              value: {{ join "," $oidcAllowedDomains | quote }}
+            {{- end }}
+            {{- $oidcAllowedEmails := default (list) $oidc.allowedEmails }}
+            {{- if $oidcAllowedEmails }}
+            - name: OIDC_ALLOWED_EMAILS
+              value: {{ join "," $oidcAllowedEmails | quote }}
+            {{- end }}
+            {{- end }}
             {{- end }}
             {{- if .Values.backend.slack.enabled }}
             {{- $slack := default (dict) .Values.backend.slack }}

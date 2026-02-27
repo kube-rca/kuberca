@@ -1,23 +1,14 @@
 # kube-rca
 
-![Version: 0.4.0](https://img.shields.io/badge/Version-0.4.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.1.0](https://img.shields.io/badge/AppVersion-0.1.0-informational?style=flat-square)
+![Version: 0.5.0](https://img.shields.io/badge/Version-0.5.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.1.0](https://img.shields.io/badge/AppVersion-0.1.0-informational?style=flat-square)
 
 Deploy kube-rca backend and frontend
 
-## Install (OCI, Public ECR)
+## Requirements
 
-```bash
-# Optional: login to Public ECR (if your environment requires it)
-aws ecr-public get-login-password --region us-east-1 | \
-  helm registry login --username AWS --password-stdin public.ecr.aws
-
-# Install/upgrade (basic)
-helm upgrade --install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/charts/kube-rca \
-  --namespace kube-rca --create-namespace \
-  --version <chart-version>
-```
-
-> `chart-version` is the Helm chart version from `charts/kube-rca/Chart.yaml` (or the release you published).
+| Repository | Name | Version |
+|------------|------|---------|
+| https://charts.bitnami.com/bitnami | postgresql | 18.1.13 |
 
 ## Values
 
@@ -64,6 +55,9 @@ helm upgrade --install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/chart
 | agent.prompt.tokenBudget | int | `32000` | Prompt token budget (approx). |
 | agent.replicaCount | int | `1` | Number of agent replicas. |
 | agent.resources | object | `{}` | Agent resource requests/limits. |
+| agent.retry.maxAttempts | int | `5` | Max retry attempts for transient LLM API errors (5xx, 429). |
+| agent.retry.maxWait | float | `60` | Maximum exponential backoff wait time in seconds. |
+| agent.retry.minWait | float | `1` | Minimum exponential backoff wait time in seconds. |
 | agent.service.port | int | `8000` | Agent service port. |
 | agent.service.type | string | `"ClusterIP"` | Agent service type. |
 | agent.sessionDB.host | string | `""` | PostgreSQL host for Strands session persistence. |
@@ -93,6 +87,14 @@ helm upgrade --install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/chart
 | backend.auth.jwt.accessTtl | string | `"15m"` | Access token TTL (e.g. 15m). |
 | backend.auth.jwt.refreshTtl | string | `"168h"` | Refresh token TTL (e.g. 168h). |
 | backend.auth.jwt.secret | string | `""` | JWT secret (auto-generated when empty and no existingSecret). |
+| backend.auth.oidc.allowedDomains | list | `[]` | Allowed email domains for OIDC login (OIDC_ALLOWED_DOMAINS). Users with matching email domains are allowed. |
+| backend.auth.oidc.allowedEmails | list | `["rlaxowl5460@gmail.com"]` | Allowed individual emails for OIDC login (OIDC_ALLOWED_EMAILS). Specific emails allowed regardless of domain. |
+| backend.auth.oidc.enabled | bool | `false` | Enable OIDC authentication (OIDC_ENABLED). |
+| backend.auth.oidc.issuer | string | `"https://accounts.google.com"` | OIDC issuer URL (OIDC_ISSUER). |
+| backend.auth.oidc.redirectUri | string | `""` | OIDC redirect URI (OIDC_REDIRECT_URI). Must match the callback URL registered with the provider. |
+| backend.auth.oidc.secret.existingSecret | string | `""` | Existing Secret name for OIDC credentials. If empty, chart-managed Secret is used. |
+| backend.auth.oidc.secret.keys.clientId | string | `"oidc-client-id"` | Secret key for OIDC Client ID. |
+| backend.auth.oidc.secret.keys.clientSecret | string | `"oidc-client-secret"` | Secret key for OIDC Client Secret. |
 | backend.auth.secret.existingSecret | string | `""` | Existing Secret name for auth credentials (ExternalSecret 연계 시 사용, default keys: admin-username/admin-password/kube-rca-jwt-secret). |
 | backend.auth.secret.keys.adminPassword | string | `"admin-password"` | Secret key for admin password. |
 | backend.auth.secret.keys.adminUsername | string | `"admin-username"` | Secret key for admin login ID. |
@@ -103,6 +105,10 @@ helm upgrade --install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/chart
 | backend.embedding.apiKey.key | string | `"ai-studio-api-key"` |  |
 | backend.embedding.model | string | `"gemini-embedding-001"` |  |
 | backend.embedding.provider | string | `"gemini"` |  |
+| backend.flapping.clearanceWindowMinutes | int | `30` | Time (minutes) after last resolved to clear flapping status (FLAP_CLEARANCE_WINDOW_MINUTES). |
+| backend.flapping.cycleThreshold | int | `3` | Number of firing→resolved cycles to trigger flapping detection (FLAP_CYCLE_THRESHOLD). |
+| backend.flapping.detectionWindowMinutes | int | `30` | Time window (minutes) for detecting flapping cycles (FLAP_DETECTION_WINDOW_MINUTES). |
+| backend.flapping.enabled | bool | `true` | Enable alert flapping detection (FLAP_ENABLED). |
 | backend.image.pullPolicy | string | `"IfNotPresent"` | Backend image pull policy. |
 | backend.image.repository | string | `"public.ecr.aws/r5b7j2e4/kube-rca-ecr/backend"` | Backend image repository. |
 | backend.image.tag | string | `""` | Backend image tag. |
@@ -196,6 +202,12 @@ helm upgrade --install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/chart
 | openapi.specs.backend.service.name | string | `""` | Backend service name override (empty = chart default). |
 | openapi.specs.backend.service.port | int | `8080` | Backend service port. |
 | openapi.tolerations | list | `[]` | Tolerations for OpenAPI pods assignment. |
+| postgresql.auth.database | string | `"kube-rca"` |  |
+| postgresql.auth.existingSecret | string | `"postgresql"` |  |
+| postgresql.auth.secretKeys.adminPasswordKey | string | `"postgres-password"` |  |
+| postgresql.auth.secretKeys.userPasswordKey | string | `"password"` |  |
+| postgresql.auth.username | string | `"kube-rca"` |  |
+| postgresql.primary.initdb.scripts."enable-pgvector.sh" | string | `"#!/bin/sh\nset -e\nDB_USER=\"postgres\"\nif [ -n \"${POSTGRES_POSTGRES_PASSWORD_FILE:-}\" ] && [ -f \"$POSTGRES_POSTGRES_PASSWORD_FILE\" ]; then\n  PGPASSWORD=\"$(cat \"$POSTGRES_POSTGRES_PASSWORD_FILE\")\"\nelif [ -n \"${POSTGRES_POSTGRES_PASSWORD:-}\" ]; then\n  PGPASSWORD=\"$POSTGRES_POSTGRES_PASSWORD\"\nelse\n  DB_USER=\"${POSTGRES_USER:-postgres}\"\n  if [ -n \"${POSTGRES_PASSWORD_FILE:-}\" ] && [ -f \"$POSTGRES_PASSWORD_FILE\" ]; then\n    PGPASSWORD=\"$(cat \"$POSTGRES_PASSWORD_FILE\")\"\n  elif [ -n \"${POSTGRES_PASSWORD:-}\" ]; then\n    PGPASSWORD=\"$POSTGRES_PASSWORD\"\n  fi\nfi\nexport PGPASSWORD\nDB_NAME=\"${POSTGRES_DATABASE:-kube-rca}\"\npsql -U \"$DB_USER\" -d \"$DB_NAME\" -c \"CREATE EXTENSION IF NOT EXISTS vector;\"\n"` |  |
 
 ----------------------------------------------
 Autogenerated from chart metadata using [helm-docs v1.14.2](https://github.com/norwoodj/helm-docs/releases/v1.14.2)

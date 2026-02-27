@@ -194,6 +194,28 @@ backend:
       domain: ""
       # -- Cookie path (AUTH_COOKIE_PATH).
       path: "/"
+    oidc:
+      # -- Enable OIDC authentication (OIDC_ENABLED).
+      enabled: false
+      # -- OIDC issuer URL (OIDC_ISSUER).
+      issuer: "https://accounts.google.com"
+      # -- OIDC redirect URI (OIDC_REDIRECT_URI). Must match the callback URL registered with the provider.
+      redirectUri: ""
+      # -- Allowed email domains for OIDC login (OIDC_ALLOWED_DOMAINS). Users with matching email domains are allowed.
+      allowedDomains: []
+        # - kkamji.net
+        # - example.com
+      # -- Allowed individual emails for OIDC login (OIDC_ALLOWED_EMAILS). Specific emails allowed regardless of domain.
+      allowedEmails:
+        - rlaxowl5460@gmail.com
+      secret:
+        # -- Existing Secret name for OIDC credentials. If empty, chart-managed Secret is used.
+        existingSecret: ""
+        keys:
+          # -- Secret key for OIDC Client ID.
+          clientId: "oidc-client-id"
+          # -- Secret key for OIDC Client Secret.
+          clientSecret: "oidc-client-secret"
     cors:
       # -- Allowed origins (CORS_ALLOWED_ORIGINS), comma-separated when rendered.
       allowedOrigins: []
