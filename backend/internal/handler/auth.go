@@ -12,15 +12,17 @@ type AuthHandler struct {
 	svc          *service.AuthService
 	oidcEnabled  bool
 	oidcLoginURL string
+	oidcProvider string
 }
 
 func NewAuthHandler(svc *service.AuthService) *AuthHandler {
 	return &AuthHandler{svc: svc}
 }
 
-func (h *AuthHandler) SetOIDCConfig(enabled bool, loginURL string) {
+func (h *AuthHandler) SetOIDCConfig(enabled bool, loginURL, provider string) {
 	h.oidcEnabled = enabled
 	h.oidcLoginURL = loginURL
+	h.oidcProvider = provider
 }
 
 // Register godoc
@@ -136,6 +138,7 @@ func (h *AuthHandler) Config(c *gin.Context) {
 		AllowSignup:  h.svc.AllowSignup(),
 		OIDCEnabled:  h.oidcEnabled,
 		OIDCLoginURL: h.oidcLoginURL,
+		OIDCProvider: h.oidcProvider,
 	})
 }
 

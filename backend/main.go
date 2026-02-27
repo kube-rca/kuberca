@@ -84,7 +84,7 @@ func main() {
 	var oidcHandler *handler.OIDCHandler
 	if oidcService != nil && oidcService.Enabled() {
 		oidcHandler = handler.NewOIDCHandler(oidcService)
-		authHandler.SetOIDCConfig(true, "/api/v1/auth/oidc/login")
+		authHandler.SetOIDCConfig(true, "/api/v1/auth/oidc/login", oidcService.ProviderName())
 		log.Println("OIDC authentication enabled")
 	}
 

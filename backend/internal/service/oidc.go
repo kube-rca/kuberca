@@ -75,6 +75,28 @@ func (s *OIDCService) Enabled() bool {
 	return s.enabled
 }
 
+// ProviderName returns a short identifier for the OIDC provider based on the issuer URL.
+func (s *OIDCService) ProviderName() string {
+	if !s.enabled || s.provider == nil {
+		return ""
+	}
+	issuer := s.provider.Endpoint().AuthURL
+	switch {
+	case strings.Contains(issuer, "accounts.google.com"):
+		return "google"
+	case strings.Contains(issuer, "/realms/"):
+		return "keycloak"
+	case strings.Contains(issuer, "okta.com"):
+		return "okta"
+	case strings.Contains(issuer, "login.microsoftonline.com"):
+		return "azure"
+	case strings.Contains(issuer, "gitlab"):
+		return "gitlab"
+	default:
+		return "oidc"
+	}
+}
+
 func (s *OIDCService) AuthURL(state, nonce string) string {
 	return s.oauth2Config.AuthCodeURL(state,
 		oidc.Nonce(nonce),

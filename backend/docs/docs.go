@@ -1404,6 +1404,9 @@ const docTemplate = `{
                 },
                 "oidcLoginUrl": {
                     "type": "string"
+                },
+                "oidcProvider": {
+                    "type": "string"
                 }
             }
         },
