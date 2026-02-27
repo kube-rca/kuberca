@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.4.0](https://github.com/kube-rca/backend/compare/0.3.0...0.4.0) (2026-02-27)
+
+
+### Features
+
+* add OIDC authentication with security hardening ([b182d24](https://github.com/kube-rca/backend/commit/b182d24714f6b57ad1b4cb5cacf7a20dbe3fbf18))
+* add webhook config api ([65e788d](https://github.com/kube-rca/backend/commit/65e788d5adab46a39c57e25ca2922a0285effa6f))
+* add webhook config api ([65e788d](https://github.com/kube-rca/backend/commit/65e788d5adab46a39c57e25ca2922a0285effa6f))
+* add webhook config api ([15170f9](https://github.com/kube-rca/backend/commit/15170f9be16d74f0d18762304a342c934fb44fb2))
+* alert flapping (KAN-155) ([0a55a99](https://github.com/kube-rca/backend/commit/0a55a9921d1e2d0354dbe195c4d90651b5d96853))
+* Comment 수정 및 삭제 기능 (KAN-151) ([8f79c44](https://github.com/kube-rca/backend/commit/8f79c4473d7e4764a910160b16f5e8212e146e57))
+* flapping enable/disable (KAN-155) ([804316b](https://github.com/kube-rca/backend/commit/804316bbaab7393f20096d412028ea860f5b997f))
+* Incident & Alarm에 Comment 추가 (KAN-151) ([751570e](https://github.com/kube-rca/backend/commit/751570e6d61ae946a6366c6db503407491024c95))
+* 라벨 기반 검색을 위해 목록 반환시 라벨 추가(KAN-143) ([7bdeb97](https://github.com/kube-rca/backend/commit/7bdeb979fd63aaa17eb6c67dc4ff3e0e43def080))
+* 채팅 기능 (KAN-157) ([feaadae](https://github.com/kube-rca/backend/commit/feaadae2710a064ffdcb4081c3a4a0c70fc79ac9))
+
+
+### Bug Fixes
+
+* route backend image pushes to component repository ([b0274da](https://github.com/kube-rca/backend/commit/b0274da089e1f99e40d80965a82ea2454fe686bd))
+* 채팅 기능 404 에러 (KAN-157) ([9dbde7e](https://github.com/kube-rca/backend/commit/9dbde7e71d9fcbd37cf170003dac904575a9aa2a))
+
 ## [0.3.0](https://github.com/kube-rca/backend/compare/0.2.0...0.3.0) (2026-02-01)
 
 
