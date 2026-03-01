@@ -24,31 +24,6 @@ your-domain.com/api/*    → backend  (Go/Gin)
 |------------|------|---------|
 | https://charts.bitnami.com/bitnami | postgresql | 18.1.13 |
 
-## SSE (Server-Sent Events) Ingress Configuration
-
-KubeRCA uses Server-Sent Events (SSE) for real-time notifications. If you use an Ingress controller (e.g., Nginx), you need to add annotations to prevent the proxy from buffering or closing long-lived SSE connections.
-
-### Nginx Ingress
-
-Add these annotations to your backend ingress override values:
-
-```yaml
-backend:
-  ingress:
-    annotations:
-      nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-      nginx.ingress.kubernetes.io/proxy-buffering: "off"
-```
-
-| Annotation | Purpose | Recommended Value |
-|------------|---------|-------------------|
-| `proxy-read-timeout` | Keeps the SSE connection alive | `3600` (1 hour) |
-| `proxy-buffering` | Disables response buffering so events are pushed immediately | `off` |
-
-> **Note:** The default Nginx `proxy-read-timeout` is 60 seconds, which will close SSE connections prematurely. The backend sends heartbeat events every 30 seconds to keep connections alive within the configured timeout.
-
-> **Note:** If you use a combined frontend+backend ingress (default), apply these annotations at the top-level `ingress.annotations` instead of `backend.ingress.annotations`.
-
 ## OIDC Setup Guide (Google)
 
 KubeRCA supports Google OIDC login. Follow these steps to enable it.
