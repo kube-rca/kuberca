@@ -1,14 +1,14 @@
 // Alert 처리 비즈니스 로직 정의
-// handler에서 받은 알림을 필터링하고 client를 통해 Slack으로 전송
+// handler에서 받은 알림을 필터링하고 client를 통해 알림 채널로 전송
 //
 // 처리 흐름:
 //  1. 현재 firing 상태인 Incident가 있는지 확인
 //     - 없으면: 새 Incident 생성
 //  2. Alert를 DB에 저장 (alerts 테이블) + Incident 연결
 //  3. resolved 상태면 resolved_at 업데이트
-//  4. shouldSendToSlack으로 필터링
+//  4. shouldSendNotification으로 필터링
 //  5. resolved 알림: DB에서 thread_ts 조회하여 메모리에 복원
-//  6. SlackClient.SendAlert로 Slack 전송
+//  6. Notifier.Notify로 알림 채널 전송
 //  7. firing 알림: thread_ts를 DB에 저장
 //  8. Agent에 비동기 분석 요청 (firing, resolved)
 //  9. 전송 성공/실패 카운트 반환
@@ -29,7 +29,7 @@ import (
 
 // AlertService 구조체 정의
 type AlertService struct {
-	slackClient    *client.SlackClient
+	notifier       client.Notifier
 	agentService   *AgentService
 	db             *db.Postgres
 	flappingConfig config.FlappingConfig
@@ -37,9 +37,9 @@ type AlertService struct {
 }
 
 // AlertService 객체 생성
-func NewAlertService(slackClient *client.SlackClient, agentService *AgentService, database *db.Postgres, flappingConfig config.FlappingConfig, sseHub *sse.Hub) *AlertService {
+func NewAlertService(notifier client.Notifier, agentService *AgentService, database *db.Postgres, flappingConfig config.FlappingConfig, sseHub *sse.Hub) *AlertService {
 	return &AlertService{
-		slackClient:    slackClient,
+		notifier:       notifier,
 		agentService:   agentService,
 		db:             database,
 		flappingConfig: flappingConfig,
@@ -99,8 +99,8 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 			}
 		}
 
-		// 4. 필터링: Slack으로 전송할 알림인지 확인
-		if !s.shouldSendToSlack(alert) {
+		// 4. 필터링: 알림 채널로 전송할 알림인지 확인
+		if !s.shouldSendNotification(alert) {
 			continue
 		}
 
@@ -108,37 +108,44 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 		// (백엔드 재시작 시 메모리가 초기화되므로 DB에서 복원 필요)
 		if alert.Status == "resolved" {
 			if threadTS, ok := s.db.GetAlertThreadTS(alert.Fingerprint); ok {
-				s.slackClient.StoreThreadTS(alert.Fingerprint, threadTS)
+				s.storeThreadRef(alert.Fingerprint, threadTS)
 			}
 		}
 
-		// 6. Slack 전송 - Flapping 상태에 따라 다르게 처리
+		// 6. 알림 채널 전송 - Flapping 상태에 따라 다르게 처리
 		if isNewFlapping {
 			// 새로 Flapping 감지됨 - 오렌지 경고 메시지 전송
-			err = s.slackClient.SendFlappingDetection(alert, incidentID, s.getFlappingCycleCount(alert.Fingerprint))
+			err = s.notifier.Notify(client.FlappingDetectedEvent{
+				Alert:      alert,
+				IncidentID: incidentID,
+				CycleCount: s.getFlappingCycleCount(alert.Fingerprint),
+			})
 		} else if isFlapping {
-			// 이미 Flapping 중 - Slack 알림 스킵
-			log.Printf("Skipping Slack notification for flapping alert (alert_id=%s)", alert.Fingerprint)
+			// 이미 Flapping 중 - 알림 스킵
+			log.Printf("Skipping notification for flapping alert (alert_id=%s)", alert.Fingerprint)
 			sent++
 			goto skipSlack
 		} else {
 			// 정상 Alert 전송
-			err = s.slackClient.SendAlert(alert, alert.Status, incidentID)
+			err = s.notifier.Notify(client.AlertStatusChangedEvent{
+				Alert:      alert,
+				IncidentID: incidentID,
+			})
 		}
 
 		if err != nil {
-			log.Printf("Failed to send alert to Slack: %v", err)
+			log.Printf("Failed to send alert notification: %v", err)
 			failed++
 			continue
 		}
 
-		log.Printf("Sent alert to Slack (alert_id=%s, status=%s, incident_id=%s, flapping=%v)", alert.Fingerprint, alert.Status, incidentID, isFlapping)
+		log.Printf("Sent alert notification (alert_id=%s, status=%s, incident_id=%s, flapping=%v)", alert.Fingerprint, alert.Status, incidentID, isFlapping)
 		sent++
 
 	skipSlack:
 		// 7. thread_ts를 DB에 저장 (firing 알림일 때)
 		if alert.Status == "firing" {
-			if threadTS, ok := s.slackClient.GetThreadTS(alert.Fingerprint); ok {
+			if threadTS, ok := s.getThreadRef(alert.Fingerprint); ok {
 				if err := s.db.UpdateAlertThreadTS(alert.Fingerprint, threadTS); err != nil {
 					log.Printf("Failed to save thread_ts to DB: %v", err)
 				}
@@ -211,8 +218,8 @@ func (s *AlertService) shouldProcess(alert model.Alert) bool {
 //   - 특정 alertname만 전송
 //
 // Returns:
-//   - bool: true면 Slack으로 전송, false면 무시
-func (s *AlertService) shouldSendToSlack(alert model.Alert) bool {
+//   - bool: true면 알림 채널로 전송, false면 무시
+func (s *AlertService) shouldSendNotification(alert model.Alert) bool {
 	// warning, critical만 전송 (info, none 등 필터링)
 	severity := alert.Labels["severity"]
 	if severity == "warning" || severity == "critical" {
@@ -330,7 +337,12 @@ func (s *AlertService) scheduleFlappingClearanceCheck(fingerprint string, resolv
 
 	// Slack에 Flapping 해제 메시지 전송
 	if threadTS, ok := s.db.GetAlertThreadTS(fingerprint); ok {
-		s.slackClient.SendFlappingCleared(fingerprint, threadTS)
+		if err := s.notifier.Notify(client.FlappingClearedEvent{
+			Fingerprint: fingerprint,
+			ThreadRef:   threadTS,
+		}); err != nil {
+			log.Printf("Failed to send flapping cleared notification: %v", err)
+		}
 	}
 }
 
@@ -350,4 +362,20 @@ func (s *AlertService) getFlappingClearanceMinutes() int {
 func (s *AlertService) getFlappingCycleCount(fingerprint string) int {
 	count, _, _ := s.db.CountFlappingCycles(fingerprint, s.getFlappingWindowMinutes())
 	return count
+}
+
+func (s *AlertService) storeThreadRef(alertKey, threadRef string) {
+	store, ok := s.notifier.(client.ThreadRefStore)
+	if !ok {
+		return
+	}
+	store.StoreThreadRef(alertKey, threadRef)
+}
+
+func (s *AlertService) getThreadRef(alertKey string) (string, bool) {
+	store, ok := s.notifier.(client.ThreadRefStore)
+	if !ok {
+		return "", false
+	}
+	return store.GetThreadRef(alertKey)
 }
