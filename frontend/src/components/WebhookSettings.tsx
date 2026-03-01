@@ -10,27 +10,18 @@ const WEBHOOK_LABEL: Record<WebhookType, string> = {
   http: 'Generic HTTP',
 };
 
-const buildConfigPayload = (type: WebhookType, url: string, token: string): WebhookConfigPayload => {
-  const headers: WebhookConfigPayload['headers'] = [];
+const SLACK_POST_MESSAGE_URL = 'https://slack.com/api/chat.postMessage';
 
-  if (token.trim()) {
-    headers.push({
-      key: 'Authorization',
-      value: `Bearer ${token.trim()}`,
-    });
-  }
-
-  headers.push({
-    key: 'X-Webhook-Type',
-    value: type,
-  });
-
+const buildConfigPayload = (type: WebhookType, url: string, token: string, channel: string): WebhookConfigPayload => {
   return {
-    url,
+    type,
+    url: type === 'slack' ? '' : url,
     method: 'POST',
-    headers,
+    headers: [],
     // payload는 frontend에서 만들지 않고 backend에서 타입별로 생성/주입하도록 비워서 전달
     body: '',
+    token: token.trim() || undefined,
+    channel: channel.trim() || undefined,
   };
 };
 
@@ -42,6 +33,7 @@ const WebhookSettings: React.FC = () => {
   const [url, setUrl] = useState('');
   const [webhookType, setWebhookType] = useState<WebhookType>('slack');
   const [token, setToken] = useState('');
+  const [channel, setChannel] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -56,13 +48,22 @@ const WebhookSettings: React.FC = () => {
           setWebhookType(savedType);
         }
 
-        const authValue = cfg.headers.find((h) => h.key.toLowerCase() === 'authorization')?.value ?? '';
+        const authValue =
+          cfg.headers.find((h) => h.key.toLowerCase() === 'authorization')?.value ??
+          cfg.headers.find((h) => h.key.toLowerCase() === 'x-slack-bot-token')?.value ??
+          '';
         const bearerPrefix = 'Bearer ';
         if (authValue.startsWith(bearerPrefix)) {
           setToken(authValue.slice(bearerPrefix.length));
         } else {
-          setToken('');
+          setToken(authValue);
         }
+
+        const channelValue =
+          cfg.headers.find((h) => h.key.toLowerCase() === 'x-slack-channel-id')?.value ??
+          cfg.headers.find((h) => h.key.toLowerCase() === 'x-slack-channel')?.value ??
+          '';
+        setChannel(channelValue);
       })
       .catch((err) => {
         setSaveMessage({ type: 'error', text: `설정 로드 실패: ${err instanceof Error ? err.message : err}` });
@@ -70,6 +71,10 @@ const WebhookSettings: React.FC = () => {
   }, [id, isEditMode]);
 
   const urlError = useMemo(() => {
+    if (webhookType === 'slack') {
+      return null;
+    }
+
     const trimmedUrl = url.trim();
     if (!trimmedUrl) return 'Webhook receiver URL을 입력해 주세요.';
 
@@ -82,14 +87,32 @@ const WebhookSettings: React.FC = () => {
     } catch {
       return '유효한 URL 형식이 아닙니다.';
     }
-  }, [url]);
+  }, [url, webhookType]);
+
+  const slackError = useMemo(() => {
+    if (webhookType !== 'slack') {
+      return null;
+    }
+    if (!token.trim()) {
+      return 'Slack Bot Token을 입력해 주세요.';
+    }
+    if (!channel.trim()) {
+      return 'Slack Channel ID를 입력해 주세요.';
+    }
+    return null;
+  }, [token, channel, webhookType]);
 
   const handleSave = async () => {
     if (isSaving) return;
 
     const trimmedUrl = url.trim();
-    if (!trimmedUrl || urlError) {
+    if (webhookType !== 'slack' && (!trimmedUrl || urlError)) {
       setSaveMessage({ type: 'error', text: urlError ?? 'Webhook receiver URL을 입력해 주세요.' });
+      return;
+    }
+
+    if (slackError) {
+      setSaveMessage({ type: 'error', text: slackError });
       return;
     }
 
@@ -97,7 +120,7 @@ const WebhookSettings: React.FC = () => {
     setSaveMessage(null);
 
     try {
-      const payload = buildConfigPayload(webhookType, trimmedUrl, token);
+      const payload = buildConfigPayload(webhookType, trimmedUrl, token, channel);
 
       if (isEditMode && id) {
         await updateWebhookConfig(Number(id), payload);
@@ -143,17 +166,55 @@ const WebhookSettings: React.FC = () => {
           </select>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Webhook Receiver URL</label>
-          <input
-            type="url"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://..."
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
-          />
-          {urlError && <p className="mt-1 text-sm text-red-500 dark:text-red-400">{urlError}</p>}
-        </div>
+        {webhookType === 'slack' ? (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Slack API Endpoint</label>
+            <input
+              type="text"
+              value={SLACK_POST_MESSAGE_URL}
+              readOnly
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-100 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300"
+            />
+          </div>
+        ) : (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Webhook Receiver URL</label>
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://..."
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
+            />
+            {urlError && <p className="mt-1 text-sm text-red-500 dark:text-red-400">{urlError}</p>}
+          </div>
+        )}
+
+        {webhookType === 'slack' && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Slack Bot Token</label>
+              <input
+                type="password"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                placeholder="xoxb-..."
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Slack Channel ID</label>
+              <input
+                type="text"
+                value={channel}
+                onChange={(e) => setChannel(e.target.value)}
+                placeholder="C0123456789"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            {slackError && <p className="mt-1 text-sm text-red-500 dark:text-red-400">{slackError}</p>}
+          </>
+        )}
 
         {webhookType === 'http' && (
           <div>
@@ -173,10 +234,10 @@ const WebhookSettings: React.FC = () => {
         <div className="rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 px-4 py-3">
           <h2 className="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-1">자동 적용 설정</h2>
           <p className="text-sm text-blue-700 dark:text-blue-200">
-            {WEBHOOK_LABEL[webhookType]} 연동 방식과 연결 정보만 frontend에서 전달합니다.
+            {WEBHOOK_LABEL[webhookType]} 연동 정보만 frontend에서 전달하고, 알림 본문은 backend가 생성합니다.
           </p>
           <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
-            메시지 payload(body)는 frontend에서 만들지 않으며 backend에서 타입별로 설정되어야 합니다.
+            Slack 타입은 Bot Token + Channel ID를 저장해 `chat.postMessage` 기반으로 알림을 전송합니다.
           </p>
         </div>
 
@@ -193,7 +254,7 @@ const WebhookSettings: React.FC = () => {
           <div className="flex gap-3">
             <button
               onClick={handleSave}
-              disabled={isSaving || !!urlError}
+              disabled={isSaving || !!urlError || !!slackError}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSaving ? 'Saving...' : isEditMode ? 'Update Settings' : 'Save Settings'}
