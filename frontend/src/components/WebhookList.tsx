@@ -2,11 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchWebhookList, deleteWebhookConfig, WebhookConfig } from '../utils/api';
 
-const METHOD_BADGE: Record<string, string> = {
-  GET:    'bg-green-100  text-green-700  dark:bg-green-900/40  dark:text-green-300',
-  POST:   'bg-blue-100   text-blue-700   dark:bg-blue-900/40   dark:text-blue-300',
-  PUT:    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
-  DELETE: 'bg-red-100    text-red-700    dark:bg-red-900/40    dark:text-red-300',
+type WebhookType = 'Slack' | 'Teams' | 'HTTP';
+
+const TYPE_BADGE: Record<WebhookType, string> = {
+  Slack: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
+  Teams: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
+  HTTP: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200',
+};
+
+const getWebhookTypeFromHeaders = (headers: WebhookConfig['headers']): WebhookType => {
+  const value = headers.find((h) => h.key.toLowerCase() === 'x-webhook-type')?.value?.toLowerCase();
+  if (value === 'slack') return 'Slack';
+  if (value === 'teams') return 'Teams';
+  return 'HTTP';
 };
 
 const WebhookList: React.FC = () => {
@@ -92,7 +100,10 @@ const WebhookList: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-3">
-          {configs.map((cfg) => (
+          {configs.map((cfg) => {
+            const type = getWebhookTypeFromHeaders(cfg.headers ?? []);
+
+            return (
             <div
               key={cfg.id}
               onClick={() => navigate(`/settings/webhooks/${cfg.id}`)}
@@ -100,9 +111,9 @@ const WebhookList: React.FC = () => {
             >
               <div className="flex items-center gap-3 min-w-0">
                 <span
-                  className={`shrink-0 inline-block px-2 py-0.5 text-xs font-semibold rounded ${METHOD_BADGE[cfg.method] ?? METHOD_BADGE['POST']}`}
+                  className={`shrink-0 inline-block px-2 py-0.5 text-xs font-semibold rounded ${TYPE_BADGE[type]}`}
                 >
-                  {cfg.method}
+                  {type}
                 </span>
                 <span className="text-sm font-mono text-gray-800 dark:text-gray-100 truncate">
                   {cfg.url || <span className="text-gray-400 italic">URL 없음</span>}
@@ -124,7 +135,8 @@ const WebhookList: React.FC = () => {
                 </button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
