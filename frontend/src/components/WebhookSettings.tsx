@@ -43,12 +43,13 @@ const WebhookSettings: React.FC = () => {
     fetchWebhookById(Number(id))
       .then((cfg) => {
         setUrl(cfg.url);
-        const savedType = cfg.headers.find((h) => h.key.toLowerCase() === 'x-webhook-type')?.value;
+        const savedType = cfg.type ?? cfg.headers.find((h) => h.key.toLowerCase() === 'x-webhook-type')?.value;
         if (savedType === 'slack' || savedType === 'teams' || savedType === 'http') {
           setWebhookType(savedType);
         }
 
         const authValue =
+          cfg.token ??
           cfg.headers.find((h) => h.key.toLowerCase() === 'authorization')?.value ??
           cfg.headers.find((h) => h.key.toLowerCase() === 'x-slack-bot-token')?.value ??
           '';
@@ -60,6 +61,7 @@ const WebhookSettings: React.FC = () => {
         }
 
         const channelValue =
+          cfg.channel ??
           cfg.headers.find((h) => h.key.toLowerCase() === 'x-slack-channel-id')?.value ??
           cfg.headers.find((h) => h.key.toLowerCase() === 'x-slack-channel')?.value ??
           '';

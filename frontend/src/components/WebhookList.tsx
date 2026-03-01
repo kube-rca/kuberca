@@ -10,19 +10,15 @@ const TYPE_BADGE: Record<WebhookType, string> = {
   HTTP: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200',
 };
 
-const getWebhookTypeFromHeaders = (headers: WebhookConfig['headers']): WebhookType => {
-  const value = headers.find((h) => h.key.toLowerCase() === 'x-webhook-type')?.value?.toLowerCase();
+const getWebhookType = (cfg: WebhookConfig): WebhookType => {
+  const value = cfg.type?.toLowerCase();
   if (value === 'slack') return 'Slack';
   if (value === 'teams') return 'Teams';
   return 'HTTP';
 };
 
-const getSlackChannelFromHeaders = (headers: WebhookConfig['headers']): string => {
-  return (
-    headers.find((h) => h.key.toLowerCase() === 'x-slack-channel-id')?.value ??
-    headers.find((h) => h.key.toLowerCase() === 'x-slack-channel')?.value ??
-    ''
-  );
+const getSlackChannel = (cfg: WebhookConfig): string => {
+  return cfg.channel?.trim() ?? '';
 };
 
 const WebhookList: React.FC = () => {
@@ -109,8 +105,8 @@ const WebhookList: React.FC = () => {
       ) : (
         <div className="space-y-3">
           {configs.map((cfg) => {
-            const type = getWebhookTypeFromHeaders(cfg.headers ?? []);
-            const slackChannel = type === 'Slack' ? getSlackChannelFromHeaders(cfg.headers ?? []) : '';
+            const type = getWebhookType(cfg);
+            const slackChannel = type === 'Slack' ? getSlackChannel(cfg) : '';
             const primaryText =
               type === 'Slack'
                 ? (slackChannel ? `Channel: ${slackChannel}` : 'Slack Bot')
