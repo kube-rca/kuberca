@@ -11,6 +11,7 @@ import (
 	"github.com/kube-rca/backend/internal/db"
 	"github.com/kube-rca/backend/internal/handler"
 	"github.com/kube-rca/backend/internal/service"
+	"github.com/kube-rca/backend/internal/sse"
 )
 
 func main() {
@@ -63,6 +64,9 @@ func main() {
 		log.Fatalf("Failed to ensure embedding schema: %v", err)
 	}
 
+	// SSE Hub 초기화 (heartbeat goroutine 시작)
+	sseHub := sse.NewHub()
+
 	authService, err := service.NewAuthService(pgRepo, cfg.Auth)
 	if err != nil {
 		log.Fatalf("Failed to initialize auth service: %v", err)
@@ -101,12 +105,12 @@ func main() {
 
 	// 3. 비즈니스 로직 서비스 초기화
 	// AgentService: Agent 요청 및 Slack 쓰레드 응답 처리 + DB 저장
-	agentService := service.NewAgentService(agentClient, slackClient, pgRepo)
+	agentService := service.NewAgentService(agentClient, slackClient, pgRepo, sseHub)
 	chatService := service.NewChatService(pgRepo, agentClient)
 	// AlertService: 알림 필터링 및 Slack 전송 로직 담당 + DB 저장
-	alertService := service.NewAlertService(slackClient, agentService, pgRepo, cfg.Flapping)
+	alertService := service.NewAlertService(slackClient, agentService, pgRepo, cfg.Flapping, sseHub)
 	// RcaService: Incident/Alert 조회 및 종료 처리 + Agent 최종 분석 요청 + 임베딩 생성
-	rcaSvc := service.NewRcaService(pgRepo, agentService, embeddingService)
+	rcaSvc := service.NewRcaService(pgRepo, agentService, embeddingService, sseHub)
 	chatHandler := handler.NewChatHandler(chatService)
 	webhookSvc := service.NewWebhookService(pgRepo)
 
@@ -115,12 +119,13 @@ func main() {
 	alertHandler := handler.NewAlertHandler(alertService)
 	rcaHndlr := handler.NewRcaHandler(rcaSvc)
 	webhookHndlr := handler.NewWebhookSettingsHandler(webhookSvc)
+	eventHandler := handler.NewEventHandler(sseHub)
 
 	// HTTP 라우터 설정
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(gin.LoggerWithConfig(gin.LoggerConfig{
-		SkipPaths: []string{"/ping", "/", "/openapi.json"},
+		SkipPaths: []string{"/ping", "/", "/openapi.json", "/api/v1/events"},
 	}))
 
 	corsOrigins := splitOrigins(cfg.Auth.CorsAllowedOrigins)
@@ -187,6 +192,11 @@ func main() {
 		protected.PUT("/settings/webhooks/:id", webhookHndlr.UpdateWebhookConfig)
 		protected.DELETE("/settings/webhooks/:id", webhookHndlr.DeleteWebhookConfig)
 	}
+
+	// SSE Events endpoint
+	sseGroup := v1.Group("")
+	sseGroup.Use(handler.SSEAuthMiddleware(authService))
+	sseGroup.GET("/events", eventHandler.Stream)
 
 	// Alertmanager 웹훅 엔드포인트
 	// - POST /webhook/alertmanager: Alertmanager에서 알림 수신

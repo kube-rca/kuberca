@@ -53,6 +53,50 @@ func GetAuthUser(c *gin.Context) *model.AuthUser {
 	return nil
 }
 
+// SSEAuthMiddleware authenticates SSE connections.
+// The browser EventSource API does not support custom headers, so this
+// middleware checks the Authorization header first (for polyfill libraries)
+// and falls back to a ?token= query parameter.
+func SSEAuthMiddleware(authService *service.AuthService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.Request.Method == http.MethodOptions {
+			c.Next()
+			return
+		}
+
+		// 1. Check Authorization header first
+		header := c.GetHeader("Authorization")
+		if strings.HasPrefix(header, "Bearer ") {
+			token := strings.TrimSpace(strings.TrimPrefix(header, "Bearer "))
+			if token != "" {
+				if user, err := authService.ParseAccessToken(token); err == nil {
+					c.Set(authUserKey, user)
+					c.Next()
+					return
+				}
+			}
+		}
+
+		// 2. Fallback to query parameter (EventSource API doesn't support custom headers)
+		token := c.Query("token")
+		if token == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			c.Abort()
+			return
+		}
+
+		user, err := authService.ParseAccessToken(token)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			c.Abort()
+			return
+		}
+
+		c.Set(authUserKey, user)
+		c.Next()
+	}
+}
+
 func CORSMiddleware(allowedOrigins []string, allowCredentials bool) gin.HandlerFunc {
 	originMap := make(map[string]struct{}, len(allowedOrigins))
 	for _, origin := range allowedOrigins {

@@ -13,6 +13,7 @@ import (
 	"github.com/kube-rca/backend/internal/client"
 	"github.com/kube-rca/backend/internal/db"
 	"github.com/kube-rca/backend/internal/model"
+	"github.com/kube-rca/backend/internal/sse"
 )
 
 // AgentService 구조체 정의
@@ -20,14 +21,16 @@ type AgentService struct {
 	agentClient *client.AgentClient
 	slackClient *client.SlackClient
 	db          *db.Postgres
+	sseHub      *sse.Hub
 }
 
 // AgentService 객체 생성
-func NewAgentService(agentClient *client.AgentClient, slackClient *client.SlackClient, database *db.Postgres) *AgentService {
+func NewAgentService(agentClient *client.AgentClient, slackClient *client.SlackClient, database *db.Postgres, sseHub *sse.Hub) *AgentService {
 	return &AgentService{
 		agentClient: agentClient,
 		slackClient: slackClient,
 		db:          database,
+		sseHub:      sseHub,
 	}
 }
 
@@ -77,6 +80,14 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, threadTS, incidentID s
 		if err := s.db.InsertAlertAnalysisArtifacts(analysisID, alert.Fingerprint, incidentID, resp.Artifacts); err != nil {
 			log.Printf("Failed to insert alert analysis artifacts: %v", err)
 		}
+	}
+
+	// SSE broadcast: 분석 완료 이벤트
+	if s.sseHub != nil {
+		s.sseHub.Broadcast(sse.Event{
+			Type: sse.EventAnalysisCompleted,
+			Data: sse.EventData{AlertID: alert.Fingerprint, IncidentID: incidentID},
+		})
 	}
 
 	// 분석 결과를 Slack 쓰레드에 전송

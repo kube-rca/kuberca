@@ -24,6 +24,7 @@ import (
 	"github.com/kube-rca/backend/internal/config"
 	"github.com/kube-rca/backend/internal/db"
 	"github.com/kube-rca/backend/internal/model"
+	"github.com/kube-rca/backend/internal/sse"
 )
 
 // AlertService 구조체 정의
@@ -32,15 +33,17 @@ type AlertService struct {
 	agentService   *AgentService
 	db             *db.Postgres
 	flappingConfig config.FlappingConfig
+	sseHub         *sse.Hub
 }
 
 // AlertService 객체 생성
-func NewAlertService(slackClient *client.SlackClient, agentService *AgentService, database *db.Postgres, flappingConfig config.FlappingConfig) *AlertService {
+func NewAlertService(slackClient *client.SlackClient, agentService *AgentService, database *db.Postgres, flappingConfig config.FlappingConfig, sseHub *sse.Hub) *AlertService {
 	return &AlertService{
 		slackClient:    slackClient,
 		agentService:   agentService,
 		db:             database,
 		flappingConfig: flappingConfig,
+		sseHub:         sseHub,
 	}
 }
 
@@ -64,6 +67,11 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 		if err := s.db.SaveAlert(alert, incidentID); err != nil {
 			log.Printf("Failed to save alert to DB: %v", err)
 			// DB 저장 실패해도 Slack 전송은 계속 진행
+		} else if s.sseHub != nil {
+			s.sseHub.Broadcast(sse.Event{
+				Type: sse.EventAlertCreated,
+				Data: sse.EventData{AlertID: alert.Fingerprint, IncidentID: incidentID},
+			})
 		}
 
 		// 2.5. Flapping 감지 (resolved 상태 업데이트 전에 수행)
@@ -78,6 +86,11 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 			}
 			if err := s.db.UpdateAlertResolved(alert.Fingerprint, alert.EndsAt); err != nil {
 				log.Printf("Failed to update alert resolved status: %v", err)
+			} else if s.sseHub != nil {
+				s.sseHub.Broadcast(sse.Event{
+					Type: sse.EventAlertResolved,
+					Data: sse.EventData{AlertID: alert.Fingerprint, IncidentID: incidentID},
+				})
 			}
 
 			// Flapping 상태라면 clearance 체크 스케줄링
@@ -175,6 +188,14 @@ func (s *AlertService) getOrCreateIncident(alert model.Alert) (string, error) {
 	}
 
 	log.Printf("Created new incident: %s (triggered by alert: %s)", incidentID, alert.Fingerprint)
+
+	if s.sseHub != nil {
+		s.sseHub.Broadcast(sse.Event{
+			Type: sse.EventIncidentCreated,
+			Data: sse.EventData{IncidentID: incidentID},
+		})
+	}
+
 	return incidentID, nil
 }
 

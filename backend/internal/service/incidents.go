@@ -6,16 +6,18 @@ import (
 
 	"github.com/kube-rca/backend/internal/db"
 	"github.com/kube-rca/backend/internal/model"
+	"github.com/kube-rca/backend/internal/sse"
 )
 
 type RcaService struct {
 	repo             *db.Postgres
 	agentService     *AgentService
 	embeddingService *EmbeddingService
+	sseHub           *sse.Hub
 }
 
-func NewRcaService(repo *db.Postgres, agentService *AgentService, embeddingService *EmbeddingService) *RcaService {
-	return &RcaService{repo: repo, agentService: agentService, embeddingService: embeddingService}
+func NewRcaService(repo *db.Postgres, agentService *AgentService, embeddingService *EmbeddingService, sseHub *sse.Hub) *RcaService {
+	return &RcaService{repo: repo, agentService: agentService, embeddingService: embeddingService, sseHub: sseHub}
 }
 
 func (s *RcaService) GetIncidentList() ([]model.IncidentListResponse, error) {
@@ -40,11 +42,29 @@ func (s *RcaService) GetIncidentDetail(id string) (*model.IncidentDetailResponse
 }
 
 func (s *RcaService) UpdateIncident(id string, req model.UpdateIncidentRequest) error {
-	return s.repo.UpdateIncident(id, req)
+	if err := s.repo.UpdateIncident(id, req); err != nil {
+		return err
+	}
+	if s.sseHub != nil {
+		s.sseHub.Broadcast(sse.Event{
+			Type: sse.EventIncidentUpdated,
+			Data: sse.EventData{IncidentID: id},
+		})
+	}
+	return nil
 }
 
 func (s *RcaService) HideIncident(id string) error {
-	return s.repo.HideIncident(id)
+	if err := s.repo.HideIncident(id); err != nil {
+		return err
+	}
+	if s.sseHub != nil {
+		s.sseHub.Broadcast(sse.Event{
+			Type: sse.EventIncidentUpdated,
+			Data: sse.EventData{IncidentID: id},
+		})
+	}
+	return nil
 }
 
 // GetHiddenIncidentList - 숨김 처리된 Incident 목록 조회
@@ -54,13 +74,30 @@ func (s *RcaService) GetHiddenIncidentList() ([]model.IncidentListResponse, erro
 
 // UnhideIncident - Incident 숨김 해제 (추가됨)
 func (s *RcaService) UnhideIncident(id string) error {
-	return s.repo.UnhideIncident(id)
+	if err := s.repo.UnhideIncident(id); err != nil {
+		return err
+	}
+	if s.sseHub != nil {
+		s.sseHub.Broadcast(sse.Event{
+			Type: sse.EventIncidentUpdated,
+			Data: sse.EventData{IncidentID: id},
+		})
+	}
+	return nil
 }
 
 func (s *RcaService) ResolveIncident(id string, resolvedBy string) error {
 	// 1. Incident 상태를 resolved로 변경
 	if err := s.repo.ResolveIncident(id, resolvedBy); err != nil {
 		return err
+	}
+
+	// SSE broadcast: incident resolved
+	if s.sseHub != nil {
+		s.sseHub.Broadcast(sse.Event{
+			Type: sse.EventIncidentResolved,
+			Data: sse.EventData{IncidentID: id},
+		})
 	}
 
 	// 2. Agent에 최종 분석 요청 (비동기)
@@ -99,6 +136,14 @@ func (s *RcaService) requestIncidentSummary(incidentID string) {
 	}
 
 	log.Printf("Incident summary saved (incident_id=%s)", incidentID)
+
+	// SSE broadcast: incident updated (summary saved)
+	if s.sseHub != nil {
+		s.sseHub.Broadcast(sse.Event{
+			Type: sse.EventIncidentUpdated,
+			Data: sse.EventData{IncidentID: incidentID},
+		})
+	}
 
 	// 임베딩 생성 (유사 인시던트 검색용)
 	if s.embeddingService != nil && resp.Summary != "" {
