@@ -20,7 +20,7 @@ interface FeedbackSectionProps {
 
 const avatarColorByName = (name: string) => {
   const palette = [
-    'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+    'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300',
     'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
     'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
     'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
@@ -401,8 +401,8 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
   };
 
   return (
-    <section className="border-t border-gray-200 dark:border-gray-700 pt-6 mt-2">
-      <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">{title}</h3>
+    <section className="border-t border-slate-200 dark:border-slate-700 pt-6 mt-2">
+      <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4">{title}</h3>
 
       <div className="mb-6 flex items-center justify-center gap-4">
         <button
@@ -411,13 +411,13 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
           className={`h-12 w-12 rounded-full border text-2xl flex items-center justify-center transition-colors ${
             selectedVote === 'up'
               ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
-              : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+              : 'border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700'
           }`}
           aria-label="Upvote"
         >
           👍🏻
         </button>
-        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{upVotes}</span>
+        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{upVotes}</span>
 
         <button
           type="button"
@@ -425,53 +425,53 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
           className={`h-12 w-12 rounded-full border text-2xl flex items-center justify-center transition-colors ${
             selectedVote === 'down'
               ? 'border-rose-500 bg-rose-50 dark:bg-rose-900/20'
-              : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+              : 'border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700'
           }`}
           aria-label="Downvote"
         >
           👎🏻
         </button>
-        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{downVotes}</span>
+        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{downVotes}</span>
       </div>
 
       <div className="space-y-4 mb-6">
         {loading && (
-          <div className="text-sm text-gray-500 dark:text-gray-400">피드백을 불러오는 중...</div>
+          <div className="text-sm text-slate-500 dark:text-slate-400">피드백을 불러오는 중...</div>
         )}
         {comments.map((comment) => {
           const initial = comment.author_login_id[0]?.toUpperCase() || 'U';
           return (
-            <article key={comment.comment_id} className="relative border border-gray-200 dark:border-gray-700 rounded-lg overflow-visible">
-              <header className="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3">
+            <article key={comment.comment_id} className="relative border border-slate-200 dark:border-slate-700 rounded-lg overflow-visible">
+              <header className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-3">
                 <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold ${avatarColorByName(comment.author_login_id)}`}>
                   {initial}
                 </div>
                 <div className="text-sm flex-1">
-                  <span className="font-semibold text-gray-900 dark:text-gray-100">{comment.author_login_id}</span>
-                  <span className="text-gray-500 dark:text-gray-400 ml-2">{formatCommentTimestamp(comment.created_at)}</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">{comment.author_login_id}</span>
+                  <span className="text-slate-500 dark:text-slate-400 ml-2">{formatCommentTimestamp(comment.created_at)}</span>
                 </div>
                 <div className="relative" data-comment-menu="true">
                   <button
                     type="button"
                     onClick={() => setCommentMenuId((prev) => (prev === comment.comment_id ? null : comment.comment_id))}
-                    className="h-7 w-7 rounded text-gray-500 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700"
+                    className="h-7 w-7 rounded text-slate-500 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-700"
                     aria-label="Comment actions"
                   >
                     ...
                   </button>
                   {commentMenuId === comment.comment_id && (
-                    <div className="absolute right-0 top-8 z-[100] w-28 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg">
+                    <div className="absolute right-0 top-8 z-[100] w-28 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg">
                       <button
                         type="button"
                         onClick={() => startEditComment(comment)}
-                        className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                        className="w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
                       >
                         Edit
                       </button>
                       <button
                         type="button"
                         onClick={() => removeComment(comment.comment_id)}
-                        className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                        className="w-full px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-900/20"
                         disabled={commentActionLoadingId === comment.comment_id}
                       >
                         Delete
@@ -480,15 +480,15 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                   )}
                 </div>
               </header>
-              <div className="px-4 py-4 text-sm text-gray-800 dark:text-gray-200">
+              <div className="px-4 py-4 text-sm text-slate-800 dark:text-slate-200">
                 {editingCommentId === comment.comment_id ? (
-                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-visible -mx-1 -my-1">
-                    <div className="flex border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                  <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-visible -mx-1 -my-1">
+                    <div className="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
                       <button
                         type="button"
                         onClick={() => setEditingTab('write')}
-                        className={`px-4 py-2 text-sm font-medium border-r border-gray-200 dark:border-gray-700 ${
-                          editingTab === 'write' ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'
+                        className={`px-4 py-2 text-sm font-medium border-r border-slate-200 dark:border-slate-700 ${
+                          editingTab === 'write' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'
                         }`}
                       >
                         Write
@@ -497,14 +497,14 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                         type="button"
                         onClick={() => setEditingTab('preview')}
                         className={`px-4 py-2 text-sm font-medium ${
-                          editingTab === 'preview' ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'
+                          editingTab === 'preview' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'
                         }`}
                       >
                         Preview
                       </button>
                     </div>
                     {editingTab === 'write' && (
-                      <div className="flex items-center gap-1 px-2 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 overflow-x-auto">
+                      <div className="flex items-center gap-1 px-2 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 overflow-x-auto">
                         <button
                           type="button"
                           onClick={() =>
@@ -516,7 +516,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                               textareaRef: editingTextareaRef,
                             })
                           }
-                          className="h-8 w-8 rounded text-lg font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                          className="h-8 w-8 rounded text-lg font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                           title="Heading"
                         >
                           H
@@ -535,7 +535,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                               }
                             )
                           }
-                          className="h-8 w-8 rounded text-lg font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                          className="h-8 w-8 rounded text-lg font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                           title="Bold"
                         >
                           B
@@ -554,7 +554,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                               }
                             )
                           }
-                          className="h-8 w-8 rounded text-lg italic text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                          className="h-8 w-8 rounded text-lg italic text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                           title="Italic"
                         >
                           I
@@ -573,7 +573,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                               }
                             )
                           }
-                          className="h-8 w-8 rounded text-lg text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                          className="h-8 w-8 rounded text-lg text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                           title="Code"
                         >
                           &lt;&gt;
@@ -592,30 +592,30 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                               }
                             )
                           }
-                          className="h-8 w-8 rounded text-lg text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                          className="h-8 w-8 rounded text-lg text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                           title="Link"
                         >
                           🔗
                         </button>
-                        <span className="mx-1 h-6 w-px bg-gray-300 dark:bg-gray-600" />
+                        <span className="mx-1 h-6 w-px bg-slate-300 dark:bg-slate-600" />
                         <div className="relative" ref={editingMoreMenuRef}>
                           <button
                             type="button"
                             onClick={() => setEditingMoreMenuOpen((v) => !v)}
-                            className="h-8 w-8 rounded text-lg text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                            className="h-8 w-8 rounded text-lg text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                             title="More"
                           >
                             ...
                           </button>
                           {editingMoreMenuOpen && (
-                            <div className="absolute right-0 top-9 z-[100] w-52 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg">
-                              <button type="button" onClick={() => handleMoreAction('unordered', { draft: editingDraft, setDraft: editingDraftEditor.setValue, undo: editingDraftEditor.undo, redo: editingDraftEditor.redo, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Unordered list</button>
-                              <button type="button" onClick={() => handleMoreAction('numbered', { draft: editingDraft, setDraft: editingDraftEditor.setValue, undo: editingDraftEditor.undo, redo: editingDraftEditor.redo, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Numbered list</button>
-                              <button type="button" onClick={() => handleMoreAction('task', { draft: editingDraft, setDraft: editingDraftEditor.setValue, undo: editingDraftEditor.undo, redo: editingDraftEditor.redo, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Task list</button>
-                              <div className="h-px bg-gray-200 dark:bg-gray-700" />
-                              <button type="button" onClick={() => handleMoreAction('mention', { draft: editingDraft, setDraft: editingDraftEditor.setValue, undo: editingDraftEditor.undo, redo: editingDraftEditor.redo, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">@ Mention</button>
-                              <button type="button" onClick={() => handleMoreAction('reference', { draft: editingDraft, setDraft: editingDraftEditor.setValue, undo: editingDraftEditor.undo, redo: editingDraftEditor.redo, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Reference</button>
-                              <button type="button" onClick={() => handleMoreAction('slash', { draft: editingDraft, setDraft: editingDraftEditor.setValue, undo: editingDraftEditor.undo, redo: editingDraftEditor.redo, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Slash commands</button>
+                            <div className="absolute right-0 top-9 z-[100] w-52 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg">
+                              <button type="button" onClick={() => handleMoreAction('unordered', { draft: editingDraft, setDraft: editingDraftEditor.setValue, undo: editingDraftEditor.undo, redo: editingDraftEditor.redo, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">Unordered list</button>
+                              <button type="button" onClick={() => handleMoreAction('numbered', { draft: editingDraft, setDraft: editingDraftEditor.setValue, undo: editingDraftEditor.undo, redo: editingDraftEditor.redo, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">Numbered list</button>
+                              <button type="button" onClick={() => handleMoreAction('task', { draft: editingDraft, setDraft: editingDraftEditor.setValue, undo: editingDraftEditor.undo, redo: editingDraftEditor.redo, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">Task list</button>
+                              <div className="h-px bg-slate-200 dark:bg-slate-700" />
+                              <button type="button" onClick={() => handleMoreAction('mention', { draft: editingDraft, setDraft: editingDraftEditor.setValue, undo: editingDraftEditor.undo, redo: editingDraftEditor.redo, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">@ Mention</button>
+                              <button type="button" onClick={() => handleMoreAction('reference', { draft: editingDraft, setDraft: editingDraftEditor.setValue, undo: editingDraftEditor.undo, redo: editingDraftEditor.redo, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">Reference</button>
+                              <button type="button" onClick={() => handleMoreAction('slash', { draft: editingDraft, setDraft: editingDraftEditor.setValue, undo: editingDraftEditor.undo, redo: editingDraftEditor.redo, textareaRef: editingTextareaRef })} className="w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">Slash commands</button>
                             </div>
                           )}
                         </div>
@@ -630,7 +630,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                               textareaRef: editingTextareaRef,
                             })
                           }
-                          className="ml-auto h-8 w-8 rounded text-base text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                          className="ml-auto h-8 w-8 rounded text-base text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                           title="Clear"
                           aria-label="Clear editor"
                         >
@@ -652,10 +652,10 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                             textareaRef: editingTextareaRef,
                           })
                         }
-                        className="w-full min-h-[160px] p-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none text-sm"
+                        className="w-full min-h-[160px] p-4 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none text-sm"
                       />
                     ) : (
-                      <div className="min-h-[160px] p-4 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+                      <div className="min-h-[160px] p-4 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
                         {editingDraft.trim() ? (
                           <ReactMarkdown
                             remarkPlugins={[remarkGfm]}
@@ -663,22 +663,22 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                               p: ({ node: _node, ...props }) => <p className="mb-3 last:mb-0 leading-relaxed" {...props} />,
                               ul: ({ node: _node, ...props }) => <ul className="list-disc pl-5 mb-3 space-y-1" {...props} />,
                               code: ({ node: _node, ...props }) => (
-                                <code className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-1 py-0.5 font-mono text-xs" {...props} />
+                                <code className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-1 py-0.5 font-mono text-xs" {...props} />
                               ),
                             }}
                           >
                             {editingDraft}
                           </ReactMarkdown>
                         ) : (
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Nothing to preview.</p>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">Nothing to preview.</p>
                         )}
                       </div>
                     )}
-                    <div className="flex justify-end gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                    <div className="flex justify-end gap-2 px-4 py-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
                       <button
                         type="button"
                         onClick={cancelEditComment}
-                        className="px-3 py-1.5 rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-xs font-semibold hover:bg-gray-50 dark:hover:bg-gray-700"
+                        className="px-3 py-1.5 rounded border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700"
                       >
                         Cancel
                       </button>
@@ -686,7 +686,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                         type="button"
                         onClick={() => saveEditComment(comment.comment_id)}
                         disabled={commentActionLoadingId === comment.comment_id}
-                        className="px-3 py-1.5 rounded bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 disabled:opacity-50"
+                        className="px-3 py-1.5 rounded bg-cyan-600 text-white text-xs font-semibold hover:bg-cyan-700 disabled:opacity-50"
                       >
                         {commentActionLoadingId === comment.comment_id ? 'Saving...' : 'Save'}
                       </button>
@@ -699,7 +699,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                       p: ({ node: _node, ...props }) => <p className="mb-3 last:mb-0 leading-relaxed" {...props} />,
                       ul: ({ node: _node, ...props }) => <ul className="list-disc pl-5 mb-3 space-y-1" {...props} />,
                       code: ({ node: _node, ...props }) => (
-                        <code className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-1 py-0.5 font-mono text-xs" {...props} />
+                        <code className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-1 py-0.5 font-mono text-xs" {...props} />
                       ),
                     }}
                   >
@@ -712,13 +712,13 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
         })}
       </div>
 
-      <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-visible">
-        <div className="flex border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+      <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-visible">
+        <div className="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
           <button
             type="button"
             onClick={() => setTab('write')}
-            className={`px-4 py-2 text-sm font-medium border-r border-gray-200 dark:border-gray-700 ${
-              tab === 'write' ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'
+            className={`px-4 py-2 text-sm font-medium border-r border-slate-200 dark:border-slate-700 ${
+              tab === 'write' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'
             }`}
           >
             Write
@@ -727,7 +727,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
             type="button"
             onClick={() => setTab('preview')}
             className={`px-4 py-2 text-sm font-medium ${
-              tab === 'preview' ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'
+              tab === 'preview' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'
             }`}
           >
             Preview
@@ -735,11 +735,11 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
         </div>
 
         {tab === 'write' && (
-          <div className="flex items-center gap-1 px-2 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 overflow-x-auto">
+          <div className="flex items-center gap-1 px-2 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 overflow-x-auto">
             <button
               type="button"
               onClick={() => applyLinePrefix('### ')}
-              className="h-8 w-8 rounded text-lg font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+              className="h-8 w-8 rounded text-lg font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
               title="Heading"
             >
               H
@@ -747,7 +747,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
             <button
               type="button"
               onClick={() => applySelectionTransform((s) => ({ text: `**${s || 'bold text'}**`, cursorOffset: s ? undefined : 2 }))}
-              className="h-8 w-8 rounded text-lg font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+              className="h-8 w-8 rounded text-lg font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
               title="Bold"
             >
               B
@@ -755,7 +755,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
             <button
               type="button"
               onClick={() => applySelectionTransform((s) => ({ text: `*${s || 'italic text'}*`, cursorOffset: s ? undefined : 1 }))}
-              className="h-8 w-8 rounded text-lg italic text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+              className="h-8 w-8 rounded text-lg italic text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
               title="Italic"
             >
               I
@@ -763,7 +763,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
             <button
               type="button"
               onClick={() => applySelectionTransform((s) => ({ text: `\`${s || 'code'}\``, cursorOffset: s ? undefined : 1 }))}
-              className="h-8 w-8 rounded text-lg text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+              className="h-8 w-8 rounded text-lg text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
               title="Code"
             >
               &lt;&gt;
@@ -776,30 +776,30 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                   cursorOffset: s ? undefined : 1,
                 }))
               }
-              className="h-8 w-8 rounded text-lg text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+              className="h-8 w-8 rounded text-lg text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
               title="Link"
             >
               🔗
             </button>
-            <span className="mx-1 h-6 w-px bg-gray-300 dark:bg-gray-600" />
+            <span className="mx-1 h-6 w-px bg-slate-300 dark:bg-slate-600" />
             <div className="relative" ref={moreMenuRef}>
               <button
                 type="button"
                 onClick={() => setMoreMenuOpen((v) => !v)}
-                className="h-8 w-8 rounded text-lg text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                className="h-8 w-8 rounded text-lg text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                 title="More"
               >
                 ...
               </button>
               {moreMenuOpen && (
-                <div className="absolute right-0 top-9 z-[100] w-52 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg">
-                  <button type="button" onClick={() => handleMoreAction('unordered')} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Unordered list</button>
-                  <button type="button" onClick={() => handleMoreAction('numbered')} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Numbered list</button>
-                  <button type="button" onClick={() => handleMoreAction('task')} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Task list</button>
-                  <div className="h-px bg-gray-200 dark:bg-gray-700" />
-                  <button type="button" onClick={() => handleMoreAction('mention')} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">@ Mention</button>
-                  <button type="button" onClick={() => handleMoreAction('reference')} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Reference</button>
-                  <button type="button" onClick={() => handleMoreAction('slash')} className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">Slash commands</button>
+                <div className="absolute right-0 top-9 z-[100] w-52 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg">
+                  <button type="button" onClick={() => handleMoreAction('unordered')} className="w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">Unordered list</button>
+                  <button type="button" onClick={() => handleMoreAction('numbered')} className="w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">Numbered list</button>
+                  <button type="button" onClick={() => handleMoreAction('task')} className="w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">Task list</button>
+                  <div className="h-px bg-slate-200 dark:bg-slate-700" />
+                  <button type="button" onClick={() => handleMoreAction('mention')} className="w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">@ Mention</button>
+                  <button type="button" onClick={() => handleMoreAction('reference')} className="w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">Reference</button>
+                  <button type="button" onClick={() => handleMoreAction('slash')} className="w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">Slash commands</button>
                 </div>
               )}
             </div>
@@ -814,7 +814,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
                   textareaRef,
                 })
               }
-              className="ml-auto h-8 w-8 rounded text-base text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+              className="ml-auto h-8 w-8 rounded text-base text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
               title="Clear"
               aria-label="Clear editor"
             >
@@ -838,14 +838,14 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
               })
             }
             placeholder={`Add a comment for ${targetType} ${targetId}...`}
-            className="w-full min-h-[160px] p-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none"
+            className="w-full min-h-[160px] p-4 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none"
           />
         ) : (
-          <div className="min-h-[160px] p-4 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+          <div className="min-h-[160px] p-4 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
             {draft.trim() ? (
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{draft}</ReactMarkdown>
             ) : (
-              <p className="text-sm text-gray-500 dark:text-gray-400">Nothing to preview.</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Nothing to preview.</p>
             )}
           </div>
         )}

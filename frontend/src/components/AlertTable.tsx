@@ -1,6 +1,7 @@
+import { Inbox } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 // [중요] AlertItem은 types에서 가져옵니다 (중복 정의 방지)
-import { AlertItem } from '../types'; 
+import { AlertItem } from '../types';
 
 interface AlertTableProps {
   alerts: AlertItem[]; // 부모(App.tsx)가 이미 필터링해서 준 데이터
@@ -13,15 +14,16 @@ const formatDate = (isoString: string | null) => {
 };
 
 const severityStyles: Record<string, string> = {
-  warning: 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-200 dark:border-yellow-700',
-  critical: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-200 dark:border-red-700',
-  info: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-700',
-  tbd: 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600',
+  warning: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-800',
+  critical: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-800',
+  info: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/30 dark:text-sky-300 dark:border-sky-800',
+  tbd: 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
+  TBD: 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
 };
 
 const statusStyles: Record<string, string> = {
-  firing: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-200 dark:border-red-700',
-  resolved: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-200 dark:border-green-700',
+  firing: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-800',
+  resolved: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800',
 };
 
 function AlertTable({ alerts, onTitleClick }: AlertTableProps) {
@@ -29,84 +31,79 @@ function AlertTable({ alerts, onTitleClick }: AlertTableProps) {
 
   if (!alerts || alerts.length === 0) {
     return (
-      <div className="text-center py-12 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
-        <p className="text-gray-500 dark:text-gray-400">데이터가 없습니다.</p>
-        <p className="text-sm text-gray-400 mt-1">검색 조건에 맞는 결과가 없습니다.</p>
+      <div className="flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-500">
+        <Inbox className="w-12 h-12 mb-3 stroke-1" />
+        <p className="text-sm font-medium">데이터가 없습니다</p>
+        <p className="text-xs mt-1">검색 조건에 맞는 결과가 없습니다</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full border-collapse border border-gray-300 dark:border-gray-700">
-        <thead className="bg-gray-50 dark:bg-gray-700">
-          <tr>
-            <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
+    <div>
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-slate-200 dark:border-slate-800">
+            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Incident ID
             </th>
-            <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
+            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Time
             </th>
-            <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
+            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Title
             </th>
-            <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
+            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Namespace
             </th>
-            <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
+            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Severity
             </th>
-            <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
+            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Status
             </th>
           </tr>
         </thead>
-        <tbody className="bg-white dark:bg-gray-800">
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
           {/* [핵심] filteredData가 아니라 그냥 alerts를 맵핑합니다 */}
           {alerts.map((alert) => (
-            <tr key={alert.alert_id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+            <tr key={alert.alert_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer" onClick={() => onTitleClick(alert.alert_id)}>
               {/* Incident ID */}
-              <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm text-center">
+              <td className="px-4 py-3.5 text-sm">
                 {alert.incident_id ? (
                   <span
-                    className="text-blue-600 dark:text-blue-400 cursor-pointer hover:underline"
-                    onClick={() => navigate(`/incidents/${alert.incident_id}`)}
+                    className="text-cyan-600 dark:text-cyan-400 cursor-pointer hover:underline"
+                    onClick={(e) => { e.stopPropagation(); navigate(`/incidents/${alert.incident_id}`); }}
                   >
                     {alert.incident_id}
                   </span>
                 ) : (
-                  <span className="text-gray-400">-</span>
+                  <span className="text-slate-400">-</span>
                 )}
               </td>
 
               {/* Time */}
-              <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 text-center whitespace-nowrap leading-relaxed">
-                <div className="text-xs text-gray-500 dark:text-gray-400">
+              <td className="px-4 py-3.5 whitespace-nowrap">
+                <span className="font-mono text-xs text-slate-500 dark:text-slate-400">
                   {formatDate(alert.fired_at)}
-                </div>
-                <div className="text-gray-400 font-bold my-0.5">~</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">
-                  {alert.resolved_at ? formatDate(alert.resolved_at) : 'Firing'}
-                </div>
+                  {alert.resolved_at && <> → {formatDate(alert.resolved_at)}</>}
+                </span>
               </td>
 
               {/* Title */}
-              <td
-                className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm font-medium text-gray-700 dark:text-white cursor-pointer hover:underline hover:text-black dark:hover:text-gray-200 text-center min-w-[200px] break-words"
-                onClick={() => onTitleClick(alert.alert_id)}
-              >
+              <td className="px-4 py-3.5 text-sm font-medium text-slate-900 dark:text-slate-100 hover:text-cyan-600 dark:hover:text-cyan-400 min-w-[200px] break-words">
                 {alert.alarm_title}
               </td>
 
               {/* Namespace */}
-              <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm text-center">
-                <span className="inline-block bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded text-xs font-mono">
+              <td className="px-4 py-3.5 text-sm">
+                <span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded">
                   {alert.namespace || '-'}
                 </span>
               </td>
 
               {/* Severity */}
-              <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm text-center">
+              <td className="px-4 py-3.5 text-sm">
                 <span
                   className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${
                     severityStyles[alert.severity] || severityStyles.info
@@ -117,7 +114,7 @@ function AlertTable({ alerts, onTitleClick }: AlertTableProps) {
               </td>
 
               {/* Status */}
-              <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm text-center">
+              <td className="px-4 py-3.5 text-sm">
                 <span
                   className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${
                     statusStyles[alert.status] || statusStyles.firing

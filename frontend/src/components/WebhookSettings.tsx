@@ -136,26 +136,26 @@ const WebhookSettings: React.FC = () => {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors duration-300">
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 transition-colors duration-300">
       <div className="flex items-center mb-6">
         <button
           onClick={() => navigate('/settings/webhooks')}
-          className="mr-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+          className="mr-4 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
         >
           &larr; Back
         </button>
-        <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">
+        <h1 className="text-2xl font-semibold text-slate-800 dark:text-white">
           {isEditMode ? 'Edit Webhook' : 'New Webhook'}
         </h1>
       </div>
 
       <div className="space-y-6 max-w-3xl">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Webhook Type</label>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Webhook Type</label>
           <select
             value={webhookType}
             onChange={(e) => setWebhookType(e.target.value as WebhookType)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-cyan-500 focus:border-cyan-500"
           >
             <option value="slack">Slack</option>
             <option value="teams">Microsoft Teams</option>
@@ -165,57 +165,57 @@ const WebhookSettings: React.FC = () => {
 
         {webhookType === 'slack' ? (
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Slack API Endpoint</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Slack API Endpoint</label>
             <input
               type="text"
               value={SLACK_POST_MESSAGE_URL}
               readOnly
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-100 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300"
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300"
             />
           </div>
         ) : (
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Webhook Receiver URL</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Webhook Receiver URL</label>
             <input
               type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://..."
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-cyan-500 focus:border-cyan-500"
             />
-            {urlError && <p className="mt-1 text-sm text-red-500 dark:text-red-400">{urlError}</p>}
+            {urlError && <p className="mt-1 text-sm text-rose-500 dark:text-rose-400">{urlError}</p>}
           </div>
         )}
 
         {webhookType === 'slack' && (
           <>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Slack Bot Token</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Slack Bot Token</label>
               <input
                 type="password"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
                 placeholder="xoxb-..."
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-cyan-500 focus:border-cyan-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Slack Channel ID</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Slack Channel ID</label>
               <input
                 type="text"
                 value={channel}
                 onChange={(e) => setChannel(e.target.value)}
                 placeholder="C0123456789"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-cyan-500 focus:border-cyan-500"
               />
             </div>
-            {slackError && <p className="mt-1 text-sm text-red-500 dark:text-red-400">{slackError}</p>}
+            {slackError && <p className="mt-1 text-sm text-rose-500 dark:text-rose-400">{slackError}</p>}
           </>
         )}
 
         {webhookType === 'http' && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
               Bearer Token (Optional)
             </label>
             <input
@@ -223,17 +223,17 @@ const WebhookSettings: React.FC = () => {
               value={token}
               onChange={(e) => setToken(e.target.value)}
               placeholder="토큰이 필요한 경우만 입력"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-cyan-500 focus:border-cyan-500"
             />
           </div>
         )}
 
-        <div className="rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 px-4 py-3">
-          <h2 className="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-1">자동 적용 설정</h2>
-          <p className="text-sm text-blue-700 dark:text-blue-200">
+        <div className="rounded-md border border-cyan-200 dark:border-cyan-800 bg-cyan-50 dark:bg-cyan-900/20 px-4 py-3">
+          <h2 className="text-sm font-semibold text-cyan-800 dark:text-cyan-300 mb-1">자동 적용 설정</h2>
+          <p className="text-sm text-cyan-700 dark:text-cyan-200">
             {WEBHOOK_LABEL[webhookType]} 연동 정보만 frontend에서 전달하고, 알림 본문은 backend가 생성합니다.
           </p>
-          <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
+          <p className="text-xs text-cyan-600 dark:text-cyan-300 mt-1">
             Slack 타입은 Bot Token + Channel ID를 저장해 `chat.postMessage` 기반으로 알림을 전송합니다.
           </p>
         </div>
@@ -242,7 +242,7 @@ const WebhookSettings: React.FC = () => {
           {saveMessage && (
             <p
               className={`mb-3 text-sm ${
-                saveMessage.type === 'success' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                saveMessage.type === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
               }`}
             >
               {saveMessage.text}
@@ -252,13 +252,13 @@ const WebhookSettings: React.FC = () => {
             <button
               onClick={handleSave}
               disabled={isSaving || !!urlError || !!slackError}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSaving ? 'Saving...' : isEditMode ? 'Update Settings' : 'Save Settings'}
             </button>
             <button
               onClick={() => navigate('/settings/webhooks')}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              className="px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
             >
               Cancel
             </button>

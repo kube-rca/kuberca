@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { Hexagon, Sun, Moon } from 'lucide-react';
 import { login, register } from '../utils/auth';
+import { useTheme } from '../context/ThemeContext';
 
 interface AuthPanelProps {
   allowSignup: boolean;
@@ -91,6 +93,7 @@ const providerConfig: Record<string, { label: string; icon: React.ReactNode }> =
 };
 
 const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, oidcProvider, onAuthenticated }: AuthPanelProps) => {
+  const { theme, toggleTheme } = useTheme();
   const [mode, setMode] = useState<Mode>('login');
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
@@ -121,15 +124,25 @@ const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, oidcProvider, onAut
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center px-4 transition-colors duration-300">
-      <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 transition-colors duration-300">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">Kube-RCA</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 bg-grid-pattern flex items-center justify-center px-4 transition-colors duration-300">
+      <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-lg p-8 transition-colors duration-300 relative">
+        <button
+          onClick={toggleTheme}
+          className="absolute top-4 right-4 p-2 rounded-lg text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          aria-label="Toggle Dark Mode"
+        >
+          {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+        </button>
+        <div className="flex items-center gap-3 mb-2">
+          <Hexagon className="w-8 h-8 text-cyan-600 dark:text-cyan-400" strokeWidth={2} />
+          <h1 className="text-2xl font-semibold font-mono tracking-wider text-slate-900 dark:text-slate-100">Kube-RCA</h1>
+        </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
           {mode === 'login' ? '아이디와 비밀번호로 로그인하세요.' : '새 계정을 생성하세요.'}
         </p>
 
         {oidcError && (
-          <div className="mb-4 rounded-md border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/30 px-4 py-3 text-sm text-red-700 dark:text-red-300 flex items-start gap-2">
+          <div className="mb-4 rounded-md border border-rose-300 dark:border-rose-700 bg-rose-50 dark:bg-rose-900/30 px-4 py-3 text-sm text-rose-700 dark:text-rose-300 flex items-start gap-2">
             <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
             </svg>
@@ -142,7 +155,7 @@ const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, oidcProvider, onAut
             <button
               type="button"
               onClick={() => { window.location.href = oidcLoginUrl; }}
-              className="w-full flex items-center justify-center gap-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+              className="w-full flex items-center justify-center gap-2 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
             >
               {provider.icon}
               {provider.label}
@@ -150,10 +163,10 @@ const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, oidcProvider, onAut
 
             <div className="relative my-4">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300 dark:border-gray-600" />
+                <div className="w-full border-t border-slate-300 dark:border-slate-700" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="bg-white dark:bg-gray-800 px-2 text-gray-500 dark:text-gray-400">또는</span>
+                <span className="bg-white dark:bg-slate-900 px-2 text-slate-500 dark:text-slate-400">또는</span>
               </div>
             </div>
           </>
@@ -161,7 +174,7 @@ const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, oidcProvider, onAut
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="login-id">
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" htmlFor="login-id">
               ID
             </label>
             <input
@@ -169,13 +182,13 @@ const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, oidcProvider, onAut
               type="text"
               value={loginId}
               onChange={(event) => setLoginId(event.target.value)}
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-700 dark:focus:ring-gray-300"
+              className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 dark:focus:ring-cyan-400"
               placeholder="아이디"
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="password">
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" htmlFor="password">
               Password
             </label>
             <input
@@ -183,14 +196,14 @@ const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, oidcProvider, onAut
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-700 dark:focus:ring-gray-300"
+              className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 dark:focus:ring-cyan-400"
               placeholder="비밀번호"
               required
             />
           </div>
 
           {error && (
-            <div className="rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-3 py-2 text-sm text-red-700 dark:text-red-300">
+            <div className="rounded-md border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/20 px-3 py-2 text-sm text-rose-700 dark:text-rose-300">
               {error}
             </div>
           )}
@@ -198,18 +211,18 @@ const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, oidcProvider, onAut
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-md bg-gray-900 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-60 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
+            className="w-full rounded-md bg-cyan-600 hover:bg-cyan-700 dark:bg-cyan-500 dark:hover:bg-cyan-400 py-2 text-sm font-semibold text-white disabled:opacity-60"
           >
             {submitting ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입'}
           </button>
         </form>
 
         {allowSignup && (
-          <div className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
+          <div className="mt-4 text-center text-sm text-slate-500 dark:text-slate-400">
             {mode === 'login' ? '계정이 없나요?' : '이미 계정이 있나요?'}{' '}
             <button
               type="button"
-              className="font-semibold text-gray-800 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white"
+              className="font-semibold text-slate-800 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white"
               onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
             >
               {mode === 'login' ? '회원가입' : '로그인'}

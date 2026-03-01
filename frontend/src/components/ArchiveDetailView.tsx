@@ -16,10 +16,10 @@ interface ArchivedDetailViewProps {
 }
 
 const severityStyles: Record<string, string> = {
-  warning: 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-200 dark:border-yellow-700',
-  critical: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-200 dark:border-red-700',
-  info: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-700',
-  TBD: 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600',
+  warning: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900 dark:text-amber-200 dark:border-amber-700',
+  critical: 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900 dark:text-rose-200 dark:border-rose-700',
+  info: 'bg-cyan-100 text-cyan-800 border-cyan-200 dark:bg-cyan-900 dark:text-cyan-200 dark:border-cyan-700',
+  TBD: 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600',
 };
 
 const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onBack }) => {
@@ -82,34 +82,50 @@ const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onB
     return isoString.replace('T', ' ').split('.')[0];
   };
 
-  if (loading) return <div className="p-12 text-center text-gray-500 dark:text-gray-400">상세 정보를 불러오는 중...</div>;
-  if (error || !data) return <div className="p-12 text-center text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg m-4">{error}</div>;
+  if (loading) return (
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 max-w-5xl mx-auto">
+      <div className="flex items-center gap-4 mb-8 pb-6 border-b border-slate-200 dark:border-slate-800">
+        <div className="skeleton h-8 w-20" />
+        <div className="flex-1 space-y-2">
+          <div className="skeleton h-3 w-24" />
+          <div className="skeleton h-6 w-3/4" />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="skeleton h-20 rounded-lg" />
+        <div className="skeleton h-20 rounded-lg" />
+        <div className="md:col-span-2 skeleton h-40 rounded-lg" />
+        <div className="md:col-span-2 skeleton h-64 rounded-lg" />
+      </div>
+    </div>
+  );
+  if (error || !data) return <div className="p-12 text-center text-rose-500 bg-rose-50 dark:bg-rose-900/20 rounded-lg m-4">{error}</div>;
 
   const isResolved = !!data.resolved_at;
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-5xl mx-auto transition-colors duration-300 border border-gray-200 dark:border-gray-700">
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 max-w-5xl mx-auto transition-colors duration-300">
       
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 border-b border-gray-200 dark:border-gray-700 pb-6 gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 border-b border-slate-200 dark:border-slate-700 pb-6 gap-4">
         
         <div className="flex items-start md:items-center gap-4 flex-1 w-full">
           <button 
             onClick={onBack}
-            className="text-sm text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 font-medium px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition flex-shrink-0"
+            className="text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 font-medium px-3 py-1.5 border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:hover:bg-slate-700 transition flex-shrink-0"
           >
             ← Back
           </button>
           
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500 uppercase tracking-wider border border-gray-200 dark:border-gray-700 px-1.5 rounded">
+              <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 uppercase tracking-wider border border-slate-200 dark:border-slate-700 px-1.5 rounded">
                 ID: {data.incident_id}
               </span>
-              <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 rounded">
+              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 rounded">
                 MUTED
               </span>
             </div>
-            <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white leading-tight break-words">
+            <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white leading-tight break-words">
               {data.title}
             </h1>
           </div>
@@ -120,8 +136,8 @@ const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onB
           <span 
             className={`px-3 py-1.5 rounded-full text-xs font-bold border flex-shrink-0 
               ${isResolved 
-                ? 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-200 dark:border-green-700' 
-                : 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-200 dark:border-red-700'
+                ? 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900 dark:text-emerald-200 dark:border-emerald-700' 
+                : 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900 dark:text-rose-200 dark:border-rose-700'
               }`}
           >
             {isResolved ? 'Resolved' : 'Firing'}
@@ -136,7 +152,7 @@ const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onB
 
           <button
             onClick={handleUnhide}
-            className="px-4 py-1.5 text-sm text-blue-600 dark:text-blue-400 border border-blue-600 dark:border-blue-400 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors font-medium flex items-center gap-1"
+            className="px-4 py-1.5 text-sm text-cyan-600 dark:text-cyan-400 border border-cyan-600 dark:border-cyan-400 rounded hover:bg-cyan-50 dark:hover:bg-cyan-900/20 transition-colors font-medium flex items-center gap-1"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
@@ -149,31 +165,31 @@ const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onB
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 opacity-90">
         
-        <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
-          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide flex items-center gap-1">
+        <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg border border-slate-100 dark:border-slate-700">
+          <div className="text-xs text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide flex items-center gap-1">
              Fired at
           </div>
-          <div className="text-gray-900 dark:text-gray-100 font-medium font-mono">
+          <div className="text-slate-900 dark:text-slate-100 font-medium font-mono">
             {formatTime(data.fired_at)}
           </div>
         </div>
 
-        <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
-          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide flex items-center gap-1">
+        <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg border border-slate-100 dark:border-slate-700">
+          <div className="text-xs text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide flex items-center gap-1">
              Resolved at
           </div>
-          <div className="text-gray-900 dark:text-gray-100 font-medium font-mono">
-            {data.resolved_at ? formatTime(data.resolved_at) : <span className="text-red-500 font-bold">Firing</span>}
+          <div className="text-slate-900 dark:text-slate-100 font-medium font-mono">
+            {data.resolved_at ? formatTime(data.resolved_at) : <span className="text-rose-500 font-bold">Firing</span>}
           </div>
         </div>
 
         <div className="md:col-span-2">
-          <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
+          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-3 flex items-center gap-2">
             Alert Summary
           </h3>
           {/* [수정 포인트] 가독성을 위해 Blue 톤으로 변경 */}
           <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-lg p-5">
-            <div className="prose prose-sm prose-slate dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed">
+            <div className="prose prose-sm prose-slate dark:prose-invert max-w-none text-slate-800 dark:text-slate-200 leading-relaxed">
               <ReactMarkdown 
                 remarkPlugins={[remarkGfm]}
                 components={{
@@ -191,24 +207,24 @@ const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onB
         </div>
 
         <div className="md:col-span-2">
-          <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
+          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-3 flex items-center gap-2">
             Alert Analysis
           </h3>
-          <div className="bg-gray-900 border border-gray-700 rounded-lg overflow-hidden shadow-sm">
+          <div className="bg-slate-900 border border-slate-700 rounded-lg overflow-hidden shadow-sm">
             <div className="p-6 overflow-x-auto">
               <div className="prose prose-sm prose-invert max-w-none font-mono leading-relaxed">
                 <ReactMarkdown 
                   remarkPlugins={[remarkGfm]}
                 components={{
-                    h1: ({ node: _node, ...props }) => <h1 className="text-2xl font-extrabold text-blue-400 mt-8 mb-6 pb-2 border-b border-gray-700 flex items-center gap-2 [&_strong]:text-blue-400" {...props} />,
+                    h1: ({ node: _node, ...props }) => <h1 className="text-2xl font-extrabold text-blue-400 mt-8 mb-6 pb-2 border-b border-slate-700 flex items-center gap-2 [&_strong]:text-blue-400" {...props} />,
                     h2: ({ node: _node, ...props }) => <h2 className="text-xl font-bold text-indigo-300 mt-8 mb-4 pl-3 border-l-4 border-indigo-500 [&_strong]:text-indigo-300" {...props} />,
                     h3: ({ node: _node, ...props }) => <h3 className="text-lg font-semibold text-sky-300 mt-6 mb-3 ml-1 [&_strong]:text-sky-300" {...props} />,
                     strong: ({ node: _node, ...props }) => <span className="font-bold text-amber-400" {...props} />,
-                    ul: ({ node: _node, ...props }) => <ul className="list-disc pl-6 space-y-2 my-2 text-gray-300 leading-relaxed" {...props} />,
+                    ul: ({ node: _node, ...props }) => <ul className="list-disc pl-6 space-y-2 my-2 text-slate-300 leading-relaxed" {...props} />,
                     code: ({ node: _node, ...props }) => (
-                      <code className="bg-gray-800 text-pink-400 px-1.5 py-0.5 rounded text-sm font-mono border border-gray-700 mx-1" {...props} />
+                      <code className="bg-slate-800 text-pink-400 px-1.5 py-0.5 rounded text-sm font-mono border border-slate-700 mx-1" {...props} />
                     ),
-                    p: ({ node: _node, ...props }) => <p className="mb-4 text-gray-300 leading-relaxed" {...props} />,
+                    p: ({ node: _node, ...props }) => <p className="mb-4 text-slate-300 leading-relaxed" {...props} />,
                     a: ({ node: _node, ...props }) => <a className="text-blue-400 hover:text-blue-300 hover:underline transition-colors" target="_blank" rel="noopener noreferrer" {...props} />,
                   }}
                 >
@@ -219,18 +235,18 @@ const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onB
           </div>
         </div>
 
-        <div className="md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-6 mt-2">
-          <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
+        <div className="md:col-span-2 border-t border-slate-200 dark:border-slate-700 pt-6 mt-2">
+          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4">
             Related Alerts ({data.alerts?.length || 0} Alerts)
           </h3>
           {data.alerts && data.alerts.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-600 dark:text-gray-300">Alert</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-600 dark:text-gray-300">Severity</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-600 dark:text-gray-300">Status</th>
+                  <tr className="border-b border-slate-200 dark:border-slate-700">
+                    <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Alert</th>
+                    <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Severity</th>
+                    <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -238,9 +254,9 @@ const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onB
                     <tr
                       key={alert.alert_id}
                       onClick={() => navigate(`/alerts/${alert.alert_id}`)}
-                      className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+                      className="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer"
                     >
-                      <td className="py-3 px-4 text-blue-600 dark:text-blue-400">{alert.alarm_title}</td>
+                      <td className="py-3 px-4 text-cyan-600 dark:text-cyan-400">{alert.alarm_title}</td>
                       <td className="py-3 px-4">{alert.severity}</td>
                       <td className="py-3 px-4">{alert.status}</td>
                     </tr>
@@ -249,14 +265,14 @@ const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onB
               </table>
             </div>
           ) : (
-            <div className="text-gray-500 text-center py-4">연결된 Alert가 없습니다.</div>
+            <div className="text-slate-500 text-center py-4">연결된 Alert가 없습니다.</div>
           )}
         </div>
 
-        <div className="md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-6 mt-2">
-          <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
+        <div className="md:col-span-2 border-t border-slate-200 dark:border-slate-700 pt-6 mt-2">
+          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4">
             Top 3 Similar Incidents
-            {similarLoading && <span className="ml-2 text-sm font-normal text-gray-500">(검색 중...)</span>}
+            {similarLoading && <span className="ml-2 text-sm font-normal text-slate-500">(검색 중...)</span>}
           </h3>
 
           {similarIncidents.length > 0 ? (
@@ -264,26 +280,26 @@ const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onB
               {similarIncidents.map((item, idx) => (
                 <div
                   key={idx}
-                  className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                  className="bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
                   onClick={() => navigate(`/incidents/${item.incident_id}`)}
                 >
                   <div className="mb-2 flex justify-between items-center">
-                    <span className="text-xs font-mono text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
+                    <span className="text-xs font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
                       {item.incident_id}
                     </span>
-                    <span className="text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">
+                    <span className="text-xs font-bold text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-900/30 px-2 py-0.5 rounded-full">
                       {Math.round(item.similarity * 100)}% 유사
                     </span>
                   </div>
-                  <div className="text-sm font-medium text-gray-800 dark:text-gray-200 line-clamp-3" title={item.incident_summary}>
+                  <div className="text-sm font-medium text-slate-800 dark:text-slate-200 line-clamp-3" title={item.incident_summary}>
                     {item.incident_summary}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-8 text-center border border-dashed border-gray-300 dark:border-gray-600">
-              <p className="text-gray-500 dark:text-gray-400">
+            <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-8 text-center border border-dashed border-slate-300 dark:border-slate-600">
+              <p className="text-slate-500 dark:text-slate-400">
                 {!data.analysis_summary ? '분석 요약이 없어 유사 인시던트를 검색할 수 없습니다.' : '유사한 인시던트 내역이 없습니다.'}
               </p>
             </div>

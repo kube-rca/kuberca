@@ -1,3 +1,4 @@
+import { Inbox } from 'lucide-react';
 import { RCAItem } from '../types';
 
 interface ArchiveTableProps {
@@ -12,82 +13,78 @@ const formatDate = (isoString: string | null) => {
 
 // 스타일 매핑
 const severityStyles: Record<string, string> = {
-  warning: 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-200 dark:border-yellow-700',
-  critical: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-200 dark:border-red-700',
-  info: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-700',
-  TBD: 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600',
+  warning: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-800',
+  critical: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-800',
+  info: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/30 dark:text-sky-300 dark:border-sky-800',
+  TBD: 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
 };
 
 const statusStyles: Record<string, string> = {
-  firing: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-200 dark:border-red-700',
-  resolved: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-200 dark:border-green-700',
+  firing: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-800',
+  resolved: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800',
 };
 
 function ArchiveTable({ rcas, onTitleClick }: ArchiveTableProps) {
   // 데이터가 없을 경우 처리
   if (!rcas || rcas.length === 0) {
     return (
-      <div className="text-center py-10 text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
-        숨겨진 인시던트가 없습니다.
+      <div className="flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-500">
+        <Inbox className="w-12 h-12 mb-3 stroke-1" />
+        <p className="text-sm font-medium">데이터가 없습니다</p>
+        <p className="text-xs mt-1">검색 조건에 맞는 결과가 없습니다</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full border-collapse border border-gray-300 dark:border-gray-700">
-        <thead className="bg-gray-50 dark:bg-gray-700">
-          <tr>
-            <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
+    <div>
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-slate-200 dark:border-slate-800">
+            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
               ID
             </th>
-            <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
+            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Time
             </th>
-            <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
+            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Title
             </th>
-            <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
+            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Severity
             </th>
-            <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
+            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Status
             </th>
           </tr>
         </thead>
-        <tbody className="bg-white dark:bg-gray-800">
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
           {rcas.map((rca) => {
             const rawSeverity = rca.severity;
             const status = rca.resolved_at ? 'resolved' : 'firing';
 
             return (
-              <tr key={rca.incident_id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+              <tr key={rca.incident_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer" onClick={() => onTitleClick(rca.incident_id)}>
                 {/* ID */}
-                <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 text-center">
+                <td className="px-4 py-3.5 text-xs font-mono text-slate-400 dark:text-slate-500">
                   {rca.incident_id}
                 </td>
 
                 {/* Time */}
-                <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 text-center whitespace-nowrap leading-relaxed">
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                <td className="px-4 py-3.5 whitespace-nowrap">
+                  <span className="font-mono text-xs text-slate-500 dark:text-slate-400">
                     {formatDate(rca.fired_at)}
-                  </div>
-                  <div className="text-gray-400 font-bold my-0.5">~</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    {rca.resolved_at ? formatDate(rca.resolved_at) : 'Firing'}
-                  </div>
+                    {rca.resolved_at && <> → {formatDate(rca.resolved_at)}</>}
+                  </span>
                 </td>
 
                 {/* Title (클릭 시 상세 이동) */}
-                <td
-                  className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm font-medium text-gray-700 dark:text-white cursor-pointer hover:underline hover:text-black dark:hover:text-gray-200 text-center min-w-[300px] break-words"
-                  onClick={() => onTitleClick(rca.incident_id)}
-                >
+                <td className="px-4 py-3.5 text-sm font-medium text-slate-900 dark:text-slate-100 hover:text-cyan-600 dark:hover:text-cyan-400 min-w-[300px] break-words">
                   {rca.title}
                 </td>
 
                 {/* Severity */}
-                <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm text-center">
+                <td className="px-4 py-3.5 text-sm">
                   <span
                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${
                       severityStyles[rawSeverity] || severityStyles.info
@@ -98,7 +95,7 @@ function ArchiveTable({ rcas, onTitleClick }: ArchiveTableProps) {
                 </td>
 
                 {/* Status */}
-                <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-sm text-center">
+                <td className="px-4 py-3.5 text-sm">
                   <span
                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${
                       statusStyles[status] || statusStyles.firing

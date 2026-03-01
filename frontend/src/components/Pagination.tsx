@@ -51,7 +51,7 @@ function Pagination({ currentPage, totalPages, onPageChange }: PaginationProps) 
       {pageNumbers.map((page, index) => {
         if (page === '...') {
           return (
-            <span key={`ellipsis-${index}`} className="px-2 text-gray-500">
+            <span key={`ellipsis-${index}`} className="px-2 text-slate-400 dark:text-slate-500">
               ...
             </span>
           );
@@ -66,8 +66,8 @@ function Pagination({ currentPage, totalPages, onPageChange }: PaginationProps) 
             onClick={() => onPageChange(pageNumber)}
             className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
               isActive
-                ? 'bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1'
-                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1'
+                ? 'bg-cyan-600 dark:bg-cyan-500 text-white hover:bg-cyan-700 dark:hover:bg-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-0'
+                : 'bg-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-0'
             }`}
           >
             {pageNumber}

@@ -58,21 +58,21 @@ const WebhookList: React.FC = () => {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors duration-300">
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 transition-colors duration-300">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/settings')}
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
           >
             &larr; Back
           </button>
-          <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">Webhook Management</h1>
+          <h1 className="text-2xl font-semibold text-slate-800 dark:text-white">Webhook Management</h1>
         </div>
         <button
           onClick={() => navigate('/settings/webhooks/new')}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white text-sm font-medium rounded-md hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-colors"
         >
           <span className="text-lg leading-none">+</span>
           New Webhook
@@ -81,15 +81,15 @@ const WebhookList: React.FC = () => {
 
       {/* Body */}
       {loading ? (
-        <div className="flex justify-center items-center py-16 text-gray-500 dark:text-gray-400">
+        <div className="flex justify-center items-center py-16 text-slate-500 dark:text-slate-400">
           불러오는 중...
         </div>
       ) : error ? (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 text-red-600 dark:text-red-400">
+        <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-md p-4 text-rose-600 dark:text-rose-400">
           {error}
         </div>
       ) : configs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-gray-400 dark:text-gray-500">
+        <div className="flex flex-col items-center justify-center py-20 text-slate-400 dark:text-slate-500">
           <svg className="w-12 h-12 mb-4 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
               d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
@@ -97,7 +97,7 @@ const WebhookList: React.FC = () => {
           <p className="text-sm">등록된 웹훅 설정이 없습니다.</p>
           <button
             onClick={() => navigate('/settings/webhooks/new')}
-            className="mt-4 text-blue-600 dark:text-blue-400 text-sm hover:underline"
+            className="mt-4 text-cyan-600 dark:text-cyan-400 text-sm hover:underline"
           >
             + 새 웹훅 설정 추가
           </button>
@@ -116,7 +116,7 @@ const WebhookList: React.FC = () => {
             <div
               key={cfg.id}
               onClick={() => navigate(`/settings/webhooks/${cfg.id}`)}
-              className="group flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-sm cursor-pointer transition-all duration-150"
+              className="group flex items-center justify-between p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-cyan-400 dark:hover:border-cyan-500 hover:shadow-sm cursor-pointer transition-all duration-150"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <span
@@ -124,12 +124,12 @@ const WebhookList: React.FC = () => {
                 >
                   {type}
                 </span>
-                <span className="text-sm font-mono text-gray-800 dark:text-gray-100 truncate">
-                  {primaryText || <span className="text-gray-400 italic">정보 없음</span>}
+                <span className="text-sm font-mono text-slate-800 dark:text-slate-100 truncate">
+                  {primaryText || <span className="text-slate-400 italic">정보 없음</span>}
                 </span>
               </div>
               <div className="flex items-center gap-3 shrink-0 ml-4">
-                <span className="text-xs text-gray-400 dark:text-gray-500 hidden sm:block">
+                <span className="text-xs text-slate-400 dark:text-slate-500 hidden sm:block">
                   {new Date(cfg.updated_at).toLocaleString('ko-KR', {
                     year: 'numeric', month: '2-digit', day: '2-digit',
                     hour: '2-digit', minute: '2-digit',
@@ -138,7 +138,7 @@ const WebhookList: React.FC = () => {
                 <button
                   onClick={(e) => handleDelete(e, cfg.id)}
                   disabled={deletingId === cfg.id}
-                  className="px-2 py-1 text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+                  className="px-2 py-1 text-xs text-rose-500 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
                 >
                   {deletingId === cfg.id ? '삭제 중...' : '삭제'}
                 </button>
