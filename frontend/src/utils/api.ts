@@ -436,6 +436,9 @@ export interface WebhookConfigPayload {
   method: string;
   headers: WebhookHeaderItem[];
   body: string;
+  type?: 'slack' | 'teams' | 'http';
+  token?: string;
+  channel?: string;
 }
 
 export interface WebhookConfig extends WebhookConfigPayload {

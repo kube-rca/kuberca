@@ -17,6 +17,14 @@ const getWebhookTypeFromHeaders = (headers: WebhookConfig['headers']): WebhookTy
   return 'HTTP';
 };
 
+const getSlackChannelFromHeaders = (headers: WebhookConfig['headers']): string => {
+  return (
+    headers.find((h) => h.key.toLowerCase() === 'x-slack-channel-id')?.value ??
+    headers.find((h) => h.key.toLowerCase() === 'x-slack-channel')?.value ??
+    ''
+  );
+};
+
 const WebhookList: React.FC = () => {
   const navigate = useNavigate();
   const [configs, setConfigs] = useState<WebhookConfig[]>([]);
@@ -102,6 +110,11 @@ const WebhookList: React.FC = () => {
         <div className="space-y-3">
           {configs.map((cfg) => {
             const type = getWebhookTypeFromHeaders(cfg.headers ?? []);
+            const slackChannel = type === 'Slack' ? getSlackChannelFromHeaders(cfg.headers ?? []) : '';
+            const primaryText =
+              type === 'Slack'
+                ? (slackChannel ? `Channel: ${slackChannel}` : 'Slack Bot')
+                : cfg.url;
 
             return (
             <div
@@ -116,7 +129,7 @@ const WebhookList: React.FC = () => {
                   {type}
                 </span>
                 <span className="text-sm font-mono text-gray-800 dark:text-gray-100 truncate">
-                  {cfg.url || <span className="text-gray-400 italic">URL 없음</span>}
+                  {primaryText || <span className="text-gray-400 italic">정보 없음</span>}
                 </span>
               </div>
               <div className="flex items-center gap-3 shrink-0 ml-4">
