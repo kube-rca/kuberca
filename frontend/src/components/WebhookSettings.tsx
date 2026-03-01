@@ -13,32 +13,20 @@ const WEBHOOK_LABEL: Record<WebhookType, string> = {
 const SLACK_POST_MESSAGE_URL = 'https://slack.com/api/chat.postMessage';
 
 const buildConfigPayload = (type: WebhookType, url: string, token: string, channel: string): WebhookConfigPayload => {
+  const trimmedToken = token.trim();
+  const trimmedChannel = channel.trim();
+
   return {
     type,
-    url: type === 'slack' ? '' : url,
-    method: 'POST',
-    headers: [],
-    // payload는 frontend에서 만들지 않고 backend에서 타입별로 생성/주입하도록 비워서 전달
-    body: '',
-    token: token.trim() || undefined,
-    channel: channel.trim() || undefined,
+    url: type === 'slack' ? SLACK_POST_MESSAGE_URL : url,
+    token: trimmedToken || undefined,
+    channel: trimmedChannel || undefined,
   };
 };
 
 const detectSavedWebhookType = (cfg: Awaited<ReturnType<typeof fetchWebhookById>>): WebhookType => {
   if (cfg.type === 'slack' || cfg.type === 'teams' || cfg.type === 'http') {
     return cfg.type;
-  }
-  const headerType = cfg.headers.find((h) => h.key.toLowerCase() === 'x-webhook-type')?.value?.toLowerCase();
-  if (headerType === 'slack' || headerType === 'teams' || headerType === 'http') {
-    return headerType;
-  }
-  const url = (cfg.url ?? '').toLowerCase();
-  if (url.includes('slack.com/api/chat.postmessage')) {
-    return 'slack';
-  }
-  if (url.includes('teams.microsoft.com') || url.includes('outlook.office.com/webhook')) {
-    return 'teams';
   }
   return 'http';
 };
@@ -63,11 +51,7 @@ const WebhookSettings: React.FC = () => {
         setUrl(cfg.url);
         setWebhookType(detectSavedWebhookType(cfg));
 
-        const authValue =
-          cfg.token ??
-          cfg.headers.find((h) => h.key.toLowerCase() === 'authorization')?.value ??
-          cfg.headers.find((h) => h.key.toLowerCase() === 'x-slack-bot-token')?.value ??
-          '';
+        const authValue = cfg.token ?? '';
         const bearerPrefix = 'Bearer ';
         if (authValue.startsWith(bearerPrefix)) {
           setToken(authValue.slice(bearerPrefix.length));
@@ -75,11 +59,7 @@ const WebhookSettings: React.FC = () => {
           setToken(authValue);
         }
 
-        const channelValue =
-          cfg.channel ??
-          cfg.headers.find((h) => h.key.toLowerCase() === 'x-slack-channel-id')?.value ??
-          cfg.headers.find((h) => h.key.toLowerCase() === 'x-slack-channel')?.value ??
-          '';
+        const channelValue = cfg.channel ?? '';
         setChannel(channelValue);
       })
       .catch((err) => {

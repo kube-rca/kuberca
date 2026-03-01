@@ -433,10 +433,7 @@ export interface WebhookHeaderItem {
 
 export interface WebhookConfigPayload {
   url: string;
-  method: string;
-  headers: WebhookHeaderItem[];
-  body: string;
-  type?: 'slack' | 'teams' | 'http';
+  type: 'slack' | 'teams' | 'http';
   token?: string;
   channel?: string;
 }
@@ -463,115 +460,23 @@ const getRecordValue = (record: Record<string, unknown>, ...keys: string[]): unk
   return undefined;
 };
 
-const normalizeWebhookHeaderItem = (value: unknown): WebhookHeaderItem | null => {
-  if (!isRecord(value)) {
-    return null;
-  }
-
-  const key = toStringValue(getRecordValue(value, 'key', 'Key'));
-  if (!key) {
-    return null;
-  }
-
-  return {
-    key,
-    value: toStringValue(getRecordValue(value, 'value', 'Value')),
-  };
-};
-
-const normalizeWebhookHeaders = (raw: unknown): WebhookHeaderItem[] => {
-  if (Array.isArray(raw)) {
-    return raw.map(normalizeWebhookHeaderItem).filter((item): item is WebhookHeaderItem => item !== null);
-  }
-
-  if (typeof raw === 'string' && raw.trim()) {
-    try {
-      return normalizeWebhookHeaders(JSON.parse(raw));
-    } catch {
-      return [];
-    }
-  }
-
-  if (isRecord(raw)) {
-    return Object.entries(raw).map(([key, value]) => ({
-      key,
-      value: typeof value === 'string' ? value : String(value ?? ''),
-    }));
-  }
-
-  return [];
-};
-
-const getHeaderValue = (headers: WebhookHeaderItem[], key: string): string => {
-  return headers.find((h) => h.key.toLowerCase() === key.toLowerCase())?.value ?? '';
-};
-
-const normalizeBearerToken = (raw: string): string => {
-  const trimmed = raw.trim();
-  if (trimmed.toLowerCase().startsWith('bearer ')) {
-    return trimmed.slice(7).trim();
-  }
-  return trimmed;
-};
-
-const detectWebhookType = (raw: Record<string, unknown>, headers: WebhookHeaderItem[]): 'slack' | 'teams' | 'http' => {
+const detectWebhookType = (raw: Record<string, unknown>): 'slack' | 'teams' | 'http' => {
   const declaredType = toStringValue(getRecordValue(raw, 'type', 'Type')).trim().toLowerCase();
   if (declaredType === 'slack' || declaredType === 'teams' || declaredType === 'http') {
     return declaredType;
   }
-
-  const headerType = getHeaderValue(headers, 'x-webhook-type').trim().toLowerCase();
-  if (headerType === 'slack' || headerType === 'teams' || headerType === 'http') {
-    return headerType;
-  }
-
-  const url = toStringValue(getRecordValue(raw, 'url', 'URL')).toLowerCase();
-  if (url.includes('slack.com/api/chat.postmessage') || getHeaderValue(headers, 'x-slack-channel-id') !== '') {
-    return 'slack';
-  }
-  if (url.includes('teams.microsoft.com') || url.includes('outlook.office.com/webhook')) {
-    return 'teams';
-  }
   return 'http';
-};
-
-const parseChannelFromBody = (rawBody: string): string => {
-  if (!rawBody.trim()) {
-    return '';
-  }
-  try {
-    const parsed = JSON.parse(rawBody);
-    if (isRecord(parsed)) {
-      return toStringValue(parsed.channel).trim();
-    }
-  } catch {
-    return '';
-  }
-  return '';
 };
 
 const normalizeWebhookConfig = (raw: unknown): WebhookConfig => {
   const record = isRecord(raw) ? raw : {};
-  const headers = normalizeWebhookHeaders(getRecordValue(record, 'headers', 'Headers'));
-  const tokenFromHeaders =
-    normalizeBearerToken(getHeaderValue(headers, 'authorization')) ||
-    normalizeBearerToken(getHeaderValue(headers, 'x-slack-bot-token'));
-  const body = toStringValue(getRecordValue(record, 'body', 'Body'));
-  const channelFromHeaders =
-    getHeaderValue(headers, 'x-slack-channel-id').trim() ||
-    getHeaderValue(headers, 'x-slack-channel').trim() ||
-    parseChannelFromBody(body);
-  const method = toStringValue(getRecordValue(record, 'method', 'Method')).trim().toUpperCase() || 'POST';
 
   return {
     id: Number(getRecordValue(record, 'id', 'ID') ?? 0),
     url: toStringValue(getRecordValue(record, 'url', 'URL')),
-    method,
-    headers,
-    body,
-    type: detectWebhookType(record, headers),
-    token: toStringValue(getRecordValue(record, 'token', 'Token')).trim() || tokenFromHeaders || undefined,
-    channel: toStringValue(getRecordValue(record, 'channel', 'Channel')).trim() || channelFromHeaders || undefined,
+    type: detectWebhookType(record),
+    token: toStringValue(getRecordValue(record, 'token', 'Token')).trim() || undefined,
+    channel: toStringValue(getRecordValue(record, 'channel', 'Channel')).trim() || undefined,
     updated_at:
       toStringValue(getRecordValue(record, 'updated_at', 'updatedAt', 'UpdatedAt')) ||
       new Date(0).toISOString(),
