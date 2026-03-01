@@ -19,28 +19,31 @@ import (
 // AgentService 구조체 정의
 type AgentService struct {
 	agentClient *client.AgentClient
-	slackClient *client.SlackClient
+	notifier    client.Notifier
 	db          *db.Postgres
 	sseHub      *sse.Hub
 }
 
 // AgentService 객체 생성
-func NewAgentService(agentClient *client.AgentClient, slackClient *client.SlackClient, database *db.Postgres, sseHub *sse.Hub) *AgentService {
+func NewAgentService(agentClient *client.AgentClient, notifier client.Notifier, database *db.Postgres, sseHub *sse.Hub) *AgentService {
 	return &AgentService{
 		agentClient: agentClient,
-		slackClient: slackClient,
+		notifier:    notifier,
 		db:          database,
 		sseHub:      sseHub,
 	}
 }
 
 func (s *AgentService) RequestAnalysis(alert model.Alert, threadTS, incidentID string) {
-	if threadTS == "" {
-		log.Printf("No thread_ts for alert (alert_id=%s), skipping agent request", alert.Fingerprint)
+	if threadTS == "" && s.requiresThreadRef() {
+		log.Printf("No thread_ref for alert (alert_id=%s), skipping agent request", alert.Fingerprint)
 		return
 	}
+	if threadTS == "" {
+		log.Printf("No thread_ref for alert (alert_id=%s), sending analysis without thread", alert.Fingerprint)
+	}
 
-	log.Printf("Requesting agent analysis (alert_id=%s, status=%s, thread_ts=%s)", alert.Fingerprint, alert.Status, threadTS)
+	log.Printf("Requesting agent analysis (alert_id=%s, status=%s, thread_ref=%s)", alert.Fingerprint, alert.Status, threadTS)
 
 	// Agent에 분석 요청 (동기)
 	resp, err := s.agentClient.RequestAnalysis(alert, threadTS, incidentID)
@@ -91,10 +94,21 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, threadTS, incidentID s
 	}
 
 	// 분석 결과를 Slack 쓰레드에 전송
-	log.Printf("Sending analysis to Slack thread (thread_ts=%s)", threadTS)
-	if err := s.slackClient.SendToThread(threadTS, resp.Analysis); err != nil {
-		log.Printf("Failed to send analysis to Slack: %v", err)
+	log.Printf("Sending analysis notification (thread_ref=%s)", threadTS)
+	if err := s.notifier.Notify(client.AnalysisResultPostedEvent{
+		ThreadRef: threadTS,
+		Content:   resp.Analysis,
+	}); err != nil {
+		log.Printf("Failed to send analysis notification: %v", err)
 	}
+}
+
+func (s *AgentService) requiresThreadRef() bool {
+	if req, ok := s.notifier.(client.ThreadRefRequirement); ok {
+		return req.RequiresThreadRef()
+	}
+	_, ok := s.notifier.(client.ThreadRefStore)
+	return ok
 }
 
 // RequestIncidentSummary - Incident 종료 시 전체 Alert 분석을 기반으로 최종 요약 요청

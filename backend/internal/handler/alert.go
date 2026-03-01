@@ -11,8 +11,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"time"
-
 	"github.com/gin-gonic/gin"
 	"github.com/kube-rca/backend/internal/model"
 	"github.com/kube-rca/backend/internal/service"
@@ -60,20 +58,6 @@ func (h *AlertHandler) Webhook(c *gin.Context) {
 	// receiver: Alertmanager에서 설정한 receiver 이름
 	log.Printf("Received alert webhook: status=%s, alertCount=%d, receiver=%s",
 		webhook.Status, len(webhook.Alerts), webhook.Receiver)
-
-	// 3. 개별 알림 로깅
-	// 여러 알림을 그룹으로 묶어서 전송 가능
-	for _, alert := range webhook.Alerts {
-		log.Printf("  Alert: name=%s, severity=%s, status=%s, namespace=%s",
-			alert.Labels["alertname"], // alertname: 알림 이름 (예: PodCrashLooping)
-			alert.Labels["severity"],  // severity: 심각도 (critical, warning, info)
-			alert.Status,
-			alert.Labels["namespace"], // namespace: 문제 발생 네임스페이스
-		)
-		log.Printf("    Description: %s", alert.Annotations["description"]) // description: 알림 내용 설명
-		log.Printf("    StartsAt: %s", alert.StartsAt.Format(time.RFC3339)) // StartsAt: 알림 발생 시각 (UTC)
-		log.Printf("    Fingerprint: %s", alert.Fingerprint)                // Fingerprint: 알림 고유 식별자 (thread_ts 매핑용)
-	}
 
 	// 4. 서비스 레이어에서 Slack 전송 처리
 	// 비즈니스 로직(필터링)은 service 레이어에 위임

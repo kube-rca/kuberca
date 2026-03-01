@@ -39,6 +39,10 @@ type SlackClient struct {
 	threadMap sync.Map
 }
 
+var _ Notifier = (*SlackClient)(nil)
+var _ ThreadRefStore = (*SlackClient)(nil)
+var _ ThreadRefRequirement = (*SlackClient)(nil)
+
 // SlackMessage(메시지 내용)) 구조체 정의
 type SlackMessage struct {
 	Channel     string            `json:"channel"`               // 메시지를 보낼 채널 ID
@@ -92,6 +96,32 @@ func (c *SlackClient) IsConfigured() bool {
 	return c.botToken != "" && c.channelID != ""
 }
 
+// Notify는 공통 Notifier 이벤트를 Slack 메시지로 변환해 전송한다.
+func (c *SlackClient) Notify(event NotifierEvent) error {
+	switch e := event.(type) {
+	case AlertStatusChangedEvent:
+		return c.SendAlert(e.Alert, e.Alert.Status, e.IncidentID)
+	case *AlertStatusChangedEvent:
+		return c.SendAlert(e.Alert, e.Alert.Status, e.IncidentID)
+	case FlappingDetectedEvent:
+		return c.SendFlappingDetection(e.Alert, e.IncidentID, e.CycleCount)
+	case *FlappingDetectedEvent:
+		return c.SendFlappingDetection(e.Alert, e.IncidentID, e.CycleCount)
+	case FlappingClearedEvent:
+		return c.SendFlappingCleared(e.Fingerprint, e.ThreadRef)
+	case *FlappingClearedEvent:
+		return c.SendFlappingCleared(e.Fingerprint, e.ThreadRef)
+	case AnalysisResultPostedEvent:
+		return c.SendToThread(e.ThreadRef, e.Content)
+	case *AnalysisResultPostedEvent:
+		return c.SendToThread(e.ThreadRef, e.Content)
+	case nil:
+		return fmt.Errorf("unsupported notifier event: <nil>")
+	default:
+		return fmt.Errorf("unsupported notifier event: %T (%s)", event, event.EventType())
+	}
+}
+
 // Slack API 호출
 func (c *SlackClient) send(msg SlackMessage) (*SlackResponse, error) {
 	// JSON 직렬화
@@ -138,13 +168,13 @@ func (c *SlackClient) send(msg SlackMessage) (*SlackResponse, error) {
 }
 
 // firing 알림 전송 후 thread_ts를 저장
-func (c *SlackClient) StoreThreadTS(fingerprint, threadTS string) {
-	c.threadMap.Store(fingerprint, threadTS)
+func (c *SlackClient) StoreThreadRef(alertKey, threadRef string) {
+	c.threadMap.Store(alertKey, threadRef)
 }
 
 // resolved 알림 전송 전 thread_ts를 조회
-func (c *SlackClient) GetThreadTS(fingerprint string) (string, bool) {
-	val, ok := c.threadMap.Load(fingerprint)
+func (c *SlackClient) GetThreadRef(alertKey string) (string, bool) {
+	val, ok := c.threadMap.Load(alertKey)
 	if !ok {
 		return "", false
 	}
@@ -152,8 +182,27 @@ func (c *SlackClient) GetThreadTS(fingerprint string) (string, bool) {
 }
 
 // resolved 알림 전송 후 thread_ts를 제거
+func (c *SlackClient) DeleteThreadRef(alertKey string) {
+	c.threadMap.Delete(alertKey)
+}
+
+// StoreThreadTS는 기존 호출부 호환을 위해 유지한다.
+func (c *SlackClient) StoreThreadTS(fingerprint, threadTS string) {
+	c.StoreThreadRef(fingerprint, threadTS)
+}
+
+// GetThreadTS는 기존 호출부 호환을 위해 유지한다.
+func (c *SlackClient) GetThreadTS(fingerprint string) (string, bool) {
+	return c.GetThreadRef(fingerprint)
+}
+
+// DeleteThreadTS는 기존 호출부 호환을 위해 유지한다.
 func (c *SlackClient) DeleteThreadTS(fingerprint string) {
-	c.threadMap.Delete(fingerprint)
+	c.DeleteThreadRef(fingerprint)
+}
+
+func (c *SlackClient) RequiresThreadRef() bool {
+	return true
 }
 
 // 특정 쓰레드에 메시지 전송 (Agent 분석 결과 전송용, 일단 분리하지않음)

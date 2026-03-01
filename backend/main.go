@@ -101,14 +101,15 @@ func main() {
 
 	// 2. 외부 서비스 클라이언트 초기화
 	slackClient := client.NewSlackClient(cfg.Slack)
+	notifier := client.NewWebhookRoutingNotifier(pgRepo, slackClient, slackClient, cfg.Slack.FrontendURL)
 	agentClient := client.NewAgentClient(cfg.Agent)
 
 	// 3. 비즈니스 로직 서비스 초기화
 	// AgentService: Agent 요청 및 Slack 쓰레드 응답 처리 + DB 저장
-	agentService := service.NewAgentService(agentClient, slackClient, pgRepo, sseHub)
+	agentService := service.NewAgentService(agentClient, notifier, pgRepo, sseHub)
 	chatService := service.NewChatService(pgRepo, agentClient)
 	// AlertService: 알림 필터링 및 Slack 전송 로직 담당 + DB 저장
-	alertService := service.NewAlertService(slackClient, agentService, pgRepo, cfg.Flapping, sseHub)
+	alertService := service.NewAlertService(notifier, agentService, pgRepo, cfg.Flapping, sseHub)
 	// RcaService: Incident/Alert 조회 및 종료 처리 + Agent 최종 분석 요청 + 임베딩 생성
 	rcaSvc := service.NewRcaService(pgRepo, agentService, embeddingService, sseHub)
 	chatHandler := handler.NewChatHandler(chatService)
