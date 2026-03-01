@@ -2,28 +2,22 @@ package model
 
 import "time"
 
-// WebhookHeader - 헤더 키-값 쌍
-type WebhookHeader struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
-}
-
 // WebhookConfig - DB에 저장되는 웹훅 설정 구조체
 type WebhookConfig struct {
-	ID        int             `json:"id"`
-	URL       string          `json:"url"`
-	Method    string          `json:"method"`
-	Headers   []WebhookHeader `json:"headers"`
-	Body      string          `json:"body"`
-	UpdatedAt time.Time       `json:"updated_at"`
+	ID        int       `json:"id"`
+	URL       string    `json:"url"`
+	Type      string    `json:"type"`
+	Token     string    `json:"token,omitempty"`
+	Channel   string    `json:"channel,omitempty"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // WebhookConfigRequest - 웹훅 설정 생성/수정 요청 구조체
 type WebhookConfigRequest struct {
-	URL     string          `json:"url"`
-	Method  string          `json:"method"`
-	Headers []WebhookHeader `json:"headers"`
-	Body    string          `json:"body"`
+	URL     string `json:"url"`
+	Type    string `json:"type"`
+	Token   string `json:"token,omitempty"`
+	Channel string `json:"channel,omitempty"`
 }
 
 // WebhookConfigResponse - 단건 조회 응답
