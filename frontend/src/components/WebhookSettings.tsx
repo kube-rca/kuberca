@@ -25,6 +25,24 @@ const buildConfigPayload = (type: WebhookType, url: string, token: string, chann
   };
 };
 
+const detectSavedWebhookType = (cfg: Awaited<ReturnType<typeof fetchWebhookById>>): WebhookType => {
+  if (cfg.type === 'slack' || cfg.type === 'teams' || cfg.type === 'http') {
+    return cfg.type;
+  }
+  const headerType = cfg.headers.find((h) => h.key.toLowerCase() === 'x-webhook-type')?.value?.toLowerCase();
+  if (headerType === 'slack' || headerType === 'teams' || headerType === 'http') {
+    return headerType;
+  }
+  const url = (cfg.url ?? '').toLowerCase();
+  if (url.includes('slack.com/api/chat.postmessage')) {
+    return 'slack';
+  }
+  if (url.includes('teams.microsoft.com') || url.includes('outlook.office.com/webhook')) {
+    return 'teams';
+  }
+  return 'http';
+};
+
 const WebhookSettings: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id?: string }>();
@@ -43,10 +61,7 @@ const WebhookSettings: React.FC = () => {
     fetchWebhookById(Number(id))
       .then((cfg) => {
         setUrl(cfg.url);
-        const savedType = cfg.type ?? cfg.headers.find((h) => h.key.toLowerCase() === 'x-webhook-type')?.value;
-        if (savedType === 'slack' || savedType === 'teams' || savedType === 'http') {
-          setWebhookType(savedType);
-        }
+        setWebhookType(detectSavedWebhookType(cfg));
 
         const authValue =
           cfg.token ??

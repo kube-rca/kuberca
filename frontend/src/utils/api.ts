@@ -454,19 +454,28 @@ const toStringValue = (value: unknown): string => {
   return typeof value === 'string' ? value : '';
 };
 
+const getRecordValue = (record: Record<string, unknown>, ...keys: string[]): unknown => {
+  for (const key of keys) {
+    if (key in record) {
+      return record[key];
+    }
+  }
+  return undefined;
+};
+
 const normalizeWebhookHeaderItem = (value: unknown): WebhookHeaderItem | null => {
   if (!isRecord(value)) {
     return null;
   }
 
-  const key = toStringValue(value.key);
+  const key = toStringValue(getRecordValue(value, 'key', 'Key'));
   if (!key) {
     return null;
   }
 
   return {
     key,
-    value: toStringValue(value.value),
+    value: toStringValue(getRecordValue(value, 'value', 'Value')),
   };
 };
 
@@ -506,7 +515,7 @@ const normalizeBearerToken = (raw: string): string => {
 };
 
 const detectWebhookType = (raw: Record<string, unknown>, headers: WebhookHeaderItem[]): 'slack' | 'teams' | 'http' => {
-  const declaredType = toStringValue(raw.type).trim().toLowerCase();
+  const declaredType = toStringValue(getRecordValue(raw, 'type', 'Type')).trim().toLowerCase();
   if (declaredType === 'slack' || declaredType === 'teams' || declaredType === 'http') {
     return declaredType;
   }
@@ -516,7 +525,7 @@ const detectWebhookType = (raw: Record<string, unknown>, headers: WebhookHeaderI
     return headerType;
   }
 
-  const url = toStringValue(raw.url).toLowerCase();
+  const url = toStringValue(getRecordValue(raw, 'url', 'URL')).toLowerCase();
   if (url.includes('slack.com/api/chat.postmessage') || getHeaderValue(headers, 'x-slack-channel-id') !== '') {
     return 'slack';
   }
@@ -543,27 +552,29 @@ const parseChannelFromBody = (rawBody: string): string => {
 
 const normalizeWebhookConfig = (raw: unknown): WebhookConfig => {
   const record = isRecord(raw) ? raw : {};
-  const headers = normalizeWebhookHeaders(record.headers);
+  const headers = normalizeWebhookHeaders(getRecordValue(record, 'headers', 'Headers'));
   const tokenFromHeaders =
     normalizeBearerToken(getHeaderValue(headers, 'authorization')) ||
     normalizeBearerToken(getHeaderValue(headers, 'x-slack-bot-token'));
-  const body = toStringValue(record.body);
+  const body = toStringValue(getRecordValue(record, 'body', 'Body'));
   const channelFromHeaders =
     getHeaderValue(headers, 'x-slack-channel-id').trim() ||
     getHeaderValue(headers, 'x-slack-channel').trim() ||
     parseChannelFromBody(body);
-  const method = toStringValue(record.method).trim().toUpperCase() || 'POST';
+  const method = toStringValue(getRecordValue(record, 'method', 'Method')).trim().toUpperCase() || 'POST';
 
   return {
-    id: Number(record.id ?? 0),
-    url: toStringValue(record.url),
+    id: Number(getRecordValue(record, 'id', 'ID') ?? 0),
+    url: toStringValue(getRecordValue(record, 'url', 'URL')),
     method,
     headers,
     body,
     type: detectWebhookType(record, headers),
-    token: toStringValue(record.token).trim() || tokenFromHeaders || undefined,
-    channel: toStringValue(record.channel).trim() || channelFromHeaders || undefined,
-    updated_at: toStringValue(record.updated_at) || toStringValue(record.updatedAt),
+    token: toStringValue(getRecordValue(record, 'token', 'Token')).trim() || tokenFromHeaders || undefined,
+    channel: toStringValue(getRecordValue(record, 'channel', 'Channel')).trim() || channelFromHeaders || undefined,
+    updated_at:
+      toStringValue(getRecordValue(record, 'updated_at', 'updatedAt', 'UpdatedAt')) ||
+      new Date(0).toISOString(),
   };
 };
 
