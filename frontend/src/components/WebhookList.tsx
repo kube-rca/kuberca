@@ -14,24 +14,11 @@ const getWebhookType = (cfg: WebhookConfig): WebhookType => {
   const value = cfg.type?.toLowerCase();
   if (value === 'slack') return 'Slack';
   if (value === 'teams') return 'Teams';
-  const headerType = cfg.headers.find((h) => h.key.toLowerCase() === 'x-webhook-type')?.value?.toLowerCase();
-  if (headerType === 'slack') return 'Slack';
-  if (headerType === 'teams') return 'Teams';
-  const url = (cfg.url ?? '').toLowerCase();
-  if (url.includes('slack.com/api/chat.postmessage')) return 'Slack';
-  if (url.includes('teams.microsoft.com') || url.includes('outlook.office.com/webhook')) return 'Teams';
   return 'HTTP';
 };
 
 const getSlackChannel = (cfg: WebhookConfig): string => {
-  if (cfg.channel?.trim()) {
-    return cfg.channel.trim();
-  }
-  return (
-    cfg.headers.find((h) => h.key.toLowerCase() === 'x-slack-channel-id')?.value?.trim() ??
-    cfg.headers.find((h) => h.key.toLowerCase() === 'x-slack-channel')?.value?.trim() ??
-    ''
-  );
+  return cfg.channel?.trim() ?? '';
 };
 
 const WebhookList: React.FC = () => {
