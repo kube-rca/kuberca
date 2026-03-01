@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 
 	"github.com/kube-rca/backend/internal/model"
 )
@@ -33,29 +34,31 @@ func (s *WebhookService) GetWebhookConfig(ctx context.Context, id int) (*model.W
 }
 
 func (s *WebhookService) CreateWebhookConfig(ctx context.Context, req model.WebhookConfigRequest) (int, error) {
-	cfg := model.WebhookConfig{
-		URL:    req.URL,
-		Method: req.Method,
-		Body:   req.Body,
+	webhookType := strings.ToLower(strings.TrimSpace(req.Type))
+	if webhookType == "" {
+		webhookType = "http"
 	}
-	if req.Headers != nil {
-		cfg.Headers = req.Headers
-	} else {
-		cfg.Headers = []model.WebhookHeader{}
+
+	cfg := model.WebhookConfig{
+		URL:     strings.TrimSpace(req.URL),
+		Type:    webhookType,
+		Token:   strings.TrimSpace(req.Token),
+		Channel: strings.TrimSpace(req.Channel),
 	}
 	return s.db.CreateWebhookConfig(ctx, cfg)
 }
 
 func (s *WebhookService) UpdateWebhookConfig(ctx context.Context, id int, req model.WebhookConfigRequest) error {
-	cfg := model.WebhookConfig{
-		URL:    req.URL,
-		Method: req.Method,
-		Body:   req.Body,
+	webhookType := strings.ToLower(strings.TrimSpace(req.Type))
+	if webhookType == "" {
+		webhookType = "http"
 	}
-	if req.Headers != nil {
-		cfg.Headers = req.Headers
-	} else {
-		cfg.Headers = []model.WebhookHeader{}
+
+	cfg := model.WebhookConfig{
+		URL:     strings.TrimSpace(req.URL),
+		Type:    webhookType,
+		Token:   strings.TrimSpace(req.Token),
+		Channel: strings.TrimSpace(req.Channel),
 	}
 	return s.db.UpdateWebhookConfig(ctx, id, cfg)
 }
