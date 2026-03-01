@@ -446,20 +446,155 @@ export interface WebhookConfig extends WebhookConfigPayload {
   updated_at: string;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+};
+
+const toStringValue = (value: unknown): string => {
+  return typeof value === 'string' ? value : '';
+};
+
+const normalizeWebhookHeaderItem = (value: unknown): WebhookHeaderItem | null => {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const key = toStringValue(value.key);
+  if (!key) {
+    return null;
+  }
+
+  return {
+    key,
+    value: toStringValue(value.value),
+  };
+};
+
+const normalizeWebhookHeaders = (raw: unknown): WebhookHeaderItem[] => {
+  if (Array.isArray(raw)) {
+    return raw.map(normalizeWebhookHeaderItem).filter((item): item is WebhookHeaderItem => item !== null);
+  }
+
+  if (typeof raw === 'string' && raw.trim()) {
+    try {
+      return normalizeWebhookHeaders(JSON.parse(raw));
+    } catch {
+      return [];
+    }
+  }
+
+  if (isRecord(raw)) {
+    return Object.entries(raw).map(([key, value]) => ({
+      key,
+      value: typeof value === 'string' ? value : String(value ?? ''),
+    }));
+  }
+
+  return [];
+};
+
+const getHeaderValue = (headers: WebhookHeaderItem[], key: string): string => {
+  return headers.find((h) => h.key.toLowerCase() === key.toLowerCase())?.value ?? '';
+};
+
+const normalizeBearerToken = (raw: string): string => {
+  const trimmed = raw.trim();
+  if (trimmed.toLowerCase().startsWith('bearer ')) {
+    return trimmed.slice(7).trim();
+  }
+  return trimmed;
+};
+
+const detectWebhookType = (raw: Record<string, unknown>, headers: WebhookHeaderItem[]): 'slack' | 'teams' | 'http' => {
+  const declaredType = toStringValue(raw.type).trim().toLowerCase();
+  if (declaredType === 'slack' || declaredType === 'teams' || declaredType === 'http') {
+    return declaredType;
+  }
+
+  const headerType = getHeaderValue(headers, 'x-webhook-type').trim().toLowerCase();
+  if (headerType === 'slack' || headerType === 'teams' || headerType === 'http') {
+    return headerType;
+  }
+
+  const url = toStringValue(raw.url).toLowerCase();
+  if (url.includes('slack.com/api/chat.postmessage') || getHeaderValue(headers, 'x-slack-channel-id') !== '') {
+    return 'slack';
+  }
+  if (url.includes('teams.microsoft.com') || url.includes('outlook.office.com/webhook')) {
+    return 'teams';
+  }
+  return 'http';
+};
+
+const parseChannelFromBody = (rawBody: string): string => {
+  if (!rawBody.trim()) {
+    return '';
+  }
+  try {
+    const parsed = JSON.parse(rawBody);
+    if (isRecord(parsed)) {
+      return toStringValue(parsed.channel).trim();
+    }
+  } catch {
+    return '';
+  }
+  return '';
+};
+
+const normalizeWebhookConfig = (raw: unknown): WebhookConfig => {
+  const record = isRecord(raw) ? raw : {};
+  const headers = normalizeWebhookHeaders(record.headers);
+  const tokenFromHeaders =
+    normalizeBearerToken(getHeaderValue(headers, 'authorization')) ||
+    normalizeBearerToken(getHeaderValue(headers, 'x-slack-bot-token'));
+  const body = toStringValue(record.body);
+  const channelFromHeaders =
+    getHeaderValue(headers, 'x-slack-channel-id').trim() ||
+    getHeaderValue(headers, 'x-slack-channel').trim() ||
+    parseChannelFromBody(body);
+  const method = toStringValue(record.method).trim().toUpperCase() || 'POST';
+
+  return {
+    id: Number(record.id ?? 0),
+    url: toStringValue(record.url),
+    method,
+    headers,
+    body,
+    type: detectWebhookType(record, headers),
+    token: toStringValue(record.token).trim() || tokenFromHeaders || undefined,
+    channel: toStringValue(record.channel).trim() || channelFromHeaders || undefined,
+    updated_at: toStringValue(record.updated_at) || toStringValue(record.updatedAt),
+  };
+};
+
+const unwrapWebhookPayload = (raw: unknown): unknown => {
+  let current = raw;
+  for (let i = 0; i < 3; i += 1) {
+    if (!isRecord(current) || !('data' in current)) {
+      break;
+    }
+    current = current.data;
+  }
+  return current;
+};
+
 /** 웹훅 설정 목록 조회 */
 export const fetchWebhookList = async (): Promise<WebhookConfig[]> => {
   const response = await requestWithAuth('/api/v1/settings/webhooks', { method: 'GET' });
   if (!response.ok) throw new Error(`웹훅 목록 조회 실패 (${response.status})`);
-  const json = await response.json();
-  return json.data ?? [];
+  const payload = unwrapWebhookPayload(await response.json());
+  if (!Array.isArray(payload)) {
+    return [];
+  }
+  return payload.map(normalizeWebhookConfig);
 };
 
 /** ID로 단건 조회 */
 export const fetchWebhookById = async (id: number): Promise<WebhookConfig> => {
   const response = await requestWithAuth(`/api/v1/settings/webhooks/${id}`, { method: 'GET' });
   if (!response.ok) throw new Error(`웹훅 설정 조회 실패 (${response.status})`);
-  const json = await response.json();
-  return json.data;
+  const payload = unwrapWebhookPayload(await response.json());
+  return normalizeWebhookConfig(payload);
 };
 
 /** 신규 웹훅 설정 생성 */
