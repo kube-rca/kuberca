@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Routes, Route, useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom';
 import { RCAItem } from './types';
 import TimeRangeSelector from './components/TimeRangeSelector';
@@ -21,6 +21,8 @@ import WebhookSettings from './components/WebhookSettings';
 import WebhookList from './components/WebhookList';
 import FloatingChatPanel from './components/FloatingChatPanel';
 import { useSearch } from './context/SearchContext';
+import { usePolling } from './hooks/usePolling';
+import { useSSE, SSEEvent } from './hooks/useSSE';
 // [필수] 우리가 만든 로직 Import
 import { searchIncidents, searchAlerts } from './utils/searchLogic';
 
@@ -92,6 +94,14 @@ function App() {
   const [oidcLoginUrl, setOidcLoginUrl] = useState('');
   const [oidcProvider, setOidcProvider] = useState('');
   const [isChatDocked, setIsChatDocked] = useState(false);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, []);
 
   const mapLegacyTimeToKey = (range: string): string => {
     switch (range) {
@@ -161,7 +171,51 @@ function App() {
     }
   }, [location]);  
 
-  // Fetch Data
+  // Data loading function (background=true skips loading indicators)
+  const loadData = useCallback(async (isBackground = false) => {
+    try {
+      if (!isBackground) setLoading(true);
+      setError(null);
+      const rawData: RawRCAItem[] = await fetchRCAs();
+      const mappedRCAs = rawData.map((item) => {
+        const serverTime = item.created_at || item.timestamp || item.time || item.start_time || item.fired_at;
+        return { ...item, time: serverTime ? String(serverTime) : getCurrentTimeStr() };
+      });
+      setAllRCAs(mappedRCAs);
+    } catch {
+      if (!isBackground) setError('데이터를 불러오는데 실패했습니다.');
+    } finally {
+      if (!isBackground) setLoading(false);
+    }
+
+    try {
+      if (!isBackground) setAlertLoading(true);
+      setAlertError(null);
+      const data = await fetchAlerts();
+      setAllAlerts(data);
+    } catch {
+      if (!isBackground) setAlertError('Alert 데이터를 불러오는데 실패했습니다.');
+    } finally {
+      if (!isBackground) setAlertLoading(false);
+    }
+
+    try {
+      if (!isBackground) setMuteLoading(true);
+      setMuteError(null);
+      const rawMuted: RawRCAItem[] = await fetchMutedIncidents();
+      const mappedMuted = rawMuted.map((item) => {
+        const serverTime = item.created_at || item.timestamp || item.time || item.start_time || item.fired_at;
+        return { ...item, time: serverTime ? String(serverTime) : getCurrentTimeStr() };
+      });
+      setMutedIncidents(mappedMuted);
+    } catch {
+      if (!isBackground) setMuteError('Mute 데이터를 불러오는데 실패했습니다.');
+    } finally {
+      if (!isBackground) setMuteLoading(false);
+    }
+  }, []);
+
+  // Initial data load
   useEffect(() => {
     if (!isAuthenticated) {
       setAllRCAs([]);
@@ -169,54 +223,32 @@ function App() {
       setMutedIncidents([]);
       return;
     }
-
-    const loadData = async (isBackground = false) => {
-      try {
-        if (!isBackground) setLoading(true);
-        setError(null);
-        const rawData: RawRCAItem[] = await fetchRCAs();
-        const mappedRCAs = rawData.map((item) => {
-          const serverTime = item.created_at || item.timestamp || item.time || item.start_time || item.fired_at;
-          return { ...item, time: serverTime ? String(serverTime) : getCurrentTimeStr() };
-        });
-        setAllRCAs(mappedRCAs);
-      } catch (err) {
-        if (!isBackground) setError('데이터를 불러오는데 실패했습니다.');
-      } finally {
-        if (!isBackground) setLoading(false);
-      }
-
-      try {
-        if (!isBackground) setAlertLoading(true);
-        setAlertError(null);
-        const data = await fetchAlerts();
-        setAllAlerts(data);
-      } catch (err) {
-        if (!isBackground) setAlertError('Alert 데이터를 불러오는데 실패했습니다.');
-      } finally {
-        if (!isBackground) setAlertLoading(false);
-      }
-
-      try {
-        if (!isBackground) setMuteLoading(true);
-        setMuteError(null);
-        const rawMuted: RawRCAItem[] = await fetchMutedIncidents();
-        const mappedMuted = rawMuted.map((item) => {
-          const serverTime = item.created_at || item.timestamp || item.time || item.start_time || item.fired_at;
-          return { ...item, time: serverTime ? String(serverTime) : getCurrentTimeStr() };
-        });
-        setMutedIncidents(mappedMuted);
-      } catch (err) {
-        if (!isBackground) setMuteError('Mute 데이터를 불러오는데 실패했습니다.');
-      } finally {
-        if (!isBackground) setMuteLoading(false);
-      }
-    };
-
     loadData(false);
-    const intervalId = setInterval(() => { loadData(true); }, 1000);
-    return () => clearInterval(intervalId);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, loadData]);
+
+  // SSE: real-time event notifications from backend
+  const handleSSEEvent = useCallback((event: SSEEvent) => {
+    if (event.type === 'heartbeat') return;
+    // Debounce: collapse multiple rapid events into a single refresh
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => { loadData(true); }, 500);
+  }, [loadData]);
+
+  const { connectionState } = useSSE({
+    onEvent: handleSSEEvent,
+    enabled: isAuthenticated,
+  });
+
+  // Polling: 30s fallback when SSE is not connected
+  usePolling({
+    callback: () => loadData(true),
+    interval: 30_000,
+    pauseOnHidden: true,
+    backoffMultiplier: 2,
+    maxInterval: 120_000,
+    enabled: isAuthenticated,
+    sseConnected: connectionState === 'connected',
+  });
 
   const handleLogout = async () => {
     await logout();
