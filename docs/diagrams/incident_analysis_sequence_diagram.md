@@ -5,23 +5,31 @@ sequenceDiagram
   participant BE as Backend
   participant AG as Agent
   participant LLM as LLM API
-  participant DB as PostgreSQL + pgvector
+  participant DB as PostgreSQL
 
-  Note over FE,BE: Incident 종료 및 최종 분석
+  Note over FE,BE: Incident 종료 및 종합 분석
   FE->>BE: POST /api/v1/incidents/:id/resolve
-  BE->>DB: incidents.status = resolved
-  BE->>AG: POST /summarize-incident - goroutine 비동기
-  AG->>LLM: 연결된 Alert 분석 종합
-  LLM-->>AG: title + summary + detail
-  AG-->>BE: 최종 분석 결과
-  BE->>DB: incidents.analysis_summary/detail 저장
-  BE->>LLM: 임베딩 생성 - text-embedding-004
-  BE->>DB: embeddings 테이블 저장
+  BE->>DB: set incident status resolved
+  BE->>AG: POST /summarize-incident async
+  AG->>LLM: synthesize alert analyses
+  LLM-->>AG: incident title summary detail
+  AG-->>BE: summary response
+  BE->>DB: update incidents analysis fields
 
-  Note over FE,DB: 유사 인시던트 검색
+  Note over BE,DB: 임베딩 저장
+  BE->>LLM: create embedding from incident summary
+  LLM-->>BE: vector output
+  BE->>DB: insert embeddings row
+
+  Note over FE,BE: 유사 Incident 검색
   FE->>BE: POST /api/v1/embeddings/search
-  BE->>LLM: 쿼리 임베딩 생성
-  BE->>DB: pgvector cosine similarity 검색
-  DB-->>BE: 유사 인시던트 목록
-  BE-->>FE: similarity 점수와 함께 반환
+  BE->>LLM: create query embedding
+  BE->>DB: pgvector cosine similarity search
+  DB-->>BE: similar incidents
+  BE-->>FE: ranked results
+
+  Note over FE,BE: 운영 피드백 루프
+  FE->>BE: POST comments or vote APIs
+  BE->>DB: upsert feedback_votes and feedback_comments
+  BE-->>FE: updated feedback summary
 ```

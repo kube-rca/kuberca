@@ -7,6 +7,12 @@ erDiagram
   INCIDENT ||--o{ ALERT_ANALYSIS : records
   ALERT ||--o{ ALERT_ANALYSIS : records
   ALERT_ANALYSIS ||--o{ ALERT_ANALYSIS_ARTIFACT : includes
+  USER ||--o{ FEEDBACK_VOTE : creates
+  USER ||--o{ FEEDBACK_COMMENT : writes
+  INCIDENT ||--o{ FEEDBACK_VOTE : target_optional
+  INCIDENT ||--o{ FEEDBACK_COMMENT : target_optional
+  ALERT ||--o{ FEEDBACK_VOTE : target_optional
+  ALERT ||--o{ FEEDBACK_COMMENT : target_optional
   strands_sessions ||--o{ strands_agents : optional
   strands_agents ||--o{ strands_messages : optional
   strands_sessions ||--o{ kube_rca_session_summaries : optional
@@ -103,6 +109,36 @@ erDiagram
     datetime created_at
   }
 
+  FEEDBACK_VOTE {
+    bigint id PK
+    string target_type "incident|alert"
+    string target_id
+    bigint user_id
+    string vote_type "up|down"
+    datetime created_at
+    datetime updated_at
+  }
+
+  FEEDBACK_COMMENT {
+    bigint comment_id PK
+    string target_type "incident|alert"
+    string target_id
+    bigint user_id
+    string author_login_id
+    text body
+    datetime created_at
+    datetime updated_at
+  }
+
+  WEBHOOK_CONFIG {
+    int id PK
+    string url
+    string type "slack|teams|http"
+    string token
+    string channel
+    datetime updated_at
+  }
+
   strands_sessions {
     string session_id PK
     jsonb data
@@ -127,5 +163,4 @@ erDiagram
     text summary
     datetime created_at
   }
-
 ```

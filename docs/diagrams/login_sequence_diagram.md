@@ -4,57 +4,43 @@ sequenceDiagram
   participant FE as Frontend
   participant BE as Backend
   participant DB as PostgreSQL
-  participant Google as OIDC Provider
+  participant OIDC as OIDC Provider
 
   FE->>BE: GET /api/v1/auth/config
-  BE-->>FE: allowSignup, oidcEnabled, oidcLoginUrl
+  BE-->>FE: allowSignup oidcEnabled oidcLoginUrl
 
   alt Local 로그인
-  FE->>BE: POST /api/v1/auth/login id password
-  BE->>DB: GetUserByLoginID
-  DB-->>BE: user
-  BE->>DB: InsertRefreshToken
-  DB-->>BE: ok
-  BE-->>FE: accessToken + Set-Cookie refresh
-
-  FE->>BE: GET /api/v1/incidents Authorization Bearer
-  BE->>DB: incidents 조회
-  DB-->>BE: incident list
-  BE-->>FE: incident list
-
-  alt access token 만료
-    FE->>BE: POST /api/v1/auth/refresh
-    BE->>DB: GetRefreshTokenByHash
-    DB-->>BE: refresh token
-    BE->>DB: RotateRefreshToken
-    DB-->>BE: ok
-    BE-->>FE: accessToken + Set-Cookie refresh
-    FE->>BE: GET /api/v1/incidents 재시도
-    BE-->>FE: incident list
-  end
-
-  end
-
-  alt OIDC 로그인
-    FE->>BE: GET /api/v1/auth/oidc/login (리다이렉트)
-    BE-->>FE: 302 → Google (state + PKCE 쿠키 설정)
-    FE->>Google: 사용자 로그인 + 승인
-    Google-->>FE: 302 → /api/v1/auth/oidc/callback?code=...&state=...
+    FE->>BE: POST /api/v1/auth/login
+    BE->>DB: find local user and issue refresh token
+    BE-->>FE: access token and refresh cookie
+  else OIDC 로그인
+    FE->>BE: GET /api/v1/auth/oidc/login
+    BE-->>FE: 302 redirect with state and pkce cookie
+    FE->>OIDC: authenticate user
+    OIDC-->>FE: 302 callback with code and state
     FE->>BE: GET /api/v1/auth/oidc/callback
-    BE->>Google: code → token 교환 (PKCE 검증)
-    Google-->>BE: id_token
-    BE->>BE: ID Token 검증 + Allowlist 체크
-    BE->>DB: GetUserByOIDCSub or CreateOIDCUser
-    DB-->>BE: user
-    BE->>DB: InsertRefreshToken
-    DB-->>BE: ok
-    BE-->>FE: 302 → / (Set-Cookie refresh)
-    FE->>BE: POST /api/v1/auth/refresh (자동)
-    BE-->>FE: accessToken + Set-Cookie refresh
+    BE->>OIDC: exchange code for token
+    BE->>BE: verify id token and allowlist
+    BE->>DB: get or create oidc user and refresh token
+    BE-->>FE: 302 to app with refresh cookie
+    FE->>BE: POST /api/v1/auth/refresh
+    BE-->>FE: access token and rotated cookie
+  end
+
+  FE->>BE: GET /api/v1/incidents with bearer
+  BE-->>FE: incidents list
+  FE->>BE: GET /api/v1/events with auth cookie
+  BE-->>FE: SSE stream connected
+
+  alt Access token expired
+    FE->>BE: POST /api/v1/auth/refresh
+    BE->>DB: rotate refresh token
+    BE-->>FE: new access token and cookie
+    FE->>BE: retry protected API
+    BE-->>FE: protected API response
   end
 
   FE->>BE: POST /api/v1/auth/logout
-  BE->>DB: RevokeRefreshTokenByHash
-  DB-->>BE: ok
-  BE-->>FE: logged_out + Set-Cookie clear
+  BE->>DB: revoke refresh token
+  BE-->>FE: clear refresh cookie
 ```
