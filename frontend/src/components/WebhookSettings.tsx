@@ -4,12 +4,6 @@ import { fetchWebhookById, createWebhookConfig, updateWebhookConfig, WebhookConf
 
 type WebhookType = 'slack' | 'teams' | 'http';
 
-const WEBHOOK_LABEL: Record<WebhookType, string> = {
-  slack: 'Slack',
-  teams: 'Microsoft Teams',
-  http: 'Generic HTTP',
-};
-
 const SLACK_POST_MESSAGE_URL = 'https://slack.com/api/chat.postMessage';
 
 const buildConfigPayload = (type: WebhookType, url: string, token: string, channel: string): WebhookConfigPayload => {
@@ -42,6 +36,7 @@ const WebhookSettings: React.FC = () => {
   const [channel, setChannel] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showToken, setShowToken] = useState(false);
 
   React.useEffect(() => {
     if (!isEditMode || !id) return;
@@ -191,13 +186,32 @@ const WebhookSettings: React.FC = () => {
           <>
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Slack Bot Token</label>
-              <input
-                type="password"
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                placeholder="xoxb-..."
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-cyan-500 focus:border-cyan-500"
-              />
+              <div className="relative">
+                <input
+                  type={showToken ? 'text' : 'password'}
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  placeholder="xoxb-..."
+                  className="w-full px-3 py-2 pr-10 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-cyan-500 focus:border-cyan-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowToken((v) => !v)}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 focus:outline-none"
+                  aria-label={showToken ? 'Hide token' : 'Show token'}
+                >
+                  {showToken ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Slack Channel ID</label>
@@ -218,25 +232,36 @@ const WebhookSettings: React.FC = () => {
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
               Bearer Token (Optional)
             </label>
-            <input
-              type="password"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              placeholder="토큰이 필요한 경우만 입력"
-              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-cyan-500 focus:border-cyan-500"
-            />
+            <div className="relative">
+              <input
+                type={showToken ? 'text' : 'password'}
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                placeholder="토큰이 필요한 경우만 입력"
+                className="w-full px-3 py-2 pr-10 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-cyan-500 focus:border-cyan-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowToken((v) => !v)}
+                className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 focus:outline-none"
+                aria-label={showToken ? 'Hide token' : 'Show token'}
+              >
+                {showToken ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
         )}
 
-        <div className="rounded-md border border-cyan-200 dark:border-cyan-800 bg-cyan-50 dark:bg-cyan-900/20 px-4 py-3">
-          <h2 className="text-sm font-semibold text-cyan-800 dark:text-cyan-300 mb-1">자동 적용 설정</h2>
-          <p className="text-sm text-cyan-700 dark:text-cyan-200">
-            {WEBHOOK_LABEL[webhookType]} 연동 정보만 frontend에서 전달하고, 알림 본문은 backend가 생성합니다.
-          </p>
-          <p className="text-xs text-cyan-600 dark:text-cyan-300 mt-1">
-            Slack 타입은 Bot Token + Channel ID를 저장해 `chat.postMessage` 기반으로 알림을 전송합니다.
-          </p>
-        </div>
+
 
         <div className="pt-2">
           {saveMessage && (
