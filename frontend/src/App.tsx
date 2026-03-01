@@ -319,7 +319,7 @@ function App() {
         let target = item.labels;
         if (!target) return;
         if (typeof target === 'string') {
-           try { target = JSON.parse((target as string).replace(/'/g, '"')); } catch(e) { return; }
+           try { target = JSON.parse((target as string).replace(/'/g, '"')); } catch { return; }
         }
         if (typeof target === 'object') {
           Object.entries(target).forEach(([k, v]) => labelsSet.add(`${k}:${v}`));
