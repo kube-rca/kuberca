@@ -91,7 +91,7 @@ function AlertTable({ alerts, onTitleClick }: AlertTableProps) {
               </td>
 
               {/* Title */}
-              <td className="px-4 py-3.5 text-sm font-medium text-slate-900 dark:text-slate-100 hover:text-cyan-600 dark:hover:text-cyan-400 min-w-[200px] break-words border-r border-slate-200 dark:border-slate-700">
+              <td className="px-4 py-3.5 text-sm font-medium text-slate-900 dark:text-slate-100 hover:text-cyan-600 dark:hover:text-cyan-400 min-w-[300px] break-words border-r border-slate-200 dark:border-slate-700">
                 {alert.alarm_title}
               </td>
 
