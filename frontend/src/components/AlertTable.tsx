@@ -69,7 +69,7 @@ function AlertTable({ alerts, onTitleClick }: AlertTableProps) {
           {alerts.map((alert) => (
             <tr key={alert.alert_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer" onClick={() => onTitleClick(alert.alert_id)}>
               {/* Incident ID */}
-              <td className="px-4 py-3.5 text-sm font-semibold border-r border-slate-200 dark:border-slate-700">
+              <td className="px-4 py-3.5 text-sm font-semibold whitespace-nowrap border-r border-slate-200 dark:border-slate-700">
                 {alert.incident_id ? (
                   <span
                     className="font-mono text-cyan-600 dark:text-cyan-400 cursor-pointer hover:underline"

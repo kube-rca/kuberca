@@ -70,7 +70,7 @@ function RCATable({ rcas, onTitleClick }: RCATableProps) {
 
             return (
               <tr key={rca.incident_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer" onClick={() => onTitleClick(rca.incident_id)}>
-                <td className="px-4 py-3.5 text-sm font-mono font-semibold text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700">
+                <td className="px-4 py-3.5 text-sm font-mono font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap border-r border-slate-200 dark:border-slate-700">
                   {rca.incident_id}
                 </td>
                 <td className="px-4 py-3.5 whitespace-nowrap border-r border-slate-200 dark:border-slate-700">
