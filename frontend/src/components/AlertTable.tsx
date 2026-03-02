@@ -44,22 +44,22 @@ function AlertTable({ alerts, onTitleClick }: AlertTableProps) {
       <table className="w-full">
         <thead>
           <tr className="border-b border-slate-200 dark:border-slate-800">
-            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <th className="px-4 py-3 text-left text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-700">
               Incident ID
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <th className="px-4 py-3 text-left text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-700">
               Time
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <th className="px-4 py-3 text-left text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-700">
               Title
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <th className="px-4 py-3 text-left text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-700">
               Namespace
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <th className="px-4 py-3 text-left text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-700">
               Severity
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <th className="px-4 py-3 text-left text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Status
             </th>
           </tr>
@@ -69,10 +69,10 @@ function AlertTable({ alerts, onTitleClick }: AlertTableProps) {
           {alerts.map((alert) => (
             <tr key={alert.alert_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer" onClick={() => onTitleClick(alert.alert_id)}>
               {/* Incident ID */}
-              <td className="px-4 py-3.5 text-sm">
+              <td className="px-4 py-3.5 text-sm font-semibold border-r border-slate-200 dark:border-slate-700">
                 {alert.incident_id ? (
                   <span
-                    className="text-cyan-600 dark:text-cyan-400 cursor-pointer hover:underline"
+                    className="font-mono text-cyan-600 dark:text-cyan-400 cursor-pointer hover:underline"
                     onClick={(e) => { e.stopPropagation(); navigate(`/incidents/${alert.incident_id}`); }}
                   >
                     {alert.incident_id}
@@ -83,27 +83,27 @@ function AlertTable({ alerts, onTitleClick }: AlertTableProps) {
               </td>
 
               {/* Time */}
-              <td className="px-4 py-3.5 whitespace-nowrap">
-                <span className="font-mono text-xs text-slate-500 dark:text-slate-400">
+              <td className="px-4 py-3.5 whitespace-nowrap border-r border-slate-200 dark:border-slate-700">
+                <span className="font-mono text-sm font-medium text-slate-600 dark:text-slate-300">
                   {formatDate(alert.fired_at)}
-                  {alert.resolved_at && <> → {formatDate(alert.resolved_at)}</>}
+                  {alert.resolved_at && <><span className="text-slate-400 dark:text-slate-500"> → </span>{formatDate(alert.resolved_at)}</>}
                 </span>
               </td>
 
               {/* Title */}
-              <td className="px-4 py-3.5 text-sm font-medium text-slate-900 dark:text-slate-100 hover:text-cyan-600 dark:hover:text-cyan-400 min-w-[200px] break-words">
+              <td className="px-4 py-3.5 text-sm font-medium text-slate-900 dark:text-slate-100 hover:text-cyan-600 dark:hover:text-cyan-400 min-w-[200px] break-words border-r border-slate-200 dark:border-slate-700">
                 {alert.alarm_title}
               </td>
 
               {/* Namespace */}
-              <td className="px-4 py-3.5 text-sm">
+              <td className="px-4 py-3.5 text-sm border-r border-slate-200 dark:border-slate-700">
                 <span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded">
                   {alert.namespace || '-'}
                 </span>
               </td>
 
               {/* Severity */}
-              <td className="px-4 py-3.5 text-sm">
+              <td className="px-4 py-3.5 text-sm border-r border-slate-200 dark:border-slate-700">
                 <span
                   className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${
                     severityStyles[alert.severity] || severityStyles.info
