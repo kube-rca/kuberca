@@ -44,19 +44,19 @@ function RCATable({ rcas, onTitleClick }: RCATableProps) {
       <table className="w-full">
         <thead>
           <tr className="border-b border-slate-200 dark:border-slate-800">
-            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <th className="px-4 py-3 text-left text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-700">
               ID
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <th className="px-4 py-3 text-left text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-700">
               Time
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <th className="px-4 py-3 text-left text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-700">
               Title
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <th className="px-4 py-3 text-left text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-700">
               Severity
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <th className="px-4 py-3 text-left text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Status
             </th>
           </tr>
@@ -69,19 +69,19 @@ function RCATable({ rcas, onTitleClick }: RCATableProps) {
 
             return (
               <tr key={rca.incident_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer" onClick={() => onTitleClick(rca.incident_id)}>
-                <td className="px-4 py-3.5 text-xs font-mono text-slate-400 dark:text-slate-500">
+                <td className="px-4 py-3.5 text-sm font-mono font-semibold text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700">
                   {rca.incident_id}
                 </td>
-                <td className="px-4 py-3.5 whitespace-nowrap">
-                  <span className="font-mono text-xs text-slate-500 dark:text-slate-400">
+                <td className="px-4 py-3.5 whitespace-nowrap border-r border-slate-200 dark:border-slate-700">
+                  <span className="font-mono text-sm font-medium text-slate-600 dark:text-slate-300">
                     {formatDate(rca.fired_at)}
-                    {rca.resolved_at && <> → {formatDate(rca.resolved_at)}</>}
+                    {rca.resolved_at && <><span className="text-slate-400 dark:text-slate-500"> → </span>{formatDate(rca.resolved_at)}</>}
                   </span>
                 </td>
-                <td className="px-4 py-3.5 text-sm font-medium text-slate-900 dark:text-slate-100 hover:text-cyan-600 dark:hover:text-cyan-400 min-w-[300px] break-words">
+                <td className="px-4 py-3.5 text-sm font-medium text-slate-900 dark:text-slate-100 hover:text-cyan-600 dark:hover:text-cyan-400 min-w-[300px] break-words border-r border-slate-200 dark:border-slate-700">
                   {rca.title}
                 </td>
-                <td className="px-4 py-3.5 text-sm">
+                <td className="px-4 py-3.5 text-sm border-r border-slate-200 dark:border-slate-700">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${severityStyles[rawSeverity] || severityStyles.info}`}>
                     {rawSeverity}
                   </span>
