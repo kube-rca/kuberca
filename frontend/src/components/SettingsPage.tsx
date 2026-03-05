@@ -8,6 +8,19 @@ const SettingsPage: React.FC = () => {
       
       <div className="space-y-4">
         <NavLink
+          to="/settings/notification"
+          className="block p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium text-lg text-cyan-600 dark:text-cyan-400 mb-1">Notification</div>
+              <div className="text-sm text-slate-500 dark:text-slate-400">Enable or disable the entire alert processing pipeline.</div>
+            </div>
+            <span className="text-slate-400 dark:text-slate-500">&rarr;</span>
+          </div>
+        </NavLink>
+
+        <NavLink
           to="/settings/webhooks"
           className="block p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
         >

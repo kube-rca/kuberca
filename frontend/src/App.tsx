@@ -21,6 +21,7 @@ import WebhookSettings from './components/WebhookSettings';
 import WebhookList from './components/WebhookList';
 import FlappingSettings from './components/FlappingSettings';
 import AIProviderSettings from './components/AIProviderSettings';
+import NotificationSettings from './components/NotificationSettings';
 import FloatingChatPanel from './components/FloatingChatPanel';
 import { useSearch } from './context/SearchContext';
 import { usePolling } from './hooks/usePolling';
@@ -624,6 +625,7 @@ function App() {
               <Route path="/settings/webhooks/:id" element={<WebhookSettings />} />
               <Route path="/settings/flapping" element={<FlappingSettings />} />
               <Route path="/settings/ai" element={<AIProviderSettings />} />
+              <Route path="/settings/notification" element={<NotificationSettings />} />
             </Routes>
             </div>
           </div>
