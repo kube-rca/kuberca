@@ -15,6 +15,7 @@ type Config struct {
 	Auth      AuthConfig
 	OIDC      OIDCConfig
 	Flapping  FlappingConfig
+	AI        AIConfig
 }
 
 type SlackConfig struct {
@@ -74,6 +75,11 @@ type FlappingConfig struct {
 	ClearanceWindowMinutes int
 }
 
+type AIConfig struct {
+	Provider string
+	ModelId  string
+}
+
 func Load() Config {
 	_ = godotenv.Load()
 	return Config{
@@ -126,6 +132,10 @@ func Load() Config {
 			DetectionWindowMinutes: getenvInt("FLAP_DETECTION_WINDOW_MINUTES", 30),
 			CycleThreshold:         getenvInt("FLAP_CYCLE_THRESHOLD", 3),
 			ClearanceWindowMinutes: getenvInt("FLAP_CLEARANCE_WINDOW_MINUTES", 30),
+		},
+		AI: AIConfig{
+			Provider: getenv("AI_PROVIDER", "gemini"),
+			ModelId:  os.Getenv("AI_MODEL_ID"),
 		},
 	}
 }

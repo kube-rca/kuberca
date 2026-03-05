@@ -28,12 +28,14 @@ type appSettingsRepo interface {
 type AppSettingsService struct {
 	db          appSettingsRepo
 	envFlapping config.FlappingConfig
+	envAI       config.AIConfig
 }
 
-func NewAppSettingsService(db appSettingsRepo, envFlapping config.FlappingConfig) *AppSettingsService {
+func NewAppSettingsService(db appSettingsRepo, envFlapping config.FlappingConfig, envAI config.AIConfig) *AppSettingsService {
 	return &AppSettingsService{
 		db:          db,
 		envFlapping: envFlapping,
+		envAI:       envAI,
 	}
 }
 
@@ -153,6 +155,55 @@ func (s *AppSettingsService) GetAISettings() *model.AISettings {
 	return &as
 }
 
+// SyncEnvDefaults - Pod 시작 시 호출. ENV 값이 바뀌었으면(Helm 재배포) DB 덮어쓰기.
+// ENV 값이 안 바뀌었으면(단순 재시작) 기존 DB 값(UI 변경) 유지.
+func (s *AppSettingsService) SyncEnvDefaults(ctx context.Context) {
+	envSettings := map[string]interface{}{
+		"flapping": model.FlappingSettings{
+			Enabled:                s.envFlapping.Enabled,
+			DetectionWindowMinutes: s.envFlapping.DetectionWindowMinutes,
+			CycleThreshold:         s.envFlapping.CycleThreshold,
+			ClearanceWindowMinutes: s.envFlapping.ClearanceWindowMinutes,
+		},
+		"ai": model.AISettings{
+			Provider: s.envAI.Provider,
+			ModelId:  s.envAI.ModelId,
+		},
+	}
+
+	for key, envVal := range envSettings {
+		envJSON, err := json.Marshal(envVal)
+		if err != nil {
+			log.Printf("SyncEnvDefaults: failed to marshal %s: %v", key, err)
+			continue
+		}
+
+		envKey := "_env_" + key
+		stored, err := s.db.GetAppSetting(ctx, envKey)
+		if err != nil {
+			log.Printf("SyncEnvDefaults: failed to read %s: %v", envKey, err)
+			continue
+		}
+
+		// ENV 변경 감지: 저장된 ENV 스냅샷과 현재 ENV 비교
+		envChanged := stored == nil || string(stored.Value) != string(envJSON)
+		if envChanged {
+			// ENV가 바뀜 → 설정값 덮어쓰기 + 스냅샷 갱신
+			if err := s.db.UpsertAppSetting(ctx, key, envJSON); err != nil {
+				log.Printf("SyncEnvDefaults: failed to sync %s: %v", key, err)
+				continue
+			}
+			if err := s.db.UpsertAppSetting(ctx, envKey, envJSON); err != nil {
+				log.Printf("SyncEnvDefaults: failed to save snapshot %s: %v", envKey, err)
+				continue
+			}
+			log.Printf("SyncEnvDefaults: %s synced from ENV (helm values changed)", key)
+		} else {
+			log.Printf("SyncEnvDefaults: %s unchanged, keeping DB value", key)
+		}
+	}
+}
+
 // GetSettingWithFallback - 개별 키 조회 + ENV fallback 포함 응답 생성
 func (s *AppSettingsService) GetSettingWithFallback(ctx context.Context, key string) (*model.AppSetting, error) {
 	setting, err := s.db.GetAppSetting(ctx, key)
@@ -175,8 +226,8 @@ func (s *AppSettingsService) GetSettingWithFallback(ctx context.Context, key str
 		}
 	case "ai":
 		fallbackValue = model.AISettings{
-			Provider: "gemini",
-			ModelId:  "",
+			Provider: s.envAI.Provider,
+			ModelId:  s.envAI.ModelId,
 		}
 	case "notification":
 		fallbackValue = model.NotificationSettings{
