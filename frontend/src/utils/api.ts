@@ -593,3 +593,45 @@ export const fetchWebhookSettings = async (): Promise<WebhookSettingsDetail | nu
   const json = await response.json();
   return json.data ?? null;
 };
+
+// ============================================================================
+// App Settings API
+// ============================================================================
+
+export interface FlappingSettings {
+  enabled: boolean;
+  detectionWindowMinutes: number;
+  cycleThreshold: number;
+  clearanceWindowMinutes: number;
+}
+
+export interface SlackSettings {
+  enabled: boolean;
+  channelId: string;
+}
+
+export interface AISettings {
+  provider: string;
+  modelId: string;
+}
+
+/** 개별 앱 설정 조회 (ENV fallback 포함) */
+export const fetchAppSetting = async <T>(key: string): Promise<T> => {
+  const response = await requestWithAuth(`/api/v1/settings/app/${key}`, { method: 'GET' });
+  if (!response.ok) throw new Error(`앱 설정 조회 실패 (${response.status})`);
+  const json = await response.json();
+  return json.data?.value as T;
+};
+
+/** 앱 설정 저장 */
+export const updateAppSetting = async <T>(key: string, value: T): Promise<void> => {
+  const response = await requestWithAuth(`/api/v1/settings/app/${key}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(value),
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `앱 설정 저장 실패 (${response.status})`);
+  }
+};

@@ -19,6 +19,9 @@ import UnifiedSearchPanel from './components/UnifiedSearchPanel';
 import SettingsPage from './components/SettingsPage';
 import WebhookSettings from './components/WebhookSettings';
 import WebhookList from './components/WebhookList';
+import FlappingSettings from './components/FlappingSettings';
+import SlackDefaultSettings from './components/SlackDefaultSettings';
+import AIProviderSettings from './components/AIProviderSettings';
 import FloatingChatPanel from './components/FloatingChatPanel';
 import { useSearch } from './context/SearchContext';
 import { usePolling } from './hooks/usePolling';
@@ -620,6 +623,9 @@ function App() {
               <Route path="/settings/webhooks" element={<WebhookList />} />
               <Route path="/settings/webhooks/new" element={<WebhookSettings />} />
               <Route path="/settings/webhooks/:id" element={<WebhookSettings />} />
+              <Route path="/settings/flapping" element={<FlappingSettings />} />
+              <Route path="/settings/slack" element={<SlackDefaultSettings />} />
+              <Route path="/settings/ai" element={<AIProviderSettings />} />
             </Routes>
             </div>
           </div>
