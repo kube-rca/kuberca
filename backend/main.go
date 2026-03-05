@@ -58,6 +58,11 @@ func main() {
 		log.Fatalf("Failed to ensure webhook schema: %v", err)
 	}
 
+	// App Settings 스키마 생성
+	if err := pgRepo.EnsureAppSettingsSchema(); err != nil {
+		log.Fatalf("Failed to ensure app settings schema: %v", err)
+	}
+
 	// Embedding 스키마 생성 (pgvector 확장 및 embeddings 테이블)
 	// todo: pgvector 확장 먼저 db에 설치해아함
 	if err := pgRepo.EnsureEmbeddingSchema(ctx); err != nil {
@@ -101,15 +106,19 @@ func main() {
 
 	// 2. 외부 서비스 클라이언트 초기화
 	slackClient := client.NewSlackClient(cfg.Slack)
-	notifier := client.NewWebhookRoutingNotifier(pgRepo, slackClient, slackClient, cfg.Slack.FrontendURL)
 	agentClient := client.NewAgentClient(cfg.Agent)
+
+	// AppSettingsService 초기화 (DB 동적 설정 + ENV fallback)
+	appSettingsSvc := service.NewAppSettingsService(pgRepo, cfg.Flapping, cfg.Slack)
+
+	notifier := client.NewWebhookRoutingNotifier(pgRepo, slackClient, slackClient, cfg.Slack.FrontendURL, appSettingsSvc)
 
 	// 3. 비즈니스 로직 서비스 초기화
 	// AgentService: Agent 요청 및 Slack 쓰레드 응답 처리 + DB 저장
 	agentService := service.NewAgentService(agentClient, notifier, pgRepo, sseHub)
 	chatService := service.NewChatService(pgRepo, agentClient)
 	// AlertService: 알림 필터링 및 Slack 전송 로직 담당 + DB 저장
-	alertService := service.NewAlertService(notifier, agentService, pgRepo, cfg.Flapping, sseHub)
+	alertService := service.NewAlertService(notifier, agentService, pgRepo, cfg.Flapping, sseHub, appSettingsSvc)
 	// RcaService: Incident/Alert 조회 및 종료 처리 + Agent 최종 분석 요청 + 임베딩 생성
 	rcaSvc := service.NewRcaService(pgRepo, agentService, embeddingService, sseHub)
 	chatHandler := handler.NewChatHandler(chatService)
@@ -120,6 +129,7 @@ func main() {
 	alertHandler := handler.NewAlertHandler(alertService)
 	rcaHndlr := handler.NewRcaHandler(rcaSvc)
 	webhookHndlr := handler.NewWebhookSettingsHandler(webhookSvc)
+	appSettingsHndlr := handler.NewAppSettingsHandler(appSettingsSvc, agentClient)
 	eventHandler := handler.NewEventHandler(sseHub)
 
 	// HTTP 라우터 설정
@@ -192,6 +202,11 @@ func main() {
 		protected.GET("/settings/webhooks/:id", webhookHndlr.GetWebhookConfig)
 		protected.PUT("/settings/webhooks/:id", webhookHndlr.UpdateWebhookConfig)
 		protected.DELETE("/settings/webhooks/:id", webhookHndlr.DeleteWebhookConfig)
+
+		// App Settings 엔드포인트 (Flapping, Slack, AI 설정)
+		protected.GET("/settings/app", appSettingsHndlr.ListAppSettings)
+		protected.GET("/settings/app/:key", appSettingsHndlr.GetAppSetting)
+		protected.PUT("/settings/app/:key", appSettingsHndlr.UpdateAppSetting)
 	}
 
 	// SSE Events endpoint

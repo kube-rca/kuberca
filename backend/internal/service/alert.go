@@ -29,21 +29,23 @@ import (
 
 // AlertService 구조체 정의
 type AlertService struct {
-	notifier       client.Notifier
-	agentService   *AgentService
-	db             *db.Postgres
-	flappingConfig config.FlappingConfig
-	sseHub         *sse.Hub
+	notifier    client.Notifier
+	agentService *AgentService
+	db          *db.Postgres
+	appSettings *AppSettingsService
+	envFlapping config.FlappingConfig
+	sseHub      *sse.Hub
 }
 
 // AlertService 객체 생성
-func NewAlertService(notifier client.Notifier, agentService *AgentService, database *db.Postgres, flappingConfig config.FlappingConfig, sseHub *sse.Hub) *AlertService {
+func NewAlertService(notifier client.Notifier, agentService *AgentService, database *db.Postgres, flappingConfig config.FlappingConfig, sseHub *sse.Hub, appSettings *AppSettingsService) *AlertService {
 	return &AlertService{
-		notifier:       notifier,
-		agentService:   agentService,
-		db:             database,
-		flappingConfig: flappingConfig,
-		sseHub:         sseHub,
+		notifier:    notifier,
+		agentService: agentService,
+		db:          database,
+		appSettings: appSettings,
+		envFlapping: flappingConfig,
+		sseHub:      sseHub,
 	}
 }
 
@@ -232,7 +234,7 @@ func (s *AlertService) shouldSendNotification(alert model.Alert) bool {
 // Returns: (isFlapping, isNewFlapping)
 func (s *AlertService) detectFlapping(alert model.Alert) (bool, bool) {
 	// Flapping 기능이 비활성화된 경우 스킵
-	if !s.flappingConfig.Enabled {
+	if !s.getFlappingEnabled() {
 		return false, false
 	}
 
@@ -346,17 +348,33 @@ func (s *AlertService) scheduleFlappingClearanceCheck(fingerprint string, resolv
 	}
 }
 
-// Configuration helper methods
+// Configuration helper methods - DB 동적 조회 + ENV fallback
+func (s *AlertService) getFlappingEnabled() bool {
+	if s.appSettings != nil {
+		return s.appSettings.GetEffectiveFlappingConfig().Enabled
+	}
+	return s.envFlapping.Enabled
+}
+
 func (s *AlertService) getFlappingWindowMinutes() int {
-	return s.flappingConfig.DetectionWindowMinutes
+	if s.appSettings != nil {
+		return s.appSettings.GetEffectiveFlappingConfig().DetectionWindowMinutes
+	}
+	return s.envFlapping.DetectionWindowMinutes
 }
 
 func (s *AlertService) getFlappingThreshold() int {
-	return s.flappingConfig.CycleThreshold
+	if s.appSettings != nil {
+		return s.appSettings.GetEffectiveFlappingConfig().CycleThreshold
+	}
+	return s.envFlapping.CycleThreshold
 }
 
 func (s *AlertService) getFlappingClearanceMinutes() int {
-	return s.flappingConfig.ClearanceWindowMinutes
+	if s.appSettings != nil {
+		return s.appSettings.GetEffectiveFlappingConfig().ClearanceWindowMinutes
+	}
+	return s.envFlapping.ClearanceWindowMinutes
 }
 
 func (s *AlertService) getFlappingCycleCount(fingerprint string) int {

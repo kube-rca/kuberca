@@ -241,3 +241,40 @@ func (c *AgentClient) RequestChat(ctx context.Context, req AgentChatRequest) (*A
 	}
 	return &chatResp, nil
 }
+
+// AIConfigUpdateRequest - Agent AI 설정 업데이트 요청
+type AIConfigUpdateRequest struct {
+	Provider string `json:"provider"`
+	ModelId  string `json:"model_id"`
+}
+
+// UpdateAIConfig - POST /config/ai Agent에 AI 설정 변경 알림
+func (c *AgentClient) UpdateAIConfig(provider, modelId string) error {
+	req := AIConfigUpdateRequest{
+		Provider: provider,
+		ModelId:  modelId,
+	}
+
+	payload, err := json.Marshal(req)
+	if err != nil {
+		return fmt.Errorf("failed to marshal AI config request: %w", err)
+	}
+
+	httpReq, err := http.NewRequest("POST", c.baseURL+"/config/ai", bytes.NewBuffer(payload))
+	if err != nil {
+		return fmt.Errorf("failed to create AI config request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("failed to send AI config request to agent: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("agent AI config returned status: %d", resp.StatusCode)
+	}
+
+	return nil
+}
