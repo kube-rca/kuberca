@@ -50,6 +50,12 @@ func NewAlertService(notifier client.Notifier, agentService *AgentService, datab
 }
 
 func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, failed int) {
+	// 알림 파이프라인 비활성화 시 전체 스킵 (점검 모드)
+	if s.appSettings != nil && !s.appSettings.IsNotificationEnabled() {
+		log.Printf("Notification disabled, skipping %d alerts", len(webhook.Alerts))
+		return 0, 0
+	}
+
 	for _, alert := range webhook.Alerts {
 		// 0. severity 필터링 (info, none 등은 DB 저장도 하지 않음)
 		if !s.shouldProcess(alert) {

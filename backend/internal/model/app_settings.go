@@ -20,6 +20,11 @@ type FlappingSettings struct {
 	ClearanceWindowMinutes int  `json:"clearanceWindowMinutes"`
 }
 
+// NotificationSettings - 알림 파이프라인 활성화/비활성화 설정
+type NotificationSettings struct {
+	Enabled bool `json:"enabled"`
+}
+
 // AISettings - AI Provider/Model 설정
 type AISettings struct {
 	Provider string `json:"provider"`

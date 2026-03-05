@@ -12,8 +12,9 @@ import (
 
 // 허용된 설정 키
 var allowedKeys = map[string]bool{
-	"flapping": true,
-	"ai":      true,
+	"flapping":     true,
+	"ai":          true,
+	"notification": true,
 }
 
 // appSettingsRepo - DB 인터페이스
@@ -64,6 +65,11 @@ func (s *AppSettingsService) UpdateSetting(ctx context.Context, key string, valu
 		if err := json.Unmarshal(value, &v); err != nil {
 			return fmt.Errorf("invalid ai settings: %w", err)
 		}
+	case "notification":
+		var v model.NotificationSettings
+		if err := json.Unmarshal(value, &v); err != nil {
+			return fmt.Errorf("invalid notification settings: %w", err)
+		}
 	}
 
 	return s.db.UpsertAppSetting(ctx, key, value)
@@ -105,6 +111,26 @@ func (s *AppSettingsService) GetEffectiveFlappingConfig() config.FlappingConfig 
 		}
 	}
 	return s.envFlapping
+}
+
+// IsNotificationEnabled - 알림 파이프라인 활성화 여부 (DB 없으면 true)
+func (s *AppSettingsService) IsNotificationEnabled() bool {
+	ctx := context.Background()
+	setting, err := s.db.GetAppSetting(ctx, "notification")
+	if err != nil {
+		log.Printf("Failed to get notification settings from DB: %v", err)
+		return true // DB 에러 시 안전하게 활성화
+	}
+	if setting == nil {
+		return true // 설정 없으면 기본 활성화
+	}
+
+	var ns model.NotificationSettings
+	if err := json.Unmarshal(setting.Value, &ns); err != nil {
+		log.Printf("Failed to unmarshal notification settings: %v", err)
+		return true
+	}
+	return ns.Enabled
 }
 
 // GetAISettings - DB 조회
@@ -151,6 +177,10 @@ func (s *AppSettingsService) GetSettingWithFallback(ctx context.Context, key str
 		fallbackValue = model.AISettings{
 			Provider: "gemini",
 			ModelId:  "",
+		}
+	case "notification":
+		fallbackValue = model.NotificationSettings{
+			Enabled: true,
 		}
 	default:
 		return nil, fmt.Errorf("unknown setting key: %s", key)
