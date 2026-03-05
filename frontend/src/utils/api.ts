@@ -605,11 +605,6 @@ export interface FlappingSettings {
   clearanceWindowMinutes: number;
 }
 
-export interface SlackSettings {
-  enabled: boolean;
-  channelId: string;
-}
-
 export interface AISettings {
   provider: string;
   modelId: string;

@@ -34,19 +34,6 @@ const SettingsPage: React.FC = () => {
         </NavLink>
 
         <NavLink
-          to="/settings/slack"
-          className="block p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium text-lg text-cyan-600 dark:text-cyan-400 mb-1">Slack Default Channel</div>
-              <div className="text-sm text-slate-500 dark:text-slate-400">Enable or disable the default Slack notification fallback.</div>
-            </div>
-            <span className="text-slate-400 dark:text-slate-500">&rarr;</span>
-          </div>
-        </NavLink>
-
-        <NavLink
           to="/settings/ai"
           className="block p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
         >
