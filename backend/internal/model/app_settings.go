@@ -20,12 +20,6 @@ type FlappingSettings struct {
 	ClearanceWindowMinutes int  `json:"clearanceWindowMinutes"`
 }
 
-// SlackSettings - Slack 기본 채널 설정
-type SlackSettings struct {
-	Enabled   bool   `json:"enabled"`
-	ChannelId string `json:"channelId"`
-}
-
 // AISettings - AI Provider/Model 설정
 type AISettings struct {
 	Provider string `json:"provider"`

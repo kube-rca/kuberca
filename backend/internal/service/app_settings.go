@@ -13,7 +13,6 @@ import (
 // 허용된 설정 키
 var allowedKeys = map[string]bool{
 	"flapping": true,
-	"slack":    true,
 	"ai":      true,
 }
 
@@ -26,16 +25,14 @@ type appSettingsRepo interface {
 
 // AppSettingsService - 앱 설정 비즈니스 로직
 type AppSettingsService struct {
-	db         appSettingsRepo
+	db          appSettingsRepo
 	envFlapping config.FlappingConfig
-	envSlack    config.SlackConfig
 }
 
-func NewAppSettingsService(db appSettingsRepo, envFlapping config.FlappingConfig, envSlack config.SlackConfig) *AppSettingsService {
+func NewAppSettingsService(db appSettingsRepo, envFlapping config.FlappingConfig) *AppSettingsService {
 	return &AppSettingsService{
-		db:         db,
+		db:          db,
 		envFlapping: envFlapping,
-		envSlack:    envSlack,
 	}
 }
 
@@ -61,11 +58,6 @@ func (s *AppSettingsService) UpdateSetting(ctx context.Context, key string, valu
 		var v model.FlappingSettings
 		if err := json.Unmarshal(value, &v); err != nil {
 			return fmt.Errorf("invalid flapping settings: %w", err)
-		}
-	case "slack":
-		var v model.SlackSettings
-		if err := json.Unmarshal(value, &v); err != nil {
-			return fmt.Errorf("invalid slack settings: %w", err)
 		}
 	case "ai":
 		var v model.AISettings
@@ -115,35 +107,6 @@ func (s *AppSettingsService) GetEffectiveFlappingConfig() config.FlappingConfig 
 	return s.envFlapping
 }
 
-// GetSlackSettings - DB 조회
-func (s *AppSettingsService) GetSlackSettings() *model.SlackSettings {
-	ctx := context.Background()
-	setting, err := s.db.GetAppSetting(ctx, "slack")
-	if err != nil {
-		log.Printf("Failed to get slack settings from DB: %v", err)
-		return nil
-	}
-	if setting == nil {
-		return nil
-	}
-
-	var ss model.SlackSettings
-	if err := json.Unmarshal(setting.Value, &ss); err != nil {
-		log.Printf("Failed to unmarshal slack settings: %v", err)
-		return nil
-	}
-	return &ss
-}
-
-// IsSlackFallbackEnabled - Slack fallback 활성화 여부 (DB 설정 우선)
-func (s *AppSettingsService) IsSlackFallbackEnabled() bool {
-	if dbSettings := s.GetSlackSettings(); dbSettings != nil {
-		return dbSettings.Enabled
-	}
-	// DB에 설정 없으면 ENV 기반 Slack이 있으면 enabled
-	return s.envSlack.BotToken != "" && s.envSlack.ChannelID != ""
-}
-
 // GetAISettings - DB 조회
 func (s *AppSettingsService) GetAISettings() *model.AISettings {
 	ctx := context.Background()
@@ -183,11 +146,6 @@ func (s *AppSettingsService) GetSettingWithFallback(ctx context.Context, key str
 			DetectionWindowMinutes: s.envFlapping.DetectionWindowMinutes,
 			CycleThreshold:         s.envFlapping.CycleThreshold,
 			ClearanceWindowMinutes: s.envFlapping.ClearanceWindowMinutes,
-		}
-	case "slack":
-		fallbackValue = model.SlackSettings{
-			Enabled:   s.envSlack.BotToken != "" && s.envSlack.ChannelID != "",
-			ChannelId: s.envSlack.ChannelID,
 		}
 	case "ai":
 		fallbackValue = model.AISettings{

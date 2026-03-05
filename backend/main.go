@@ -109,9 +109,9 @@ func main() {
 	agentClient := client.NewAgentClient(cfg.Agent)
 
 	// AppSettingsService 초기화 (DB 동적 설정 + ENV fallback)
-	appSettingsSvc := service.NewAppSettingsService(pgRepo, cfg.Flapping, cfg.Slack)
+	appSettingsSvc := service.NewAppSettingsService(pgRepo, cfg.Flapping)
 
-	notifier := client.NewWebhookRoutingNotifier(pgRepo, slackClient, slackClient, cfg.Slack.FrontendURL, appSettingsSvc)
+	notifier := client.NewWebhookRoutingNotifier(pgRepo, slackClient, slackClient, cfg.Slack.FrontendURL)
 
 	// 3. 비즈니스 로직 서비스 초기화
 	// AgentService: Agent 요청 및 Slack 쓰레드 응답 처리 + DB 저장

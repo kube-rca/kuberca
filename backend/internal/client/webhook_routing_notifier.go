@@ -20,16 +20,10 @@ type webhookConfigSource interface {
 	GetWebhookConfigs(ctx context.Context) ([]model.WebhookConfig, error)
 }
 
-// SlackFallbackChecker - Slack fallback 활성화 여부 확인 인터페이스
-type SlackFallbackChecker interface {
-	IsSlackFallbackEnabled() bool
-}
-
 type webhookRoutingNotifier struct {
 	cfgSource           webhookConfigSource
 	fallback            Notifier
 	fallbackThreadStore ThreadRefStore
-	slackFallbackCheck  SlackFallbackChecker
 	frontendURL         string
 	httpClient          *http.Client
 
@@ -54,13 +48,11 @@ func NewWebhookRoutingNotifier(
 	fallback Notifier,
 	fallbackThreadStore ThreadRefStore,
 	frontendURL string,
-	slackFallbackCheck SlackFallbackChecker,
 ) ThreadAwareNotifier {
 	return &webhookRoutingNotifier{
 		cfgSource:           cfgSource,
 		fallback:            fallback,
 		fallbackThreadStore: fallbackThreadStore,
-		slackFallbackCheck:  slackFallbackCheck,
 		frontendURL:         strings.TrimRight(frontendURL, "/"),
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
@@ -69,25 +61,18 @@ func NewWebhookRoutingNotifier(
 	}
 }
 
-func (n *webhookRoutingNotifier) isFallbackEnabled() bool {
-	if n.slackFallbackCheck == nil {
-		return true // checker 없으면 기존 동작 유지
-	}
-	return n.slackFallbackCheck.IsSlackFallbackEnabled()
-}
-
 func (n *webhookRoutingNotifier) Notify(event NotifierEvent) error {
 	targets, err := n.resolveNotifiers()
 	if err != nil {
 		log.Printf("Failed to load webhook configs, falling back to default notifier: %v", err)
-		if n.fallback != nil && n.isFallbackEnabled() {
+		if n.fallback != nil {
 			return n.fallback.Notify(event)
 		}
 		return err
 	}
 
 	if len(targets) == 0 {
-		if n.fallback != nil && n.isFallbackEnabled() {
+		if n.fallback != nil {
 			return n.fallback.Notify(event)
 		}
 		return fmt.Errorf("no notifier target configured")
@@ -107,7 +92,7 @@ func (n *webhookRoutingNotifier) Notify(event NotifierEvent) error {
 		return nil
 	}
 
-	if n.fallback != nil && n.isFallbackEnabled() {
+	if n.fallback != nil {
 		if err := n.fallback.Notify(event); err == nil {
 			return nil
 		} else {
