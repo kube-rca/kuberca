@@ -26,7 +26,7 @@ import FloatingChatPanel from './components/FloatingChatPanel';
 import { useSearch } from './context/SearchContext';
 import { usePolling } from './hooks/usePolling';
 import { useSSE, SSEEvent } from './hooks/useSSE';
-// [필수] 우리가 만든 로직 Import
+import { exportRows, ExportColumn, ExportFormat, ExportSummary } from './utils/export';
 import { searchIncidents, searchAlerts } from './utils/searchLogic';
 
 type RawRCAItem = RCAItem & {
@@ -36,6 +36,32 @@ type RawRCAItem = RCAItem & {
   start_time?: string;
   fired_at?: string;
 };
+
+const formatExportDate = (isoString: string | null) => {
+  if (!isoString) return '-';
+  return String(isoString).replace('T', ' ').split('.')[0];
+};
+
+const incidentExportColumns: ExportColumn<RCAItem>[] = [
+  { key: 'incident_id', header: 'Incident ID', value: (row) => row.incident_id },
+  { key: 'title', header: 'Title', value: (row) => row.title },
+  { key: 'severity', header: 'Severity', value: (row) => row.severity },
+  { key: 'status', header: 'Status', value: (row) => (row.resolved_at ? 'resolved' : 'firing') },
+  { key: 'fired_at', header: 'Fired At', value: (row) => formatExportDate(row.fired_at) },
+  { key: 'resolved_at', header: 'Resolved At', value: (row) => formatExportDate(row.resolved_at) },
+];
+
+const alertExportColumns: ExportColumn<AlertItem>[] = [
+  { key: 'alert_id', header: 'Alert ID', value: (row) => row.alert_id },
+  { key: 'incident_id', header: 'Incident ID', value: (row) => row.incident_id ?? '-' },
+  { key: 'title', header: 'Title', value: (row) => row.alarm_title },
+  { key: 'namespace', header: 'Namespace', value: (row) => row.namespace },
+  { key: 'severity', header: 'Severity', value: (row) => row.severity },
+  { key: 'status', header: 'Status', value: (row) => row.status },
+  { key: 'fired_at', header: 'Fired At', value: (row) => formatExportDate(row.fired_at) },
+  { key: 'resolved_at', header: 'Resolved At', value: (row) => formatExportDate(row.resolved_at) },
+  { key: 'labels', header: 'Labels', value: (row) => JSON.stringify(row.labels ?? {}) },
+];
 
 // --- Route Components ---
 const IncidentDetailRoute = () => {
@@ -98,6 +124,7 @@ function App() {
   const [oidcProvider, setOidcProvider] = useState('');
   const [isChatDocked, setIsChatDocked] = useState(false);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const [exportFormat, setExportFormat] = useState<ExportFormat>('csv');
 
   // Cleanup debounce timer on unmount
   useEffect(() => {
@@ -307,6 +334,24 @@ function App() {
     return filteredMutedIncidents.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [filteredMutedIncidents, muteCurrentPage]);
 
+  const incidentSummary: ExportSummary = useMemo(() => ({
+    total: filteredRCAs.length,
+    firing: filteredRCAs.filter((r) => !r.resolved_at).length,
+    resolved: filteredRCAs.filter((r) => !!r.resolved_at).length,
+  }), [filteredRCAs]);
+
+  const alertSummary: ExportSummary = useMemo(() => ({
+    total: filteredAlerts.length,
+    firing: filteredAlerts.filter((a) => a.status?.toLowerCase() === 'firing').length,
+    resolved: filteredAlerts.filter((a) => a.status?.toLowerCase() === 'resolved').length,
+  }), [filteredAlerts]);
+
+  const archivedSummary: ExportSummary = useMemo(() => ({
+    total: filteredMutedIncidents.length,
+    firing: filteredMutedIncidents.filter((r) => !r.resolved_at).length,
+    resolved: filteredMutedIncidents.filter((r) => !!r.resolved_at).length,
+  }), [filteredMutedIncidents]);
+
   // 페이지네이션 초기화
   useEffect(() => {
     setCurrentPage(1);
@@ -350,6 +395,7 @@ function App() {
 
   // 스타일
   const selectStyle = "px-4 py-2 text-sm font-medium border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm cursor-pointer text-left";
+  const buttonStyle = "px-4 py-2 text-sm font-semibold border border-cyan-500 rounded-lg bg-cyan-600 text-white hover:bg-cyan-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed";
   const isSettingsRoute = location.pathname.startsWith('/settings');
 
   return (
@@ -377,6 +423,22 @@ function App() {
                   <div className="mb-6 flex flex-col lg:flex-row justify-between items-center gap-4">
                     <h1 className="text-xl font-semibold font-mono tracking-wide text-slate-900 dark:text-slate-100">Incident Dashboard</h1>
                     <div className="flex flex-col sm:flex-row items-center justify-end gap-3 w-full sm:w-auto">
+                      <select
+                        value={exportFormat}
+                        onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
+                        className={selectStyle}
+                      >
+                        <option value="csv">CSV</option>
+                        <option value="excel">Excel (.xls)</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => exportRows(filteredRCAs, incidentExportColumns, 'incident_dashboard', exportFormat, incidentSummary)}
+                        disabled={filteredRCAs.length === 0}
+                        className={buttonStyle}
+                      >
+                        Export
+                      </button>
                       <select
                         value={statusFilter}
                         onChange={(e) => {
@@ -468,6 +530,22 @@ function App() {
                     <h1 className="text-xl font-semibold font-mono tracking-wide text-slate-900 dark:text-slate-100">Alert Dashboard</h1>
                     <div className="flex flex-col sm:flex-row items-center justify-end gap-3 w-full sm:w-auto">
                       <select
+                        value={exportFormat}
+                        onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
+                        className={selectStyle}
+                      >
+                        <option value="csv">CSV</option>
+                        <option value="excel">Excel (.xls)</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => exportRows(filteredAlerts, alertExportColumns, 'alert_dashboard', exportFormat, alertSummary)}
+                        disabled={filteredAlerts.length === 0}
+                        className={buttonStyle}
+                      >
+                        Export
+                      </button>
+                      <select
                         value={statusFilter}
                         onChange={(e) => {
                           const value = e.target.value;
@@ -555,6 +633,22 @@ function App() {
                   <div className="mb-6 flex flex-col lg:flex-row justify-between items-center gap-4">
                     <h1 className="text-xl font-semibold font-mono tracking-wide text-slate-900 dark:text-slate-100">Archived Incidents</h1>
                     <div className="flex flex-col sm:flex-row items-center justify-end gap-3 w-full sm:w-auto">
+                      <select
+                        value={exportFormat}
+                        onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
+                        className={selectStyle}
+                      >
+                        <option value="csv">CSV</option>
+                        <option value="excel">Excel (.xls)</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => exportRows(filteredMutedIncidents, incidentExportColumns, 'archived_incidents', exportFormat, archivedSummary)}
+                        disabled={filteredMutedIncidents.length === 0}
+                        className={buttonStyle}
+                      >
+                        Export
+                      </button>
                       <select
                         value={statusFilter}
                         onChange={(e) => {
