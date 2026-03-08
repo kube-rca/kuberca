@@ -34,16 +34,16 @@ func NewAgentService(agentClient *client.AgentClient, notifier client.Notifier, 
 	}
 }
 
-func (s *AgentService) RequestAnalysis(alert model.Alert, threadTS, incidentID string) {
+func (s *AgentService) RequestAnalysis(alert model.Alert, alertID, threadTS, incidentID string) {
 	if threadTS == "" && s.requiresThreadRef() {
-		log.Printf("No thread_ref for alert (alert_id=%s), skipping agent request", alert.Fingerprint)
+		log.Printf("No thread_ref for alert (alert_id=%s, fingerprint=%s), skipping agent request", alertID, alert.Fingerprint)
 		return
 	}
 	if threadTS == "" {
-		log.Printf("No thread_ref for alert (alert_id=%s), sending analysis without thread", alert.Fingerprint)
+		log.Printf("No thread_ref for alert (alert_id=%s, fingerprint=%s), sending analysis without thread", alertID, alert.Fingerprint)
 	}
 
-	log.Printf("Requesting agent analysis (alert_id=%s, status=%s, thread_ref=%s)", alert.Fingerprint, alert.Status, threadTS)
+	log.Printf("Requesting agent analysis (alert_id=%s, fingerprint=%s, status=%s, thread_ref=%s)", alertID, alert.Fingerprint, alert.Status, threadTS)
 
 	// Agent에 분석 요청 (동기)
 	resp, err := s.agentClient.RequestAnalysis(alert, threadTS, incidentID)
@@ -62,15 +62,15 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, threadTS, incidentID s
 		detail = resp.Analysis
 	}
 
-	if err := s.db.UpdateAlertAnalysis(alert.Fingerprint, summary, detail); err != nil {
+	if err := s.db.UpdateAlertAnalysis(alertID, summary, detail); err != nil {
 		log.Printf("Failed to save analysis to DB: %v", err)
 		// DB 저장 실패해도 Slack 전송은 계속 진행
 	} else {
-		log.Printf("Saved analysis to DB (alert_id=%s)", alert.Fingerprint)
+		log.Printf("Saved analysis to DB (alert_id=%s)", alertID)
 	}
 
 	analysisID, err := s.db.InsertAlertAnalysis(
-		alert.Fingerprint,
+		alertID,
 		incidentID,
 		alert.Status,
 		summary,
@@ -80,7 +80,7 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, threadTS, incidentID s
 	if err != nil {
 		log.Printf("Failed to insert alert analysis: %v", err)
 	} else if len(resp.Artifacts) > 0 {
-		if err := s.db.InsertAlertAnalysisArtifacts(analysisID, alert.Fingerprint, incidentID, resp.Artifacts); err != nil {
+		if err := s.db.InsertAlertAnalysisArtifacts(analysisID, alertID, incidentID, resp.Artifacts); err != nil {
 			log.Printf("Failed to insert alert analysis artifacts: %v", err)
 		}
 	}
@@ -89,7 +89,7 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, threadTS, incidentID s
 	if s.sseHub != nil {
 		s.sseHub.Broadcast(sse.Event{
 			Type: sse.EventAnalysisCompleted,
-			Data: sse.EventData{AlertID: alert.Fingerprint, IncidentID: incidentID},
+			Data: sse.EventData{AlertID: alertID, IncidentID: incidentID},
 		})
 	}
 
@@ -127,7 +127,7 @@ func (s *AgentService) RequestIncidentSummary(incident *model.IncidentDetailResp
 		}
 
 		var artifacts []client.AlertAnalysisArtifactInput
-		if latest, err := s.db.GetLatestAlertAnalysisByAlertID(alert.Fingerprint); err == nil && latest != nil {
+		if latest, err := s.db.GetLatestAlertAnalysisByAlertID(alert.AlertID); err == nil && latest != nil {
 			if latest.Summary != "" {
 				summary = latest.Summary
 			}

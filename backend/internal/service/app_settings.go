@@ -13,7 +13,7 @@ import (
 // 허용된 설정 키
 var allowedKeys = map[string]bool{
 	"flapping":     true,
-	"ai":          true,
+	"ai":           true,
 	"notification": true,
 }
 

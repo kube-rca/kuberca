@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/kube-rca/backend/internal/model"
 )
 
@@ -52,6 +53,14 @@ func (db *Postgres) EnsureAlertSchema() error {
 		`CREATE INDEX IF NOT EXISTS alerts_is_flapping_idx ON alerts(is_flapping) WHERE is_flapping = TRUE`,
 		`CREATE INDEX IF NOT EXISTS alert_state_transitions_alert_id_idx ON alert_state_transitions(alert_id, transitioned_at DESC)`,
 		`CREATE INDEX IF NOT EXISTS alert_state_transitions_time_idx ON alert_state_transitions(transitioned_at DESC)`,
+		// Partial unique index: 동일 fingerprint의 firing alert는 1건만 허용
+		`CREATE UNIQUE INDEX IF NOT EXISTS alerts_fingerprint_firing_uniq ON alerts(fingerprint) WHERE status = 'firing'`,
+		// alert_state_transitions에 fingerprint 컬럼 추가 (flapping은 fingerprint 단위)
+		`ALTER TABLE alert_state_transitions ADD COLUMN IF NOT EXISTS fingerprint TEXT NOT NULL DEFAULT ''`,
+		// 기존 데이터 백필 (현재 alert_id == fingerprint)
+		`UPDATE alert_state_transitions SET fingerprint = alert_id WHERE fingerprint = ''`,
+		// fingerprint 인덱스
+		`CREATE INDEX IF NOT EXISTS alert_state_transitions_fingerprint_idx ON alert_state_transitions(fingerprint, transitioned_at DESC)`,
 	}
 
 	for _, query := range queries {
@@ -63,7 +72,20 @@ func (db *Postgres) EnsureAlertSchema() error {
 }
 
 // SaveAlert - Alertmanager 알림을 alerts 테이블에 저장
-func (db *Postgres) SaveAlert(alert model.Alert, incidentID string) error {
+// 동일 fingerprint + firing 중인 alert가 있으면 UPDATE, 없으면 새 UUID로 INSERT
+// 원자적 COALESCE 서브쿼리 + RETURNING으로 TOCTOU race condition 최소화
+// 반환: 생성/업데이트된 alertID
+func (db *Postgres) SaveAlert(alert model.Alert, incidentID string) (string, error) {
+	alertID, err := db.saveAlertInner(alert, incidentID)
+	if err != nil {
+		// Retry once: concurrent insert로 partial unique index 위반 시
+		// 재시도하면 COALESCE가 방금 생성된 firing row를 찾아서 UPDATE
+		alertID, err = db.saveAlertInner(alert, incidentID)
+	}
+	return alertID, err
+}
+
+func (db *Postgres) saveAlertInner(alert model.Alert, incidentID string) (string, error) {
 	alertName := alert.Labels["alertname"]
 	severity := alert.Labels["severity"]
 	if severity == "" {
@@ -75,30 +97,96 @@ func (db *Postgres) SaveAlert(alert model.Alert, incidentID string) error {
 		incidentIDPtr = &incidentID
 	}
 
+	newUUID := "ALR-" + uuid.New().String()[:8]
+
+	// 원자적 COALESCE: 동일 fingerprint + firing alert가 있으면 그 ID 재사용, 없으면 새 UUID
 	query := `
 		INSERT INTO alerts (
 			alert_id, incident_id, alarm_title, severity, status, fired_at,
 			fingerprint, labels, annotations, created_at, updated_at
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+		VALUES (
+			COALESCE(
+				(SELECT alert_id FROM alerts WHERE fingerprint = $7 AND status = 'firing' LIMIT 1),
+				$1
+			),
+			$2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
+		)
 		ON CONFLICT (alert_id) DO UPDATE SET
 			incident_id = COALESCE(EXCLUDED.incident_id, alerts.incident_id),
+			alarm_title = EXCLUDED.alarm_title,
+			severity = EXCLUDED.severity,
 			status = EXCLUDED.status,
+			labels = EXCLUDED.labels,
+			annotations = EXCLUDED.annotations,
 			updated_at = NOW()
+		RETURNING alert_id
 	`
 
-	_, err := db.Pool.Exec(context.Background(), query,
-		alert.Fingerprint, // alert_id == fingerprint
-		incidentIDPtr,
-		alertName,
-		severity,
-		alert.Status,
-		alert.StartsAt,
-		alert.Fingerprint,
-		alert.Labels,
-		alert.Annotations,
+	var alertID string
+	err := db.Pool.QueryRow(context.Background(), query,
+		newUUID,           // $1 (fallback UUID)
+		incidentIDPtr,     // $2
+		alertName,         // $3
+		severity,          // $4
+		alert.Status,      // $5
+		alert.StartsAt,    // $6
+		alert.Fingerprint, // $7
+		alert.Labels,      // $8
+		alert.Annotations, // $9
+	).Scan(&alertID)
+	return alertID, err
+}
+
+// GetFiringAlertByFingerprint - 동일 fingerprint의 firing 중인 alert_id 조회
+func (db *Postgres) GetFiringAlertByFingerprint(fingerprint string) (string, error) {
+	query := `SELECT alert_id FROM alerts WHERE fingerprint = $1 AND status = 'firing' LIMIT 1`
+
+	var alertID string
+	err := db.Pool.QueryRow(context.Background(), query, fingerprint).Scan(&alertID)
+	if err != nil {
+		return "", err
+	}
+	return alertID, nil
+}
+
+// GetLatestAlertByFingerprint - fingerprint 기준 최신 alert 조회
+func (db *Postgres) GetLatestAlertByFingerprint(fingerprint string) (*model.AlertDetailResponse, error) {
+	query := `
+		SELECT
+			alert_id, incident_id, alarm_title, severity, status,
+			fired_at, resolved_at, analysis_summary, analysis_detail,
+			fingerprint, thread_ts, labels, annotations,
+			is_flapping, flap_cycle_count, flap_window_start
+		FROM alerts
+		WHERE fingerprint = $1
+		ORDER BY fired_at DESC
+		LIMIT 1
+	`
+
+	var a model.AlertDetailResponse
+	err := db.Pool.QueryRow(context.Background(), query, fingerprint).Scan(
+		&a.AlertID,
+		&a.IncidentID,
+		&a.AlarmTitle,
+		&a.Severity,
+		&a.Status,
+		&a.FiredAt,
+		&a.ResolvedAt,
+		&a.AnalysisSummary,
+		&a.AnalysisDetail,
+		&a.Fingerprint,
+		&a.ThreadTS,
+		&a.Labels,
+		&a.Annotations,
+		&a.IsFlapping,
+		&a.FlapCycleCount,
+		&a.FlapWindowStart,
 	)
-	return err
+	if err != nil {
+		return nil, err
+	}
+	return &a, nil
 }
 
 // GetAlertList - Alert 목록 조회
@@ -273,40 +361,42 @@ func (db *Postgres) GetAlertDetailInsensitive(alertID string) (*model.AlertDetai
 	return &a, nil
 }
 
-// UpdateAlertThreadTS - Alert에 Slack thread_ts 저장
-func (db *Postgres) UpdateAlertThreadTS(alertID, threadTS string) error {
+// UpdateAlertThreadTS - fingerprint 기준 firing alert에 Slack thread_ts 저장
+func (db *Postgres) UpdateAlertThreadTS(fingerprint, threadTS string) error {
 	query := `
 		UPDATE alerts
 		SET thread_ts = $2, updated_at = NOW()
-		WHERE alert_id = $1
+		WHERE fingerprint = $1 AND status = 'firing'
 	`
-	_, err := db.Pool.Exec(context.Background(), query, alertID, threadTS)
+	_, err := db.Pool.Exec(context.Background(), query, fingerprint, threadTS)
 	return err
 }
 
-// GetAlertThreadTS - Alert의 thread_ts 조회
-func (db *Postgres) GetAlertThreadTS(alertID string) (string, bool) {
+// GetAlertThreadTS - fingerprint 기준 최신 alert의 thread_ts 조회
+func (db *Postgres) GetAlertThreadTS(fingerprint string) (string, bool) {
 	query := `
 		SELECT thread_ts FROM alerts
-		WHERE alert_id = $1 AND thread_ts != ''
+		WHERE fingerprint = $1 AND thread_ts != ''
+		ORDER BY fired_at DESC LIMIT 1
 	`
 
 	var threadTS string
-	err := db.Pool.QueryRow(context.Background(), query, alertID).Scan(&threadTS)
+	err := db.Pool.QueryRow(context.Background(), query, fingerprint).Scan(&threadTS)
 	if err != nil || threadTS == "" {
 		return "", false
 	}
 	return threadTS, true
 }
 
-// UpdateAlertResolved - Alert resolved 상태로 업데이트
-func (db *Postgres) UpdateAlertResolved(alertID string, resolvedAt time.Time) error {
+// UpdateAlertResolved - fingerprint 기준 alert에 resolved_at 설정
+// SaveAlert이 이미 status='resolved'로 변경했으므로, resolved_at IS NULL인 row를 찾아 갱신
+func (db *Postgres) UpdateAlertResolved(fingerprint string, resolvedAt time.Time) error {
 	query := `
 		UPDATE alerts
 		SET status = 'resolved', resolved_at = $2, updated_at = NOW()
-		WHERE alert_id = $1
+		WHERE fingerprint = $1 AND status = 'resolved' AND resolved_at IS NULL
 	`
-	_, err := db.Pool.Exec(context.Background(), query, alertID, resolvedAt)
+	_, err := db.Pool.Exec(context.Background(), query, fingerprint, resolvedAt)
 	return err
 }
 
@@ -332,15 +422,16 @@ func (db *Postgres) UpdateAlertIncidentID(alertID, incidentID string) error {
 	return err
 }
 
-// IsAlertAlreadyResolved - Alert가 이미 resolved 상태인지 확인
-func (db *Postgres) IsAlertAlreadyResolved(alertID string, endsAt time.Time) (bool, error) {
+// IsAlertAlreadyResolved - fingerprint 기준 최신 alert가 이미 resolved 상태인지 확인
+func (db *Postgres) IsAlertAlreadyResolved(fingerprint string, endsAt time.Time) (bool, error) {
 	query := `
 		SELECT resolved_at FROM alerts
-		WHERE alert_id = $1
+		WHERE fingerprint = $1
+		ORDER BY fired_at DESC LIMIT 1
 	`
 
 	var resolvedAt *time.Time
-	err := db.Pool.QueryRow(context.Background(), query, alertID).Scan(&resolvedAt)
+	err := db.Pool.QueryRow(context.Background(), query, fingerprint).Scan(&resolvedAt)
 	if err != nil {
 		return false, err
 	}
@@ -351,34 +442,34 @@ func (db *Postgres) IsAlertAlreadyResolved(alertID string, endsAt time.Time) (bo
 	return !endsAt.After(*resolvedAt), nil
 }
 
-// RecordStateTransition - Alert 상태 전환 기록
-func (db *Postgres) RecordStateTransition(alertID, fromStatus, toStatus string, timestamp time.Time) error {
+// RecordStateTransition - Alert 상태 전환 기록 (fingerprint 기반)
+func (db *Postgres) RecordStateTransition(fingerprint, fromStatus, toStatus string, timestamp time.Time) error {
 	query := `
-		INSERT INTO alert_state_transitions (alert_id, from_status, to_status, transitioned_at)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO alert_state_transitions (alert_id, fingerprint, from_status, to_status, transitioned_at)
+		VALUES ($1, $1, $2, $3, $4)
 	`
-	_, err := db.Pool.Exec(context.Background(), query, alertID, fromStatus, toStatus, timestamp)
+	_, err := db.Pool.Exec(context.Background(), query, fingerprint, fromStatus, toStatus, timestamp)
 	return err
 }
 
-// GetAlertCurrentStatus - Alert의 현재 상태 조회
-func (db *Postgres) GetAlertCurrentStatus(alertID string) (string, error) {
-	query := `SELECT status FROM alerts WHERE alert_id = $1`
+// GetAlertCurrentStatus - fingerprint 기준 최신 alert의 현재 상태 조회
+func (db *Postgres) GetAlertCurrentStatus(fingerprint string) (string, error) {
+	query := `SELECT status FROM alerts WHERE fingerprint = $1 ORDER BY fired_at DESC LIMIT 1`
 
 	var status string
-	err := db.Pool.QueryRow(context.Background(), query, alertID).Scan(&status)
+	err := db.Pool.QueryRow(context.Background(), query, fingerprint).Scan(&status)
 	if err != nil {
 		return "", err
 	}
 	return status, nil
 }
 
-// IsAlertFlapping - Alert가 flapping 상태인지 확인
-func (db *Postgres) IsAlertFlapping(alertID string) bool {
-	query := `SELECT is_flapping FROM alerts WHERE alert_id = $1`
+// IsAlertFlapping - fingerprint 기준 최신 alert가 flapping 상태인지 확인
+func (db *Postgres) IsAlertFlapping(fingerprint string) bool {
+	query := `SELECT is_flapping FROM alerts WHERE fingerprint = $1 ORDER BY fired_at DESC LIMIT 1`
 
 	var isFlapping bool
-	err := db.Pool.QueryRow(context.Background(), query, alertID).Scan(&isFlapping)
+	err := db.Pool.QueryRow(context.Background(), query, fingerprint).Scan(&isFlapping)
 	if err != nil {
 		return false
 	}
@@ -387,13 +478,13 @@ func (db *Postgres) IsAlertFlapping(alertID string) bool {
 
 // CountFlappingCycles - 지정된 시간 윈도우 내 firing→resolved 사이클 수 계산
 // Returns: (cycleCount, windowStart, error)
-func (db *Postgres) CountFlappingCycles(alertID string, windowMinutes int) (int, time.Time, error) {
-	// 현재 flapping 윈도우 정보 조회
+func (db *Postgres) CountFlappingCycles(fingerprint string, windowMinutes int) (int, time.Time, error) {
+	// 현재 flapping 윈도우 정보 조회 (fingerprint 기준 최신)
 	var flapWindowStart *time.Time
 	var currentCycleCount int
 
-	query := `SELECT flap_window_start, flap_cycle_count FROM alerts WHERE alert_id = $1`
-	err := db.Pool.QueryRow(context.Background(), query, alertID).Scan(&flapWindowStart, &currentCycleCount)
+	query := `SELECT flap_window_start, flap_cycle_count FROM alerts WHERE fingerprint = $1 ORDER BY fired_at DESC LIMIT 1`
+	err := db.Pool.QueryRow(context.Background(), query, fingerprint).Scan(&flapWindowStart, &currentCycleCount)
 	if err != nil {
 		return 0, time.Time{}, err
 	}
@@ -412,17 +503,17 @@ func (db *Postgres) CountFlappingCycles(alertID string, windowMinutes int) (int,
 		return 1, newWindowStart, nil
 	}
 
-	// 윈도우 내 resolved 전환 횟수 카운트
+	// 윈도우 내 resolved 전환 횟수 카운트 (fingerprint 기반)
 	countQuery := `
 		SELECT COUNT(*)
 		FROM alert_state_transitions
-		WHERE alert_id = $1
+		WHERE fingerprint = $1
 		  AND to_status = 'resolved'
 		  AND transitioned_at >= $2
 	`
 
 	var count int
-	err = db.Pool.QueryRow(context.Background(), countQuery, alertID, flapWindowStart).Scan(&count)
+	err = db.Pool.QueryRow(context.Background(), countQuery, fingerprint, flapWindowStart).Scan(&count)
 	if err != nil {
 		return 0, *flapWindowStart, err
 	}
@@ -430,8 +521,8 @@ func (db *Postgres) CountFlappingCycles(alertID string, windowMinutes int) (int,
 	return count, *flapWindowStart, nil
 }
 
-// MarkAlertAsFlapping - Alert flapping 상태 설정/해제
-func (db *Postgres) MarkAlertAsFlapping(alertID string, isFlapping bool, cycleCount int, windowStart time.Time) error {
+// MarkAlertAsFlapping - fingerprint 기준 firing alert의 flapping 상태 설정/해제
+func (db *Postgres) MarkAlertAsFlapping(fingerprint string, isFlapping bool, cycleCount int, windowStart time.Time) error {
 	var query string
 
 	if isFlapping {
@@ -442,46 +533,46 @@ func (db *Postgres) MarkAlertAsFlapping(alertID string, isFlapping bool, cycleCo
 			    flap_window_start = $4,
 			    last_flap_notification_at = NOW(),
 			    updated_at = NOW()
-			WHERE alert_id = $1
+			WHERE fingerprint = $1 AND status = 'firing'
 		`
-		_, err := db.Pool.Exec(context.Background(), query, alertID, isFlapping, cycleCount, windowStart)
+		_, err := db.Pool.Exec(context.Background(), query, fingerprint, isFlapping, cycleCount, windowStart)
 		return err
 	}
 
-	// Flapping 해제
+	// Flapping 해제 (최신 alert 대상)
 	query = `
 		UPDATE alerts
 		SET is_flapping = FALSE,
 		    flap_cycle_count = 0,
 		    flap_window_start = NULL,
 		    updated_at = NOW()
-		WHERE alert_id = $1
+		WHERE fingerprint = $1 AND is_flapping = TRUE
 	`
-	_, err := db.Pool.Exec(context.Background(), query, alertID)
+	_, err := db.Pool.Exec(context.Background(), query, fingerprint)
 	return err
 }
 
-// UpdateFlappingCycleCount - Flapping cycle 수 업데이트
-func (db *Postgres) UpdateFlappingCycleCount(alertID string, cycleCount int) error {
+// UpdateFlappingCycleCount - fingerprint 기준 firing alert의 Flapping cycle 수 업데이트
+func (db *Postgres) UpdateFlappingCycleCount(fingerprint string, cycleCount int) error {
 	query := `
 		UPDATE alerts
 		SET flap_cycle_count = $2, updated_at = NOW()
-		WHERE alert_id = $1
+		WHERE fingerprint = $1 AND status = 'firing'
 	`
-	_, err := db.Pool.Exec(context.Background(), query, alertID, cycleCount)
+	_, err := db.Pool.Exec(context.Background(), query, fingerprint, cycleCount)
 	return err
 }
 
-// HasTransitionsSince - 지정된 시각 이후 상태 전환이 있었는지 확인
-func (db *Postgres) HasTransitionsSince(alertID string, since time.Time) (bool, error) {
+// HasTransitionsSince - 지정된 시각 이후 상태 전환이 있었는지 확인 (fingerprint 기반)
+func (db *Postgres) HasTransitionsSince(fingerprint string, since time.Time) (bool, error) {
 	query := `
 		SELECT COUNT(*)
 		FROM alert_state_transitions
-		WHERE alert_id = $1 AND transitioned_at > $2
+		WHERE fingerprint = $1 AND transitioned_at > $2
 	`
 
 	var count int
-	err := db.Pool.QueryRow(context.Background(), query, alertID, since).Scan(&count)
+	err := db.Pool.QueryRow(context.Background(), query, fingerprint, since).Scan(&count)
 	if err != nil {
 		return false, err
 	}

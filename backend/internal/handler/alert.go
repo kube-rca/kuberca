@@ -9,11 +9,11 @@ package handler
 
 import (
 	"encoding/json"
-	"log"
-	"net/http"
 	"github.com/gin-gonic/gin"
 	"github.com/kube-rca/backend/internal/model"
 	"github.com/kube-rca/backend/internal/service"
+	"log"
+	"net/http"
 )
 
 // Alert 핸들러 구조체 정의

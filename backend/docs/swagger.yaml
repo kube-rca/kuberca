@@ -153,6 +153,31 @@ definitions:
       version:
         type: string
     type: object
+  model.AppSetting:
+    properties:
+      key:
+        type: string
+      updated_at:
+        type: string
+      value:
+        type: string
+    type: object
+  model.AppSettingListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/model.AppSetting'
+        type: array
+      status:
+        type: string
+    type: object
+  model.AppSettingResponse:
+    properties:
+      data:
+        $ref: '#/definitions/model.AppSetting'
+      status:
+        type: string
+    type: object
   model.AuthConfigResponse:
     properties:
       allowSignup:
@@ -355,15 +380,13 @@ definitions:
     type: object
   model.WebhookConfig:
     properties:
-      body:
+      channel:
         type: string
-      headers:
-        items:
-          $ref: '#/definitions/model.WebhookHeader'
-        type: array
       id:
         type: integer
-      method:
+      token:
+        type: string
+      type:
         type: string
       updated_at:
         type: string
@@ -390,13 +413,11 @@ definitions:
     type: object
   model.WebhookConfigRequest:
     properties:
-      body:
+      channel:
         type: string
-      headers:
-        items:
-          $ref: '#/definitions/model.WebhookHeader'
-        type: array
-      method:
+      token:
+        type: string
+      type:
         type: string
       url:
         type: string
@@ -406,13 +427,6 @@ definitions:
       data:
         $ref: '#/definitions/model.WebhookConfig'
       status:
-        type: string
-    type: object
-  model.WebhookHeader:
-    properties:
-      key:
-        type: string
-      value:
         type: string
     type: object
 info:
@@ -969,6 +983,85 @@ paths:
       summary: Create mock incident
       tags:
       - incidents
+  /api/v1/settings/app:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AppSettingListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List all app settings
+      tags:
+      - settings
+  /api/v1/settings/app/{key}:
+    get:
+      parameters:
+      - description: Setting key (flapping, slack, ai)
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AppSettingResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get an app setting by key (with ENV fallback)
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Setting key (flapping, slack, ai)
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AppSettingResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update an app setting
+      tags:
+      - settings
   /api/v1/settings/webhooks:
     get:
       produces:

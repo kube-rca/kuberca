@@ -8,7 +8,7 @@ import (
 // AppSetting - app_settings 테이블 구조체 (JSONB key-value)
 type AppSetting struct {
 	Key       string          `json:"key"`
-	Value     json.RawMessage `json:"value"`
+	Value     json.RawMessage `json:"value" swaggertype:"string"`
 	UpdatedAt time.Time       `json:"updated_at"`
 }
 

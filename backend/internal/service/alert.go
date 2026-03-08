@@ -27,25 +27,50 @@ import (
 	"github.com/kube-rca/backend/internal/sse"
 )
 
-// AlertService 구조체 정의
-type AlertService struct {
-	notifier    client.Notifier
-	agentService *AgentService
-	db          *db.Postgres
-	appSettings *AppSettingsService
-	envFlapping config.FlappingConfig
-	sseHub      *sse.Hub
+// alertStore - AlertService가 사용하는 DB 인터페이스
+type alertStore interface {
+	SaveAlert(alert model.Alert, incidentID string) (string, error)
+	GetAlertCurrentStatus(fingerprint string) (string, error)
+	IsAlertFlapping(fingerprint string) bool
+	RecordStateTransition(fingerprint, fromStatus, toStatus string, timestamp time.Time) error
+	IsAlertAlreadyResolved(fingerprint string, endsAt time.Time) (bool, error)
+	UpdateAlertResolved(fingerprint string, resolvedAt time.Time) error
+	GetAlertThreadTS(fingerprint string) (string, bool)
+	UpdateAlertThreadTS(fingerprint, threadTS string) error
+	CountFlappingCycles(fingerprint string, windowMinutes int) (int, time.Time, error)
+	MarkAlertAsFlapping(fingerprint string, isFlapping bool, cycleCount int, windowStart time.Time) error
+	UpdateFlappingCycleCount(fingerprint string, cycleCount int) error
+	GetLatestAlertByFingerprint(fingerprint string) (*model.AlertDetailResponse, error)
+	HasTransitionsSince(fingerprint string, since time.Time) (bool, error)
+	GetFiringIncident() (*model.IncidentDetailResponse, error)
+	CreateIncident(title, severity string, firedAt time.Time) (string, error)
+	UpdateIncidentSeverity(incidentID, severity string) error
 }
 
-// AlertService 객체 생성
+// alertAnalyzer - AlertService가 사용하는 Agent 분석 인터페이스
+type alertAnalyzer interface {
+	RequestAnalysis(alert model.Alert, alertID, threadTS, incidentID string)
+}
+
+// AlertService 구조체 정의
+type AlertService struct {
+	notifier     client.Notifier
+	agentService alertAnalyzer
+	db           alertStore
+	appSettings  *AppSettingsService
+	envFlapping  config.FlappingConfig
+	sseHub       *sse.Hub
+}
+
+// NewAlertService 객체 생성
 func NewAlertService(notifier client.Notifier, agentService *AgentService, database *db.Postgres, flappingConfig config.FlappingConfig, sseHub *sse.Hub, appSettings *AppSettingsService) *AlertService {
 	return &AlertService{
-		notifier:    notifier,
+		notifier:     notifier,
 		agentService: agentService,
-		db:          database,
-		appSettings: appSettings,
-		envFlapping: flappingConfig,
-		sseHub:      sseHub,
+		db:           database,
+		appSettings:  appSettings,
+		envFlapping:  flappingConfig,
+		sseHub:       sseHub,
 	}
 }
 
@@ -59,7 +84,7 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 	for _, alert := range webhook.Alerts {
 		// 0. severity 필터링 (info, none 등은 DB 저장도 하지 않음)
 		if !s.shouldProcess(alert) {
-			log.Printf("Skipping alert with severity=%s (alert_id=%s)", alert.Labels["severity"], alert.Fingerprint)
+			log.Printf("Skipping alert with severity=%s (fingerprint=%s)", alert.Labels["severity"], alert.Fingerprint)
 			continue
 		}
 
@@ -72,13 +97,14 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 		}
 
 		// 2. Alert를 DB에 저장 (alerts 테이블)
-		if err := s.db.SaveAlert(alert, incidentID); err != nil {
-			log.Printf("Failed to save alert to DB: %v", err)
+		alertID, saveErr := s.db.SaveAlert(alert, incidentID)
+		if saveErr != nil {
+			log.Printf("Failed to save alert to DB: %v", saveErr)
 			// DB 저장 실패해도 Slack 전송은 계속 진행
 		} else if s.sseHub != nil {
 			s.sseHub.Broadcast(sse.Event{
 				Type: sse.EventAlertCreated,
-				Data: sse.EventData{AlertID: alert.Fingerprint, IncidentID: incidentID},
+				Data: sse.EventData{AlertID: alertID, IncidentID: incidentID},
 			})
 		}
 
@@ -89,7 +115,7 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 		if alert.Status == "resolved" {
 			// 이미 resolved된 알림인지 확인 (중복 웹훅 방지)
 			if alreadyResolved, _ := s.db.IsAlertAlreadyResolved(alert.Fingerprint, alert.EndsAt); alreadyResolved {
-				log.Printf("Skipping duplicate resolved alert (alert_id=%s)", alert.Fingerprint)
+				log.Printf("Skipping duplicate resolved alert (fingerprint=%s)", alert.Fingerprint)
 				continue
 			}
 			if err := s.db.UpdateAlertResolved(alert.Fingerprint, alert.EndsAt); err != nil {
@@ -97,7 +123,7 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 			} else if s.sseHub != nil {
 				s.sseHub.Broadcast(sse.Event{
 					Type: sse.EventAlertResolved,
-					Data: sse.EventData{AlertID: alert.Fingerprint, IncidentID: incidentID},
+					Data: sse.EventData{AlertID: alertID, IncidentID: incidentID},
 				})
 			}
 
@@ -130,7 +156,7 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 			})
 		} else if isFlapping {
 			// 이미 Flapping 중 - 알림 스킵
-			log.Printf("Skipping notification for flapping alert (alert_id=%s)", alert.Fingerprint)
+			log.Printf("Skipping notification for flapping alert (fingerprint=%s)", alert.Fingerprint)
 			sent++
 			goto skipSlack
 		} else {
@@ -147,7 +173,7 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 			continue
 		}
 
-		log.Printf("Sent alert notification (alert_id=%s, status=%s, incident_id=%s, flapping=%v)", alert.Fingerprint, alert.Status, incidentID, isFlapping)
+		log.Printf("Sent alert notification (fingerprint=%s, alert_id=%s, status=%s, incident_id=%s, flapping=%v)", alert.Fingerprint, alertID, alert.Status, incidentID, isFlapping)
 		sent++
 
 	skipSlack:
@@ -163,9 +189,9 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 		// 8. Agent에 비동기 분석 요청 - Flapping 중이면 스킵
 		if !isFlapping {
 			threadTS, _ := s.db.GetAlertThreadTS(alert.Fingerprint)
-			go s.agentService.RequestAnalysis(alert, threadTS, incidentID)
+			go s.agentService.RequestAnalysis(alert, alertID, threadTS, incidentID)
 		} else {
-			log.Printf("Skipping Agent analysis for flapping alert (alert_id=%s)", alert.Fingerprint)
+			log.Printf("Skipping Agent analysis for flapping alert (fingerprint=%s)", alert.Fingerprint)
 		}
 	}
 	return sent, failed
@@ -311,8 +337,8 @@ func (s *AlertService) scheduleFlappingClearanceCheck(fingerprint string, resolv
 	// Clearance 시간까지 대기
 	time.Sleep(time.Until(checkTime))
 
-	// Alert 상태 재확인
-	alert, err := s.db.GetAlertDetail(fingerprint)
+	// Alert 상태 재확인 (fingerprint 기준 최신)
+	alert, err := s.db.GetLatestAlertByFingerprint(fingerprint)
 	if err != nil {
 		log.Printf("Failed to get alert for flapping clearance check: %v", err)
 		return
@@ -325,19 +351,19 @@ func (s *AlertService) scheduleFlappingClearanceCheck(fingerprint string, resolv
 
 	// Alert가 다시 firing되었거나 resolved 시각이 변경되었으면 clearance 취소
 	if alert.Status == "firing" || (alert.ResolvedAt != nil && alert.ResolvedAt.Before(resolvedAt)) {
-		log.Printf("Alert re-fired, not clearing flapping status (alert_id=%s)", fingerprint)
+		log.Printf("Alert re-fired, not clearing flapping status (fingerprint=%s)", fingerprint)
 		return
 	}
 
 	// resolvedAt 이후 새로운 전환이 있었는지 확인
 	hasNewTransitions, err := s.db.HasTransitionsSince(fingerprint, resolvedAt)
 	if err != nil || hasNewTransitions {
-		log.Printf("New transitions detected, not clearing flapping status (alert_id=%s)", fingerprint)
+		log.Printf("New transitions detected, not clearing flapping status (fingerprint=%s)", fingerprint)
 		return
 	}
 
 	// Flapping 해제
-	log.Printf("Clearing flapping status after %d min stability (alert_id=%s)", clearanceMinutes, fingerprint)
+	log.Printf("Clearing flapping status after %d min stability (fingerprint=%s)", clearanceMinutes, fingerprint)
 	if err := s.db.MarkAlertAsFlapping(fingerprint, false, 0, time.Time{}); err != nil {
 		log.Printf("Failed to clear flapping status: %v", err)
 		return

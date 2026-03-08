@@ -885,6 +885,133 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/settings/app": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "List all app settings",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.AppSettingListResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/settings/app/{key}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Get an app setting by key (with ENV fallback)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Setting key (flapping, slack, ai)",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.AppSettingResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Update an app setting",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Setting key (flapping, slack, ai)",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.AppSettingResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/settings/webhooks": {
             "get": {
                 "security": [
@@ -1393,6 +1520,45 @@ const docTemplate = `{
                 }
             }
         },
+        "model.AppSetting": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.AppSettingListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.AppSetting"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.AppSettingResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/model.AppSetting"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "model.AuthConfigResponse": {
             "type": "object",
             "properties": {
@@ -1704,19 +1870,16 @@ const docTemplate = `{
         "model.WebhookConfig": {
             "type": "object",
             "properties": {
-                "body": {
+                "channel": {
                     "type": "string"
-                },
-                "headers": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.WebhookHeader"
-                    }
                 },
                 "id": {
                     "type": "integer"
                 },
-                "method": {
+                "token": {
+                    "type": "string"
+                },
+                "type": {
                     "type": "string"
                 },
                 "updated_at": {
@@ -1758,16 +1921,13 @@ const docTemplate = `{
         "model.WebhookConfigRequest": {
             "type": "object",
             "properties": {
-                "body": {
+                "channel": {
                     "type": "string"
                 },
-                "headers": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.WebhookHeader"
-                    }
+                "token": {
+                    "type": "string"
                 },
-                "method": {
+                "type": {
                     "type": "string"
                 },
                 "url": {
@@ -1782,17 +1942,6 @@ const docTemplate = `{
                     "$ref": "#/definitions/model.WebhookConfig"
                 },
                 "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.WebhookHeader": {
-            "type": "object",
-            "properties": {
-                "key": {
-                    "type": "string"
-                },
-                "value": {
                     "type": "string"
                 }
             }
