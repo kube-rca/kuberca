@@ -118,6 +118,7 @@ func main() {
 	// AgentService: Agent 요청 및 Slack 쓰레드 응답 처리 + DB 저장
 	agentService := service.NewAgentService(agentClient, notifier, pgRepo, sseHub)
 	chatService := service.NewChatService(pgRepo, agentClient)
+	analyticsSvc := service.NewAnalyticsService(pgRepo)
 	// AlertService: 알림 필터링 및 Slack 전송 로직 담당 + DB 저장
 	alertService := service.NewAlertService(notifier, agentService, pgRepo, cfg.Flapping, sseHub, appSettingsSvc)
 	// RcaService: Incident/Alert 조회 및 종료 처리 + Agent 최종 분석 요청 + 임베딩 생성
@@ -131,6 +132,7 @@ func main() {
 	rcaHndlr := handler.NewRcaHandler(rcaSvc)
 	webhookHndlr := handler.NewWebhookSettingsHandler(webhookSvc)
 	appSettingsHndlr := handler.NewAppSettingsHandler(appSettingsSvc, agentClient)
+	analyticsHndlr := handler.NewAnalyticsHandler(analyticsSvc)
 	eventHandler := handler.NewEventHandler(sseHub)
 
 	// HTTP 라우터 설정
@@ -196,6 +198,7 @@ func main() {
 		protected.POST("/embeddings", embeddingHandler.CreateEmbedding)
 		protected.POST("/embeddings/search", embeddingHandler.SearchEmbeddings)
 		protected.POST("/chat", chatHandler.Chat)
+		protected.GET("/analytics/dashboard", analyticsHndlr.GetDashboard)
 
 		// Settings 엔드포인트 (Webhook 설정 CRUD)
 		protected.GET("/settings/webhooks", webhookHndlr.ListWebhookConfigs)
