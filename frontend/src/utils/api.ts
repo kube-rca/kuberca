@@ -610,6 +610,56 @@ export interface AISettings {
   modelId: string;
 }
 
+// ============================================================================
+// Analytics API
+// ============================================================================
+
+export interface AnalyticsCountItem {
+  key: string;
+  count: number;
+}
+
+export interface AnalyticsSeriesPoint {
+  date: string;
+  incidents: number;
+  alerts: number;
+}
+
+export interface AnalyticsDashboardResponse {
+  window: string;
+  generated_at: string;
+  summary: {
+    total_incidents: number;
+    firing_incidents: number;
+    resolved_incidents: number;
+    total_alerts: number;
+    firing_alerts: number;
+    resolved_alerts: number;
+    avg_mttr_minutes: number;
+    avg_alerts_per_incident: number;
+  };
+  breakdown: {
+    incident_severity: AnalyticsCountItem[];
+    alert_severity: AnalyticsCountItem[];
+    top_namespaces: AnalyticsCountItem[];
+  };
+  series: {
+    daily: AnalyticsSeriesPoint[];
+  };
+}
+
+export const fetchAnalyticsDashboard = async (window: string = '30d'): Promise<AnalyticsDashboardResponse> => {
+  const response = await requestWithAuth(`/api/v1/analytics/dashboard?window=${encodeURIComponent(window)}`, {
+    method: 'GET',
+  });
+
+  if (!response.ok) {
+    throw new Error(`분석 데이터 조회 실패 (${response.status})`);
+  }
+
+  return response.json();
+};
+
 /** 개별 앱 설정 조회 (ENV fallback 포함) */
 export const fetchAppSetting = async <T>(key: string): Promise<T> => {
   const response = await requestWithAuth(`/api/v1/settings/app/${key}`, { method: 'GET' });

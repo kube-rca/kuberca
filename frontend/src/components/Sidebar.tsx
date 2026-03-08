@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Bell, Archive, Settings } from 'lucide-react';
+import { LayoutDashboard, Bell, Archive, BarChart3, Settings } from 'lucide-react';
 
 const navItems = [
   { to: '/', label: 'Incidents', icon: LayoutDashboard, end: true },
   { to: '/alerts', label: 'Alerts', icon: Bell },
   { to: '/muted', label: 'Archived', icon: Archive },
+  { to: '/analysis', label: 'Analysis', icon: BarChart3 },
 ];
 
 const settingsItem = { to: '/settings', label: 'Settings', icon: Settings, end: undefined as boolean | undefined };
