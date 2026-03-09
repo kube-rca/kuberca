@@ -3,7 +3,7 @@ import { API_BASE_URL } from './config';
 import { getAccessToken, refreshAccessToken } from './auth';
 
 // 인증 토큰을 포함해 요청하고 401이면 토큰 갱신 후 1회 재시도한다.
-const requestWithAuth = async (path: string, init: RequestInit = {}) => {
+export const requestWithAuth = async (path: string, init: RequestInit = {}) => {
   const headers = new Headers(init.headers);
   const token = getAccessToken();
   if (token) {
@@ -143,6 +143,16 @@ export const resolveIncident = async (id: string): Promise<void> => {
   if (!response.ok) {
     throw new Error('인시던트 종료에 실패했습니다.');
   }
+};
+
+/**
+ * Alert에 대해 수동 분석을 트리거합니다.
+ */
+export const triggerAlertAnalysis = async (alertId: string): Promise<void> => {
+  const response = await requestWithAuth(`/api/v1/alerts/${alertId}/analyze`, {
+    method: 'POST',
+  });
+  if (!response.ok) throw new Error('분석 요청 실패');
 };
 
 // ============================================================================

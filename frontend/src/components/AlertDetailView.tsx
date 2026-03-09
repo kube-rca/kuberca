@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useNavigate } from 'react-router-dom';
-import { fetchAlertDetail, fetchRCAs, updateAlertIncident } from '../utils/api';
+import { fetchAlertDetail, fetchRCAs, updateAlertIncident, triggerAlertAnalysis } from '../utils/api';
 import { RCAItem } from '../types';
 import FeedbackSection from './FeedbackSection';
 
@@ -42,6 +42,7 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
   const [incidents, setIncidents] = useState<RCAItem[]>([]);
   const [selectedIncidentId, setSelectedIncidentId] = useState<string>('');
   const [incidentLoading, setIncidentLoading] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
   const navigate = useNavigate();
 
   const loadDetail = useCallback(async () => {
@@ -112,6 +113,20 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
     setSelectedIncidentId(data?.incident_id || '');
   };
 
+  const handleAnalyze = async () => {
+    if (!window.confirm('이 Alert에 대해 분석을 요청하시겠습니까?')) return;
+    try {
+      setAnalyzing(true);
+      await triggerAlertAnalysis(alertId);
+      alert('분석 요청이 전송되었습니다. 완료되면 자동으로 업데이트됩니다.');
+    } catch (err) {
+      console.error('분석 요청 실패:', err);
+      alert('분석 요청에 실패했습니다.');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   if (loading) return (
     <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 max-w-5xl mx-auto">
       <div className="flex items-center gap-4 mb-8 pb-6 border-b border-slate-200 dark:border-slate-800">
@@ -176,6 +191,16 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
           >
             {data.severity}
           </span>
+
+          {!data.analysis_summary && (
+            <button
+              onClick={handleAnalyze}
+              disabled={analyzing}
+              className="px-4 py-1.5 text-sm text-violet-600 dark:text-violet-400 border border-violet-600 dark:border-violet-400 rounded hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors font-medium disabled:opacity-50"
+            >
+              {analyzing ? '분석 중...' : 'Analyze'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -307,6 +332,20 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
             ))}
           </div>
         </div>
+
+        {/* 분석 결과 없음 placeholder */}
+        {!data.analysis_summary && !data.analysis_detail && (
+          <div className="md:col-span-2">
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-3 flex items-center gap-2">
+              Alert Analysis
+            </h3>
+            <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-8 text-center border border-dashed border-slate-300 dark:border-slate-600">
+              <p className="text-slate-500 dark:text-slate-400">
+                분석 결과가 아직 없습니다. 상단의 Analyze 버튼을 눌러 분석을 요청할 수 있습니다.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* 분석 요약 (Blue Tone + High Contrast Code) */}
         {data.analysis_summary && (

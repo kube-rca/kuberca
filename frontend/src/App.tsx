@@ -24,6 +24,7 @@ import AIProviderSettings from './components/AIProviderSettings';
 import NotificationSettings from './components/NotificationSettings';
 import FloatingChatPanel from './components/FloatingChatPanel';
 import AnalysisDashboard from './components/AnalysisDashboard';
+import AnalysisSettings from './components/AnalysisSettings';
 import { useSearch } from './context/SearchContext';
 import { usePolling } from './hooks/usePolling';
 import { useSSE, SSEEvent } from './hooks/useSSE';
@@ -723,6 +724,7 @@ function App() {
               <Route path="/settings/flapping" element={<FlappingSettings />} />
               <Route path="/settings/ai" element={<AIProviderSettings />} />
               <Route path="/settings/notification" element={<NotificationSettings />} />
+              <Route path="/settings/analysis" element={<AnalysisSettings />} />
             </Routes>
             </div>
           </div>

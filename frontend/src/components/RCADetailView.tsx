@@ -12,6 +12,7 @@ import {
   unhideIncident,
   resolveIncident,
   searchSimilarIncidents,
+  triggerAlertAnalysis,
   EmbeddingSearchResult
 } from '../utils/api';
 
@@ -40,6 +41,8 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
 
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<RCADetail>>({});
+  const [analyzingAll, setAnalyzingAll] = useState(false);
+  const [analyzeProgress, setAnalyzeProgress] = useState({ current: 0, total: 0 });
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -153,6 +156,28 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
       console.error("종료 실패:", error);
       alert("오류가 발생했습니다. 다시 시도해주세요.");
     }
+  };
+
+  const handleAnalyzeAll = async () => {
+    if (!data?.alerts) return;
+    const unanalyzed = data.alerts.filter(a => !a.analysis_summary);
+    if (unanalyzed.length === 0) return;
+    if (!window.confirm(`미분석 Alert ${unanalyzed.length}건에 대해 분석을 요청하시겠습니까?`)) return;
+
+    setAnalyzingAll(true);
+    setAnalyzeProgress({ current: 0, total: unanalyzed.length });
+    let successCount = 0;
+    for (let i = 0; i < unanalyzed.length; i++) {
+      try {
+        await triggerAlertAnalysis(unanalyzed[i].alert_id);
+        successCount++;
+      } catch (err) {
+        console.error(`Alert ${unanalyzed[i].alert_id} 분석 요청 실패:`, err);
+      }
+      setAnalyzeProgress({ current: i + 1, total: unanalyzed.length });
+    }
+    setAnalyzingAll(false);
+    alert(`분석 요청 완료: ${successCount}/${unanalyzed.length}건 성공. 완료되면 자동으로 업데이트됩니다.`);
   };
 
   const formatTime = (isoString?: string | null) => {
@@ -413,10 +438,27 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
         </div>
 
         <div className="md:col-span-2 border-t border-slate-200 dark:border-slate-700 pt-6 mt-2">
-          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
-            <Link2 className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
-            Related Alerts ({data.alerts?.length || 0} incidents)
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <Link2 className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+              Related Alerts ({data.alerts?.length || 0} incidents)
+            </h3>
+            {(() => {
+              const unanalyzedCount = data.alerts?.filter(a => !a.analysis_summary).length || 0;
+              if (unanalyzedCount === 0) return null;
+              return (
+                <button
+                  onClick={handleAnalyzeAll}
+                  disabled={analyzingAll}
+                  className="px-4 py-1.5 text-sm text-violet-600 dark:text-violet-400 border border-violet-600 dark:border-violet-400 rounded hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors font-medium disabled:opacity-50"
+                >
+                  {analyzingAll
+                    ? `분석 중... (${analyzeProgress.current}/${analyzeProgress.total})`
+                    : `Analyze All (${unanalyzedCount})`}
+                </button>
+              );
+            })()}
+          </div>
 
           {data.alerts && data.alerts.length > 0 ? (
             <div className="overflow-x-auto">

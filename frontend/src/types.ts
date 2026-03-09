@@ -19,6 +19,7 @@ export interface AlertItem {
   resolved_at: string | null;
   namespace: string;
   labels: Record<string, string>;
+  analysis_summary?: string;
 }
 
 export interface RCADetail {
