@@ -207,7 +207,7 @@ type analyzerCall struct {
 	IncidentID  string
 }
 
-func (m *analyzerMock) RequestAnalysis(alert model.Alert, alertID, threadTS, incidentID string) {
+func (m *analyzerMock) RequestAnalysis(alert model.Alert, alertID, threadTS, incidentID string, skipThreadCheck bool) {
 	m.calls = append(m.calls, analyzerCall{
 		Fingerprint: alert.Fingerprint,
 		AlertID:     alertID,

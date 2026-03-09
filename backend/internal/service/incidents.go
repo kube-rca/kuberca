@@ -234,16 +234,27 @@ func (s *RcaService) TriggerAlertAnalysis(alertID string) error {
 	}
 
 	// 3. threadTS, incidentID 조회
-	threadTS, _ := s.repo.GetAlertThreadTS(alertID)
+	threadTS, _ := s.repo.GetAlertThreadTS(alertDetail.Fingerprint)
 	incidentID := ""
 	if alertDetail.IncidentID != nil {
 		incidentID = *alertDetail.IncidentID
 	}
 
-	// 4. 비동기 분석 요청
-	go s.agentService.RequestAnalysis(alert, alertID, threadTS, incidentID)
+	// 4. 비동기 분석 요청 (수동 트리거이므로 thread 체크 스킵)
+	go s.agentService.RequestAnalysis(alert, alertID, threadTS, incidentID, true)
 	log.Printf("Manual analysis triggered (alert_id=%s, incident_id=%s)", alertID, incidentID)
 
+	return nil
+}
+
+// TriggerIncidentAnalysis - 수동 Incident 분석 트리거
+func (s *RcaService) TriggerIncidentAnalysis(incidentID string) error {
+	_, err := s.repo.GetIncidentDetail(incidentID)
+	if err != nil {
+		return fmt.Errorf("incident not found: %w", err)
+	}
+	go s.requestIncidentSummary(incidentID)
+	log.Printf("Manual incident analysis triggered (incident_id=%s)", incidentID)
 	return nil
 }
 

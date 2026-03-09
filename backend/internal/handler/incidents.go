@@ -291,6 +291,35 @@ func (h *RcaHandler) TriggerAlertAnalysis(c *gin.Context) {
 	})
 }
 
+// TriggerIncidentAnalysis godoc
+// @Summary Trigger manual analysis for an incident
+// @Description 수동으로 Incident에 대한 AI 분석을 트리거합니다. 분석은 비동기로 실행됩니다.
+// @Tags incidents
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Incident ID"
+// @Success 202 {object} model.IncidentUpdateResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Router /api/v1/incidents/{id}/analyze [post]
+func (h *RcaHandler) TriggerIncidentAnalysis(c *gin.Context) {
+	id := c.Param("id")
+
+	if err := h.svc.TriggerIncidentAnalysis(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "error",
+			"message": "인시던트 분석 요청에 실패했습니다.",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusAccepted, model.IncidentUpdateResponse{
+		Status:     "success",
+		Message:    "인시던트 분석이 요청되었습니다. 완료 시 결과가 업데이트됩니다.",
+		IncidentID: id,
+	})
+}
+
 // ============================================================================
 // Alert 관련 핸들러
 // ============================================================================

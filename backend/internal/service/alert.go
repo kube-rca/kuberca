@@ -49,7 +49,7 @@ type alertStore interface {
 
 // alertAnalyzer - AlertService가 사용하는 Agent 분석 인터페이스
 type alertAnalyzer interface {
-	RequestAnalysis(alert model.Alert, alertID, threadTS, incidentID string)
+	RequestAnalysis(alert model.Alert, alertID, threadTS, incidentID string, skipThreadCheck bool)
 }
 
 // AlertService 구조체 정의
@@ -190,7 +190,7 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 		severity := alert.Labels["severity"]
 		if !isFlapping && s.shouldAutoAnalyze(severity) {
 			threadTS, _ := s.db.GetAlertThreadTS(alert.Fingerprint)
-			go s.agentService.RequestAnalysis(alert, alertID, threadTS, incidentID)
+			go s.agentService.RequestAnalysis(alert, alertID, threadTS, incidentID, false)
 		} else if isFlapping {
 			log.Printf("Skipping Agent analysis for flapping alert (fingerprint=%s)", alert.Fingerprint)
 		} else {

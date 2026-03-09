@@ -914,6 +914,31 @@ paths:
       summary: Get alerts for incident
       tags:
       - incidents
+  /api/v1/incidents/{id}/analyze:
+    post:
+      description: 수동으로 Incident에 대한 AI 분석을 트리거합니다. 분석은 비동기로 실행됩니다.
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/model.IncidentUpdateResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Trigger manual analysis for an incident
+      tags:
+      - incidents
   /api/v1/incidents/{id}/resolve:
     post:
       consumes:

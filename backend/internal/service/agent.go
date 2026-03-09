@@ -34,8 +34,8 @@ func NewAgentService(agentClient *client.AgentClient, notifier client.Notifier, 
 	}
 }
 
-func (s *AgentService) RequestAnalysis(alert model.Alert, alertID, threadTS, incidentID string) {
-	if threadTS == "" && s.requiresThreadRef() {
+func (s *AgentService) RequestAnalysis(alert model.Alert, alertID, threadTS, incidentID string, skipThreadCheck bool) {
+	if !skipThreadCheck && threadTS == "" && s.requiresThreadRef() {
 		log.Printf("No thread_ref for alert (alert_id=%s, fingerprint=%s), skipping agent request", alertID, alert.Fingerprint)
 		return
 	}
@@ -93,13 +93,17 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, alertID, threadTS, inc
 		})
 	}
 
-	// 분석 결과를 Slack 쓰레드에 전송
-	log.Printf("Sending analysis notification (thread_ref=%s)", threadTS)
-	if err := s.notifier.Notify(client.AnalysisResultPostedEvent{
-		ThreadRef: threadTS,
-		Content:   resp.Analysis,
-	}); err != nil {
-		log.Printf("Failed to send analysis notification: %v", err)
+	// 분석 결과를 Slack 쓰레드에 전송 (threadTS가 있을 때만)
+	if threadTS != "" {
+		log.Printf("Sending analysis notification (thread_ref=%s)", threadTS)
+		if err := s.notifier.Notify(client.AnalysisResultPostedEvent{
+			ThreadRef: threadTS,
+			Content:   resp.Analysis,
+		}); err != nil {
+			log.Printf("Failed to send analysis notification: %v", err)
+		}
+	} else {
+		log.Printf("Skipping analysis notification (no thread_ref, alert_id=%s)", alertID)
 	}
 }
 
