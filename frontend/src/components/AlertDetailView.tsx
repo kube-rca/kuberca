@@ -114,7 +114,10 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
   };
 
   const handleAnalyze = async () => {
-    if (!window.confirm('이 Alert에 대해 분석을 요청하시겠습니까?')) return;
+    const message = data?.analysis_summary
+      ? '이 Alert에 대해 재분석을 요청하시겠습니까?'
+      : '이 Alert에 대해 분석을 요청하시겠습니까?';
+    if (!window.confirm(message)) return;
     try {
       setAnalyzing(true);
       await triggerAlertAnalysis(alertId);
@@ -163,11 +166,6 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
           </button>
 
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 uppercase tracking-wider border border-slate-200 dark:border-slate-700 px-1.5 rounded">
-                Alert ID: {data.alert_id.slice(0, 12)}...
-              </span>
-            </div>
             <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white leading-tight">
               {data.alarm_title}
             </h1>
@@ -192,15 +190,13 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
             {data.severity}
           </span>
 
-          {!data.analysis_summary && (
-            <button
-              onClick={handleAnalyze}
-              disabled={analyzing}
-              className="px-4 py-1.5 text-sm text-violet-600 dark:text-violet-400 border border-violet-600 dark:border-violet-400 rounded hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors font-medium disabled:opacity-50"
-            >
-              {analyzing ? '분석 중...' : 'Analyze'}
-            </button>
-          )}
+          <button
+            onClick={handleAnalyze}
+            disabled={analyzing}
+            className="px-4 py-1.5 text-sm text-violet-600 dark:text-violet-400 border border-violet-600 dark:border-violet-400 rounded hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors font-medium disabled:opacity-50"
+          >
+            {analyzing ? '분석 중...' : data.analysis_summary ? 'Re-Analyze' : 'Analyze'}
+          </button>
         </div>
       </div>
 
@@ -288,10 +284,10 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
           )}
         </div>
 
-        {/* Fingerprint */}
+        {/* Alert */}
         <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg border border-slate-100 dark:border-slate-700">
           <div className="text-xs text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide flex items-center gap-1">
-             Fingerprint
+             Alert
           </div>
           <div className="text-slate-900 dark:text-slate-100 font-medium font-mono text-sm">
             {data.fingerprint || '-'}

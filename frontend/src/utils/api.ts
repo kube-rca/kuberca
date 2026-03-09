@@ -155,6 +155,16 @@ export const triggerAlertAnalysis = async (alertId: string): Promise<void> => {
   if (!response.ok) throw new Error('분석 요청 실패');
 };
 
+/**
+ * Incident에 대해 수동 분석을 트리거합니다.
+ */
+export const triggerIncidentAnalysis = async (incidentId: string): Promise<void> => {
+  const response = await requestWithAuth(`/api/v1/incidents/${incidentId}/analyze`, {
+    method: 'POST',
+  });
+  if (!response.ok) throw new Error('인시던트 분석 요청 실패');
+};
+
 // ============================================================================
 // Alert API
 // ============================================================================

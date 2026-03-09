@@ -12,7 +12,7 @@ import {
   unhideIncident,
   resolveIncident,
   searchSimilarIncidents,
-  triggerAlertAnalysis,
+  triggerIncidentAnalysis,
   EmbeddingSearchResult
 } from '../utils/api';
 
@@ -41,8 +41,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
 
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<RCADetail>>({});
-  const [analyzingAll, setAnalyzingAll] = useState(false);
-  const [analyzeProgress, setAnalyzeProgress] = useState({ current: 0, total: 0 });
+  const [analyzingIncident, setAnalyzingIncident] = useState(false);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -158,26 +157,22 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
     }
   };
 
-  const handleAnalyzeAll = async () => {
-    if (!data?.alerts) return;
-    const unanalyzed = data.alerts.filter(a => !a.analysis_summary);
-    if (unanalyzed.length === 0) return;
-    if (!window.confirm(`미분석 Alert ${unanalyzed.length}건에 대해 분석을 요청하시겠습니까?`)) return;
+  const handleIncidentAnalyze = async () => {
+    const message = data?.analysis_summary
+      ? '이 인시던트에 대해 재분석을 요청하시겠습니까?'
+      : '이 인시던트에 대해 분석을 요청하시겠습니까?';
+    if (!window.confirm(message)) return;
 
-    setAnalyzingAll(true);
-    setAnalyzeProgress({ current: 0, total: unanalyzed.length });
-    let successCount = 0;
-    for (let i = 0; i < unanalyzed.length; i++) {
-      try {
-        await triggerAlertAnalysis(unanalyzed[i].alert_id);
-        successCount++;
-      } catch (err) {
-        console.error(`Alert ${unanalyzed[i].alert_id} 분석 요청 실패:`, err);
-      }
-      setAnalyzeProgress({ current: i + 1, total: unanalyzed.length });
+    try {
+      setAnalyzingIncident(true);
+      await triggerIncidentAnalysis(incidentId);
+      alert('인시던트 분석 요청이 전송되었습니다. 완료되면 자동으로 업데이트됩니다.');
+    } catch (err) {
+      console.error('인시던트 분석 요청 실패:', err);
+      alert('인시던트 분석 요청에 실패했습니다.');
+    } finally {
+      setAnalyzingIncident(false);
     }
-    setAnalyzingAll(false);
-    alert(`분석 요청 완료: ${successCount}/${unanalyzed.length}건 성공. 완료되면 자동으로 업데이트됩니다.`);
   };
 
   const formatTime = (isoString?: string | null) => {
@@ -297,6 +292,14 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
               >
                 {data.severity}
               </span>
+
+              <button
+                onClick={handleIncidentAnalyze}
+                disabled={analyzingIncident}
+                className="px-4 py-1.5 text-sm text-violet-600 dark:text-violet-400 border border-violet-600 dark:border-violet-400 rounded hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors font-medium disabled:opacity-50"
+              >
+                {analyzingIncident ? '분석 중...' : data.analysis_summary ? 'Re-Analyze' : 'Analyze'}
+              </button>
 
               {!isResolved && (
                 <button
@@ -443,21 +446,6 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
               <Link2 className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
               Related Alerts ({data.alerts?.length || 0} incidents)
             </h3>
-            {(() => {
-              const unanalyzedCount = data.alerts?.filter(a => !a.analysis_summary).length || 0;
-              if (unanalyzedCount === 0) return null;
-              return (
-                <button
-                  onClick={handleAnalyzeAll}
-                  disabled={analyzingAll}
-                  className="px-4 py-1.5 text-sm text-violet-600 dark:text-violet-400 border border-violet-600 dark:border-violet-400 rounded hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors font-medium disabled:opacity-50"
-                >
-                  {analyzingAll
-                    ? `분석 중... (${analyzeProgress.current}/${analyzeProgress.total})`
-                    : `Analyze All (${unanalyzedCount})`}
-                </button>
-              );
-            })()}
           </div>
 
           {data.alerts && data.alerts.length > 0 ? (
