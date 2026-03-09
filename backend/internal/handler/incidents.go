@@ -261,6 +261,36 @@ func (h *RcaHandler) CreateMockIncident(c *gin.Context) {
 	})
 }
 
+// TriggerAlertAnalysis godoc
+// @Summary Trigger manual analysis for a specific alert
+// @Description 수동으로 특정 Alert에 대한 AI 분석을 트리거합니다. 분석은 비동기로 실행됩니다.
+// @Tags alerts
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Alert ID"
+// @Success 202 {object} model.AlertUpdateResponse
+// @Failure 404 {object} model.ErrorResponse
+// @Failure 500 {object} model.ErrorResponse
+// @Router /api/v1/alerts/{id}/analyze [post]
+func (h *RcaHandler) TriggerAlertAnalysis(c *gin.Context) {
+	alertID := c.Param("id")
+
+	if err := h.svc.TriggerAlertAnalysis(alertID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "error",
+			"message": "분석 요청에 실패했습니다.",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusAccepted, model.AlertUpdateResponse{
+		Status:  "success",
+		Message: "분석이 요청되었습니다. 완료 시 결과가 업데이트됩니다.",
+		AlertID: alertID,
+	})
+}
+
 // ============================================================================
 // Alert 관련 핸들러
 // ============================================================================

@@ -186,12 +186,15 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 			}
 		}
 
-		// 8. Agent에 비동기 분석 요청 - Flapping 중이면 스킵
-		if !isFlapping {
+		// 8. Agent에 비동기 분석 요청 - Flapping 중이거나 자동 분석 대상이 아니면 스킵
+		severity := alert.Labels["severity"]
+		if !isFlapping && s.shouldAutoAnalyze(severity) {
 			threadTS, _ := s.db.GetAlertThreadTS(alert.Fingerprint)
 			go s.agentService.RequestAnalysis(alert, alertID, threadTS, incidentID)
-		} else {
+		} else if isFlapping {
 			log.Printf("Skipping Agent analysis for flapping alert (fingerprint=%s)", alert.Fingerprint)
+		} else {
+			log.Printf("Skipping auto-analysis for alert (fingerprint=%s, severity=%s)", alert.Fingerprint, severity)
 		}
 	}
 	return sent, failed
@@ -428,4 +431,12 @@ func (s *AlertService) getThreadRef(alertKey string) (string, bool) {
 		return "", false
 	}
 	return store.GetThreadRef(alertKey)
+}
+
+// shouldAutoAnalyze - 주어진 severity의 alert를 자동 분석해야 하는지 판단
+func (s *AlertService) shouldAutoAnalyze(severity string) bool {
+	if s.appSettings != nil {
+		return s.appSettings.ShouldAutoAnalyze(severity)
+	}
+	return true
 }

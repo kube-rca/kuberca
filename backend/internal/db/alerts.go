@@ -192,7 +192,7 @@ func (db *Postgres) GetLatestAlertByFingerprint(fingerprint string) (*model.Aler
 // GetAlertList - Alert 목록 조회
 func (db *Postgres) GetAlertList() ([]model.AlertListResponse, error) {
 	query := `
-		SELECT alert_id, incident_id, alarm_title, labels->>'namespace' as namespace, severity, status, fired_at, resolved_at, labels
+		SELECT alert_id, incident_id, alarm_title, labels->>'namespace' as namespace, severity, status, fired_at, resolved_at, analysis_summary, labels
 		FROM alerts
 		WHERE is_enabled = TRUE
 		ORDER BY fired_at DESC`
@@ -206,7 +206,7 @@ func (db *Postgres) GetAlertList() ([]model.AlertListResponse, error) {
 	var list []model.AlertListResponse
 	for rows.Next() {
 		var a model.AlertListResponse
-		if err := rows.Scan(&a.AlertID, &a.IncidentID, &a.AlarmTitle, &a.Namespace, &a.Severity, &a.Status, &a.FiredAt, &a.ResolvedAt, &a.Labels); err != nil {
+		if err := rows.Scan(&a.AlertID, &a.IncidentID, &a.AlarmTitle, &a.Namespace, &a.Severity, &a.Status, &a.FiredAt, &a.ResolvedAt, &a.AnalysisSummary, &a.Labels); err != nil {
 			return nil, err
 		}
 		list = append(list, a)
@@ -221,7 +221,7 @@ func (db *Postgres) GetAlertList() ([]model.AlertListResponse, error) {
 // GetAlertsByIncidentID - 특정 Incident에 속한 Alert 목록 조회
 func (db *Postgres) GetAlertsByIncidentID(incidentID string) ([]model.AlertListResponse, error) {
 	query := `
-		SELECT alert_id, incident_id, alarm_title, severity, status, fired_at, resolved_at
+		SELECT alert_id, incident_id, alarm_title, severity, status, fired_at, resolved_at, analysis_summary
 		FROM alerts
 		WHERE incident_id = $1 AND is_enabled = TRUE
 		ORDER BY fired_at DESC`
@@ -235,7 +235,7 @@ func (db *Postgres) GetAlertsByIncidentID(incidentID string) ([]model.AlertListR
 	var list []model.AlertListResponse
 	for rows.Next() {
 		var a model.AlertListResponse
-		if err := rows.Scan(&a.AlertID, &a.IncidentID, &a.AlarmTitle, &a.Severity, &a.Status, &a.FiredAt, &a.ResolvedAt); err != nil {
+		if err := rows.Scan(&a.AlertID, &a.IncidentID, &a.AlarmTitle, &a.Severity, &a.Status, &a.FiredAt, &a.ResolvedAt, &a.AnalysisSummary); err != nil {
 			return nil, err
 		}
 		list = append(list, a)

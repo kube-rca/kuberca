@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/kube-rca/backend/internal/config"
 	"github.com/kube-rca/backend/internal/model"
@@ -15,6 +16,7 @@ var allowedKeys = map[string]bool{
 	"flapping":     true,
 	"ai":           true,
 	"notification": true,
+	"analysis":     true,
 }
 
 // appSettingsRepo - DB 인터페이스
@@ -29,13 +31,15 @@ type AppSettingsService struct {
 	db          appSettingsRepo
 	envFlapping config.FlappingConfig
 	envAI       config.AIConfig
+	envAnalysis config.AnalysisConfig
 }
 
-func NewAppSettingsService(db appSettingsRepo, envFlapping config.FlappingConfig, envAI config.AIConfig) *AppSettingsService {
+func NewAppSettingsService(db appSettingsRepo, envFlapping config.FlappingConfig, envAI config.AIConfig, envAnalysis config.AnalysisConfig) *AppSettingsService {
 	return &AppSettingsService{
 		db:          db,
 		envFlapping: envFlapping,
 		envAI:       envAI,
+		envAnalysis: envAnalysis,
 	}
 }
 
@@ -71,6 +75,11 @@ func (s *AppSettingsService) UpdateSetting(ctx context.Context, key string, valu
 		var v model.NotificationSettings
 		if err := json.Unmarshal(value, &v); err != nil {
 			return fmt.Errorf("invalid notification settings: %w", err)
+		}
+	case "analysis":
+		var v model.AnalysisSettings
+		if err := json.Unmarshal(value, &v); err != nil {
+			return fmt.Errorf("invalid analysis settings: %w", err)
 		}
 	}
 
@@ -155,6 +164,52 @@ func (s *AppSettingsService) GetAISettings() *model.AISettings {
 	return &as
 }
 
+// GetAnalysisSettings - DB 조회
+func (s *AppSettingsService) GetAnalysisSettings() *model.AnalysisSettings {
+	ctx := context.Background()
+	setting, err := s.db.GetAppSetting(ctx, "analysis")
+	if err != nil {
+		log.Printf("Failed to get analysis settings from DB: %v", err)
+		return nil
+	}
+	if setting == nil {
+		return nil
+	}
+
+	var as model.AnalysisSettings
+	if err := json.Unmarshal(setting.Value, &as); err != nil {
+		log.Printf("Failed to unmarshal analysis settings: %v", err)
+		return nil
+	}
+	return &as
+}
+
+// ShouldAutoAnalyze - 주어진 severity의 alert를 자동 분석해야 하는지 판단
+// 기본: 모든 severity 자동 분석. manualAnalyzeSeverities에 포함된 severity만 수동.
+// DB 설정 우선, 없으면 ENV fallback.
+func (s *AppSettingsService) ShouldAutoAnalyze(severity string) bool {
+	var manualSeverities string
+
+	if dbSettings := s.GetAnalysisSettings(); dbSettings != nil {
+		manualSeverities = dbSettings.ManualAnalyzeSeverities
+	} else {
+		manualSeverities = s.envAnalysis.ManualAnalyzeSeverities
+	}
+
+	// 빈 문자열 = 모든 severity 자동 분석
+	if manualSeverities == "" {
+		return true
+	}
+
+	// severity가 manual 목록에 있으면 자동 분석 스킵
+	for _, ms := range strings.Split(manualSeverities, ",") {
+		if strings.TrimSpace(ms) == severity {
+			return false
+		}
+	}
+	return true
+}
+
 // SyncEnvDefaults - Pod 시작 시 호출. ENV 값이 바뀌었으면(Helm 재배포) DB 덮어쓰기.
 // ENV 값이 안 바뀌었으면(단순 재시작) 기존 DB 값(UI 변경) 유지.
 func (s *AppSettingsService) SyncEnvDefaults(ctx context.Context) {
@@ -168,6 +223,9 @@ func (s *AppSettingsService) SyncEnvDefaults(ctx context.Context) {
 		"ai": model.AISettings{
 			Provider: s.envAI.Provider,
 			ModelId:  s.envAI.ModelId,
+		},
+		"analysis": model.AnalysisSettings{
+			ManualAnalyzeSeverities: s.envAnalysis.ManualAnalyzeSeverities,
 		},
 	}
 
@@ -232,6 +290,10 @@ func (s *AppSettingsService) GetSettingWithFallback(ctx context.Context, key str
 	case "notification":
 		fallbackValue = model.NotificationSettings{
 			Enabled: true,
+		}
+	case "analysis":
+		fallbackValue = model.AnalysisSettings{
+			ManualAnalyzeSeverities: s.envAnalysis.ManualAnalyzeSeverities,
 		}
 	default:
 		return nil, fmt.Errorf("unknown setting key: %s", key)

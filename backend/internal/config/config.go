@@ -16,6 +16,7 @@ type Config struct {
 	OIDC      OIDCConfig
 	Flapping  FlappingConfig
 	AI        AIConfig
+	Analysis  AnalysisConfig
 }
 
 type SlackConfig struct {
@@ -80,6 +81,10 @@ type AIConfig struct {
 	ModelId  string
 }
 
+type AnalysisConfig struct {
+	ManualAnalyzeSeverities string // comma-separated severities requiring manual analysis, empty = all auto
+}
+
 func Load() Config {
 	_ = godotenv.Load()
 	return Config{
@@ -136,6 +141,9 @@ func Load() Config {
 		AI: AIConfig{
 			Provider: getenv("AI_PROVIDER", "gemini"),
 			ModelId:  os.Getenv("AI_MODEL_ID"),
+		},
+		Analysis: AnalysisConfig{
+			ManualAnalyzeSeverities: os.Getenv("MANUAL_ANALYZE_SEVERITIES"), // empty = all auto (default)
 		},
 	}
 }

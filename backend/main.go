@@ -109,7 +109,7 @@ func main() {
 	agentClient := client.NewAgentClient(cfg.Agent)
 
 	// AppSettingsService 초기화 (DB 동적 설정 + ENV fallback)
-	appSettingsSvc := service.NewAppSettingsService(pgRepo, cfg.Flapping, cfg.AI)
+	appSettingsSvc := service.NewAppSettingsService(pgRepo, cfg.Flapping, cfg.AI, cfg.Analysis)
 	appSettingsSvc.SyncEnvDefaults(ctx) // Helm 값 변경 시 DB 동기화
 
 	notifier := client.NewWebhookRoutingNotifier(pgRepo, slackClient, slackClient, cfg.Slack.FrontendURL)
@@ -193,6 +193,7 @@ func main() {
 		protected.POST("/alerts/:id/comments", rcaHndlr.CreateAlertComment)
 		protected.PUT("/alerts/:id/comments/:commentId", rcaHndlr.UpdateAlertComment)
 		protected.DELETE("/alerts/:id/comments/:commentId", rcaHndlr.DeleteAlertComment)
+		protected.POST("/alerts/:id/analyze", rcaHndlr.TriggerAlertAnalysis)
 		protected.POST("/alerts/:id/vote", rcaHndlr.VoteAlertFeedback)
 
 		protected.POST("/embeddings", embeddingHandler.CreateEmbedding)

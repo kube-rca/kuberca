@@ -79,6 +79,8 @@ definitions:
         type: string
       alert_id:
         type: string
+      analysis_summary:
+        type: string
       fired_at:
         type: string
       incident_id:
@@ -489,6 +491,35 @@ paths:
       security:
       - BearerAuth: []
       summary: Get alert detail
+      tags:
+      - alerts
+  /api/v1/alerts/{id}/analyze:
+    post:
+      description: 수동으로 특정 Alert에 대한 AI 분석을 트리거합니다. 분석은 비동기로 실행됩니다.
+      parameters:
+      - description: Alert ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/model.AlertUpdateResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Trigger manual analysis for a specific alert
       tags:
       - alerts
   /api/v1/alerts/{id}/incident:

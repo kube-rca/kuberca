@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log"
 
 	"github.com/kube-rca/backend/internal/db"
@@ -215,6 +217,61 @@ func (s *RcaService) DeleteFeedbackComment(targetType, targetID string, commentI
 
 func (s *RcaService) VoteFeedback(targetType, targetID string, userID int64, voteType string) error {
 	return s.repo.UpsertVote(targetType, targetID, userID, voteType)
+}
+
+// TriggerAlertAnalysis - 수동 분석 트리거 (Manual Mode 또는 Auto Mode에서 미분석 alert 대상)
+func (s *RcaService) TriggerAlertAnalysis(alertID string) error {
+	// 1. Alert 상세 조회
+	alertDetail, err := s.repo.GetAlertDetail(alertID)
+	if err != nil {
+		return fmt.Errorf("alert not found: %w", err)
+	}
+
+	// 2. AlertDetailResponse → model.Alert 변환
+	alert, err := alertDetailToAlert(alertDetail)
+	if err != nil {
+		return fmt.Errorf("failed to convert alert: %w", err)
+	}
+
+	// 3. threadTS, incidentID 조회
+	threadTS, _ := s.repo.GetAlertThreadTS(alertID)
+	incidentID := ""
+	if alertDetail.IncidentID != nil {
+		incidentID = *alertDetail.IncidentID
+	}
+
+	// 4. 비동기 분석 요청
+	go s.agentService.RequestAnalysis(alert, alertID, threadTS, incidentID)
+	log.Printf("Manual analysis triggered (alert_id=%s, incident_id=%s)", alertID, incidentID)
+
+	return nil
+}
+
+// alertDetailToAlert - AlertDetailResponse → model.Alert 변환
+func alertDetailToAlert(detail *model.AlertDetailResponse) (model.Alert, error) {
+	var labels map[string]string
+	if err := json.Unmarshal(detail.Labels, &labels); err != nil {
+		return model.Alert{}, fmt.Errorf("failed to unmarshal labels: %w", err)
+	}
+
+	var annotations map[string]string
+	if detail.Annotations != nil {
+		if err := json.Unmarshal(detail.Annotations, &annotations); err != nil {
+			return model.Alert{}, fmt.Errorf("failed to unmarshal annotations: %w", err)
+		}
+	}
+
+	alert := model.Alert{
+		Status:      detail.Status,
+		Labels:      labels,
+		Annotations: annotations,
+		StartsAt:    detail.FiredAt,
+		Fingerprint: detail.Fingerprint,
+	}
+	if detail.ResolvedAt != nil {
+		alert.EndsAt = *detail.ResolvedAt
+	}
+	return alert, nil
 }
 
 // Mock 데이터 생성 (테스트용)

@@ -31,6 +31,11 @@ type AISettings struct {
 	ModelId  string `json:"modelId"`
 }
 
+// AnalysisSettings - Auto/Manual 분석 모드 설정
+type AnalysisSettings struct {
+	ManualAnalyzeSeverities string `json:"manualAnalyzeSeverities"` // comma-separated severities requiring manual analysis, empty = all auto
+}
+
 // AppSettingResponse - 단건 조회 응답
 type AppSettingResponse struct {
 	Status string     `json:"status"`

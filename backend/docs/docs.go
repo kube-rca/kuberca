@@ -106,6 +106,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/alerts/{id}/analyze": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "수동으로 특정 Alert에 대한 AI 분석을 트리거합니다. 분석은 비동기로 실행됩니다.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "Trigger manual analysis for a specific alert",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Alert ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/model.AlertUpdateResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/alerts/{id}/incident": {
             "put": {
                 "security": [
@@ -1409,6 +1455,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "alert_id": {
+                    "type": "string"
+                },
+                "analysis_summary": {
                     "type": "string"
                 },
                 "fired_at": {
