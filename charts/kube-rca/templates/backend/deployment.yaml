@@ -185,6 +185,9 @@ spec:
               value: {{ default 3 $flapping.cycleThreshold | quote }}
             - name: FLAP_CLEARANCE_WINDOW_MINUTES
               value: {{ default 30 $flapping.clearanceWindowMinutes | quote }}
+            {{- $analysis := default (dict) .Values.backend.analysis }}
+            - name: MANUAL_ANALYZE_SEVERITIES
+              value: {{ default "" $analysis.manualAnalyzeSeverities | quote }}
           livenessProbe:
             httpGet:
               path: /ping
