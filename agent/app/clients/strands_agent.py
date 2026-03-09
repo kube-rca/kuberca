@@ -10,7 +10,14 @@ from typing import Any, Protocol
 from strands import Agent, tool
 from strands.session import RepositorySessionManager
 from strands.types.content import Messages
-from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential, wait_random
+from tenacity import (
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    stop_after_delay,
+    wait_exponential,
+    wait_random,
+)
 
 from app.clients.conversation_manager import SafeSlidingWindowConversationManager
 from app.clients.k8s import KubernetesClient
@@ -150,6 +157,7 @@ class StrandsAnalysisEngine:
         self._retry_max_attempts = max(1, settings.llm_retry_max_attempts)
         self._retry_min_wait = settings.llm_retry_min_wait
         self._retry_max_wait = settings.llm_retry_max_wait
+        self._retry_total_timeout = settings.llm_retry_total_timeout
 
         # Log provider info
         if model_config:
@@ -230,7 +238,8 @@ class StrandsAnalysisEngine:
             retry=retry_if_exception(_is_retryable),
             wait=wait_exponential(multiplier=1, min=self._retry_min_wait, max=self._retry_max_wait)
             + wait_random(0, 2),
-            stop=stop_after_attempt(self._retry_max_attempts),
+            stop=stop_after_attempt(self._retry_max_attempts)
+            | stop_after_delay(self._retry_total_timeout),
             before_sleep=_log_retry,
         )
         def _call() -> str:

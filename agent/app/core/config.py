@@ -101,9 +101,10 @@ class Settings:
     prompt_summary_max_items: int
     masking_regex_list: list[str]
     # LLM Retry
-    llm_retry_max_attempts: int = 5
+    llm_retry_max_attempts: int = 8
     llm_retry_min_wait: float = 1.0
     llm_retry_max_wait: float = 60.0
+    llm_retry_total_timeout: float = 120.0
 
     @property
     def session_store_dsn(self) -> str:
@@ -157,7 +158,8 @@ def load_settings() -> Settings:
         prompt_summary_max_items=max(1, _get_int_env("PROMPT_SUMMARY_MAX_ITEMS", 3)),
         masking_regex_list=masking_regex_list,
         # LLM Retry
-        llm_retry_max_attempts=_get_int_env("LLM_RETRY_MAX_ATTEMPTS", 5),
+        llm_retry_max_attempts=_get_int_env("LLM_RETRY_MAX_ATTEMPTS", 8),
         llm_retry_min_wait=_get_float_env("LLM_RETRY_MIN_WAIT", 1.0),
         llm_retry_max_wait=_get_float_env("LLM_RETRY_MAX_WAIT", 60.0),
+        llm_retry_total_timeout=_get_float_env("LLM_RETRY_TOTAL_TIMEOUT", 120.0),
     )
