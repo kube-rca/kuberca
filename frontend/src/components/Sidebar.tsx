@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Bell, Archive, BarChart3, Settings } from 'lucide-react';
+import { AnalysisModeIndicator, AnalysisModeIndicatorCompact } from './AnalysisModeIndicator';
 
 const navItems = [
   { to: '/', label: 'Incidents', icon: LayoutDashboard, end: true },
@@ -37,7 +38,8 @@ export const Sidebar: React.FC = () => {
             </NavLink>
           ))}
         </nav>
-        <div className="border-t border-slate-200 dark:border-slate-800 pt-3 mt-3">
+        <div className="border-t border-slate-200 dark:border-slate-800 pt-3 mt-3 space-y-1">
+          <AnalysisModeIndicator />
           <NavLink to={settingsItem.to} className={navLinkClass}>
             <settingsItem.icon className="w-4 h-4 flex-shrink-0" />
             {settingsItem.label}
@@ -54,6 +56,7 @@ export const Sidebar: React.FC = () => {
               {item.label}
             </NavLink>
           ))}
+          <AnalysisModeIndicatorCompact />
         </nav>
       </div>
     </>
