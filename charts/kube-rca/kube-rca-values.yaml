@@ -62,7 +62,7 @@ frontend:
 agent:
   image:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr/agent
-    tag: agent-6777f6e
+    tag: agent-89dc3d2
   workers: 4
   aiProvider: gemini
   prometheus:
