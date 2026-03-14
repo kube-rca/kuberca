@@ -22,16 +22,16 @@ function getOidcError(): string | null {
   url.searchParams.delete('error');
   window.history.replaceState({}, '', url.pathname + url.search);
 
-  if (oidcError === 'oidc_not_allowed') return '허용되지 않은 이메일입니다. 관리자에게 문의하세요.';
-  if (oidcError === 'oidc_failed') return '로그인에 실패했습니다. 다시 시도해주세요.';
-  if (oidcError === 'oidc_state_mismatch') return '인증 세션이 만료되었습니다. 다시 시도해주세요.';
-  if (oidcError === 'oidc_invalid_request') return '잘못된 인증 요청입니다.';
-  return '로그인 중 오류가 발생했습니다.';
+  if (oidcError === 'oidc_not_allowed') return 'Email not allowed. Please contact the administrator.';
+  if (oidcError === 'oidc_failed') return 'Login failed. Please try again.';
+  if (oidcError === 'oidc_state_mismatch') return 'Authentication session expired. Please try again.';
+  if (oidcError === 'oidc_invalid_request') return 'Invalid authentication request.';
+  return 'An error occurred during login.';
 }
 
 const providerConfig: Record<string, { label: string; icon: React.ReactNode }> = {
   google: {
-    label: 'Google로 로그인',
+    label: 'Sign in with Google',
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 24 24">
         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
@@ -42,7 +42,7 @@ const providerConfig: Record<string, { label: string; icon: React.ReactNode }> =
     ),
   },
   azure: {
-    label: 'Microsoft로 로그인',
+    label: 'Sign in with Microsoft',
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 24 24">
         <path fill="#F25022" d="M1 1h10v10H1z"/>
@@ -53,7 +53,7 @@ const providerConfig: Record<string, { label: string; icon: React.ReactNode }> =
     ),
   },
   gitlab: {
-    label: 'GitLab으로 로그인',
+    label: 'Sign in with GitLab',
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 24 24">
         <path fill="#E24329" d="m12 22.2 4.03-12.4H7.97z"/>
@@ -67,7 +67,7 @@ const providerConfig: Record<string, { label: string; icon: React.ReactNode }> =
     ),
   },
   keycloak: {
-    label: 'Keycloak으로 로그인',
+    label: 'Sign in with Keycloak',
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
@@ -75,7 +75,7 @@ const providerConfig: Record<string, { label: string; icon: React.ReactNode }> =
     ),
   },
   okta: {
-    label: 'Okta로 로그인',
+    label: 'Sign in with Okta',
     icon: (
       <svg className="w-5 h-5" viewBox="0 0 24 24">
         <path fill="#007DC1" d="M12 0C5.389 0 0 5.389 0 12s5.389 12 12 12 12-5.389 12-12S18.611 0 12 0zm0 18c-3.314 0-6-2.686-6-6s2.686-6 6-6 6 2.686 6 6-2.686 6-6 6z"/>
@@ -83,7 +83,7 @@ const providerConfig: Record<string, { label: string; icon: React.ReactNode }> =
     ),
   },
   oidc: {
-    label: 'SSO로 로그인',
+    label: 'Sign in with SSO',
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
@@ -117,7 +117,7 @@ const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, oidcProvider, onAut
       onAuthenticated();
     } catch (err) {
       console.error(err);
-      setError(mode === 'login' ? '로그인에 실패했습니다.' : '회원가입에 실패했습니다.');
+      setError(mode === 'login' ? 'Login failed.' : 'Signup failed.');
     } finally {
       setSubmitting(false);
     }
@@ -138,7 +138,7 @@ const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, oidcProvider, onAut
           <h1 className="text-2xl font-semibold font-mono tracking-wider text-slate-900 dark:text-slate-100">Kube-RCA</h1>
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-          {mode === 'login' ? '아이디와 비밀번호로 로그인하세요.' : '새 계정을 생성하세요.'}
+          {mode === 'login' ? 'Log in with your ID and password.' : 'Create a new account.'}
         </p>
 
         {oidcError && (
@@ -166,7 +166,7 @@ const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, oidcProvider, onAut
                 <div className="w-full border-t border-slate-300 dark:border-slate-700" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="bg-white dark:bg-slate-900 px-2 text-slate-500 dark:text-slate-400">또는</span>
+                <span className="bg-white dark:bg-slate-900 px-2 text-slate-500 dark:text-slate-400">or</span>
               </div>
             </div>
           </>
@@ -183,7 +183,7 @@ const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, oidcProvider, onAut
               value={loginId}
               onChange={(event) => setLoginId(event.target.value)}
               className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 dark:focus:ring-cyan-400"
-              placeholder="아이디"
+              placeholder="Username"
               required
             />
           </div>
@@ -197,7 +197,7 @@ const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, oidcProvider, onAut
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 dark:focus:ring-cyan-400"
-              placeholder="비밀번호"
+              placeholder="Password"
               required
             />
           </div>
@@ -213,19 +213,19 @@ const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, oidcProvider, onAut
             disabled={submitting}
             className="w-full rounded-md bg-cyan-600 hover:bg-cyan-700 dark:bg-cyan-500 dark:hover:bg-cyan-400 py-2 text-sm font-semibold text-white disabled:opacity-60"
           >
-            {submitting ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입'}
+            {submitting ? 'Processing...' : mode === 'login' ? 'Login' : 'Sign up'}
           </button>
         </form>
 
         {allowSignup && (
           <div className="mt-4 text-center text-sm text-slate-500 dark:text-slate-400">
-            {mode === 'login' ? '계정이 없나요?' : '이미 계정이 있나요?'}{' '}
+            {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}{' '}
             <button
               type="button"
               className="font-semibold text-slate-800 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white"
               onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
             >
-              {mode === 'login' ? '회원가입' : '로그인'}
+              {mode === 'login' ? 'Sign up' : 'Login'}
             </button>
           </div>
         )}

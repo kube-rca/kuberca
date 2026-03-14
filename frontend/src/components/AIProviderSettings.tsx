@@ -34,9 +34,9 @@ const AIProviderSettings: React.FC = () => {
     setMessage(null);
     try {
       await updateAppSetting<AISettings>('ai', { provider, modelId });
-      setMessage({ type: 'success', text: 'AI Provider 설정이 저장되었습니다. Agent에 반영됩니다.' });
+      setMessage({ type: 'success', text: 'AI Provider settings saved. Reflected in Agent.' });
     } catch (err: unknown) {
-      setMessage({ type: 'error', text: err instanceof Error ? err.message : '저장 실패' });
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Save failed' });
     } finally {
       setSaving(false);
     }
@@ -66,8 +66,8 @@ const AIProviderSettings: React.FC = () => {
       </div>
 
       <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-        RCA 분석에 사용할 AI Provider와 Model을 변경합니다.
-        변경 즉시 Agent에 반영되며, 다음 분석부터 적용됩니다.
+        Change the AI Provider and Model to be used for RCA analysis.
+        Changes are immediately reflected in the Agent and will be applied to the next analysis.
       </p>
 
       <div className="space-y-5 max-w-lg">
@@ -99,15 +99,15 @@ const AIProviderSettings: React.FC = () => {
             className={inputClass}
           />
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-            비워두면 Helm Values에 설정된 기본 모델이 사용됩니다.
+            If left empty, the default model set in Helm Values will be used.
           </p>
         </div>
 
         {/* API Key Notice */}
         <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
           <p className="text-sm text-amber-700 dark:text-amber-400">
-            API Key는 보안상 이 화면에서 변경할 수 없습니다.
-            Helm Values 또는 K8s Secret으로 관리하세요.
+            For security reasons, the API Key cannot be changed on this screen.
+            Manage it using Helm Values or K8s Secret.
           </p>
         </div>
 

@@ -99,7 +99,7 @@ export default function AnalysisDashboard() {
         const next = await fetchAnalyticsDashboard(window);
         if (active) setData(next);
       } catch {
-        if (active) setError('분석 데이터를 불러오지 못했습니다.');
+        if (active) setError('Failed to load analysis data.');
       } finally {
         if (active) setLoading(false);
       }

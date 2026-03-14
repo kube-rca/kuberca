@@ -156,7 +156,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
       await loadFeedback();
     } catch (error) {
       console.error('Failed to save vote:', error);
-      alert('투표 저장에 실패했습니다.');
+      alert('Failed to save the vote.');
     }
   };
 
@@ -172,7 +172,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
       setTab('write');
     } catch (error) {
       console.error('Failed to save comment:', error);
-      alert('코멘트 저장에 실패했습니다.');
+      alert('Failed to save the comment.');
     } finally {
       setSubmitting(false);
     }
@@ -195,7 +195,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
   const saveEditComment = async (commentId: number) => {
     const body = editingDraft.trim();
     if (!body) {
-      alert('코멘트 내용을 입력해주세요.');
+      alert('Please enter a comment.');
       return;
     }
 
@@ -206,14 +206,14 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
       cancelEditComment();
     } catch (error) {
       console.error('Failed to update comment:', error);
-      alert('코멘트 수정에 실패했습니다.');
+      alert('Failed to modify the comment.');
     } finally {
       setCommentActionLoadingId(null);
     }
   };
 
   const removeComment = async (commentId: number) => {
-    if (!window.confirm('코멘트를 삭제하시겠습니까?')) return;
+    if (!window.confirm('Are you sure you want to delete the comment?')) return;
 
     setCommentActionLoadingId(commentId);
     try {
@@ -224,7 +224,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
       }
     } catch (error) {
       console.error('Failed to delete comment:', error);
-      alert('코멘트 삭제에 실패했습니다.');
+      alert('Failed to delete the comment.');
     } finally {
       setCommentActionLoadingId(null);
       setCommentMenuId(null);
@@ -436,7 +436,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
 
       <div className="space-y-4 mb-6">
         {loading && (
-          <div className="text-sm text-slate-500 dark:text-slate-400">피드백을 불러오는 중...</div>
+          <div className="text-sm text-slate-500 dark:text-slate-400">Loading feedback...</div>
         )}
         {comments.map((comment) => {
           const initial = comment.author_login_id[0]?.toUpperCase() || 'U';

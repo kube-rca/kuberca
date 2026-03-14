@@ -44,13 +44,13 @@ const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onB
           const filtered = searchResult.results.filter(r => r.incident_id !== incidentId);
           setSimilarIncidents(filtered.slice(0, 3));
         } catch (searchErr) {
-          console.error('유사 인시던트 검색 실패:', searchErr);
+          console.error('Failed to search similar incidents:', searchErr);
         } finally {
           setSimilarLoading(false);
         }
       }
     } catch (err) {
-      setError('데이터를 불러오지 못했습니다.');
+      setError('Failed to load data.');
       console.error(err);
     } finally {
       setLoading(false);
@@ -62,7 +62,7 @@ const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onB
   }, [loadDetail]);
 
   const handleUnhide = async () => {
-    if (!window.confirm("이 리포트의 숨김을 해제하고 Incident 목록으로 복구하시겠습니까?")) {
+    if (!window.confirm("Would you like to unarchive this report and restore it to the Incident list?")) {
       return;
     }
 
@@ -72,8 +72,8 @@ const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onB
         state: { newlyUnmutedId: incidentId } 
       });
     } catch (error) {
-      console.error("숨기기 해제 실패:", error);
-      alert("오류가 발생했습니다. 다시 시도해주세요.");
+      console.error("Unarchiving failed:", error);
+      alert("An error occurred. Please try again.");
     }
   };
 
@@ -158,7 +158,7 @@ const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onB
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            숨기기 해제
+            Unarchive
           </button>
         </div>
       </div>
@@ -200,7 +200,7 @@ const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onB
                   ),
                 }}
               >
-                {data.analysis_summary || "*요약 정보가 없습니다.*"}
+                {data.analysis_summary || "*No summary information available.*"}
               </ReactMarkdown>
             </div>
           </div>
@@ -228,7 +228,7 @@ const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onB
                     a: ({ node: _node, ...props }) => <a className="text-blue-400 hover:text-blue-300 hover:underline transition-colors" target="_blank" rel="noopener noreferrer" {...props} />,
                   }}
                 >
-                  {data.analysis_detail || "*상세 분석 내용이 없습니다.*"}
+                  {data.analysis_detail || "*No detailed analysis content available.*"}
                 </ReactMarkdown>
               </div>
             </div>
@@ -265,14 +265,14 @@ const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onB
               </table>
             </div>
           ) : (
-            <div className="text-slate-500 text-center py-4">연결된 Alert가 없습니다.</div>
+            <div className="text-slate-500 text-center py-4">No connected alerts.</div>
           )}
         </div>
 
         <div className="md:col-span-2 border-t border-slate-200 dark:border-slate-700 pt-6 mt-2">
           <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4">
             Top 3 Similar Incidents
-            {similarLoading && <span className="ml-2 text-sm font-normal text-slate-500">(검색 중...)</span>}
+            {similarLoading && <span className="ml-2 text-sm font-normal text-slate-500">(Searching...)</span>}
           </h3>
 
           {similarIncidents.length > 0 ? (
@@ -288,7 +288,7 @@ const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onB
                       {item.incident_id}
                     </span>
                     <span className="text-xs font-bold text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-900/30 px-2 py-0.5 rounded-full">
-                      {Math.round(item.similarity * 100)}% 유사
+                      {Math.round(item.similarity * 100)}% similar
                     </span>
                   </div>
                   <div className="text-sm font-medium text-slate-800 dark:text-slate-200 line-clamp-3" title={item.incident_summary}>
@@ -300,7 +300,7 @@ const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onB
           ) : (
             <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-8 text-center border border-dashed border-slate-300 dark:border-slate-600">
               <p className="text-slate-500 dark:text-slate-400">
-                {!data.analysis_summary ? '분석 요약이 없어 유사 인시던트를 검색할 수 없습니다.' : '유사한 인시던트 내역이 없습니다.'}
+                {!data.analysis_summary ? 'Cannot search for similar incidents without an analysis summary.' : 'No similar incident records available.'}
               </p>
             </div>
           )}

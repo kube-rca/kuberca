@@ -30,9 +30,9 @@ const NotificationSettings: React.FC = () => {
     setMessage(null);
     try {
       await updateAppSetting<NotificationSettingsData>('notification', { enabled });
-      setMessage({ type: 'success', text: '알림 설정이 저장되었습니다.' });
+      setMessage({ type: 'success', text: 'Notification settings saved.' });
     } catch (err: unknown) {
-      setMessage({ type: 'error', text: err instanceof Error ? err.message : '저장 실패' });
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Save failed' });
     } finally {
       setSaving(false);
     }
@@ -61,9 +61,9 @@ const NotificationSettings: React.FC = () => {
       </div>
 
       <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-        알림 파이프라인을 일시적으로 비활성화합니다.
-        비활성화 시 Alertmanager 웹훅을 수신하더라도 DB 저장, AI 분석, 메신저 알림이 모두 중단됩니다.
-        점검 시 유용합니다.
+        Temporarily disable the notification pipeline.
+        When disabled, even if Alertmanager webhooks are received, DB storage, AI analysis, and messenger notifications will be suspended.
+        Useful during maintenance.
       </p>
 
       <div className="space-y-5 max-w-lg">
@@ -80,7 +80,7 @@ const NotificationSettings: React.FC = () => {
 
         {!enabled && (
           <div className="p-3 rounded-lg text-sm bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-            알림이 비활성화된 상태입니다. Alertmanager 웹훅이 수신되어도 처리되지 않습니다.
+            Notifications are disabled. Alertmanager webhooks will not be processed even if received.
           </div>
         )}
 

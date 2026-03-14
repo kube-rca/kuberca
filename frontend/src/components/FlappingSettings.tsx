@@ -37,9 +37,9 @@ const FlappingSettings: React.FC = () => {
         cycleThreshold,
         clearanceWindowMinutes,
       });
-      setMessage({ type: 'success', text: 'Flapping Detection 설정이 저장되었습니다.' });
+      setMessage({ type: 'success', text: 'Flapping Detection settings saved.' });
     } catch (err: unknown) {
-      setMessage({ type: 'error', text: err instanceof Error ? err.message : '저장 실패' });
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Save failed' });
     } finally {
       setSaving(false);
     }
@@ -70,7 +70,7 @@ const FlappingSettings: React.FC = () => {
       </div>
 
       <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-        Alert가 짧은 시간 내에 firing/resolved를 반복(flapping)할 때 알림을 억제하는 설정입니다.
+        This setting suppresses notifications when an Alert repeatedly flaps between firing/resolved within a short period.
       </p>
 
       <div className="space-y-5 max-w-lg">
@@ -97,7 +97,7 @@ const FlappingSettings: React.FC = () => {
             className={inputClass}
             disabled={!enabled}
           />
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">이 시간 내의 상태 전환 횟수를 카운트합니다.</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Counts the number of state transitions within this time.</p>
         </div>
 
         {/* Cycle Threshold */}
@@ -111,7 +111,7 @@ const FlappingSettings: React.FC = () => {
             className={inputClass}
             disabled={!enabled}
           />
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">firing→resolved 전환이 이 횟수 이상이면 flapping으로 판정합니다.</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Determines flapping if firing→resolved transitions exceed this count.</p>
         </div>
 
         {/* Clearance Window */}
@@ -125,7 +125,7 @@ const FlappingSettings: React.FC = () => {
             className={inputClass}
             disabled={!enabled}
           />
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">마지막 resolved 이후 이 시간 동안 안정되면 flapping 상태를 해제합니다.</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Releases flapping state if stable for this duration after the last resolved.</p>
         </div>
 
         {/* Save */}

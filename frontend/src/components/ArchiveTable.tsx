@@ -2,7 +2,7 @@ import { Inbox } from 'lucide-react';
 import { RCAItem } from '../types';
 
 interface ArchiveTableProps {
-  rcas: RCAItem[]; // Mute된 인시던트 데이터 리스트
+  rcas: RCAItem[]; // Mute된 Incident 데이터 리스트
   onTitleClick: (incident_id: string) => void;
 }
 
@@ -31,8 +31,8 @@ function ArchiveTable({ rcas, onTitleClick }: ArchiveTableProps) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-500">
         <Inbox className="w-12 h-12 mb-3 stroke-1" />
-        <p className="text-sm font-medium">데이터가 없습니다</p>
-        <p className="text-xs mt-1">검색 조건에 맞는 결과가 없습니다</p>
+        <p className="text-sm font-medium">No data available</p>
+        <p className="text-xs mt-1">No results match the search criteria</p>
       </div>
     );
   }

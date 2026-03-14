@@ -35,7 +35,7 @@ const WebhookList: React.FC = () => {
       const data = await fetchWebhookList();
       setConfigs(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : '목록을 불러오는데 실패했습니다.');
+      setError(e instanceof Error ? e.message : 'Failed to load the list.');
     } finally {
       setLoading(false);
     }
@@ -45,13 +45,13 @@ const WebhookList: React.FC = () => {
 
   const handleDelete = async (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
-    if (!confirm('이 웹훅 설정을 삭제하시겠습니까?')) return;
+    if (!confirm('Are you sure you want to delete this webhook setting?')) return;
     setDeletingId(id);
     try {
       await deleteWebhookConfig(id);
       setConfigs((prev) => prev.filter((c) => c.id !== id));
     } catch (e) {
-      alert(e instanceof Error ? e.message : '삭제에 실패했습니다.');
+      alert(e instanceof Error ? e.message : 'Failed to delete.');
     } finally {
       setDeletingId(null);
     }
@@ -82,7 +82,7 @@ const WebhookList: React.FC = () => {
       {/* Body */}
       {loading ? (
         <div className="flex justify-center items-center py-16 text-slate-500 dark:text-slate-400">
-          불러오는 중...
+          Loading...
         </div>
       ) : error ? (
         <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-md p-4 text-rose-600 dark:text-rose-400">
@@ -94,12 +94,12 @@ const WebhookList: React.FC = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
               d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
           </svg>
-          <p className="text-sm">등록된 웹훅 설정이 없습니다.</p>
+          <p className="text-sm">No webhook settings registered.</p>
           <button
             onClick={() => navigate('/settings/webhooks/new')}
             className="mt-4 text-cyan-600 dark:text-cyan-400 text-sm hover:underline"
           >
-            + 새 웹훅 설정 추가
+            + Add new webhook setting
           </button>
         </div>
       ) : (
@@ -125,7 +125,7 @@ const WebhookList: React.FC = () => {
                   {type}
                 </span>
                 <span className="text-sm font-mono text-slate-800 dark:text-slate-100 truncate">
-                  {primaryText || <span className="text-slate-400 italic">정보 없음</span>}
+                  {primaryText || <span className="text-slate-400 italic">No info</span>}
                 </span>
               </div>
               <div className="flex items-center gap-3 shrink-0 ml-4">
@@ -140,7 +140,7 @@ const WebhookList: React.FC = () => {
                   disabled={deletingId === cfg.id}
                   className="px-2 py-1 text-xs text-rose-500 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
                 >
-                  {deletingId === cfg.id ? '삭제 중...' : '삭제'}
+                  {deletingId === cfg.id ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
             </div>

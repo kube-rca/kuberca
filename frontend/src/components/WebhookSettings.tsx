@@ -58,7 +58,7 @@ const WebhookSettings: React.FC = () => {
         setChannel(channelValue);
       })
       .catch((err) => {
-        setSaveMessage({ type: 'error', text: `설정 로드 실패: ${err instanceof Error ? err.message : err}` });
+        setSaveMessage({ type: 'error', text: `Failed to load settings: ${err instanceof Error ? err.message : err}` });
       });
   }, [id, isEditMode]);
 
@@ -68,16 +68,16 @@ const WebhookSettings: React.FC = () => {
     }
 
     const trimmedUrl = url.trim();
-    if (!trimmedUrl) return 'Webhook receiver URL을 입력해 주세요.';
+    if (!trimmedUrl) return 'Please enter the Webhook receiver URL.';
 
     try {
       const parsed = new URL(trimmedUrl);
       if (!['http:', 'https:'].includes(parsed.protocol)) {
-        return 'Webhook URL은 http 또는 https 프로토콜이어야 합니다.';
+        return 'Webhook URL must be http or https protocol.';
       }
       return null;
     } catch {
-      return '유효한 URL 형식이 아닙니다.';
+      return 'Invalid URL format.';
     }
   }, [url, webhookType]);
 
@@ -86,10 +86,10 @@ const WebhookSettings: React.FC = () => {
       return null;
     }
     if (!token.trim()) {
-      return 'Slack Bot Token을 입력해 주세요.';
+      return 'Please enter the Slack Bot Token.';
     }
     if (!channel.trim()) {
-      return 'Slack Channel ID를 입력해 주세요.';
+      return 'Please enter the Slack Channel ID.';
     }
     return null;
   }, [token, channel, webhookType]);
@@ -99,7 +99,7 @@ const WebhookSettings: React.FC = () => {
 
     const trimmedUrl = url.trim();
     if (webhookType !== 'slack' && (!trimmedUrl || urlError)) {
-      setSaveMessage({ type: 'error', text: urlError ?? 'Webhook receiver URL을 입력해 주세요.' });
+      setSaveMessage({ type: 'error', text: urlError ?? 'Please enter the Webhook receiver URL.' });
       return;
     }
 
@@ -124,7 +124,7 @@ const WebhookSettings: React.FC = () => {
     } catch (err) {
       setSaveMessage({
         type: 'error',
-        text: err instanceof Error ? err.message : '저장에 실패했습니다.',
+        text: err instanceof Error ? err.message : 'Failed to save.',
       });
       setIsSaving(false);
     }
@@ -237,7 +237,7 @@ const WebhookSettings: React.FC = () => {
                 type={showToken ? 'text' : 'password'}
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
-                placeholder="토큰이 필요한 경우만 입력"
+                placeholder="Enter only if a token is required"
                 className="w-full px-3 py-2 pr-10 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-cyan-500 focus:border-cyan-500"
               />
               <button

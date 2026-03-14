@@ -72,7 +72,7 @@ const FloatingChatPanel = ({ onDockedChange }: FloatingChatPanelProps) => {
   const [manualIncidentId, setManualIncidentId] = useState('');
   const [manualAlertId, setManualAlertId] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([
-    makeMessage('assistant', '질문을 입력하면 Incident/Alert 컨텍스트를 함께 분석해 답변합니다.'),
+    makeMessage('assistant', 'If you enter a question, it will analyze the Incident/Alert context together and answer.'),
   ]);
 
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -142,8 +142,8 @@ const FloatingChatPanel = ({ onDockedChange }: FloatingChatPanelProps) => {
       setConversationId(response.conversation_id || request.conversation_id || '');
       setMessages((prev) => [...prev, makeMessage('assistant', response.answer)]);
     } catch (error) {
-      const message = error instanceof Error ? error.message : '채팅 요청에 실패했습니다.';
-      setMessages((prev) => [...prev, makeMessage('assistant', `오류: ${message}`)]);
+      const message = error instanceof Error ? error.message : 'Failed chat request.';
+      setMessages((prev) => [...prev, makeMessage('assistant', `Error: ${message}`)]);
     } finally {
       setSending(false);
     }
@@ -206,13 +206,13 @@ const FloatingChatPanel = ({ onDockedChange }: FloatingChatPanelProps) => {
                 onClick={() => setIsDocked((prev) => !prev)}
                 className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
               >
-                {isDocked ? '축소' : '확장'}
+                {isDocked ? 'Collapse' : 'Expand'}
               </button>
               <button
                 onClick={() => setIsOpen(false)}
                 className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
               >
-                닫기
+                Close
               </button>
             </div>
           </header>
@@ -232,7 +232,7 @@ const FloatingChatPanel = ({ onDockedChange }: FloatingChatPanelProps) => {
                 className="w-full px-3 py-2 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100"
               />
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                상세 페이지에서는 ID가 자동으로 채워지며, 대시보드에서는 직접 넣어 정확도를 높일 수 있습니다.
+                The ID is automatically filled in on the details page, and you can manually enter it on the dashboard to increase accuracy.
               </p>
             </div>
           )}
@@ -252,7 +252,7 @@ const FloatingChatPanel = ({ onDockedChange }: FloatingChatPanelProps) => {
             ))}
             {sending && (
               <div className="mr-auto max-w-[92%] px-3 py-2 rounded-xl text-sm bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                답변 생성 중...
+                Generating answer...
               </div>
             )}
           </div>
@@ -264,7 +264,7 @@ const FloatingChatPanel = ({ onDockedChange }: FloatingChatPanelProps) => {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleInputKeyDown}
                 rows={2}
-                placeholder="질문을 입력하세요 (Enter 전송, Shift+Enter 줄바꿈)"
+                placeholder="Enter your question (Enter to send, Shift+Enter to newline)"
                 className="flex-1 resize-none px-3 py-2 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100"
               />
               <button
@@ -274,7 +274,7 @@ const FloatingChatPanel = ({ onDockedChange }: FloatingChatPanelProps) => {
                 disabled={sending || input.trim() === ''}
                 className="px-4 py-2 rounded-md bg-cyan-600 text-white text-sm font-semibold hover:bg-cyan-700 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                전송
+                Send
               </button>
             </div>
           </footer>
@@ -285,7 +285,7 @@ const FloatingChatPanel = ({ onDockedChange }: FloatingChatPanelProps) => {
         onClick={() => setIsOpen((prev) => !prev)}
         className="fixed bottom-5 right-4 sm:right-6 z-50 h-14 px-5 rounded-full shadow-xl bg-cyan-600 hover:bg-cyan-700 text-white font-semibold text-sm"
       >
-        {isOpen ? 'Chat 닫기' : 'AI Chat'}
+        {isOpen ? 'Close Chat' : 'AI Chat'}
       </button>
     </>
   );

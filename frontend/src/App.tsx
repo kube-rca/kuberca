@@ -215,7 +215,7 @@ function App() {
       });
       setAllRCAs(mappedRCAs);
     } catch {
-      if (!isBackground) setError('데이터를 불러오는데 실패했습니다.');
+      if (!isBackground) setError('Failed to load data.');
     } finally {
       if (!isBackground) setLoading(false);
     }
@@ -226,7 +226,7 @@ function App() {
       const data = await fetchAlerts();
       setAllAlerts(data);
     } catch {
-      if (!isBackground) setAlertError('Alert 데이터를 불러오는데 실패했습니다.');
+      if (!isBackground) setAlertError('Failed to load Alert data.');
     } finally {
       if (!isBackground) setAlertLoading(false);
     }
@@ -241,7 +241,7 @@ function App() {
       });
       setMutedIncidents(mappedMuted);
     } catch {
-      if (!isBackground) setMuteError('Mute 데이터를 불러오는데 실패했습니다.');
+      if (!isBackground) setMuteError('Failed to load Mute data.');
     } finally {
       if (!isBackground) setMuteLoading(false);
     }
@@ -389,7 +389,7 @@ function App() {
 
 
   if (!authReady) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400">인증 정보를 확인하는 중입니다...</div>;
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400">Verifying authentication...</div>;
   }
   if (!isAuthenticated) {
     return <AuthPanel allowSignup={allowSignup} oidcEnabled={oidcEnabled} oidcLoginUrl={oidcLoginUrl} oidcProvider={oidcProvider} onAuthenticated={() => setIsAuthenticated(true)} />;
@@ -517,7 +517,7 @@ function App() {
                       )}
                       {filteredRCAs.length === 0 && (
                         <div className="flex justify-center items-center py-12 text-slate-500 dark:text-slate-400">
-                          데이터가 없습니다.
+                          No data available.
                         </div>
                       )}
                     </>
@@ -622,7 +622,7 @@ function App() {
                         </div>
                       )}
                       {filteredAlerts.length === 0 && (
-                        <div className="flex justify-center items-center py-12 text-slate-500 dark:text-slate-400">표시할 Alert이 없습니다.</div>
+                        <div className="flex justify-center items-center py-12 text-slate-500 dark:text-slate-400">No alerts to display.</div>
                       )}
                     </>
                   )}

@@ -39,7 +39,7 @@ const UnifiedSearchPanel: React.FC<UnifiedSearchPanelProps> = ({ availableLabels
 
   // [핵심 추가] 결과 보기 버튼 클릭 핸들러
   const handleShowResults = () => {
-    setIsDropdownOpen(false); // 드롭다운 닫기
+    setIsDropdownOpen(false); // 드롭다운 Close
 
     // 현재 선택된 타겟(Scope)에 따라 페이지 이동
     if (scope === 'INCIDENT') {
@@ -83,7 +83,7 @@ const UnifiedSearchPanel: React.FC<UnifiedSearchPanelProps> = ({ availableLabels
         <input
           type="text"
           className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 h-full"
-          placeholder={`${scope === 'INCIDENT' ? '인시던트' : '알람'} 검색 (제목, ID, 요약 등)`}
+          placeholder={`${scope === 'INCIDENT' ? 'Incident' : 'Alert'} Search (Title, ID, Summary, etc.)`}
           value={filters.query}
           onChange={(e) => updateFilter('query', e.target.value)}
           onFocus={() => setIsDropdownOpen(true)}
@@ -98,7 +98,7 @@ const UnifiedSearchPanel: React.FC<UnifiedSearchPanelProps> = ({ availableLabels
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
         >
           <FilterIcon />
-          <span>필터</span>
+          <span>Filter</span>
         </button>
       </div>
 
@@ -209,7 +209,7 @@ const UnifiedSearchPanel: React.FC<UnifiedSearchPanelProps> = ({ availableLabels
                 {/* [수정] h-72로 높이 고정 + overflow-y-auto로 스크롤 생성 */}
                 <div className="h-72 overflow-y-auto space-y-1.5 p-3 border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900/30 shadow-inner scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600">
                   {availableNamespaces.length === 0 && (
-                     <div className="text-xs text-slate-400 text-center py-4">네임스페이스 없음</div>
+                     <div className="text-xs text-slate-400 text-center py-4">No namespaces</div>
                   )}
                   {availableNamespaces.map(ns => (
                     <label key={ns} className="flex items-center gap-2.5 text-sm text-slate-700 dark:text-slate-300 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-1 rounded transition-colors">
@@ -236,7 +236,7 @@ const UnifiedSearchPanel: React.FC<UnifiedSearchPanelProps> = ({ availableLabels
                 {/* [수정] h-72로 높이 고정 + overflow-y-auto로 스크롤 생성 */}
                 <div className="h-72 overflow-y-auto space-y-1.5 p-3 border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900/30 shadow-inner scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600">
                   {availableLabels.length === 0 && (
-                     <div className="text-xs text-slate-400 text-center py-4">라벨이 없습니다</div>
+                     <div className="text-xs text-slate-400 text-center py-4">No labels</div>
                   )}
                   
                   {availableLabels.map(labelStr => {
@@ -290,20 +290,20 @@ const UnifiedSearchPanel: React.FC<UnifiedSearchPanelProps> = ({ availableLabels
                 onClick={() => resetFilters()}
                 className="px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 rounded transition-colors border border-slate-200 dark:border-slate-600"
               >
-                필터 초기화
+                Reset Filters
               </button>
               <button 
                 onClick={() => setIsDropdownOpen(false)} 
                 className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 rounded transition-colors"
               >
-                닫기
+                Close
               </button>
-              {/* [수정] 결과 보기 클릭 시 handleShowResults 실행 */}
+              {/* [수정] View Results 클릭 시 handleShowResults 실행 */}
               <button 
                 onClick={handleShowResults} 
                 className="px-6 py-2 text-sm font-medium text-white bg-cyan-600 hover:bg-cyan-700 rounded shadow-sm transition-colors"
               >
-                결과 보기
+                View Results
               </button>
             </div>
           </div>

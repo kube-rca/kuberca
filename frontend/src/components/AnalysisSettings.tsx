@@ -36,8 +36,8 @@ const AnalysisSettings: React.FC = () => {
           }
         }
       } catch (err) {
-        console.error('분석 설정 로드 실패:', err);
-        setError('설정을 불러오는데 실패했습니다.');
+        console.error('Failed to load analysis settings:', err);
+        setError('Failed to load settings.');
       } finally {
         setLoading(false);
       }
@@ -62,14 +62,14 @@ const AnalysisSettings: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`저장 실패 (${response.status})`);
+        throw new Error(`Save failed (${response.status})`);
       }
 
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      console.error('분석 설정 저장 실패:', err);
-      setError('설정 저장에 실패했습니다.');
+      console.error('Failed to save analysis settings:', err);
+      setError('Failed to save settings.');
     } finally {
       setSaving(false);
     }
@@ -112,18 +112,18 @@ const AnalysisSettings: React.FC = () => {
 
       <h1 className="text-2xl font-semibold text-slate-800 dark:text-white mb-2">Analysis Mode</h1>
       <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-        기본적으로 모든 알림은 자동 분석됩니다. 수동 분석이 필요한 severity를 선택하세요.
+        By default, all alerts are automatically analyzed. Select the severity that requires manual analysis.
       </p>
 
       {/* Manual Severities Selection */}
       <div className="mb-6">
         <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg">
           <div className="font-medium text-slate-800 dark:text-slate-200 mb-3">
-            수동 분석 대상 Severity
+            Severity for Manual Analysis
           </div>
           <div className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-            체크한 severity는 자동 분석되지 않으며, UI에서 직접 분석 버튼을 눌러야 합니다.
-            아무것도 선택하지 않으면 모든 알림이 자동 분석됩니다.
+            Checked severities will not be automatically analyzed and require clicking the analyze button directly in the UI.
+            If nothing is selected, all alerts will be automatically analyzed.
           </div>
           <div className="flex gap-6">
             {SEVERITIES.map((severity) => (
@@ -153,13 +153,13 @@ const AnalysisSettings: React.FC = () => {
       {/* Current Status Summary */}
       <div className="mb-6 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg text-sm text-slate-600 dark:text-slate-300">
         {manualSeverities.size === 0 ? (
-          <span>모든 알림이 자동 분석됩니다.</span>
+          <span>All alerts are automatically analyzed.</span>
         ) : manualSeverities.size === SEVERITIES.length ? (
-          <span>모든 알림에 수동 분석이 필요합니다.</span>
+          <span>All alerts require manual analysis.</span>
         ) : (
           <span>
-            <strong>{Array.from(manualSeverities).join(', ')}</strong> 알림은 수동 분석,
-            나머지는 자동 분석됩니다.
+            <strong>{Array.from(manualSeverities).join(', ')}</strong> alerts require manual analysis,
+            the rest are automatically analyzed.
           </span>
         )}
       </div>
@@ -172,7 +172,7 @@ const AnalysisSettings: React.FC = () => {
       )}
       {success && (
         <div className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg text-emerald-600 dark:text-emerald-400 text-sm">
-          설정이 저장되었습니다.
+          Settings saved.
         </div>
       )}
 
@@ -182,7 +182,7 @@ const AnalysisSettings: React.FC = () => {
         disabled={saving}
         className="px-6 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-lg hover:bg-violet-700 transition-colors shadow-sm disabled:opacity-50"
       >
-        {saving ? '저장 중...' : '저장'}
+        {saving ? 'Saving...' : 'Save'}
       </button>
     </div>
   );

@@ -60,13 +60,13 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
           const filtered = searchResult.results.filter(r => r.incident_id !== incidentId);
           setSimilarIncidents(filtered.slice(0, 3));
         } catch (searchErr) {
-          console.error('유사 인시던트 검색 실패:', searchErr);
+          console.error('Failed to search similar incidents:', searchErr);
         } finally {
           setSimilarLoading(false);
         }
       }
     } catch (err) {
-      setError('데이터를 불러오지 못했습니다.');
+      setError('Failed to load data.');
       console.error(err);
     } finally {
       setLoading(false);
@@ -96,10 +96,10 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
       await updateRCADetail(incidentId, editForm);
       setData({ ...data, ...editForm } as RCADetail);
       setIsEditing(false);
-      alert('성공적으로 수정되었습니다.');
+      alert('Successfully modified.');
     } catch (err) {
       console.error(err);
-      alert('저장에 실패했습니다.');
+      alert('Failed to save.');
     }
   };
 
@@ -111,65 +111,65 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
   };
 
   const handleHide = async () => {
-    if (!window.confirm("정말 이 리포트를 목록에서 숨기시겠습니까?")) {
+    if (!window.confirm("Are you sure you want to archive this report from the list?")) {
       return;
     }
 
     try {
       await hideIncident(incidentId);
-      alert("성공적으로 숨겨졌습니다. Mute Dashboard로 이동합니다.");
+      alert("Successfully archived. Moving to Mute Dashboard.");
       navigate('/muted', { 
         state: { newlyMutedId: incidentId } 
       });
     } catch (error) {
-      console.error("숨기기 실패:", error);
-      alert("오류가 발생했습니다. 다시 시도해주세요.");
+      console.error("Archiving failed:", error);
+      alert("An error occurred. Please try again.");
     }
   };
 
   const handleUnhide = async () => {
-    if (!window.confirm("이 리포트의 숨김을 해제하시겠습니까?")) {
+    if (!window.confirm("Do you want to unarchive this report?")) {
       return;
     }
 
     try {
       await unhideIncident(incidentId);
-      alert("숨김이 해제되었습니다.");
+      alert("Unarchived successfully.");
       loadDetail(); 
     } catch (error) {
-      console.error("숨기기 해제 실패:", error);
-      alert("오류가 발생했습니다. 다시 시도해주세요.");
+      console.error("Unarchiving failed:", error);
+      alert("An error occurred. Please try again.");
     }
   };
 
   const handleResolve = async () => {
-    if (!window.confirm("이 인시던트를 종료하시겠습니까?\n종료 후 AI가 최종 분석을 수행합니다.")) {
+    if (!window.confirm("Are you sure you want to resolve this incident?\nAfter resolving, AI will perform the final analysis.")) {
       return;
     }
 
     try {
       await resolveIncident(incidentId);
-      alert("인시던트가 종료되었습니다.\nAI 분석이 완료되면 결과가 업데이트됩니다.");
+      alert("Incident resolved.\nResults will be updated once AI analysis is complete.");
       await loadDetail();
     } catch (error) {
-      console.error("종료 실패:", error);
-      alert("오류가 발생했습니다. 다시 시도해주세요.");
+      console.error("Resolve failed:", error);
+      alert("An error occurred. Please try again.");
     }
   };
 
   const handleIncidentAnalyze = async () => {
     const message = data?.analysis_summary
-      ? '이 인시던트에 대해 재분석을 요청하시겠습니까?'
-      : '이 인시던트에 대해 분석을 요청하시겠습니까?';
+      ? 'Would you like to request re-analysis for this incident?'
+      : 'Would you like to request analysis for this incident?';
     if (!window.confirm(message)) return;
 
     try {
       setAnalyzingIncident(true);
       await triggerIncidentAnalysis(incidentId);
-      alert('인시던트 분석 요청이 전송되었습니다. 완료되면 자동으로 업데이트됩니다.');
+      alert('Incident analysis request sent. It will be updated automatically when complete.');
     } catch (err) {
-      console.error('인시던트 분석 요청 실패:', err);
-      alert('인시던트 분석 요청에 실패했습니다.');
+      console.error('Incident analysis request failed:', err);
+      alert('Failed to request incident analysis.');
     } finally {
       setAnalyzingIncident(false);
     }
@@ -255,7 +255,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                 onChange={handleInputChange}
                 className="px-3 py-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
               >
-                {editForm.severity === 'TBD' && <option value="TBD" disabled>TBD (선택해주세요)</option>}
+                {editForm.severity === 'TBD' && <option value="TBD" disabled>TBD (Please select)</option>}
                 <option value="critical">critical</option>
                 <option value="warning">warning</option>
               </select>
@@ -298,7 +298,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                 disabled={analyzingIncident}
                 className="px-4 py-1.5 text-sm text-violet-600 dark:text-violet-400 border border-violet-600 dark:border-violet-400 rounded hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors font-medium disabled:opacity-50"
               >
-                {analyzingIncident ? '분석 중...' : data.analysis_summary ? 'Re-Analyze' : 'Analyze'}
+                {analyzingIncident ? 'Analyzing...' : data.analysis_summary ? 'Re-Analyze' : 'Analyze'}
               </button>
 
               {!isResolved && (
@@ -306,7 +306,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                   onClick={handleResolve}
                   className="px-4 py-1.5 text-sm text-emerald-600 dark:text-emerald-400 border border-emerald-600 dark:border-emerald-400 rounded hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors font-medium"
                 >
-                  종료
+                  Resolve
                 </button>
               )}
 
@@ -315,14 +315,14 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                   onClick={handleUnhide}
                   className="px-4 py-1.5 text-sm text-cyan-600 dark:text-cyan-400 border border-cyan-600 dark:border-cyan-400 rounded hover:bg-cyan-50 dark:hover:bg-cyan-900/20 transition-colors font-medium"
                 >
-                  숨기기 해제
+                  Unarchive
                 </button>
               ) : (
                 <button
                   onClick={handleHide}
                   className="px-4 py-1.5 text-sm text-rose-600 dark:text-rose-400 border border-rose-600 dark:border-rose-400 rounded hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
                 >
-                  숨기기
+                  Archive
                 </button>
               )}
               
@@ -371,7 +371,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
               value={editForm.analysis_summary || ''}
               onChange={handleInputChange}
               rows={5}
-              placeholder="여기에 마크다운 형식으로 요약을 작성하세요..."
+              placeholder="Write a summary in markdown format here..."
               className="w-full p-4 border border-cyan-400 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-shadow shadow-sm"
             />
           ) : (
@@ -389,7 +389,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                     ),
                   }}
                 >
-                  {data.analysis_summary || "*요약 정보가 없습니다.*"}
+                  {data.analysis_summary || "*No summary information available.*"}
                 </ReactMarkdown>
               </div>
             </div>
@@ -408,7 +408,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
               value={editForm.analysis_detail || ''}
               onChange={handleInputChange}
               rows={15}
-              placeholder="여기에 상세 분석 내용을 마크다운으로 작성하세요..."
+              placeholder="Write detailed analysis content in markdown here..."
               className="w-full p-4 border border-cyan-400 rounded-lg bg-slate-900 text-slate-100 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-shadow shadow-sm"
             />
           ) : (
@@ -432,7 +432,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                       a: ({ node: _node, ...props }) => <a className="text-blue-400 hover:text-blue-300 hover:underline transition-colors" target="_blank" rel="noopener noreferrer" {...props} />,
                     }}
                   >
-                    {data.analysis_detail || "*상세 분석 내용이 없습니다.*"}
+                    {data.analysis_detail || "*No detailed analysis content available.*"}
                   </ReactMarkdown>
                 </div>
               </div>
@@ -456,8 +456,8 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                     <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Alert</th>
                     <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Severity</th>
                     <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Status</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">발생 시간</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">해결 시간</th>
+                    <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Fired At</th>
+                    <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Resolved At</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -498,7 +498,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
             </div>
           ) : (
             <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-8 text-center border border-dashed border-slate-300 dark:border-slate-600">
-              <p className="text-slate-500 dark:text-slate-400">연결된 Alert가 없습니다.</p>
+              <p className="text-slate-500 dark:text-slate-400">No connected alerts.</p>
             </div>
           )}
         </div>
@@ -507,7 +507,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
           <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
             Top 3 Similar Incidents
-            {similarLoading && <span className="ml-2 text-sm font-normal text-slate-500">(검색 중...)</span>}
+            {similarLoading && <span className="ml-2 text-sm font-normal text-slate-500">(Searching...)</span>}
           </h3>
 
           {similarIncidents.length > 0 ? (
@@ -523,7 +523,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                       {item.incident_id}
                     </span>
                     <span className="text-xs font-bold text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-900/30 px-2 py-0.5 rounded-full">
-                      {Math.round(item.similarity * 100)}% 유사
+                      {Math.round(item.similarity * 100)}% similar
                     </span>
                   </div>
                   <div className="text-sm font-medium text-slate-800 dark:text-slate-200 line-clamp-3" title={item.incident_summary}>
@@ -535,7 +535,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
           ) : (
             <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-8 text-center border border-dashed border-slate-300 dark:border-slate-600">
               <p className="text-slate-500 dark:text-slate-400">
-                {!data.analysis_summary ? '분석 요약이 없어 유사 인시던트를 검색할 수 없습니다.' : '유사한 인시던트 내역이 없습니다.'}
+                {!data.analysis_summary ? 'Cannot search for similar incidents without an analysis summary.' : 'No similar incident records available.'}
               </p>
             </div>
           )}

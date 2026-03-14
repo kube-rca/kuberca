@@ -87,7 +87,7 @@ export const fetchRCADetail = async (id: string): Promise<RCADetail> => {
   });
 
   if (!response.ok) {
-    throw new Error('상세 정보를 불러오는데 실패했습니다.');
+    throw new Error('Failed to load detailed information.');
   }
 
   const json = await response.json();
@@ -104,7 +104,7 @@ export const updateRCADetail = async (id: string, data: Partial<RCADetail>): Pro
   });
 
   if (!response.ok) {
-    throw new Error('RCA 정보를 수정하는데 실패했습니다.');
+    throw new Error('Failed to modify RCA information.');
   }
 };
 
@@ -114,7 +114,7 @@ export const hideIncident = async (id: string): Promise<void> => {
   });
 
   if (!response.ok) {
-    throw new Error('리포트를 숨기는데 실패했습니다.');
+    throw new Error('Failed to archive the report.');
   }
   
   // response body가 없는 경우를 대비해 return response.json() 대신 void 처리
@@ -127,7 +127,7 @@ export const unhideIncident = async (id: string): Promise<void> => {
   });
 
   if (!response.ok) {
-    throw new Error('인시던트 숨김 해제에 실패했습니다.');
+    throw new Error('Failed to unarchive the incident.');
   }
 };
 
@@ -141,7 +141,7 @@ export const resolveIncident = async (id: string): Promise<void> => {
   });
 
   if (!response.ok) {
-    throw new Error('인시던트 종료에 실패했습니다.');
+    throw new Error('Failed to resolve the incident.');
   }
 };
 
@@ -152,7 +152,7 @@ export const triggerAlertAnalysis = async (alertId: string): Promise<void> => {
   const response = await requestWithAuth(`/api/v1/alerts/${alertId}/analyze`, {
     method: 'POST',
   });
-  if (!response.ok) throw new Error('분석 요청 실패');
+  if (!response.ok) throw new Error('Failed to request analysis');
 };
 
 /**
@@ -162,7 +162,7 @@ export const triggerIncidentAnalysis = async (incidentId: string): Promise<void>
   const response = await requestWithAuth(`/api/v1/incidents/${incidentId}/analyze`, {
     method: 'POST',
   });
-  if (!response.ok) throw new Error('인시던트 분석 요청 실패');
+  if (!response.ok) throw new Error('Failed to request incident analysis');
 };
 
 // ============================================================================
@@ -228,7 +228,7 @@ export const fetchAlertDetail = async (id: string): Promise<AlertDetail> => {
   });
 
   if (!response.ok) {
-    throw new Error('Alert 상세 정보를 불러오는데 실패했습니다.');
+    throw new Error('Failed to load Alert detailed information.');
   }
 
   return response.json();
@@ -247,7 +247,7 @@ export const updateAlertIncident = async (alertId: string, incidentId: string): 
   });
 
   if (!response.ok) {
-    throw new Error('Alert의 Incident 연결을 변경하는데 실패했습니다.');
+    throw new Error('Failed to change the connected Incident of the Alert.');
   }
 };
 
@@ -279,7 +279,7 @@ export const searchSimilarIncidents = async (query: string, limit: number = 5): 
   });
 
   if (!response.ok) {
-    throw new Error('유사 인시던트 검색에 실패했습니다.');
+    throw new Error('Failed to search similar incidents.');
   }
 
   return response.json();
@@ -324,7 +324,7 @@ export const fetchFeedbackSummary = async (targetType: FeedbackTargetType, targe
   });
 
   if (!response.ok) {
-    throw new Error('피드백 정보를 불러오는데 실패했습니다.');
+    throw new Error('Failed to load feedback information.');
   }
 
   return response.json();
@@ -344,7 +344,7 @@ export const createFeedbackComment = async (
   });
 
   if (!response.ok) {
-    throw new Error('코멘트 저장에 실패했습니다.');
+    throw new Error('Failed to save the comment.');
   }
 
   return response.json();
@@ -364,7 +364,7 @@ export const voteFeedback = async (
   });
 
   if (!response.ok) {
-    throw new Error('투표 저장에 실패했습니다.');
+    throw new Error('Failed to save the vote.');
   }
 };
 
@@ -383,7 +383,7 @@ export const updateFeedbackComment = async (
   });
 
   if (!response.ok) {
-    throw new Error('코멘트 수정에 실패했습니다.');
+    throw new Error('Failed to modify the comment.');
   }
 
   return response.json();
@@ -399,7 +399,7 @@ export const deleteFeedbackComment = async (
   });
 
   if (!response.ok) {
-    throw new Error('코멘트 삭제에 실패했습니다.');
+    throw new Error('Failed to delete the comment.');
   }
 };
 
@@ -437,7 +437,7 @@ export const chatWithAgent = async (payload: ChatRequest): Promise<ChatResponse>
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `채팅 요청 실패 (${response.status})`);
+    throw new Error(text || `Failed chat request (${response.status})`);
   }
 
   return response.json();
@@ -518,7 +518,7 @@ const unwrapWebhookPayload = (raw: unknown): unknown => {
 /** 웹훅 설정 목록 조회 */
 export const fetchWebhookList = async (): Promise<WebhookConfig[]> => {
   const response = await requestWithAuth('/api/v1/settings/webhooks', { method: 'GET' });
-  if (!response.ok) throw new Error(`웹훅 목록 조회 실패 (${response.status})`);
+  if (!response.ok) throw new Error(`Failed to fetch webhook list (${response.status})`);
   const payload = unwrapWebhookPayload(await response.json());
   if (!Array.isArray(payload)) {
     return [];
@@ -529,7 +529,7 @@ export const fetchWebhookList = async (): Promise<WebhookConfig[]> => {
 /** ID로 단건 조회 */
 export const fetchWebhookById = async (id: number): Promise<WebhookConfig> => {
   const response = await requestWithAuth(`/api/v1/settings/webhooks/${id}`, { method: 'GET' });
-  if (!response.ok) throw new Error(`웹훅 설정 조회 실패 (${response.status})`);
+  if (!response.ok) throw new Error(`Failed to fetch webhook setting (${response.status})`);
   const payload = unwrapWebhookPayload(await response.json());
   return normalizeWebhookConfig(payload);
 };
@@ -543,7 +543,7 @@ export const createWebhookConfig = async (payload: WebhookConfigPayload): Promis
   });
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `웹훅 설정 생성 실패 (${response.status})`);
+    throw new Error(text || `Failed to create webhook setting (${response.status})`);
   }
   const json = await response.json();
   return json.id;
@@ -558,14 +558,14 @@ export const updateWebhookConfig = async (id: number, payload: WebhookConfigPayl
   });
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `웹훅 설정 수정 실패 (${response.status})`);
+    throw new Error(text || `Failed to modify webhook setting (${response.status})`);
   }
 };
 
 /** 웹훅 설정 삭제 */
 export const deleteWebhookConfig = async (id: number): Promise<void> => {
   const response = await requestWithAuth(`/api/v1/settings/webhooks/${id}`, { method: 'DELETE' });
-  if (!response.ok) throw new Error(`웹훅 설정 삭제 실패 (${response.status})`);
+  if (!response.ok) throw new Error(`Failed to delete webhook setting (${response.status})`);
 };
 
 
@@ -595,7 +595,7 @@ export const saveWebhookSettings = async (settings: WebhookSettings): Promise<vo
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `웹훅 설정 저장 실패 (${response.status})`);
+    throw new Error(text || `Failed to save webhook settings (${response.status})`);
   }
 };
 
@@ -608,7 +608,7 @@ export const fetchWebhookSettings = async (): Promise<WebhookSettingsDetail | nu
   });
 
   if (!response.ok) {
-    throw new Error(`웹훅 설정 조회 실패 (${response.status})`);
+    throw new Error(`Failed to fetch webhook setting (${response.status})`);
   }
 
   const json = await response.json();
@@ -675,7 +675,7 @@ export const fetchAnalyticsDashboard = async (window: string = '30d'): Promise<A
   });
 
   if (!response.ok) {
-    throw new Error(`분석 데이터 조회 실패 (${response.status})`);
+    throw new Error(`Failed to fetch analysis data (${response.status})`);
   }
 
   return response.json();
@@ -684,7 +684,7 @@ export const fetchAnalyticsDashboard = async (window: string = '30d'): Promise<A
 /** 개별 앱 설정 조회 (ENV fallback 포함) */
 export const fetchAppSetting = async <T>(key: string): Promise<T> => {
   const response = await requestWithAuth(`/api/v1/settings/app/${key}`, { method: 'GET' });
-  if (!response.ok) throw new Error(`앱 설정 조회 실패 (${response.status})`);
+  if (!response.ok) throw new Error(`Failed to fetch app settings (${response.status})`);
   const json = await response.json();
   return json.data?.value as T;
 };
@@ -698,6 +698,6 @@ export const updateAppSetting = async <T>(key: string, value: T): Promise<void> 
   });
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `앱 설정 저장 실패 (${response.status})`);
+    throw new Error(text || `Failed to save app settings (${response.status})`);
   }
 };
