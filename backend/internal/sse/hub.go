@@ -22,7 +22,9 @@ type EventType string
 const (
 	EventAlertCreated      EventType = "alert_created"
 	EventAlertResolved     EventType = "alert_resolved"
+	EventAnalysisStarted   EventType = "analysis_started"
 	EventAnalysisCompleted EventType = "analysis_completed"
+	EventAnalysisFailed    EventType = "analysis_failed"
 	EventIncidentCreated   EventType = "incident_created"
 	EventIncidentUpdated   EventType = "incident_updated"
 	EventIncidentResolved  EventType = "incident_resolved"

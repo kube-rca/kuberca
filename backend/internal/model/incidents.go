@@ -89,6 +89,7 @@ type AlertDetailResponse struct {
 	IsFlapping      bool            `json:"is_flapping"`
 	FlapCycleCount  int             `json:"flap_cycle_count,omitempty"`
 	FlapWindowStart *time.Time      `json:"flap_window_start,omitempty"`
+	IsAnalyzing     bool            `json:"is_analyzing"`
 }
 
 // ============================================================================

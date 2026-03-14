@@ -130,12 +130,26 @@ func (s *RcaService) requestIncidentSummary(incidentID string) {
 	}
 	defer s.finishIncidentSummary(incidentID)
 
+	// SSE broadcast: 인시던트 분석 시작 이벤트
+	if s.sseHub != nil {
+		s.sseHub.Broadcast(sse.Event{
+			Type: sse.EventAnalysisStarted,
+			Data: sse.EventData{IncidentID: incidentID},
+		})
+	}
+
 	requestStartedAt := time.Now()
 
 	// Incident 정보 조회
 	incident, err := s.repo.GetIncidentDetail(incidentID)
 	if err != nil {
 		log.Printf("Failed to get incident for summary: %v", err)
+		if s.sseHub != nil {
+			s.sseHub.Broadcast(sse.Event{
+				Type: sse.EventAnalysisFailed,
+				Data: sse.EventData{IncidentID: incidentID, Message: err.Error()},
+			})
+		}
 		return
 	}
 
@@ -143,6 +157,12 @@ func (s *RcaService) requestIncidentSummary(incidentID string) {
 	alerts, err := s.repo.GetAlertsWithAnalysisByIncidentID(incidentID)
 	if err != nil {
 		log.Printf("Failed to get alerts for summary: %v", err)
+		if s.sseHub != nil {
+			s.sseHub.Broadcast(sse.Event{
+				Type: sse.EventAnalysisFailed,
+				Data: sse.EventData{IncidentID: incidentID, Message: err.Error()},
+			})
+		}
 		return
 	}
 
@@ -150,6 +170,12 @@ func (s *RcaService) requestIncidentSummary(incidentID string) {
 	resp, err := s.agentService.RequestIncidentSummary(incident, alerts)
 	if err != nil {
 		log.Printf("Failed to request incident summary: %v", err)
+		if s.sseHub != nil {
+			s.sseHub.Broadcast(sse.Event{
+				Type: sse.EventAnalysisFailed,
+				Data: sse.EventData{IncidentID: incidentID, Message: err.Error()},
+			})
+		}
 		return
 	}
 
@@ -202,7 +228,12 @@ func (s *RcaService) GetAlertList() ([]model.AlertListResponse, error) {
 
 // GetAlertDetail - Alert 상세 조회
 func (s *RcaService) GetAlertDetail(id string) (*model.AlertDetailResponse, error) {
-	return s.repo.GetAlertDetail(id)
+	detail, err := s.repo.GetAlertDetail(id)
+	if err != nil {
+		return nil, err
+	}
+	detail.IsAnalyzing = s.agentService.IsAnalyzing(id)
+	return detail, nil
 }
 
 // UpdateAlertIncidentID - Alert의 Incident ID 변경

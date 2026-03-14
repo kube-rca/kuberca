@@ -68,6 +68,14 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, alertID, threadTS, inc
 		defer s.finishAnalysis(key)
 	}
 
+	// SSE broadcast: 분석 시작 이벤트
+	if s.sseHub != nil {
+		s.sseHub.Broadcast(sse.Event{
+			Type: sse.EventAnalysisStarted,
+			Data: sse.EventData{AlertID: alertID, IncidentID: incidentID},
+		})
+	}
+
 	requestStartedAt := time.Now()
 	log.Printf("Requesting agent analysis (alert_id=%s, fingerprint=%s, status=%s, thread_ref=%s)", alertID, alert.Fingerprint, alert.Status, threadTS)
 
@@ -75,6 +83,12 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, alertID, threadTS, inc
 	resp, err := s.agentClient.RequestAnalysis(alert, threadTS, incidentID)
 	if err != nil {
 		log.Printf("Failed to request agent analysis: %v", err)
+		if s.sseHub != nil {
+			s.sseHub.Broadcast(sse.Event{
+				Type: sse.EventAnalysisFailed,
+				Data: sse.EventData{AlertID: alertID, IncidentID: incidentID, Message: err.Error()},
+			})
+		}
 		return
 	}
 
@@ -180,6 +194,17 @@ func (s *AgentService) requiresThreadRef() bool {
 	}
 	_, ok := s.notifier.(client.ThreadRefStore)
 	return ok
+}
+
+// IsAnalyzing returns true if an analysis is currently in-flight for the given alertID.
+func (s *AgentService) IsAnalyzing(alertID string) bool {
+	key := "alert:" + alertID
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if startedAt, exists := s.inFlight[key]; exists {
+		return time.Since(startedAt) < inFlightStaleTTL
+	}
+	return false
 }
 
 // RequestIncidentSummary - Incident 종료 시 전체 Alert 분석을 기반으로 최종 요약 요청

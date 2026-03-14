@@ -1468,6 +1468,9 @@ const docTemplate = `{
                 "incident_id": {
                     "type": "string"
                 },
+                "is_analyzing": {
+                    "type": "boolean"
+                },
                 "is_flapping": {
                     "type": "boolean"
                 },
