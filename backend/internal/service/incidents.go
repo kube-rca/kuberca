@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sync"
+	"time"
 
 	"github.com/kube-rca/backend/internal/db"
 	"github.com/kube-rca/backend/internal/model"
@@ -12,14 +14,22 @@ import (
 )
 
 type RcaService struct {
-	repo             *db.Postgres
-	agentService     *AgentService
-	embeddingService *EmbeddingService
-	sseHub           *sse.Hub
+	repo              *db.Postgres
+	agentService      *AgentService
+	embeddingService  *EmbeddingService
+	sseHub            *sse.Hub
+	mu                sync.Mutex
+	inFlightSummaries map[string]time.Time
 }
 
 func NewRcaService(repo *db.Postgres, agentService *AgentService, embeddingService *EmbeddingService, sseHub *sse.Hub) *RcaService {
-	return &RcaService{repo: repo, agentService: agentService, embeddingService: embeddingService, sseHub: sseHub}
+	return &RcaService{
+		repo:              repo,
+		agentService:      agentService,
+		embeddingService:  embeddingService,
+		sseHub:            sseHub,
+		inFlightSummaries: make(map[string]time.Time),
+	}
 }
 
 func (s *RcaService) GetIncidentList() ([]model.IncidentListResponse, error) {
@@ -110,6 +120,18 @@ func (s *RcaService) ResolveIncident(id string, resolvedBy string) error {
 
 // requestIncidentSummary - Incident 최종 분석 요청 (goroutine에서 실행)
 func (s *RcaService) requestIncidentSummary(incidentID string) {
+	if startedAt, ok := s.beginIncidentSummary(incidentID); !ok {
+		log.Printf(
+			"Skipping duplicate incident summary request (incident_id=%s, in_flight_ms=%d)",
+			incidentID,
+			time.Since(startedAt).Milliseconds(),
+		)
+		return
+	}
+	defer s.finishIncidentSummary(incidentID)
+
+	requestStartedAt := time.Now()
+
 	// Incident 정보 조회
 	incident, err := s.repo.GetIncidentDetail(incidentID)
 	if err != nil {
@@ -156,6 +178,12 @@ func (s *RcaService) requestIncidentSummary(incidentID string) {
 			log.Printf("Embedding created (incident_id=%s, embedding_id=%d, model=%s)", incidentID, embeddingID, model)
 		}
 	}
+
+	log.Printf(
+		"Incident summary finished (incident_id=%s, elapsed_ms=%d)",
+		incidentID,
+		time.Since(requestStartedAt).Milliseconds(),
+	)
 }
 
 // GetAlertsByIncidentID - Incident에 속한 Alert 목록 조회
@@ -256,6 +284,28 @@ func (s *RcaService) TriggerIncidentAnalysis(incidentID string) error {
 	go s.requestIncidentSummary(incidentID)
 	log.Printf("Manual incident analysis triggered (incident_id=%s)", incidentID)
 	return nil
+}
+
+func (s *RcaService) beginIncidentSummary(incidentID string) (time.Time, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if startedAt, exists := s.inFlightSummaries[incidentID]; exists {
+		if time.Since(startedAt) < inFlightStaleTTL {
+			return startedAt, false
+		}
+		log.Printf("Evicting stale in-flight incident summary entry (incident_id=%s, age_ms=%d)", incidentID, time.Since(startedAt).Milliseconds())
+	}
+
+	startedAt := time.Now()
+	s.inFlightSummaries[incidentID] = startedAt
+	return startedAt, true
+}
+
+func (s *RcaService) finishIncidentSummary(incidentID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.inFlightSummaries, incidentID)
 }
 
 // alertDetailToAlert - AlertDetailResponse → model.Alert 변환

@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -109,11 +110,22 @@ func NewAgentClient(cfg config.AgentConfig) *AgentClient {
 	if baseURL == "" {
 		baseURL = "http://kube-rca-agent.kube-rca.svc:8000"
 	}
+	timeoutSeconds := cfg.HTTPTimeoutSeconds
+	if timeoutSeconds <= 0 {
+		timeoutSeconds = 240
+	}
+	timeout := time.Duration(timeoutSeconds) * time.Second
+
+	log.Printf(
+		"Agent client initialized (base_url=%s, timeout_seconds=%d)",
+		baseURL,
+		timeoutSeconds,
+	)
 
 	return &AgentClient{
 		baseURL: baseURL,
 		httpClient: &http.Client{
-			Timeout: 120 * time.Second, // AI 분석 시간 고려
+			Timeout: timeout, // AI 분석 시간 고려 (LLM retry 3분 + context 수집 여유)
 		},
 	}
 }

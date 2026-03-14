@@ -26,7 +26,8 @@ type SlackConfig struct {
 }
 
 type AgentConfig struct {
-	BaseURL string
+	BaseURL            string
+	HTTPTimeoutSeconds int
 }
 
 type EmbeddingConfig struct {
@@ -94,7 +95,8 @@ func Load() Config {
 			FrontendURL: os.Getenv("FRONTEND_URL"),
 		},
 		Agent: AgentConfig{
-			BaseURL: getenv("AGENT_URL", "http://kube-rca-agent.kube-rca.svc:8000"),
+			BaseURL:            getenv("AGENT_URL", "http://kube-rca-agent.kube-rca.svc:8000"),
+			HTTPTimeoutSeconds: getenvInt("AGENT_HTTP_TIMEOUT_SECONDS", 240),
 		},
 		Embedding: EmbeddingConfig{
 			Provider: getenv("EMBEDDING_PROVIDER", "google"),

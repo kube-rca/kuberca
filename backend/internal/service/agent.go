@@ -9,6 +9,8 @@ package service
 
 import (
 	"log"
+	"sync"
+	"time"
 
 	"github.com/kube-rca/backend/internal/client"
 	"github.com/kube-rca/backend/internal/db"
@@ -16,12 +18,19 @@ import (
 	"github.com/kube-rca/backend/internal/sse"
 )
 
+// inFlightStaleTTL is the maximum duration an in-flight entry is considered
+// valid. Entries older than this are treated as stale (e.g. leaked by a panic)
+// and automatically evicted so that future requests are not permanently blocked.
+const inFlightStaleTTL = 5 * time.Minute
+
 // AgentService 구조체 정의
 type AgentService struct {
 	agentClient *client.AgentClient
 	notifier    client.Notifier
 	db          *db.Postgres
 	sseHub      *sse.Hub
+	mu          sync.Mutex
+	inFlight    map[string]time.Time
 }
 
 // AgentService 객체 생성
@@ -31,6 +40,7 @@ func NewAgentService(agentClient *client.AgentClient, notifier client.Notifier, 
 		notifier:    notifier,
 		db:          database,
 		sseHub:      sseHub,
+		inFlight:    make(map[string]time.Time),
 	}
 }
 
@@ -43,6 +53,22 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, alertID, threadTS, inc
 		log.Printf("No thread_ref for alert (alert_id=%s, fingerprint=%s), sending analysis without thread", alertID, alert.Fingerprint)
 	}
 
+	key := s.analysisKey(alertID, alert.Fingerprint)
+	if key != "" {
+		if startedAt, ok := s.beginAnalysis(key); !ok {
+			log.Printf(
+				"Skipping duplicate alert analysis request (alert_id=%s, fingerprint=%s, incident_id=%s, in_flight_ms=%d)",
+				alertID,
+				alert.Fingerprint,
+				incidentID,
+				time.Since(startedAt).Milliseconds(),
+			)
+			return
+		}
+		defer s.finishAnalysis(key)
+	}
+
+	requestStartedAt := time.Now()
 	log.Printf("Requesting agent analysis (alert_id=%s, fingerprint=%s, status=%s, thread_ref=%s)", alertID, alert.Fingerprint, alert.Status, threadTS)
 
 	// Agent에 분석 요청 (동기)
@@ -105,6 +131,47 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, alertID, threadTS, inc
 	} else {
 		log.Printf("Skipping analysis notification (no thread_ref, alert_id=%s)", alertID)
 	}
+
+	log.Printf(
+		"Agent analysis finished (alert_id=%s, fingerprint=%s, incident_id=%s, elapsed_ms=%d)",
+		alertID,
+		alert.Fingerprint,
+		incidentID,
+		time.Since(requestStartedAt).Milliseconds(),
+	)
+}
+
+func (s *AgentService) analysisKey(alertID, fingerprint string) string {
+	if alertID != "" {
+		return "alert:" + alertID
+	}
+	if fingerprint != "" {
+		return "fingerprint:" + fingerprint
+	}
+	log.Printf("WARNING: Cannot determine unique analysis key (alert_id=%q, fingerprint=%q), deduplication skipped", alertID, fingerprint)
+	return ""
+}
+
+func (s *AgentService) beginAnalysis(key string) (time.Time, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if startedAt, exists := s.inFlight[key]; exists {
+		if time.Since(startedAt) < inFlightStaleTTL {
+			return startedAt, false
+		}
+		log.Printf("Evicting stale in-flight analysis entry (key=%s, age_ms=%d)", key, time.Since(startedAt).Milliseconds())
+	}
+
+	startedAt := time.Now()
+	s.inFlight[key] = startedAt
+	return startedAt, true
+}
+
+func (s *AgentService) finishAnalysis(key string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.inFlight, key)
 }
 
 func (s *AgentService) requiresThreadRef() bool {
