@@ -139,7 +139,7 @@ func main() {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(gin.LoggerWithConfig(gin.LoggerConfig{
-		SkipPaths: []string{"/ping", "/", "/openapi.json", "/api/v1/events"},
+		SkipPaths: []string{"/ping", "/", "/openapi.json", "/readyz", "/healthz", "/api/v1/events"},
 	}))
 
 	corsOrigins := splitOrigins(cfg.Auth.CorsAllowedOrigins)
@@ -150,8 +150,11 @@ func main() {
 	// Health Check 엔드포인트
 	// - GET /ping: 서버 상태 확인용
 	// - GET /: 루트 경로
+	healthHandler := handler.NewHealthHandler(dbPool)
 	router.GET("/ping", handler.Ping)
 	router.GET("/", handler.Root)
+	router.GET("/readyz", healthHandler.Readyz)
+	router.GET("/healthz", healthHandler.Healthz)
 	router.GET("/openapi.json", handler.OpenAPIDoc)
 
 	v1 := router.Group("/api/v1")

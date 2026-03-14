@@ -341,6 +341,11 @@ definitions:
       status:
         type: string
     type: object
+  model.StatusResponse:
+    properties:
+      status:
+        type: string
+    type: object
   model.UpdateAlertIncidentRequest:
     properties:
       incident_id:
@@ -1272,6 +1277,22 @@ paths:
       summary: Update a webhook config
       tags:
       - settings
+  /healthz:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.StatusResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/model.StatusResponse'
+      summary: Startup/health check (includes DB connectivity)
+      tags:
+      - health
   /ping:
     get:
       produces:
@@ -1282,6 +1303,22 @@ paths:
           schema:
             $ref: '#/definitions/model.PingResponse'
       summary: Health check
+      tags:
+      - health
+  /readyz:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.StatusResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/model.StatusResponse'
+      summary: Readiness check (includes DB connectivity)
       tags:
       - health
   /webhook/alertmanager:

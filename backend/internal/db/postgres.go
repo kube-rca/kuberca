@@ -14,8 +14,11 @@ package db
 import (
 	"context"
 	"fmt"
+	"log"
+	"math/rand"
 	"net"
 	"net/url"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kube-rca/backend/internal/config"
@@ -32,17 +35,53 @@ func NewPostgresPool(ctx context.Context, cfg config.PostgresConfig) (*pgxpool.P
 		return nil, fmt.Errorf("failed to parse postgres config: %w", err)
 	}
 
-	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create postgres pool: %w", err)
+	maxAttempts := cfg.RetryMaxAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = 1
+	}
+	initialBackoff := time.Duration(cfg.RetryInitialBackoffSecs) * time.Second
+	if initialBackoff <= 0 {
+		initialBackoff = time.Second
+	}
+	maxBackoff := time.Duration(cfg.RetryMaxBackoffSecs) * time.Second
+	if maxBackoff <= 0 {
+		maxBackoff = 30 * time.Second
 	}
 
-	if err := pool.Ping(ctx); err != nil {
-		pool.Close()
-		return nil, fmt.Errorf("failed to ping postgres: %w", err)
+	var pool *pgxpool.Pool
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("context cancelled while connecting to postgres: %w", ctx.Err())
+		default:
+		}
+
+		pool, err = pgxpool.NewWithConfig(ctx, poolCfg)
+		if err == nil {
+			if pingErr := pool.Ping(ctx); pingErr == nil {
+				return pool, nil
+			} else {
+				pool.Close()
+				err = pingErr
+			}
+		}
+
+		if attempt < maxAttempts-1 {
+			backoff := initialBackoff * (1 << uint(attempt))
+			if backoff > maxBackoff {
+				backoff = maxBackoff
+			}
+			jitter := time.Duration(float64(backoff) * (0.75 + rand.Float64()*0.5))
+			log.Printf("postgres connection attempt %d/%d failed: %v — retrying in %s", attempt+1, maxAttempts, err, jitter)
+			select {
+			case <-ctx.Done():
+				return nil, fmt.Errorf("context cancelled while waiting to retry postgres: %w", ctx.Err())
+			case <-time.After(jitter):
+			}
+		}
 	}
 
-	return pool, nil
+	return nil, fmt.Errorf("failed to connect to postgres after %d attempts: %w", maxAttempts, err)
 }
 
 func buildPostgresURL(cfg config.PostgresConfig) (string, error) {

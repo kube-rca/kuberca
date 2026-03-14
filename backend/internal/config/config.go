@@ -37,13 +37,16 @@ type EmbeddingConfig struct {
 }
 
 type PostgresConfig struct {
-	DatabaseURL string
-	Host        string
-	Port        string
-	User        string
-	Password    string
-	Database    string
-	SSLMode     string
+	DatabaseURL             string
+	Host                    string
+	Port                    string
+	User                    string
+	Password                string
+	Database                string
+	SSLMode                 string
+	RetryMaxAttempts        int
+	RetryInitialBackoffSecs int
+	RetryMaxBackoffSecs     int
 }
 
 type AuthConfig struct {
@@ -104,13 +107,16 @@ func Load() Config {
 			Model:    getenv("EMBEDDING_MODEL", "text-embedding-004"),
 		},
 		Postgres: PostgresConfig{
-			DatabaseURL: os.Getenv("DATABASE_URL"),
-			Host:        getenv("PGHOST", "localhost"),
-			Port:        getenv("PGPORT", "5432"),
-			User:        os.Getenv("PGUSER"),
-			Password:    os.Getenv("PGPASSWORD"),
-			Database:    os.Getenv("PGDATABASE"),
-			SSLMode:     getenv("PGSSLMODE", "disable"),
+			DatabaseURL:             os.Getenv("DATABASE_URL"),
+			Host:                    getenv("PGHOST", "localhost"),
+			Port:                    getenv("PGPORT", "5432"),
+			User:                    os.Getenv("PGUSER"),
+			Password:                os.Getenv("PGPASSWORD"),
+			Database:                os.Getenv("PGDATABASE"),
+			SSLMode:                 getenv("PGSSLMODE", "disable"),
+			RetryMaxAttempts:        getenvInt("PG_RETRY_MAX_ATTEMPTS", 10),
+			RetryInitialBackoffSecs: getenvInt("PG_RETRY_INITIAL_BACKOFF_SECONDS", 1),
+			RetryMaxBackoffSecs:     getenvInt("PG_RETRY_MAX_BACKOFF_SECONDS", 30),
 		},
 		Auth: AuthConfig{
 			JWTSecret:          os.Getenv("JWT_SECRET"),
