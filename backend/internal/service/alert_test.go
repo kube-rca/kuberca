@@ -147,6 +147,13 @@ func (m *alertStoreMock) CreateIncident(_, _ string, _ time.Time) (string, error
 	return "INC-test0001", nil
 }
 
+func (m *alertStoreMock) GetOrCreateFiringIncident(_, _ string, _ time.Time) (string, bool, error) {
+	if m.firingIncidentID != "" {
+		return m.firingIncidentID, false, nil
+	}
+	return "INC-test0001", true, nil
+}
+
 func (m *alertStoreMock) UpdateIncidentSeverity(_, _ string) error {
 	return nil
 }

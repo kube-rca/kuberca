@@ -19,7 +19,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/kube-rca/backend/internal/client"
 	"github.com/kube-rca/backend/internal/config"
 	"github.com/kube-rca/backend/internal/db"
@@ -44,6 +43,7 @@ type alertStore interface {
 	HasTransitionsSince(fingerprint string, since time.Time) (bool, error)
 	GetFiringIncident() (*model.IncidentDetailResponse, error)
 	CreateIncident(title, severity string, firedAt time.Time) (string, error)
+	GetOrCreateFiringIncident(title, severity string, firedAt time.Time) (string, bool, error)
 	UpdateIncidentSeverity(incidentID, severity string) error
 }
 
@@ -200,44 +200,28 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 	return sent, failed
 }
 
-// getOrCreateIncident - 현재 firing 상태인 Incident를 조회하거나 새로 생성
+// getOrCreateIncident - 현재 firing 상태인 Incident를 원자적으로 조회하거나 새로 생성
 func (s *AlertService) getOrCreateIncident(alert model.Alert) (string, error) {
-	// firing 상태인 Incident 조회
-	incident, err := s.db.GetFiringIncident()
-	if err == nil && incident != nil {
-		// 기존 Incident에 연결 + severity 업데이트
-		severity := alert.Labels["severity"]
-		if severity != "" {
-			_ = s.db.UpdateIncidentSeverity(incident.IncidentID, severity)
-		}
-		return incident.IncidentID, nil
-	}
-
-	// firing Incident가 없으면 새로 생성 (pgx.ErrNoRows인 경우)
-	if err != nil && err != pgx.ErrNoRows {
-		return "", err
-	}
-
-	// severity := alert.Labels["severity"]
-	// if severity == "" {
-	// 	severity = "warning"
-	// }
-
 	severity := "TBD"
-
-	// 초기 title은 Ongoing으로 설정 (에이전트 분석 후 title 업데이트)
-	incidentID, err := s.db.CreateIncident("Ongoing", severity, alert.StartsAt)
+	incidentID, created, err := s.db.GetOrCreateFiringIncident("Ongoing", severity, alert.StartsAt)
 	if err != nil {
 		return "", err
 	}
 
-	log.Printf("Created new incident: %s (triggered by alert: %s)", incidentID, alert.Fingerprint)
-
-	if s.sseHub != nil {
-		s.sseHub.Broadcast(sse.Event{
-			Type: sse.EventIncidentCreated,
-			Data: sse.EventData{IncidentID: incidentID},
-		})
+	if created {
+		log.Printf("Created new incident: %s (triggered by alert: %s)", incidentID, alert.Fingerprint)
+		if s.sseHub != nil {
+			s.sseHub.Broadcast(sse.Event{
+				Type: sse.EventIncidentCreated,
+				Data: sse.EventData{IncidentID: incidentID},
+			})
+		}
+	} else {
+		// 기존 incident severity 업데이트
+		alertSeverity := alert.Labels["severity"]
+		if alertSeverity != "" {
+			_ = s.db.UpdateIncidentSeverity(incidentID, alertSeverity)
+		}
 	}
 
 	return incidentID, nil

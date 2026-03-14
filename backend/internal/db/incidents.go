@@ -38,6 +38,7 @@ func (db *Postgres) EnsureIncidentSchema() error {
 		`,
 		`CREATE INDEX IF NOT EXISTS incidents_status_idx ON incidents(status)`,
 		`CREATE INDEX IF NOT EXISTS incidents_fired_at_idx ON incidents(fired_at DESC)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS incidents_firing_uniq ON incidents(status) WHERE status = 'firing' AND is_enabled = TRUE`,
 	}
 
 	for _, query := range queries {
@@ -327,6 +328,35 @@ func (db *Postgres) CreateIncident(title, severity string, firedAt time.Time) (s
 	}
 
 	return incidentID, nil
+}
+
+// GetOrCreateFiringIncident - firing Incident를 원자적으로 조회하거나 생성 (TOCTOU race condition 방지)
+func (db *Postgres) GetOrCreateFiringIncident(title, severity string, firedAt time.Time) (string, bool, error) {
+	incidentID := "INC-" + uuid.New().String()[:8]
+
+	// INSERT 시도 — unique index 덕분에 firing incident가 이미 있으면 ON CONFLICT로 무시
+	insertQuery := `
+		INSERT INTO incidents (incident_id, title, severity, status, fired_at, created_at, updated_at)
+		VALUES ($1, $2, $3, 'firing', $4, NOW(), NOW())
+		ON CONFLICT DO NOTHING
+		RETURNING incident_id
+	`
+	var insertedID string
+	err := db.Pool.QueryRow(context.Background(), insertQuery, incidentID, title, severity, firedAt).Scan(&insertedID)
+	if err == nil {
+		return insertedID, true, nil // 새로 생성됨
+	}
+
+	// INSERT가 conflict로 무시됨 (pgx.ErrNoRows) → 기존 firing incident 조회
+	if err.Error() == "no rows in result set" {
+		existing, getErr := db.GetFiringIncident()
+		if getErr != nil {
+			return "", false, getErr
+		}
+		return existing.IncidentID, false, nil
+	}
+
+	return "", false, err
 }
 
 // UpdateIncidentSeverity - Incident severity 업데이트 (가장 높은 severity로)
