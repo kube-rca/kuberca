@@ -24,12 +24,14 @@ def analyze_alert(
     missing_data = _extract_optional_str_list(context, "missing_data")
     warnings = _extract_optional_str_list(context, "warnings")
     capabilities = _extract_optional_str_dict(context, "capabilities")
+    analysis_type = request.analysis_type or request.alert.status
     return AlertAnalysisResponse(
         status="ok",
         thread_ts=request.thread_ts,
         analysis=analysis,
         analysis_summary=summary,
         analysis_detail=detail,
+        analysis_type=analysis_type,
         analysis_quality=analysis_quality,
         missing_data=missing_data,
         warnings=warnings,

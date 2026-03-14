@@ -6,7 +6,12 @@ from datetime import datetime, timedelta, timezone
 from app.core.masking import RegexMasker
 from app.models.k8s import K8sContext, PodEventSummary, PodLogSnippet, PodStatusSnapshot
 from app.schemas.alert import Alert
-from app.schemas.analysis import AlertAnalysisRequest, AlertSummaryInput, IncidentSummaryRequest
+from app.schemas.analysis import (
+    AlertAnalysisRequest,
+    AlertSummaryInput,
+    IncidentSummaryRequest,
+    PreviousAnalysisContext,
+)
 from app.services.analysis import AnalysisService
 
 
@@ -308,9 +313,9 @@ def test_analysis_service_prompt_with_tempo() -> None:
     assert "get_tempo_trace" in engine.last_prompt
     assert "get_manifest" in engine.last_prompt
     assert "list_manifests" in engine.last_prompt
-    assert "\"tempo\"" in engine.last_prompt
-    assert "\"capabilities\"" in engine.last_prompt
-    assert "\"missing_data\"" in engine.last_prompt
+    assert '"tempo"' in engine.last_prompt
+    assert '"capabilities"' in engine.last_prompt
+    assert '"missing_data"' in engine.last_prompt
     assert tempo.calls
 
 
@@ -515,6 +520,180 @@ def test_analysis_service_masks_prompt_response_and_store() -> None:
     assert "[MASKED]" in store.appended[0][1]
 
 
+def _sample_resolved_request_with_previous() -> AlertAnalysisRequest:
+    return AlertAnalysisRequest(
+        alert=Alert(
+            status="resolved",
+            labels={"namespace": "default", "pod": "demo-pod"},
+            annotations={"summary": "Test resolved"},
+            fingerprint="abc123",
+            endsAt=datetime(2024, 1, 1, 12, 30, tzinfo=timezone.utc),
+        ),
+        thread_ts="1234567890.123456",
+        analysis_type="resolved",
+        previous_analysis=PreviousAnalysisContext(
+            status="firing",
+            summary="OOMKilled로 인한 Pod 재시작",
+            detail="#### 근본 원인\n- 메모리 부족",
+            created_at="2024-01-01T12:00:00Z",
+        ),
+    )
+
+
+def test_resolved_prompt_uses_resolved_structure() -> None:
+    """Resolved alert with previous_analysis uses resolved prompt structure."""
+    context = K8sContext(
+        namespace="default",
+        pod_name="demo-pod",
+        workload=None,
+        pod_status=None,
+        events=[],
+        previous_logs=[],
+        warnings=[],
+    )
+    engine = CapturingAnalysisEngine("ok")
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=engine,
+        prometheus_enabled=False,
+    )
+
+    service.analyze(_sample_resolved_request_with_previous())
+
+    assert "RESOLVED alert" in engine.last_prompt
+    assert "복구 확인" in engine.last_prompt or "Recovery Confirmation" in engine.last_prompt
+    assert "DO NOT repeat" in engine.last_prompt
+    assert "OOMKilled" in engine.last_prompt
+
+
+def test_resolved_without_previous_uses_firing_prompt() -> None:
+    """Resolved alert without previous_analysis falls back to firing prompt."""
+    context = K8sContext(
+        namespace="default",
+        pod_name="demo-pod",
+        workload=None,
+        pod_status=None,
+        events=[],
+        previous_logs=[],
+        warnings=[],
+    )
+    engine = CapturingAnalysisEngine("ok")
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=engine,
+        prometheus_enabled=False,
+    )
+
+    request = AlertAnalysisRequest(
+        alert=Alert(
+            status="resolved",
+            labels={"namespace": "default", "pod": "demo-pod"},
+            annotations={"summary": "Test"},
+            fingerprint="abc123",
+        ),
+        thread_ts="1234567890.123456",
+        analysis_type="resolved",
+    )
+    service.analyze(request)
+
+    assert "RESOLVED alert" not in engine.last_prompt
+    assert "Analyze the alert using the provided Kubernetes context" in engine.last_prompt
+
+
+def test_resolved_reduces_context_limits() -> None:
+    """Resolved analysis with previous_analysis halves log/event limits."""
+    logs = [f"line-{idx}" for idx in range(20)]
+    context = K8sContext(
+        namespace="default",
+        pod_name="demo-pod",
+        workload=None,
+        pod_status=None,
+        events=[
+            PodEventSummary(
+                type="Normal",
+                reason="Pulled",
+                message=f"event-{idx}",
+                count=1,
+                first_timestamp=None,
+                last_timestamp=None,
+                involved_object=None,
+            )
+            for idx in range(20)
+        ],
+        previous_logs=[PodLogSnippet(container="app", previous=True, logs=logs)],
+        warnings=[],
+    )
+    engine = CapturingAnalysisEngine("ok")
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=engine,
+        prometheus_enabled=False,
+        prompt_max_log_lines=10,
+        prompt_max_events=10,
+    )
+
+    service.analyze(_sample_resolved_request_with_previous())
+
+    # 50% 축소: max_log_lines=5, max_events=5
+    assert "line-19" in engine.last_prompt
+    assert "line-14" not in engine.last_prompt
+    assert "event-4" in engine.last_prompt
+    assert "event-5" not in engine.last_prompt
+
+
+def test_resolved_tempo_window_uses_ends_at() -> None:
+    """Resolved analysis uses ends_at as tempo window pivot."""
+    context = K8sContext(
+        namespace="bookinfo",
+        pod_name="reviews-v1",
+        workload="reviews",
+        pod_status=None,
+        events=[],
+        previous_logs=[],
+        warnings=[],
+    )
+    tempo = FakeTempoClient()
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=FakeAnalysisEngine("ok"),
+        tempo_client=tempo,
+        tempo_enabled=True,
+        tempo_lookback_minutes=15,
+        tempo_forward_minutes=5,
+    )
+
+    ends_at = datetime(2024, 1, 1, 12, 30, tzinfo=timezone.utc)
+    request = AlertAnalysisRequest(
+        alert=Alert(
+            status="resolved",
+            labels={
+                "namespace": "bookinfo",
+                "destination_service_name": "reviews",
+                "destination_service_namespace": "bookinfo",
+            },
+            annotations={"summary": "Test"},
+            startsAt=datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc),
+            endsAt=ends_at,
+            fingerprint="trace-abc123",
+        ),
+        thread_ts="1234567890.123456",
+        analysis_type="resolved",
+        previous_analysis=PreviousAnalysisContext(
+            status="firing",
+            summary="prev summary",
+            detail="prev detail",
+        ),
+    )
+    service.analyze(request)
+
+    assert tempo.calls
+    call = tempo.calls[-1]
+    expected_start = (ends_at - timedelta(minutes=15)).isoformat().replace("+00:00", "Z")
+    expected_end = (ends_at + timedelta(minutes=5)).isoformat().replace("+00:00", "Z")
+    assert call["start"] == expected_start
+    assert call["end"] == expected_end
+
+
 def test_summarize_incident_masks_prompt_and_response() -> None:
     secret = "secret-value"
     context = K8sContext(
@@ -527,9 +706,7 @@ def test_summarize_incident_masks_prompt_and_response() -> None:
         warnings=[],
     )
     engine = CapturingAnalysisEngine(
-        f"제목: incident {secret}\n"
-        f"요약: summary {secret}\n"
-        f"상세 분석: detail {secret}\n"
+        f"제목: incident {secret}\n요약: summary {secret}\n상세 분석: detail {secret}\n"
     )
     service = AnalysisService(
         FakeKubernetesClient(context),

@@ -108,6 +108,15 @@ class AnalysisService:
 
         summary_key = _resolve_alert_session_id(request)
         recent_summaries = self._load_recent_summaries(summary_key)
+
+        # Resolved 분석 시 컨텍스트 축소 (이전 분석이 이미 상세 분석을 수행)
+        analysis_type = request.analysis_type or request.alert.status
+        effective_max_log_lines = self._prompt_max_log_lines
+        effective_max_events = self._prompt_max_events
+        if analysis_type == "resolved" and request.previous_analysis is not None:
+            effective_max_log_lines = max(1, self._prompt_max_log_lines // 2)
+            effective_max_events = max(1, self._prompt_max_events // 2)
+
         prompt = _build_prompt(
             request,
             k8s_context,
@@ -119,8 +128,8 @@ class AnalysisService:
             base_warnings,
             recent_summaries,
             self._prompt_token_budget,
-            self._prompt_max_log_lines,
-            self._prompt_max_events,
+            effective_max_log_lines,
+            effective_max_events,
             self._masker,
         )
         try:
@@ -223,8 +232,11 @@ class AnalysisService:
         labels = request.alert.labels
         namespace = _resolve_trace_namespace(labels)
         service_name = _resolve_trace_service_name(labels)
+        analysis_type = request.analysis_type or request.alert.status
         start, end = _resolve_tempo_window(
             request.alert.starts_at,
+            ends_at=request.alert.ends_at,
+            analysis_type=analysis_type,
             lookback_minutes=self._tempo_lookback_minutes,
             forward_minutes=self._tempo_forward_minutes,
         )
@@ -319,6 +331,8 @@ def _build_prompt(
     if request.incident_id:
         payload["incident_id"] = masker.mask_text(request.incident_id)
 
+    analysis_type = request.analysis_type or request.alert.status
+
     tool_lines = [
         "- get_pod_status, get_pod_spec",
         "- list_pod_events, list_namespace_events, list_cluster_events",
@@ -338,28 +352,56 @@ def _build_prompt(
     summary_block = _format_session_summaries(
         [masker.mask_text(summary) for summary in recent_summaries]
     )
-    prompt = (
-        "You are kube-rca-agent. Analyze the alert using the provided Kubernetes context.\n"
-        "Return your response in Korean with the following structure:\n"
-        "1) 요약 (Summary): 1-2 sentences, <= 300 chars.\n"
-        "   Include root cause + impact + next action.\n"
-        "2) 상세 분석 (Detail): Use sections for 근본 원인, 확인 근거, 조치 사항, 누락된 데이터.\n"
-        "Formatting rules:\n"
-        "- Use markdown headers: '### 1) 요약 (Summary)' and '### 2) 상세 분석 (Detail)'.\n"
-        "- Use '####' for subsections: 근본 원인, 확인 근거, 조치 사항, 누락된 데이터.\n"
-        "- Leave one blank line between sections/subsections.\n"
-        "- Use '-' for unordered lists (do not use '*').\n"
-        "- Limit each subsection to 3-5 bullets; one sentence per bullet (<= 120 chars).\n"
-        "- Use inline code only for literal keys/values/commands; "
-        "avoid excessive code formatting.\n"
-        "If data is missing, state what is missing.\n"
-        "- Do not infer user/header traffic match conditions without direct "
-        "manifest/log evidence.\n"
-        "- For routing policy evidence, use get_manifest/list_manifests with "
-        "explicit apiVersion/resource.\n"
-        "You may call tools if needed:\n"
-        f"{tool_block}\n\n"
-    )
+    if analysis_type == "resolved" and request.previous_analysis is not None:
+        prev = request.previous_analysis
+        prompt = (
+            "You are kube-rca-agent. This is a RESOLVED alert.\n"
+            "Your goal is NOT to repeat the root cause analysis from the firing phase.\n"
+            "Focus on recovery confirmation and post-incident insights.\n\n"
+            "Return your response in Korean with the following structure:\n"
+            "1) 요약 (Summary): Recovery confirmation + key metric changes (<= 300 chars).\n"
+            "2) 상세 분석 (Detail):\n"
+            "   #### 복구 확인 (Recovery Confirmation)\n"
+            "   #### 장애 영향 (Impact Assessment) - 장애 지속 시간, 영향 범위\n"
+            "   #### 이전 분석 대비 변화 (Delta Analysis)\n"
+            "   #### 재발 방지 권고 (Prevention Recommendations)\n"
+            "Formatting rules:\n"
+            "- Use markdown headers: '### 1) 요약 (Summary)' and '### 2) 상세 분석 (Detail)'.\n"
+            "- Use '####' for subsections.\n"
+            "- Leave one blank line between sections/subsections.\n"
+            "- Use '-' for unordered lists (do not use '*').\n"
+            "- Limit each subsection to 3-5 bullets; one sentence per bullet (<= 120 chars).\n"
+            "- Use inline code only for literal keys/values/commands.\n"
+            "You may call tools if needed:\n"
+            f"{tool_block}\n\n"
+            "Previous firing analysis (DO NOT repeat this content):\n"
+            f"Summary: {masker.mask_text(prev.summary)}\n"
+            f"Detail: {masker.mask_text(prev.detail)}\n\n"
+        )
+    else:
+        prompt = (
+            "You are kube-rca-agent. Analyze the alert using the provided Kubernetes context.\n"
+            "Return your response in Korean with the following structure:\n"
+            "1) 요약 (Summary): 1-2 sentences, <= 300 chars.\n"
+            "   Include root cause + impact + next action.\n"
+            "2) 상세 분석 (Detail): Use sections for "
+            "근본 원인, 확인 근거, 조치 사항, 누락된 데이터.\n"
+            "Formatting rules:\n"
+            "- Use markdown headers: '### 1) 요약 (Summary)' and '### 2) 상세 분석 (Detail)'.\n"
+            "- Use '####' for subsections: 근본 원인, 확인 근거, 조치 사항, 누락된 데이터.\n"
+            "- Leave one blank line between sections/subsections.\n"
+            "- Use '-' for unordered lists (do not use '*').\n"
+            "- Limit each subsection to 3-5 bullets; one sentence per bullet (<= 120 chars).\n"
+            "- Use inline code only for literal keys/values/commands; "
+            "avoid excessive code formatting.\n"
+            "If data is missing, state what is missing.\n"
+            "- Do not infer user/header traffic match conditions without direct "
+            "manifest/log evidence.\n"
+            "- For routing policy evidence, use get_manifest/list_manifests with "
+            "explicit apiVersion/resource.\n"
+            "You may call tools if needed:\n"
+            f"{tool_block}\n\n"
+        )
 
     if prometheus_enabled:
         prompt += (
@@ -633,10 +675,15 @@ def _first_non_empty_label(labels: dict[str, str], keys: list[str]) -> str | Non
 def _resolve_tempo_window(
     starts_at: datetime | None,
     *,
+    ends_at: datetime | None = None,
+    analysis_type: str | None = None,
     lookback_minutes: int,
     forward_minutes: int,
 ) -> tuple[str, str]:
-    pivot = starts_at or datetime.now(timezone.utc)
+    if analysis_type == "resolved" and ends_at is not None:
+        pivot = ends_at
+    else:
+        pivot = starts_at or datetime.now(timezone.utc)
     if pivot.tzinfo is None:
         pivot = pivot.replace(tzinfo=timezone.utc)
     else:

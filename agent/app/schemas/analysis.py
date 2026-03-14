@@ -5,10 +5,19 @@ from pydantic import BaseModel
 from app.schemas.alert import Alert
 
 
+class PreviousAnalysisContext(BaseModel):
+    status: str
+    summary: str
+    detail: str
+    created_at: str | None = None
+
+
 class AlertAnalysisRequest(BaseModel):
     alert: Alert
     thread_ts: str
     incident_id: str | None = None
+    analysis_type: str | None = None
+    previous_analysis: PreviousAnalysisContext | None = None
 
 
 class AlertAnalysisArtifact(BaseModel):
@@ -24,6 +33,7 @@ class AlertAnalysisResponse(BaseModel):
     analysis: str
     analysis_summary: str | None = None
     analysis_detail: str | None = None
+    analysis_type: str | None = None
     analysis_quality: str | None = None
     missing_data: list[str] | None = None
     warnings: list[str] | None = None
