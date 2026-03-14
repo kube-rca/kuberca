@@ -28,10 +28,9 @@ from tenacity import (
 
 from app.clients.conversation_manager import SafeSlidingWindowConversationManager
 from app.clients.k8s import KubernetesClient
-from app.clients.llm_providers import LLMProvider, ModelConfig, create_model
+from app.clients.llm_providers import ModelConfig, create_model
 from app.clients.prometheus import PrometheusClient
 from app.clients.session_repository import PostgresSessionRepository
-from app.clients.strands_patch import apply_gemini_thought_signature_patch
 from app.clients.tempo import TempoClient, build_traceql_query
 from app.core.config import Settings
 from app.core.masking import RegexMasker
@@ -334,8 +333,7 @@ def _log_tool_event(
         )
     if result_summary:
         parts.append(
-            "result="
-            + json.dumps(result_summary, ensure_ascii=True, sort_keys=True, default=str)
+            "result=" + json.dumps(result_summary, ensure_ascii=True, sort_keys=True, default=str)
         )
     if error is not None:
         parts.append(f"error_type={type(error).__name__}")
@@ -488,10 +486,6 @@ class StrandsAnalysisEngine:
         masker: RegexMasker | None = None,
         model_config: ModelConfig | None = None,
     ) -> None:
-        # Apply Gemini patch only when using Gemini provider
-        if model_config is None or model_config.provider == LLMProvider.GEMINI:
-            apply_gemini_thought_signature_patch()
-
         if not settings.session_store_dsn:
             raise ValueError(
                 "SESSION_DB_HOST, SESSION_DB_USER, SESSION_DB_NAME are required "
