@@ -83,7 +83,7 @@ const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onB
   };
 
   if (loading) return (
-    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 max-w-5xl mx-auto">
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 max-w-7xl mx-auto">
       <div className="flex items-center gap-4 mb-8 pb-6 border-b border-slate-200 dark:border-slate-800">
         <div className="skeleton h-8 w-20" />
         <div className="flex-1 space-y-2">
@@ -104,7 +104,7 @@ const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onB
   const isResolved = !!data.resolved_at;
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 max-w-5xl mx-auto transition-colors duration-300">
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 max-w-7xl mx-auto transition-colors duration-300">
       
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 border-b border-slate-200 dark:border-slate-700 pb-6 gap-4">
         

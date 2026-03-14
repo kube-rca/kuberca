@@ -195,6 +195,7 @@ export interface AlertDetail {
   thread_ts: string;
   labels: Record<string, string>;
   annotations: Record<string, string>;
+  is_analyzing?: boolean;
 }
 
 /**

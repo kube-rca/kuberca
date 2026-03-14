@@ -5,7 +5,9 @@ import { getAccessToken, refreshAccessToken } from '../utils/auth';
 export type SSEEventType =
   | 'alert_created'
   | 'alert_resolved'
+  | 'analysis_started'
   | 'analysis_completed'
+  | 'analysis_failed'
   | 'incident_created'
   | 'incident_updated'
   | 'incident_resolved'

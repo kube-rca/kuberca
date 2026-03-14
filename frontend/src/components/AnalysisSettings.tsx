@@ -26,7 +26,7 @@ const AnalysisSettings: React.FC = () => {
         });
         if (response.ok) {
           const data = await response.json();
-          const config: AnalysisConfig = data.data ?? data;
+          const config: AnalysisConfig = data.data?.value ?? data.data ?? data;
           if (config.manualAnalyzeSeverities) {
             const parsed = config.manualAnalyzeSeverities
               .split(',')

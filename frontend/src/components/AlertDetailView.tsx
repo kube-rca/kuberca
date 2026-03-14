@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useNavigate } from 'react-router-dom';
@@ -20,6 +20,7 @@ export interface AlertDetail {
   thread_ts: string;
   labels: Record<string, string>;
   annotations: Record<string, string>;
+  is_analyzing?: boolean;
 }
 
 interface AlertDetailViewProps {
@@ -43,6 +44,10 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
   const [selectedIncidentId, setSelectedIncidentId] = useState<string>('');
   const [incidentLoading, setIncidentLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [analysisComplete, setAnalysisComplete] = useState(false);
+  const [analysisBanner, setAnalysisBanner] = useState<string | null>(null);
+  const prevSummaryRef = useRef<string | null>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const navigate = useNavigate();
 
   const loadDetail = useCallback(async () => {
@@ -54,6 +59,10 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
       ]);
       setData(detailData);
       setIncidents(rcaList);
+      if (detailData.is_analyzing === true) {
+        setAnalyzing(true);
+        prevSummaryRef.current = detailData.analysis_summary ?? null;
+      }
     } catch (err) {
       setError('데이터를 불러오지 못했습니다.');
       console.error(err);
@@ -65,6 +74,44 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
   useEffect(() => {
     loadDetail();
   }, [loadDetail]);
+
+  // Polling while analyzing
+  useEffect(() => {
+    if (!analyzing) {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+      return;
+    }
+    pollingRef.current = setInterval(async () => {
+      try {
+        const freshData = await fetchAlertDetail(alertId);
+        setData(freshData);
+        if (freshData.is_analyzing === false || !freshData.is_analyzing) {
+          const prevSummary = prevSummaryRef.current;
+          const newSummary = freshData.analysis_summary ?? null;
+          if (newSummary && newSummary !== prevSummary) {
+            setAnalysisComplete(true);
+            setAnalysisBanner(null);
+            setTimeout(() => setAnalysisComplete(false), 5000);
+          } else if (!newSummary || newSummary === prevSummary) {
+            setAnalysisBanner('분석이 실패했습니다. 다시 시도해주세요.');
+            setTimeout(() => setAnalysisBanner(null), 8000);
+          }
+          setAnalyzing(false);
+        }
+      } catch {
+        // polling error, will retry
+      }
+    }, 3000);
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [analyzing, alertId]);
 
   const getIncidentTitle = (incidentId: string | null) => {
     if (!incidentId) return null;
@@ -120,18 +167,17 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
     if (!window.confirm(message)) return;
     try {
       setAnalyzing(true);
+      prevSummaryRef.current = data?.analysis_summary ?? null;
       await triggerAlertAnalysis(alertId);
-      alert('분석 요청이 전송되었습니다. 완료되면 자동으로 업데이트됩니다.');
     } catch (err) {
       console.error('분석 요청 실패:', err);
       alert('분석 요청에 실패했습니다.');
-    } finally {
       setAnalyzing(false);
     }
   };
 
   if (loading) return (
-    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 max-w-5xl mx-auto">
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 max-w-7xl mx-auto">
       <div className="flex items-center gap-4 mb-8 pb-6 border-b border-slate-200 dark:border-slate-800">
         <div className="skeleton h-8 w-20" />
         <div className="flex-1 space-y-2">
@@ -152,7 +198,7 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
   const isResolved = data.status === 'resolved';
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 max-w-5xl mx-auto transition-colors duration-300">
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 max-w-7xl mx-auto transition-colors duration-300">
 
       {/* 헤더 영역 */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 border-b border-slate-200 dark:border-slate-700 pb-6 gap-4">
@@ -199,6 +245,18 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
           </button>
         </div>
       </div>
+
+      {/* Analysis status banners */}
+      {analysisComplete && (
+        <div className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg text-emerald-600 dark:text-emerald-400 text-sm">
+          분석이 완료되었습니다.
+        </div>
+      )}
+      {analysisBanner && (
+        <div className="mb-4 p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg text-rose-600 dark:text-rose-400 text-sm">
+          {analysisBanner}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 

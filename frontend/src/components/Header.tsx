@@ -1,4 +1,4 @@
-import { Hexagon, LogOut, Sun, Moon } from 'lucide-react';
+import { LogOut, Sun, Moon } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
 interface HeaderProps {
@@ -13,7 +13,7 @@ export const Header: React.FC<HeaderProps> = ({ onLogout, connectionState }) => 
     <header className="fixed top-0 left-0 w-full h-14 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex items-center px-5 z-50 transition-colors duration-300">
       {/* Logo */}
       <div className="flex items-center gap-2.5">
-        <Hexagon className="w-6 h-6 text-cyan-600 dark:text-cyan-400" strokeWidth={2} />
+        <img src="/logo.png" alt="Kube-RCA" className="w-7 h-7" />
         <span className="text-base font-semibold font-mono tracking-wider text-slate-900 dark:text-slate-100">
           Kube-RCA
         </span>
