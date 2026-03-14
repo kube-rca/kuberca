@@ -14,6 +14,30 @@ spec:
       labels:
         {{- include "kube-rca.backend.labels" . | nindent 8 }}
     spec:
+      {{- if .Values.backend.waitForDb.enabled }}
+      initContainers:
+        - name: wait-for-db
+          image: "{{ .Values.hooks.waitJob.image.repository }}:{{ .Values.hooks.waitJob.image.tag }}"
+          imagePullPolicy: {{ .Values.hooks.waitJob.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until nc -z -w {{ .Values.backend.waitForDb.checkTimeout }} \
+                {{ include "kube-rca.postgresql.host" . }} \
+                {{ include "kube-rca.postgresql.port" . }}; do
+                echo "Waiting for PostgreSQL..."
+                sleep {{ .Values.backend.waitForDb.checkInterval }}
+              done
+              echo "PostgreSQL is accepting connections"
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi
+      {{- end }}
       containers:
         - name: backend
           image: "{{ required "backend.image.repository is required" .Values.backend.image.repository }}:{{ default "latest" .Values.backend.image.tag }}"
@@ -188,18 +212,32 @@ spec:
             {{- $analysis := default (dict) .Values.backend.analysis }}
             - name: MANUAL_ANALYZE_SEVERITIES
               value: {{ default "" $analysis.manualAnalyzeSeverities | quote }}
+            {{- $pgRetry := default (dict) .Values.backend.postgresql.retry }}
+            - name: PG_RETRY_MAX_ATTEMPTS
+              value: {{ default 10 $pgRetry.maxAttempts | quote }}
+            - name: PG_RETRY_INITIAL_BACKOFF_SECONDS
+              value: {{ default 1 $pgRetry.initialBackoffSeconds | quote }}
+            - name: PG_RETRY_MAX_BACKOFF_SECONDS
+              value: {{ default 30 $pgRetry.maxBackoffSeconds | quote }}
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 3
+            failureThreshold: 20
           livenessProbe:
             httpGet:
               path: /ping
               port: http
-            initialDelaySeconds: 5
             periodSeconds: 10
+            failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /ping
+              path: /readyz
               port: http
-            initialDelaySeconds: 2
             periodSeconds: 5
+            failureThreshold: 3
           resources:
             {{- toYaml .Values.backend.resources | nindent 12 }}
       {{- with .Values.backend.nodeSelector }}

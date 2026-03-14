@@ -260,6 +260,9 @@ backend:
 | backend.postgresql.database | string | `"kube-rca"` | PostgreSQL database. |
 | backend.postgresql.host | string | `"kube-rca-postgresql.kube-rca.svc.cluster.local"` | PostgreSQL host. |
 | backend.postgresql.port | int | `5432` | PostgreSQL port. |
+| backend.postgresql.retry.initialBackoffSeconds | int | `1` | Initial backoff interval (seconds). |
+| backend.postgresql.retry.maxAttempts | int | `10` | Maximum number of DB connection attempts at startup. |
+| backend.postgresql.retry.maxBackoffSeconds | int | `30` | Maximum backoff interval (seconds). |
 | backend.postgresql.secret.existingSecret | string | `"postgresql"` | Existing Secret name for PostgreSQL password. |
 | backend.postgresql.secret.key | string | `"password"` | Secret key for PostgreSQL password. |
 | backend.postgresql.user | string | `"kube-rca"` | PostgreSQL user. |
@@ -274,6 +277,9 @@ backend:
 | backend.slack.secret.tokenKey | string | `"kube-rca-slack-token"` | Secret key for Slack bot token. |
 | backend.slack.token | string | `""` | Slack bot token (used when backend.slack.source=values). |
 | backend.tolerations | list | `[]` | Tolerations for backend pods assignment. |
+| backend.waitForDb.checkInterval | int | `2` | Interval between checks (seconds). |
+| backend.waitForDb.checkTimeout | int | `5` | Timeout for each TCP check (seconds). |
+| backend.waitForDb.enabled | bool | `true` | Enable init container to wait for DB before backend starts. |
 | frontend.affinity | object | `{}` | Affinity for frontend pods assignment. |
 | frontend.containerPort | int | `80` | Frontend container port. |
 | frontend.image.pullPolicy | string | `"IfNotPresent"` | Frontend image pull policy. |
@@ -298,7 +304,7 @@ backend:
 | hooks.waitForAgent.healthPath | string | `"/healthz"` | Agent health check path. |
 | hooks.waitForBackend.enabled | bool | `false` | Enable wait-for-backend post-install hook (optional). |
 | hooks.waitForBackend.healthPath | string | `"/ping"` | Backend health check path. |
-| hooks.waitForDb.enabled | bool | `true` | Enable wait-for-db post-install hook. |
+| hooks.waitForDb.enabled | Deprecated | `false` | Use backend.waitForDb instead. Legacy post-install hook. |
 | hooks.waitJob.activeDeadlineSeconds | int | `300` | Maximum time for the job to complete. |
 | hooks.waitJob.backoffLimit | int | `6` | Number of retries before giving up. |
 | hooks.waitJob.checkInterval | int | `5` | Interval between connection checks (seconds). |
