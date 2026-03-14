@@ -30,11 +30,21 @@ type AgentClient struct {
 	httpClient *http.Client
 }
 
+// PreviousAnalysisContext - 이전 firing 분석 컨텍스트 (resolved 분석 시 참조)
+type PreviousAnalysisContext struct {
+	Status    string `json:"status"`
+	Summary   string `json:"summary"`
+	Detail    string `json:"detail"`
+	CreatedAt string `json:"created_at,omitempty"`
+}
+
 // AgentAnalysisRequest 구조체 정의
 type AgentAnalysisRequest struct {
-	Alert      model.Alert `json:"alert"`
-	ThreadTS   string      `json:"thread_ts"`
-	IncidentID string      `json:"incident_id,omitempty"`
+	Alert            model.Alert              `json:"alert"`
+	ThreadTS         string                   `json:"thread_ts"`
+	IncidentID       string                   `json:"incident_id,omitempty"`
+	AnalysisType     string                   `json:"analysis_type,omitempty"`
+	PreviousAnalysis *PreviousAnalysisContext `json:"previous_analysis,omitempty"`
 }
 
 // AgentAnalysisResponse 구조체 정의
@@ -44,6 +54,7 @@ type AgentAnalysisResponse struct {
 	Analysis        string                       `json:"analysis"`
 	AnalysisSummary string                       `json:"analysis_summary"`
 	AnalysisDetail  string                       `json:"analysis_detail"`
+	AnalysisType    string                       `json:"analysis_type,omitempty"`
 	Context         json.RawMessage              `json:"context,omitempty"`
 	Artifacts       []AlertAnalysisArtifactInput `json:"artifacts,omitempty"`
 }
@@ -136,11 +147,13 @@ func (c *AgentClient) IsConfigured() bool {
 }
 
 // POST /analyze 분석 요청하고 분석 결과 반환 (동기)
-func (c *AgentClient) RequestAnalysis(alert model.Alert, threadTS, incidentID string) (*AgentAnalysisResponse, error) {
+func (c *AgentClient) RequestAnalysis(alert model.Alert, threadTS, incidentID, analysisType string, prevAnalysis *PreviousAnalysisContext) (*AgentAnalysisResponse, error) {
 	req := AgentAnalysisRequest{
-		Alert:      alert,
-		ThreadTS:   threadTS,
-		IncidentID: incidentID,
+		Alert:            alert,
+		ThreadTS:         threadTS,
+		IncidentID:       incidentID,
+		AnalysisType:     analysisType,
+		PreviousAnalysis: prevAnalysis,
 	}
 
 	payload, err := json.Marshal(req)

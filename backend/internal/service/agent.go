@@ -79,8 +79,15 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, alertID, threadTS, inc
 	requestStartedAt := time.Now()
 	log.Printf("Requesting agent analysis (alert_id=%s, fingerprint=%s, status=%s, thread_ref=%s)", alertID, alert.Fingerprint, alert.Status, threadTS)
 
+	// Resolved alert 분기: 이전 firing 분석 컨텍스트 조회
+	analysisType := alert.Status
+	var prevAnalysis *client.PreviousAnalysisContext
+	if analysisType == "resolved" {
+		prevAnalysis = s.loadPreviousFiringAnalysis(alert.Fingerprint, incidentID)
+	}
+
 	// Agent에 분석 요청 (동기)
-	resp, err := s.agentClient.RequestAnalysis(alert, threadTS, incidentID)
+	resp, err := s.agentClient.RequestAnalysis(alert, threadTS, incidentID, analysisType, prevAnalysis)
 	if err != nil {
 		log.Printf("Failed to request agent analysis: %v", err)
 		if s.sseHub != nil {
@@ -186,6 +193,37 @@ func (s *AgentService) finishAnalysis(key string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.inFlight, key)
+}
+
+// loadPreviousFiringAnalysis - fingerprint 기준 최신 firing 분석 컨텍스트 조회
+func (s *AgentService) loadPreviousFiringAnalysis(fingerprint, incidentID string) *client.PreviousAnalysisContext {
+	if fingerprint == "" {
+		return nil
+	}
+
+	analysis, err := s.db.GetLatestFiringAnalysisByFingerprint(fingerprint)
+	if err != nil {
+		log.Printf("Failed to load previous firing analysis (fingerprint=%s): %v", fingerprint, err)
+		return nil
+	}
+	if analysis == nil {
+		log.Printf("No previous firing analysis found (fingerprint=%s, incident_id=%s)", fingerprint, incidentID)
+		return nil
+	}
+
+	log.Printf(
+		"Loaded previous firing analysis (fingerprint=%s, analysis_id=%d, created_at=%s)",
+		fingerprint,
+		analysis.AnalysisID,
+		analysis.CreatedAt.Format("2006-01-02T15:04:05Z"),
+	)
+
+	return &client.PreviousAnalysisContext{
+		Status:    analysis.Status,
+		Summary:   analysis.Summary,
+		Detail:    analysis.Detail,
+		CreatedAt: analysis.CreatedAt.Format("2006-01-02T15:04:05Z"),
+	}
 }
 
 func (s *AgentService) requiresThreadRef() bool {

@@ -173,6 +173,38 @@ func (db *Postgres) GetLatestAlertAnalysisByAlertID(alertID string) (*model.Aler
 	return &analysis, nil
 }
 
+// GetLatestFiringAnalysisByFingerprint - fingerprint 기준 최신 firing 분석 조회
+func (db *Postgres) GetLatestFiringAnalysisByFingerprint(fingerprint string) (*model.AlertAnalysis, error) {
+	query := `
+		SELECT aa.analysis_id, aa.alert_id, aa.incident_id, aa.status,
+		       aa.summary, aa.detail, aa.context, aa.created_at
+		FROM alert_analyses aa
+		JOIN alerts a ON aa.alert_id = a.alert_id
+		WHERE a.fingerprint = $1 AND aa.status = 'firing'
+		ORDER BY aa.created_at DESC
+		LIMIT 1
+	`
+
+	var analysis model.AlertAnalysis
+	err := db.Pool.QueryRow(context.Background(), query, fingerprint).Scan(
+		&analysis.AnalysisID,
+		&analysis.AlertID,
+		&analysis.IncidentID,
+		&analysis.Status,
+		&analysis.Summary,
+		&analysis.Detail,
+		&analysis.Context,
+		&analysis.CreatedAt,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &analysis, nil
+}
+
 // GetAlertAnalysisArtifactsByAnalysisID - analysis_id 기준 근거 데이터 조회
 func (db *Postgres) GetAlertAnalysisArtifactsByAnalysisID(analysisID int64) ([]model.AlertAnalysisArtifact, error) {
 	query := `
