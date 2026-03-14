@@ -359,7 +359,7 @@ def _build_prompt(
             "Your goal is NOT to repeat the root cause analysis from the firing phase.\n"
             "Focus on recovery confirmation and post-incident insights.\n\n"
             "Return your response in Korean with the following structure:\n"
-            "1) 요약 (Summary): Recovery confirmation + key metric changes (<= 300 chars).\n"
+            "1) 요약 (Summary): Recovery confirmation + key metric changes.\n"
             "2) 상세 분석 (Detail):\n"
             "   #### 복구 확인 (Recovery Confirmation)\n"
             "   #### 장애 영향 (Impact Assessment) - 장애 지속 시간, 영향 범위\n"
@@ -382,8 +382,7 @@ def _build_prompt(
         prompt = (
             "You are kube-rca-agent. Analyze the alert using the provided Kubernetes context.\n"
             "Return your response in Korean with the following structure:\n"
-            "1) 요약 (Summary): 1-2 sentences, <= 300 chars.\n"
-            "   Include root cause + impact + next action.\n"
+            "1) 요약 (Summary): 3-5 sentences. Include root cause + impact + next action.\n"
             "2) 상세 분석 (Detail): Use sections for "
             "근본 원인, 확인 근거, 조치 사항, 누락된 데이터.\n"
             "Formatting rules:\n"
@@ -864,37 +863,31 @@ def _parse_incident_summary(result: str, original_title: str) -> tuple[str, str,
         if "제목" in stripped or "title" in stripped.lower():
             # Try to get the content after colon or on the next meaningful line
             if ":" in stripped:
-                title = stripped.split(":", 1)[1].strip().strip("'\"")[:100]
+                title = stripped.split(":", 1)[1].strip().strip("'\"")
             continue
 
         # Extract summary
         if "요약" in stripped or "summary" in stripped.lower():
             if ":" in stripped:
-                summary = stripped.split(":", 1)[1].strip()[:200]
+                summary = stripped.split(":", 1)[1].strip()
             continue
 
         # If we haven't found title yet and this looks like content, use it
         if not title and not stripped.startswith(("*", "#", "-")):
-            title = stripped[:100]
+            title = stripped
             continue
 
         # If we have title but no summary and this looks like content
         skip_prefixes = ("*", "#", "-", "상세", "근본", "영향", "해결", "재발")
         if title and not summary and not stripped.startswith(skip_prefixes):
-            summary = stripped[:200]
+            summary = stripped
             break
 
     # Fallbacks
     if not title:
         title = original_title
     if not summary:
-        summary = result[:200].replace("\n", " ").strip()
-        if len(result) > 200:
-            summary += "..."
-
-    # Ensure summary and detail are not identical
-    if summary.strip() == result.strip() or len(summary) > 300:
-        summary = _compact_summary(result)
+        summary = result.replace("\n", " ").strip()
 
     return title, summary, result
 
@@ -955,10 +948,7 @@ def _split_alert_analysis(result: str) -> tuple[str, str]:
     if not detail:
         detail = result.strip()
     if not summary:
-        summary = _compact_summary(detail)
-
-    if summary.strip() == detail.strip():
-        summary = _compact_summary(detail)
+        summary = detail
 
     return summary, detail
 
