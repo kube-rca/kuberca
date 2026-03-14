@@ -39,3 +39,17 @@ def test_load_settings_rejects_invalid_regex_pattern(monkeypatch: pytest.MonkeyP
 
     with pytest.raises(ValueError, match="MASKING_REGEX_LIST_JSON\\[0\\]"):
         load_settings()
+
+
+def test_load_settings_uses_exponential_llm_retry_defaults(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("LLM_RETRY_MAX_ATTEMPTS", raising=False)
+    monkeypatch.delenv("LLM_RETRY_MAX_WAIT", raising=False)
+    monkeypatch.delenv("LLM_RETRY_TOTAL_TIMEOUT", raising=False)
+
+    settings = load_settings()
+
+    assert settings.llm_retry_max_attempts == 10
+    assert settings.llm_retry_max_wait == 30.0
+    assert settings.llm_retry_total_timeout == 180.0

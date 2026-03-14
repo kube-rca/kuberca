@@ -516,9 +516,14 @@ class StrandsAnalysisEngine:
         # Log provider info
         if model_config:
             logger.info(
-                "Analysis engine initialized with provider=%s, model=%s",
+                "Analysis engine initialized with provider=%s, model=%s, "
+                "llm_retry_max_attempts=%d, llm_retry_total_timeout=%.1f, "
+                "llm_retry_max_wait=%.1f",
                 model_config.provider.value,
                 model_config.model_id,
+                self._retry_max_attempts,
+                self._retry_total_timeout,
+                self._retry_max_wait,
             )
 
     def analyze(self, prompt: str, incident_id: str | None = None) -> str:
