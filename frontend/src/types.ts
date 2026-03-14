@@ -31,6 +31,7 @@ export interface RCADetail {
   resolved_at: string | null;
   analysis_summary: string;
   analysis_detail: string;
+  is_analyzing?: boolean;
   is_hidden?: boolean;
   similar_incidents?: SimilarIncident[]; // 필요 시 구체화
   alerts?: AlertItem[]; // 연결된 Alert 목록

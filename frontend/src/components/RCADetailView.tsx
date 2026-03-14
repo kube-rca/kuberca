@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -42,6 +42,12 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<RCADetail>>({});
   const [analyzingIncident, setAnalyzingIncident] = useState(false);
+  const [analysisComplete, setAnalysisComplete] = useState(false);
+  const [analysisBanner, setAnalysisBanner] = useState<string | null>(null);
+  const prevSummaryRef = useRef<string | null>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const seenAnalyzingRef = useRef(false);
+  const pollCountRef = useRef(0);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -52,6 +58,13 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
       const detailData = await fetchRCADetail(incidentId);
       setData(detailData);
       setEditForm(detailData);
+
+      if (detailData.is_analyzing === true) {
+        setAnalyzingIncident(true);
+        prevSummaryRef.current = detailData.analysis_summary ?? null;
+        seenAnalyzingRef.current = true;
+        pollCountRef.current = 0;
+      }
 
       if (detailData.analysis_summary) {
         setSimilarLoading(true);
@@ -76,6 +89,61 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
   useEffect(() => {
     loadDetail();
   }, [loadDetail]);
+
+  // Polling while analyzing
+  useEffect(() => {
+    if (!analyzingIncident) {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+      return;
+    }
+    pollingRef.current = setInterval(async () => {
+      try {
+        const freshData = await fetchRCADetail(incidentId);
+        setData(freshData);
+        setEditForm(freshData);
+        pollCountRef.current += 1;
+
+        if (freshData.is_analyzing) {
+          seenAnalyzingRef.current = true;
+          return; // 분석 진행 중 — 폴링 계속
+        }
+
+        // is_analyzing === false
+        // Grace period: backend가 아직 시작 안 했을 수 있음
+        if (!seenAnalyzingRef.current && pollCountRef.current < 5) {
+          return; // 15초 grace period
+        }
+
+        // Timeout 체크
+        if (pollCountRef.current >= 100) {
+          setAnalysisBanner('Analysis timed out. Please try again.');
+          setAnalyzingIncident(false);
+          return;
+        }
+
+        if (seenAnalyzingRef.current) {
+          // Backend에서 분석이 시작되고 완료됨
+          setAnalysisComplete(true);
+        } else {
+          // Grace period 이후에도 is_analyzing을 못 봄 → 시작 실패
+          setAnalysisBanner('Analysis did not start. Please try again.');
+        }
+
+        setAnalyzingIncident(false);
+      } catch {
+        // polling error, will retry
+      }
+    }, 3000);
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [analyzingIncident, incidentId]);
 
   useEffect(() => {
     const state = location.state as LocationState | null;
@@ -164,13 +232,16 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
     if (!window.confirm(message)) return;
 
     try {
+      setAnalysisBanner(null);
+      setAnalysisComplete(false);
+      prevSummaryRef.current = data?.analysis_summary ?? null;
+      seenAnalyzingRef.current = false;
+      pollCountRef.current = 0;
       setAnalyzingIncident(true);
       await triggerIncidentAnalysis(incidentId);
-      alert('Incident analysis request sent. It will be updated automatically when complete.');
     } catch (err) {
       console.error('Incident analysis request failed:', err);
-      alert('Failed to request incident analysis.');
-    } finally {
+      setAnalysisBanner('Failed to request incident analysis.');
       setAnalyzingIncident(false);
     }
   };
@@ -339,8 +410,20 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
         </div>
       </div>
 
+      {/* Analysis status banners */}
+      {analysisComplete && (
+        <div className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg text-emerald-600 dark:text-emerald-400 text-sm">
+          Analysis completed.
+        </div>
+      )}
+      {analysisBanner && (
+        <div className="mb-4 p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg text-rose-600 dark:text-rose-400 text-sm">
+          {analysisBanner}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
+
         <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg border border-slate-100 dark:border-slate-700">
           <div className="text-xs text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide flex items-center gap-1">
              Fired at

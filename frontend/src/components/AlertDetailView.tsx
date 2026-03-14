@@ -116,7 +116,6 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
         if (seenAnalyzingRef.current) {
           // Backend에서 분석이 시작되고 완료됨
           setAnalysisComplete(true);
-          setTimeout(() => setAnalysisComplete(false), 5000);
         } else {
           // Grace period 이후에도 is_analyzing을 못 봄 → 시작 실패
           setAnalysisBanner('Analysis did not start. Please try again.');
