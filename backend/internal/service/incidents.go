@@ -50,7 +50,18 @@ func (s *RcaService) GetIncidentDetail(id string) (*model.IncidentDetailResponse
 	}
 
 	incident.Alerts = alerts
+	incident.IsAnalyzing = s.IsIncidentAnalyzing(id)
 	return incident, nil
+}
+
+// IsIncidentAnalyzing returns true if an incident summary is currently in-flight.
+func (s *RcaService) IsIncidentAnalyzing(incidentID string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if startedAt, exists := s.inFlightSummaries[incidentID]; exists {
+		return time.Since(startedAt) < inFlightStaleTTL
+	}
+	return false
 }
 
 func (s *RcaService) UpdateIncident(id string, req model.UpdateIncidentRequest) error {

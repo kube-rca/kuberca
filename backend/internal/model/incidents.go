@@ -36,6 +36,8 @@ type IncidentDetailResponse struct {
 	// DB의 JSONB 컬럼을 그대로 바이트로 받아서 전달
 	SimilarIncidents json.RawMessage `json:"similar_incidents" swaggertype:"object"`
 
+	IsAnalyzing bool `json:"is_analyzing"`
+
 	// 연결된 Alert 목록 (상세 조회 시 포함)
 	Alerts []AlertListResponse `json:"alerts,omitempty"`
 }

@@ -1787,6 +1787,9 @@ const docTemplate = `{
                 "incident_id": {
                     "type": "string"
                 },
+                "is_analyzing": {
+                    "type": "boolean"
+                },
                 "resolved_at": {
                     "type": "string"
                 },
