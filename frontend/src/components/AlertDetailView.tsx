@@ -48,6 +48,8 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
   const [analysisBanner, setAnalysisBanner] = useState<string | null>(null);
   const prevSummaryRef = useRef<string | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const seenAnalyzingRef = useRef(false);
+  const pollCountRef = useRef(0);
   const navigate = useNavigate();
 
   const loadDetail = useCallback(async () => {
@@ -62,9 +64,11 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
       if (detailData.is_analyzing === true) {
         setAnalyzing(true);
         prevSummaryRef.current = detailData.analysis_summary ?? null;
+        seenAnalyzingRef.current = true;
+        pollCountRef.current = 0;
       }
     } catch (err) {
-      setError('데이터를 불러오지 못했습니다.');
+      setError('Failed to load data.');
       console.error(err);
     } finally {
       setLoading(false);
@@ -88,19 +92,38 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
       try {
         const freshData = await fetchAlertDetail(alertId);
         setData(freshData);
-        if (freshData.is_analyzing === false || !freshData.is_analyzing) {
-          const prevSummary = prevSummaryRef.current;
-          const newSummary = freshData.analysis_summary ?? null;
-          if (newSummary && newSummary !== prevSummary) {
-            setAnalysisComplete(true);
-            setAnalysisBanner(null);
-            setTimeout(() => setAnalysisComplete(false), 5000);
-          } else if (!newSummary || newSummary === prevSummary) {
-            setAnalysisBanner('분석이 실패했습니다. 다시 시도해주세요.');
-            setTimeout(() => setAnalysisBanner(null), 8000);
-          }
-          setAnalyzing(false);
+        pollCountRef.current += 1;
+
+        if (freshData.is_analyzing) {
+          seenAnalyzingRef.current = true;
+          return; // 분석 진행 중 — 폴링 계속
         }
+
+        // is_analyzing === false
+        // Grace period: backend가 아직 시작 안 했을 수 있음
+        if (!seenAnalyzingRef.current && pollCountRef.current < 5) {
+          return; // 15초 grace period
+        }
+
+        // Timeout 체크
+        if (pollCountRef.current >= 100) {
+          setAnalysisBanner('Analysis timed out. Please try again.');
+          setTimeout(() => setAnalysisBanner(null), 8000);
+          setAnalyzing(false);
+          return;
+        }
+
+        if (seenAnalyzingRef.current) {
+          // Backend에서 분석이 시작되고 완료됨
+          setAnalysisComplete(true);
+          setTimeout(() => setAnalysisComplete(false), 5000);
+        } else {
+          // Grace period 이후에도 is_analyzing을 못 봄 → 시작 실패
+          setAnalysisBanner('Analysis did not start. Please try again.');
+          setTimeout(() => setAnalysisBanner(null), 8000);
+        }
+
+        setAnalyzing(false);
       } catch {
         // polling error, will retry
       }
@@ -133,7 +156,7 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
       setIsEditingIncident(true);
     } catch (err) {
       console.error('Failed to load incidents:', err);
-      alert('인시던트 목록을 불러오는데 실패했습니다.');
+      alert('Failed to load incident list.');
     } finally {
       setIncidentLoading(false);
     }
@@ -141,17 +164,17 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
 
   const handleSaveIncident = async () => {
     if (!selectedIncidentId) {
-      alert('인시던트를 선택해주세요.');
+      alert('Please select an incident.');
       return;
     }
     try {
       await updateAlertIncident(alertId, selectedIncidentId);
       setData(prev => prev ? { ...prev, incident_id: selectedIncidentId } : null);
       setIsEditingIncident(false);
-      alert('인시던트 연결이 변경되었습니다.');
+      alert('Incident connection changed.');
     } catch (err) {
       console.error('Failed to update incident:', err);
-      alert('인시던트 연결 변경에 실패했습니다.');
+      alert('Failed to change incident connection.');
     }
   };
 
@@ -162,15 +185,19 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
 
   const handleAnalyze = async () => {
     const message = data?.analysis_summary
-      ? '이 Alert에 대해 재분석을 요청하시겠습니까?'
-      : '이 Alert에 대해 분석을 요청하시겠습니까?';
+      ? 'Would you like to request re-analysis for this Alert?'
+      : 'Would you like to request analysis for this Alert?';
     if (!window.confirm(message)) return;
     try {
       setAnalyzing(true);
+      setAnalysisBanner(null);
+      setAnalysisComplete(false);
       prevSummaryRef.current = data?.analysis_summary ?? null;
+      seenAnalyzingRef.current = false;
+      pollCountRef.current = 0;
       await triggerAlertAnalysis(alertId);
     } catch (err) {
-      console.error('분석 요청 실패:', err);
+      console.error('Failed to request analysis:', err);
       alert('분석 요청에 실패했습니다.');
       setAnalyzing(false);
     }
@@ -241,7 +268,7 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
             disabled={analyzing}
             className="px-4 py-1.5 text-sm text-violet-600 dark:text-violet-400 border border-violet-600 dark:border-violet-400 rounded hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors font-medium disabled:opacity-50"
           >
-            {analyzing ? '분석 중...' : data.analysis_summary ? 'Re-Analyze' : 'Analyze'}
+            {analyzing ? 'Analyzing...' : data.analysis_summary ? 'Re-Analyze' : 'Analyze'}
           </button>
         </div>
       </div>
@@ -249,7 +276,7 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
       {/* Analysis status banners */}
       {analysisComplete && (
         <div className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg text-emerald-600 dark:text-emerald-400 text-sm">
-          분석이 완료되었습니다.
+          Analysis completed.
         </div>
       )}
       {analysisBanner && (
@@ -260,7 +287,7 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-        {/* 발생 시간 */}
+        {/* Fired At */}
         <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg border border-slate-100 dark:border-slate-700">
           <div className="text-xs text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide flex items-center gap-1">
             Fired at
@@ -270,7 +297,7 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
           </div>
         </div>
 
-        {/* 해결 시간 */}
+        {/* Resolved At */}
         <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg border border-slate-100 dark:border-slate-700">
           <div className="text-xs text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide flex items-center gap-1">
             Resolved at
@@ -280,7 +307,7 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
           </div>
         </div>
 
-        {/* 연결된 Incident */}
+        {/* Connected Incident */}
         <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg border border-slate-100 dark:border-slate-700">
           <div className="text-xs text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide flex items-center gap-1">
             Related Incident
@@ -292,10 +319,10 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
                 onChange={(e) => setSelectedIncidentId(e.target.value)}
                 className="w-full px-3 py-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
               >
-                <option value="">인시던트를 선택하세요</option>
+                <option value="">Select an incident</option>
                 {incidents.map((incident) => (
                   <option key={incident.incident_id} value={incident.incident_id}>
-                    [{incident.incident_id.slice(0, 8)}] {incident.title || '(제목 없음)'}
+                    [{incident.incident_id.slice(0, 8)}] {incident.title || '(No Title)'}
                   </option>
                 ))}
               </select>
@@ -304,13 +331,13 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
                   onClick={handleSaveIncident}
                   className="px-3 py-1.5 bg-cyan-600 text-white text-xs font-semibold rounded hover:bg-cyan-700 transition"
                 >
-                  저장
+                  Save
                 </button>
                 <button
                   onClick={handleCancelEditIncident}
                   className="px-3 py-1.5 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded hover:bg-slate-100 dark:hover:bg-slate-600 transition"
                 >
-                  취소
+                  Cancel
                 </button>
               </div>
             </div>
@@ -323,10 +350,10 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
                     onClick={() => navigate(`/incidents/${data.incident_id}`)}
                   >
                     <div className="text-rose-500 dark:text-rose-400 text-sm font-mono">{data.incident_id}</div>
-                    <div className="text-slate-900 dark:text-white">{getIncidentTitle(data.incident_id) || '(제목 없음)'}</div>
+                    <div className="text-slate-900 dark:text-white">{getIncidentTitle(data.incident_id) || '(No Title)'}</div>
                   </div>
                 ) : (
-                  <span className="text-slate-400">연결된 Incident 없음</span>
+                  <span className="text-slate-400">No Connected Incident</span>
                 )}
               </div>
               <div className="flex justify-end">
@@ -335,7 +362,7 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
                   disabled={incidentLoading}
                   className="px-2 py-1 text-xs font-medium text-orange-600 dark:text-orange-400 border border-orange-400 dark:border-orange-500 rounded hover:bg-orange-50 dark:hover:bg-orange-900/20 transition disabled:opacity-50"
                 >
-                  {incidentLoading ? '로딩...' : 'Edit'}
+                  {incidentLoading ? 'Loading...' : 'Edit'}
                 </button>
               </div>
             </div>
@@ -395,7 +422,7 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
             </h3>
             <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-8 text-center border border-dashed border-slate-300 dark:border-slate-600">
               <p className="text-slate-500 dark:text-slate-400">
-                분석 결과가 아직 없습니다. 상단의 Analyze 버튼을 눌러 분석을 요청할 수 있습니다.
+                No analysis result yet. You can request analysis by clicking the Analyze button at the top.
               </p>
             </div>
           </div>
