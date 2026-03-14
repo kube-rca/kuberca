@@ -198,7 +198,7 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
       await triggerAlertAnalysis(alertId);
     } catch (err) {
       console.error('Failed to request analysis:', err);
-      alert('분석 요청에 실패했습니다.');
+      alert('Failed to request analysis.');
       setAnalyzing(false);
     }
   };
