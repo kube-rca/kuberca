@@ -27,9 +27,10 @@ type webhookRoutingNotifier struct {
 	frontendURL         string
 	httpClient          *http.Client
 
-	mu           sync.RWMutex
-	slackClients map[int]*SlackClient
-	threadStore  sync.Map // 모든 Slack 클라이언트에 독립적인 thread ref 저장소
+	mu              sync.RWMutex
+	slackClients    map[int]*SlackClient
+	threadStore     sync.Map // alertKey → thread_ts
+	threadRefOwner  sync.Map // thread_ts value → configID (which Slack client sent the original message)
 }
 
 var _ Notifier = (*webhookRoutingNotifier)(nil)
@@ -127,9 +128,31 @@ func (n *webhookRoutingNotifier) notifyByThread(threadRef string, event Notifier
 		return nil
 	}
 
+	// threadRefOwner로 정확한 소유자를 먼저 확인한다.
+	// GetThreadRef 호출 시 기록되므로 재시작 없이 정상 처리된 경우 항상 사용 가능하다.
+	if ownerVal, ok := n.threadRefOwner.Load(threadRef); ok {
+		ownerID := ownerVal.(int)
+		var found bool
+		var sendErr error
+		n.forEachSlackClient(func(configID int, c *SlackClient) {
+			if found || configID != ownerID {
+				return
+			}
+			found = true
+			if err := c.Notify(event); err != nil {
+				sendErr = err
+			}
+		})
+		if found {
+			return sendErr
+		}
+		// ownerID 클라이언트가 없어진 경우(설정 삭제 등) → fallback으로 계속 진행
+	}
+
+	// fallback: threadMap에서 값으로 검색 (재시작 후 threadRefOwner가 비어있는 경우)
 	var found bool
 	var sendErr error
-	n.forEachSlackClient(func(c *SlackClient) {
+	n.forEachSlackClient(func(_ int, c *SlackClient) {
 		if found {
 			return
 		}
@@ -146,7 +169,7 @@ func (n *webhookRoutingNotifier) notifyByThread(threadRef string, event Notifier
 		return sendErr
 	}
 
-	// threadMap에서 못 찾은 경우(재시작 후 등): fallback에 위임
+	// 어느 Slack 클라이언트에서도 못 찾은 경우: fallback에 위임
 	if n.fallback != nil {
 		return n.fallback.Notify(event)
 	}
@@ -186,7 +209,8 @@ func severityMatches(cfgSeverities []string, eventSeverity string) bool {
 }
 
 // forEachSlackClient DB에 등록된 모든 유효한 Slack 클라이언트에 fn을 적용한다.
-func (n *webhookRoutingNotifier) forEachSlackClient(fn func(*SlackClient)) {
+// fn의 첫 번째 인자는 webhook_configs.id(configID)이다.
+func (n *webhookRoutingNotifier) forEachSlackClient(fn func(configID int, c *SlackClient)) {
 	if n.cfgSource == nil {
 		return
 	}
@@ -202,17 +226,27 @@ func (n *webhookRoutingNotifier) forEachSlackClient(fn func(*SlackClient)) {
 		if !ok {
 			continue
 		}
-		fn(client)
+		fn(cfg.ID, client)
 	}
 }
 
 func (n *webhookRoutingNotifier) StoreThreadRef(alertKey, threadRef string) {
 	// 자체 threadStore에 저장
 	n.threadStore.Store(alertKey, threadRef)
-	// 모든 Slack 클라이언트에도 전파 (post-restart recovery 지원)
-	n.forEachSlackClient(func(c *SlackClient) {
-		c.StoreThreadRef(alertKey, threadRef)
-	})
+	// 소유자가 알려진 경우 해당 클라이언트에만 전파하여 오라우팅 방지
+	// 소유자 불명(재시작 후 등)이면 모든 클라이언트에 전파 (resolved 스레딩 복원용)
+	if ownerVal, ok := n.threadRefOwner.Load(threadRef); ok {
+		ownerID := ownerVal.(int)
+		n.forEachSlackClient(func(configID int, c *SlackClient) {
+			if configID == ownerID {
+				c.StoreThreadRef(alertKey, threadRef)
+			}
+		})
+	} else {
+		n.forEachSlackClient(func(_ int, c *SlackClient) {
+			c.StoreThreadRef(alertKey, threadRef)
+		})
+	}
 	// fallback store에도 전파
 	if n.fallbackThreadStore != nil {
 		n.fallbackThreadStore.StoreThreadRef(alertKey, threadRef)
@@ -221,16 +255,20 @@ func (n *webhookRoutingNotifier) StoreThreadRef(alertKey, threadRef string) {
 
 func (n *webhookRoutingNotifier) GetThreadRef(alertKey string) (string, bool) {
 	// 각 Slack 클라이언트의 인메모리 threadMap 우선 확인
+	// 찾은 경우 threadRefOwner에 소유자 기록 (notifyByThread 정확한 라우팅에 사용)
 	var found string
-	n.forEachSlackClient(func(c *SlackClient) {
+	var foundConfigID int
+	n.forEachSlackClient(func(configID int, c *SlackClient) {
 		if found != "" {
 			return
 		}
 		if ref, ok := c.GetThreadRef(alertKey); ok {
 			found = ref
+			foundConfigID = configID
 		}
 	})
 	if found != "" {
+		n.threadRefOwner.Store(found, foundConfigID)
 		return found, true
 	}
 	// 자체 threadStore 확인
@@ -247,8 +285,14 @@ func (n *webhookRoutingNotifier) GetThreadRef(alertKey string) (string, bool) {
 }
 
 func (n *webhookRoutingNotifier) DeleteThreadRef(alertKey string) {
+	// threadRefOwner 정리
+	if val, ok := n.threadStore.Load(alertKey); ok {
+		if ref, ok := val.(string); ok {
+			n.threadRefOwner.Delete(ref)
+		}
+	}
 	n.threadStore.Delete(alertKey)
-	n.forEachSlackClient(func(c *SlackClient) {
+	n.forEachSlackClient(func(_ int, c *SlackClient) {
 		c.DeleteThreadRef(alertKey)
 	})
 	if n.fallbackThreadStore != nil {
@@ -260,18 +304,14 @@ func (n *webhookRoutingNotifier) RequiresThreadRef() bool {
 	if n.cfgSource == nil {
 		return n.fallbackThreadStore != nil
 	}
-	configs, err := n.cfgSource.GetWebhookConfigs(context.Background())
-	if err != nil {
-		return n.fallbackThreadStore != nil
+	var hasSlack bool
+	n.forEachSlackClient(func(_ int, _ *SlackClient) {
+		hasSlack = true
+	})
+	if hasSlack {
+		return true
 	}
-	for _, cfg := range configs {
-		if normalizeWebhookType(cfg.Type) == "slack" {
-			if _, ok := n.slackClientForConfig(cfg); ok {
-				return true
-			}
-		}
-	}
-	return false
+	return n.fallbackThreadStore != nil
 }
 
 func (n *webhookRoutingNotifier) resolveNotifiers(severity string) ([]Notifier, error) {
