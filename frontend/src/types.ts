@@ -1,4 +1,4 @@
-export type Severity = 'TBD' | 'warning' | 'critical' | 'Warning' | 'Critical' | 'Resolved';
+export type Severity = 'TBD' | 'info' | 'warning' | 'critical' | 'Info' | 'Warning' | 'Critical' | 'Resolved';
 
 export interface RCAItem {
   incident_id: string;

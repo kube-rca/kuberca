@@ -6,7 +6,7 @@ interface AnalysisConfig {
   manualAnalyzeSeverities: string;
 }
 
-const SEVERITIES = ['warning', 'critical'] as const;
+const SEVERITIES = ['info', 'warning', 'critical'] as const;
 
 const AnalysisSettings: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -135,9 +135,11 @@ const AnalysisSettings: React.FC = () => {
                   className="w-4 h-4 text-violet-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 rounded focus:ring-violet-500"
                 />
                 <span className={`text-sm font-medium ${
-                  severity === 'warning'
-                    ? 'text-amber-700 dark:text-amber-400'
-                    : 'text-rose-700 dark:text-rose-400'
+                  severity === 'info'
+                    ? 'text-sky-700 dark:text-sky-400'
+                    : severity === 'warning'
+                      ? 'text-amber-700 dark:text-amber-400'
+                      : 'text-rose-700 dark:text-rose-400'
                 }`}>
                   {severity.charAt(0).toUpperCase() + severity.slice(1)}
                 </span>

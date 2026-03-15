@@ -329,6 +329,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                 {editForm.severity === 'TBD' && <option value="TBD" disabled>TBD (Please select)</option>}
                 <option value="critical">critical</option>
                 <option value="warning">warning</option>
+                <option value="info">info</option>
               </select>
 
               <button 
