@@ -457,10 +457,12 @@ export interface WebhookConfigPayload {
   type: 'slack' | 'teams' | 'http';
   token?: string;
   channel?: string;
+  severities?: string[]; // 빈 배열 또는 미설정 = 모든 severity 수신
 }
 
 export interface WebhookConfig extends WebhookConfigPayload {
   id: number;
+  severities: string[];
   updated_at: string;
 }
 
@@ -492,12 +494,14 @@ const detectWebhookType = (raw: Record<string, unknown>): 'slack' | 'teams' | 'h
 const normalizeWebhookConfig = (raw: unknown): WebhookConfig => {
   const record = isRecord(raw) ? raw : {};
 
+  const rawSeverities = getRecordValue(record, 'severities');
   return {
     id: Number(getRecordValue(record, 'id', 'ID') ?? 0),
     url: toStringValue(getRecordValue(record, 'url', 'URL')),
     type: detectWebhookType(record),
     token: toStringValue(getRecordValue(record, 'token', 'Token')).trim() || undefined,
     channel: toStringValue(getRecordValue(record, 'channel', 'Channel')).trim() || undefined,
+    severities: Array.isArray(rawSeverities) ? (rawSeverities as string[]) : [],
     updated_at:
       toStringValue(getRecordValue(record, 'updated_at', 'updatedAt', 'UpdatedAt')) ||
       new Date(0).toISOString(),

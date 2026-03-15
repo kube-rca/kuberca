@@ -6,7 +6,7 @@ type WebhookType = 'slack' | 'teams' | 'http';
 
 const SLACK_POST_MESSAGE_URL = 'https://slack.com/api/chat.postMessage';
 
-const buildConfigPayload = (type: WebhookType, url: string, token: string, channel: string): WebhookConfigPayload => {
+const buildConfigPayload = (type: WebhookType, url: string, token: string, channel: string, severities: string[]): WebhookConfigPayload => {
   const trimmedToken = token.trim();
   const trimmedChannel = channel.trim();
 
@@ -15,6 +15,7 @@ const buildConfigPayload = (type: WebhookType, url: string, token: string, chann
     url: type === 'slack' ? SLACK_POST_MESSAGE_URL : url,
     token: trimmedToken || undefined,
     channel: trimmedChannel || undefined,
+    severities,
   };
 };
 
@@ -34,6 +35,7 @@ const WebhookSettings: React.FC = () => {
   const [webhookType, setWebhookType] = useState<WebhookType>('slack');
   const [token, setToken] = useState('');
   const [channel, setChannel] = useState('');
+  const [severities, setSeverities] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showToken, setShowToken] = useState(false);
@@ -56,6 +58,7 @@ const WebhookSettings: React.FC = () => {
 
         const channelValue = cfg.channel ?? '';
         setChannel(channelValue);
+        setSeverities(cfg.severities ?? []);
       })
       .catch((err) => {
         setSaveMessage({ type: 'error', text: `Failed to load settings: ${err instanceof Error ? err.message : err}` });
@@ -112,7 +115,7 @@ const WebhookSettings: React.FC = () => {
     setSaveMessage(null);
 
     try {
-      const payload = buildConfigPayload(webhookType, trimmedUrl, token, channel);
+      const payload = buildConfigPayload(webhookType, trimmedUrl, token, channel, severities);
 
       if (isEditMode && id) {
         await updateWebhookConfig(Number(id), payload);
@@ -260,8 +263,6 @@ const WebhookSettings: React.FC = () => {
             </div>
           </div>
         )}
-
-
 
         <div className="pt-2">
           {saveMessage && (

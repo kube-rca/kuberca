@@ -10,6 +10,27 @@ const TYPE_BADGE: Record<WebhookType, string> = {
   HTTP: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200',
 };
 
+const SEVERITY_BADGE: Record<string, string> = {
+  critical: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+  warning:  'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  info:     'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
+};
+
+const ALL_SEVERITIES = ['info', 'warning', 'critical'] as const;
+
+// severities=[] 웹훅이 실제로 수신하는 severity 목록 계산.
+// 다른 웹훅이 claim한 severity는 제외된다.
+const getEffectiveSeverities = (cfg: WebhookConfig, allConfigs: WebhookConfig[]): string[] => {
+  if (cfg.severities.length > 0) return cfg.severities;
+  const claimed = new Set<string>();
+  for (const other of allConfigs) {
+    if (other.id !== cfg.id) {
+      other.severities.forEach((s) => claimed.add(s));
+    }
+  }
+  return ALL_SEVERITIES.filter((s) => !claimed.has(s));
+};
+
 const getWebhookType = (cfg: WebhookConfig): WebhookType => {
   const value = cfg.type?.toLowerCase();
   if (value === 'slack') return 'Slack';
@@ -129,6 +150,24 @@ const WebhookList: React.FC = () => {
                 </span>
               </div>
               <div className="flex items-center gap-3 shrink-0 ml-4">
+                {(() => {
+                  const effective = getEffectiveSeverities(cfg, configs);
+                  if (effective.length === 0) {
+                    return <span className="hidden sm:inline text-xs text-slate-400 dark:text-slate-500 italic">—</span>;
+                  }
+                  if (effective.length === ALL_SEVERITIES.length && cfg.severities.length === 0) {
+                    return <span className="hidden sm:inline text-xs text-slate-400 dark:text-slate-500 italic">all</span>;
+                  }
+                  return (
+                    <div className="hidden sm:flex items-center gap-1">
+                      {effective.map((sev) => (
+                        <span key={sev} className={`inline-block px-1.5 py-0.5 text-xs font-semibold rounded ${SEVERITY_BADGE[sev] ?? 'bg-slate-100 text-slate-600'}`}>
+                          {sev}
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })()}
                 <span className="text-xs text-slate-400 dark:text-slate-500 hidden sm:block">
                   {new Date(cfg.updated_at).toLocaleString('ko-KR', {
                     year: 'numeric', month: '2-digit', day: '2-digit',

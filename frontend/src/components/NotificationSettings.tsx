@@ -1,10 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchAppSetting, updateAppSetting } from '../utils/api';
+import { fetchAppSetting, updateAppSetting, fetchWebhookList, updateWebhookConfig, WebhookConfig } from '../utils/api';
 
 interface NotificationSettingsData {
   enabled: boolean;
 }
+
+const ALL_SEVERITIES = ['info', 'warning', 'critical'] as const;
+
+const SEVERITY_COLOR: Record<string, string> = {
+  critical: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+  warning:  'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  info:     'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
+};
 
 const NotificationSettings: React.FC = () => {
   const navigate = useNavigate();
@@ -14,16 +22,100 @@ const NotificationSettings: React.FC = () => {
 
   const [enabled, setEnabled] = useState(true);
 
+  // Webhook severity routing state
+  const [webhooks, setWebhooks] = useState<WebhookConfig[]>([]);
+  const [webhooksLoading, setWebhooksLoading] = useState(true);
+  const [severityMap, setSeverityMap] = useState<Record<number, string[]>>({});
+  const [routingSaving, setRoutingSaving] = useState(false);
+  const [routingMessage, setRoutingMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   useEffect(() => {
     fetchAppSetting<NotificationSettingsData>('notification')
       .then((data) => {
-        if (data) {
-          setEnabled(data.enabled);
-        }
+        if (data) setEnabled(data.enabled);
       })
       .catch((err) => setMessage({ type: 'error', text: err.message }))
       .finally(() => setLoading(false));
+
+    fetchWebhookList()
+      .then((list) => {
+        setWebhooks(list);
+        const map: Record<number, string[]> = {};
+        list.forEach((w) => { map[w.id] = w.severities ?? []; });
+        setSeverityMap(map);
+      })
+      .catch(() => {/* webhook list 실패는 무시 */})
+      .finally(() => setWebhooksLoading(false));
   }, []);
+
+  // 하나의 severity는 최대 하나의 웹훅에만 배정 가능
+  const toggleSeverity = (webhookId: number, sev: string) => {
+    setSeverityMap((prev) => {
+      const current = prev[webhookId] ?? [];
+      const isRemoving = current.includes(sev);
+
+      if (isRemoving) {
+        return { ...prev, [webhookId]: current.filter((s) => s !== sev) };
+      }
+
+      // 다른 웹훅에서 같은 severity 제거 후 현재 웹훅에 추가
+      const updated: Record<number, string[]> = {};
+      for (const id of Object.keys(prev)) {
+        const numId = Number(id);
+        updated[numId] = numId === webhookId
+          ? [...current, sev]
+          : (prev[numId] ?? []).filter((s) => s !== sev);
+      }
+      return updated;
+    });
+  };
+
+  // severities=[] 웹훅이 실제로 수신할 severity 목록 계산
+  const getEffectiveSeverities = (webhookId: number): string[] => {
+    const assigned = severityMap[webhookId] ?? [];
+    if (assigned.length > 0) return assigned;
+    const claimed = new Set<string>();
+    for (const w of webhooks) {
+      if (w.id !== webhookId) {
+        (severityMap[w.id] ?? []).forEach((s) => claimed.add(s));
+      }
+    }
+    return ALL_SEVERITIES.filter((s) => !claimed.has(s));
+  };
+
+  // 해당 severity를 이미 다른 웹훅에서 사용 중인지 반환
+  const getSeverityOwner = (sev: string, excludeId: number): string | null => {
+    const owner = webhooks.find(
+      (w) => w.id !== excludeId && (severityMap[w.id] ?? []).includes(sev)
+    );
+    if (!owner) return null;
+    return owner.type === 'slack'
+      ? (owner.channel ? `Slack · ${owner.channel}` : 'Slack')
+      : (owner.url || `Webhook #${owner.id}`);
+  };
+
+  const handleSaveRouting = async () => {
+    setRoutingSaving(true);
+    setRoutingMessage(null);
+    try {
+      await Promise.all(
+        webhooks.map((w) =>
+          updateWebhookConfig(w.id, {
+            url: w.url,
+            type: w.type as 'slack' | 'teams' | 'http',
+            token: w.token,
+            channel: w.channel,
+            severities: severityMap[w.id] ?? [],
+          })
+        )
+      );
+      setRoutingMessage({ type: 'success', text: 'Severity routing saved.' });
+    } catch (err: unknown) {
+      setRoutingMessage({ type: 'error', text: err instanceof Error ? err.message : 'Save failed' });
+    } finally {
+      setRoutingSaving(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -97,6 +189,103 @@ const NotificationSettings: React.FC = () => {
         {message && (
           <div className={`p-3 rounded-lg text-sm ${message.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800' : 'bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800'}`}>
             {message.text}
+          </div>
+        )}
+      </div>
+
+      {/* Webhook Severity Routing */}
+      <div className="mt-8 pt-8 border-t border-slate-200 dark:border-slate-700">
+        <h2 className="text-lg font-semibold text-slate-800 dark:text-white mb-1">Webhook Severity Routing</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">
+          Configure which alert severities each webhook channel receives. Leave all unchecked to receive all severities.
+        </p>
+        <p className="text-xs text-amber-600 dark:text-amber-400 mb-5">
+          Each severity can be assigned to at most one webhook. Assigning a severity to a new webhook will automatically remove it from the previous one.
+        </p>
+
+        {webhooksLoading ? (
+          <div className="space-y-3">
+            {[1, 2].map((i) => (
+              <div key={i} className="animate-pulse h-14 bg-slate-100 dark:bg-slate-700/50 rounded-lg" />
+            ))}
+          </div>
+        ) : webhooks.length === 0 ? (
+          <div className="text-sm text-slate-400 dark:text-slate-500 py-4">
+            No webhooks registered.{' '}
+            <button onClick={() => navigate('/settings/webhooks/new')} className="text-cyan-600 dark:text-cyan-400 hover:underline">
+              Add one
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3 max-w-2xl">
+            {webhooks.map((w) => {
+              const label = w.type === 'slack'
+                ? (w.channel ? `Slack · ${w.channel}` : 'Slack')
+                : w.url || `Webhook #${w.id}`;
+              const selected = severityMap[w.id] ?? [];
+              return (
+                <div key={w.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 border border-slate-200 dark:border-slate-700 rounded-lg">
+                  <span className="text-sm font-mono text-slate-700 dark:text-slate-200 truncate flex-1 min-w-0">{label}</span>
+                  <div className="flex items-center gap-3 shrink-0 flex-wrap">
+                    {ALL_SEVERITIES.map((sev) => {
+                      const checked = selected.includes(sev);
+                      const owner = getSeverityOwner(sev, w.id);
+                      return (
+                        <div key={sev} className="flex flex-col items-center gap-0.5">
+                          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleSeverity(w.id, sev)}
+                              className="w-4 h-4 rounded accent-cyan-600"
+                            />
+                            <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${SEVERITY_COLOR[sev]}`}>
+                              {sev}
+                            </span>
+                          </label>
+                          {owner && (
+                            <span className="text-xs text-slate-400 dark:text-slate-500 italic truncate max-w-[80px]" title={`Assigned to: ${owner}`}>
+                              → {owner}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {selected.length === 0 && (() => {
+                      const effective = getEffectiveSeverities(w.id);
+                      if (effective.length === 0) {
+                        return <span className="text-xs text-slate-400 dark:text-slate-500 italic">—</span>;
+                      }
+                      if (effective.length === ALL_SEVERITIES.length) {
+                        return <span className="text-xs text-slate-400 dark:text-slate-500 italic">all</span>;
+                      }
+                      return (
+                        <div className="flex items-center gap-1">
+                          {effective.map((s) => (
+                            <span key={s} className={`text-xs font-semibold px-1.5 py-0.5 rounded ${SEVERITY_COLOR[s]}`}>{s}</span>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              );
+            })}
+
+            <div className="pt-2 flex items-center gap-3">
+              <button
+                onClick={handleSaveRouting}
+                disabled={routingSaving}
+                className="px-6 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium disabled:opacity-50 transition-colors"
+              >
+                {routingSaving ? 'Saving...' : 'Save Routing'}
+              </button>
+              {routingMessage && (
+                <span className={`text-sm ${routingMessage.type === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                  {routingMessage.text}
+                </span>
+              )}
+            </div>
           </div>
         )}
       </div>
