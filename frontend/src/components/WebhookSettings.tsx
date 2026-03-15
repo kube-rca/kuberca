@@ -123,7 +123,8 @@ const WebhookSettings: React.FC = () => {
         await createWebhookConfig(payload);
       }
 
-      navigate('/settings/webhooks');
+      // 신규 생성 시 severity 배정 화면으로 이동
+      navigate(isEditMode ? '/settings/webhooks' : '/settings/notifications');
     } catch (err) {
       setSaveMessage({
         type: 'error',
@@ -261,6 +262,12 @@ const WebhookSettings: React.FC = () => {
                 )}
               </button>
             </div>
+          </div>
+        )}
+
+        {!isEditMode && (
+          <div className="p-3 rounded-lg bg-sky-50 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-800 text-sm text-sky-700 dark:text-sky-300">
+            After saving, you'll be taken to <strong>Notification Settings</strong> to assign which alert severities this webhook receives.
           </div>
         )}
 
