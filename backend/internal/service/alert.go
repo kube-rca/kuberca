@@ -227,10 +227,10 @@ func (s *AlertService) getOrCreateIncident(alert model.Alert) (string, error) {
 	return incidentID, nil
 }
 
-// shouldProcess - DB 저장 및 처리 여부 결정 (info, none 등은 완전 무시)
+// shouldProcess - DB 저장 및 처리 여부 결정 (none 등은 완전 무시)
 func (s *AlertService) shouldProcess(alert model.Alert) bool {
 	severity := alert.Labels["severity"]
-	return severity == "warning" || severity == "critical"
+	return severity == "warning" || severity == "critical" || severity == "info"
 }
 
 // 필터링 로직 예시:
@@ -241,9 +241,9 @@ func (s *AlertService) shouldProcess(alert model.Alert) bool {
 // Returns:
 //   - bool: true면 알림 채널로 전송, false면 무시
 func (s *AlertService) shouldSendNotification(alert model.Alert) bool {
-	// warning, critical만 전송 (info, none 등 필터링)
+	// warning, critical, info 전송 (none 등 필터링)
 	severity := alert.Labels["severity"]
-	if severity == "warning" || severity == "critical" {
+	if severity == "warning" || severity == "critical" || severity == "info" {
 		return true
 	}
 	return false
