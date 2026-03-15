@@ -63,6 +63,18 @@ func NewWebhookRoutingNotifier(
 }
 
 func (n *webhookRoutingNotifier) Notify(event NotifierEvent) error {
+	// thread 기반 이벤트(분석 결과, flapping 해제)는 thread를 소유한 Slack 클라이언트에만 전송.
+	switch e := event.(type) {
+	case AnalysisResultPostedEvent:
+		return n.notifyByThread(e.ThreadRef, event)
+	case *AnalysisResultPostedEvent:
+		return n.notifyByThread(e.ThreadRef, event)
+	case FlappingClearedEvent:
+		return n.notifyByThread(e.ThreadRef, event)
+	case *FlappingClearedEvent:
+		return n.notifyByThread(e.ThreadRef, event)
+	}
+
 	severity := extractEventSeverity(event)
 	targets, err := n.resolveNotifiers(severity)
 	if err != nil {
@@ -106,6 +118,39 @@ func (n *webhookRoutingNotifier) Notify(event NotifierEvent) error {
 		return fmt.Errorf("no notifier target configured")
 	}
 	return errors.Join(errs...)
+}
+
+// notifyByThread는 thread_ts를 소유한 Slack 클라이언트에만 이벤트를 전송한다.
+// HTTP/Teams 엔드포인트는 thread 개념이 없으므로 제외한다.
+func (n *webhookRoutingNotifier) notifyByThread(threadRef string, event NotifierEvent) error {
+	if threadRef == "" {
+		return nil
+	}
+
+	var found bool
+	var sendErr error
+	n.forEachSlackClient(func(c *SlackClient) {
+		if found {
+			return
+		}
+		if !c.HasThreadValue(threadRef) {
+			return
+		}
+		found = true
+		if err := c.Notify(event); err != nil {
+			sendErr = err
+		}
+	})
+
+	if found {
+		return sendErr
+	}
+
+	// threadMap에서 못 찾은 경우(재시작 후 등): fallback에 위임
+	if n.fallback != nil {
+		return n.fallback.Notify(event)
+	}
+	return nil
 }
 
 // extractEventSeverity - 이벤트에서 severity를 추출한다.

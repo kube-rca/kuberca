@@ -186,6 +186,20 @@ func (c *SlackClient) DeleteThreadRef(alertKey string) {
 	c.threadMap.Delete(alertKey)
 }
 
+// HasThreadValue는 주어진 thread_ts 값을 이 클라이언트가 보유하고 있는지 확인한다.
+// AnalysisResult/FlappingCleared 이벤트를 올바른 채널에만 라우팅하기 위해 사용된다.
+func (c *SlackClient) HasThreadValue(threadRef string) bool {
+	found := false
+	c.threadMap.Range(func(_, v interface{}) bool {
+		if v.(string) == threadRef {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
+
 // StoreThreadTS는 기존 호출부 호환을 위해 유지한다.
 func (c *SlackClient) StoreThreadTS(fingerprint, threadTS string) {
 	c.StoreThreadRef(fingerprint, threadTS)
