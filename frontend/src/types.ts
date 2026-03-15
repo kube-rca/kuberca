@@ -37,6 +37,16 @@ export interface RCADetail {
   alerts?: AlertItem[]; // 연결된 Alert 목록
 }
 
+// Alert 분석 이력 아이템 (firing/resolved 분리 표시용)
+export interface AlertAnalysisItem {
+  analysis_id: number;
+  status: string;        // "firing" | "resolved"
+  summary: string;
+  detail: string;
+  analysis_model: string;
+  created_at: string;
+}
+
 // 유사 인시던트 객체 타입 정의
 export interface SimilarIncident {
   incident_id: string;

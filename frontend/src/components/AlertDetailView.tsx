@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useNavigate } from 'react-router-dom';
 import { fetchAlertDetail, fetchRCAs, updateAlertIncident, triggerAlertAnalysis } from '../utils/api';
-import { RCAItem } from '../types';
+import { RCAItem, AlertAnalysisItem } from '../types';
 import FeedbackSection from './FeedbackSection';
 
 export interface AlertDetail {
@@ -21,6 +21,7 @@ export interface AlertDetail {
   labels: Record<string, string>;
   annotations: Record<string, string>;
   is_analyzing?: boolean;
+  analyses?: AlertAnalysisItem[];
 }
 
 interface AlertDetailViewProps {
@@ -267,7 +268,7 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
             disabled={analyzing}
             className="px-4 py-1.5 text-sm text-violet-600 dark:text-violet-400 border border-violet-600 dark:border-violet-400 rounded hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors font-medium disabled:opacity-50"
           >
-            {analyzing ? 'Analyzing...' : data.analysis_summary ? 'Re-Analyze' : 'Analyze'}
+            {analyzing ? 'Analyzing...' : (data.analyses?.length || data.analysis_summary) ? 'Re-Analyze' : 'Analyze'}
           </button>
         </div>
       </div>
@@ -413,77 +414,163 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
           </div>
         </div>
 
-        {/* 분석 결과 없음 placeholder */}
-        {!data.analysis_summary && !data.analysis_detail && (
-          <div className="md:col-span-2">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-3 flex items-center gap-2">
-              Alert Analysis
-            </h3>
+        {/* Alert Analyses - Stacked Layout (firing/resolved 분리 표시) */}
+        <div className="md:col-span-2">
+          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-3 flex items-center gap-2">
+            Alert Analyses
+          </h3>
+
+          {data.analyses && data.analyses.length > 0 ? (
+            <div className="space-y-4">
+              {data.analyses.map((analysis) => {
+                const isFiring = analysis.status === 'firing';
+                return (
+                  <div
+                    key={analysis.analysis_id}
+                    className={`border-l-[3px] pl-4 ${isFiring ? 'border-l-orange-500' : 'border-l-emerald-500'}`}
+                  >
+                    {/* Status badge + timestamp */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <span
+                        className={`px-2.5 py-0.5 rounded text-xs font-bold uppercase ${
+                          isFiring
+                            ? 'bg-orange-900/60 text-orange-400 dark:bg-orange-900/40 dark:text-orange-400'
+                            : 'bg-emerald-900/60 text-emerald-400 dark:bg-emerald-900/40 dark:text-emerald-400'
+                        }`}
+                      >
+                        {analysis.status}
+                      </span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                        {formatTime(analysis.created_at)}
+                      </span>
+                    </div>
+
+                    {/* Summary */}
+                    {analysis.summary && (
+                      <div className={`rounded-lg p-4 mb-3 border transition-colors ${
+                        isFiring
+                          ? 'bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-800'
+                          : 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800'
+                      }`}>
+                        <div className={`text-[10px] font-bold uppercase tracking-wide mb-2 ${
+                          isFiring ? 'text-blue-500 dark:text-blue-400' : 'text-emerald-500 dark:text-emerald-400'
+                        }`}>
+                          Summary
+                        </div>
+                        <div className="prose prose-sm prose-slate dark:prose-invert max-w-none leading-relaxed">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              strong: ({ node: _node, ...props }) => (
+                                <span className={`font-bold ${isFiring ? 'text-blue-800 dark:text-blue-300' : 'text-emerald-800 dark:text-emerald-300'}`} {...props} />
+                              ),
+                              ul: ({ node: _node, ...props }) => <ul className="list-disc pl-5 space-y-1 my-2" {...props} />,
+                              code: ({ node: _node, ...props }) => (
+                                <code className={`px-1.5 py-0.5 rounded text-xs font-mono font-bold shadow-sm border ${
+                                  isFiring
+                                    ? 'bg-white dark:bg-blue-950/50 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
+                                    : 'bg-white dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
+                                }`} {...props} />
+                              ),
+                            }}
+                          >
+                            {analysis.summary}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Detail */}
+                    {analysis.detail && (
+                      <div className="bg-slate-900 border border-slate-700 rounded-lg overflow-hidden shadow-sm">
+                        <div className="p-5 overflow-x-auto">
+                          <div className={`text-[10px] font-bold uppercase tracking-wide mb-3 ${
+                            isFiring ? 'text-blue-500 dark:text-blue-400' : 'text-emerald-500 dark:text-emerald-400'
+                          }`}>
+                            Detail
+                          </div>
+                          <div className="prose prose-sm prose-invert max-w-none font-mono leading-relaxed">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                h1: ({ node: _node, ...props }) => <h1 className="text-2xl font-extrabold text-blue-400 mt-8 mb-6 pb-2 border-b border-slate-700 flex items-center gap-2 [&_strong]:text-blue-400" {...props} />,
+                                h2: ({ node: _node, ...props }) => <h2 className="text-xl font-bold text-indigo-300 mt-8 mb-4 pl-3 border-l-4 border-indigo-500 [&_strong]:text-indigo-300" {...props} />,
+                                h3: ({ node: _node, ...props }) => <h3 className="text-lg font-semibold text-sky-300 mt-6 mb-3 ml-1 [&_strong]:text-sky-300" {...props} />,
+                                strong: ({ node: _node, ...props }) => <span className="font-bold text-amber-400" {...props} />,
+                                ul: ({ node: _node, ...props }) => <ul className="list-disc pl-6 space-y-2 my-2 text-slate-300 leading-relaxed" {...props} />,
+                                code: ({ node: _node, ...props }) => (
+                                  <code className="bg-slate-800 text-pink-400 px-1.5 py-0.5 rounded text-sm font-mono border border-slate-700 mx-1" {...props} />
+                                ),
+                                p: ({ node: _node, ...props }) => <p className="mb-4 text-slate-300 leading-relaxed" {...props} />,
+                                a: ({ node: _node, ...props }) => <a className="text-blue-400 hover:text-blue-300 hover:underline transition-colors" target="_blank" rel="noopener noreferrer" {...props} />,
+                              }}
+                            >
+                              {analysis.detail}
+                            </ReactMarkdown>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : data.analysis_summary || data.analysis_detail ? (
+            /* Fallback: 기존 단일 분석 렌더링 (analyses 미지원 구 데이터) */
+            <div className="space-y-4">
+              {data.analysis_summary && (
+                <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-lg p-5 transition-colors">
+                  <div className="prose prose-sm prose-slate dark:prose-invert max-w-none text-slate-800 dark:text-slate-200 leading-relaxed">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        strong: ({ node: _node, ...props }) => <span className="font-bold text-blue-800 dark:text-blue-300" {...props} />,
+                        ul: ({ node: _node, ...props }) => <ul className="list-disc pl-5 space-y-1 my-2" {...props} />,
+                        code: ({ node: _node, ...props }) => (
+                          <code className="bg-white dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded text-xs font-mono font-bold shadow-sm" {...props} />
+                        ),
+                      }}
+                    >
+                      {data.analysis_summary}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+              )}
+              {data.analysis_detail && (
+                <div className="bg-slate-900 border border-slate-700 rounded-lg overflow-hidden shadow-sm">
+                  <div className="p-6 overflow-x-auto">
+                    <div className="prose prose-sm prose-invert max-w-none font-mono leading-relaxed">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          h1: ({ node: _node, ...props }) => <h1 className="text-2xl font-extrabold text-blue-400 mt-8 mb-6 pb-2 border-b border-slate-700 flex items-center gap-2 [&_strong]:text-blue-400" {...props} />,
+                          h2: ({ node: _node, ...props }) => <h2 className="text-xl font-bold text-indigo-300 mt-8 mb-4 pl-3 border-l-4 border-indigo-500 [&_strong]:text-indigo-300" {...props} />,
+                          h3: ({ node: _node, ...props }) => <h3 className="text-lg font-semibold text-sky-300 mt-6 mb-3 ml-1 [&_strong]:text-sky-300" {...props} />,
+                          strong: ({ node: _node, ...props }) => <span className="font-bold text-amber-400" {...props} />,
+                          ul: ({ node: _node, ...props }) => <ul className="list-disc pl-6 space-y-2 my-2 text-slate-300 leading-relaxed" {...props} />,
+                          code: ({ node: _node, ...props }) => (
+                            <code className="bg-slate-800 text-pink-400 px-1.5 py-0.5 rounded text-sm font-mono border border-slate-700 mx-1" {...props} />
+                          ),
+                          p: ({ node: _node, ...props }) => <p className="mb-4 text-slate-300 leading-relaxed" {...props} />,
+                          a: ({ node: _node, ...props }) => <a className="text-blue-400 hover:text-blue-300 hover:underline transition-colors" target="_blank" rel="noopener noreferrer" {...props} />,
+                        }}
+                      >
+                        {data.analysis_detail}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* 분석 결과 없음 */
             <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-8 text-center border border-dashed border-slate-300 dark:border-slate-600">
               <p className="text-slate-500 dark:text-slate-400">
                 No analysis result yet. You can request analysis by clicking the Analyze button at the top.
               </p>
             </div>
-          </div>
-        )}
-
-        {/* 분석 요약 (Blue Tone + High Contrast Code) */}
-        {data.analysis_summary && (
-          <div className="md:col-span-2">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-3 flex items-center gap-2">
-              Alert Summary
-            </h3>
-            <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-lg p-5 transition-colors">
-              <div className="prose prose-sm prose-slate dark:prose-invert max-w-none text-slate-800 dark:text-slate-200 leading-relaxed">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    strong: ({ node: _node, ...props }) => <span className="font-bold text-blue-800 dark:text-blue-300" {...props} />,
-                    ul: ({ node: _node, ...props }) => <ul className="list-disc pl-5 space-y-1 my-2" {...props} />,
-                    // [핵심] 흰 배경에 진한 파랑 글씨로 코드 블록 강조
-                    code: ({ node: _node, ...props }) => (
-                      <code className="bg-white dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded text-xs font-mono font-bold shadow-sm" {...props} />
-                    ),
-                  }}
-                >
-                  {data.analysis_summary}
-                </ReactMarkdown>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 상세 분석 (DarkMode Visibility Fix) */}
-        {data.analysis_detail && (
-          <div className="md:col-span-2">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-3 flex items-center gap-2">
-              Alert Analysis
-            </h3>
-            <div className="bg-slate-900 border border-slate-700 rounded-lg overflow-hidden shadow-sm">
-              <div className="p-6 overflow-x-auto">
-                <div className="prose prose-sm prose-invert max-w-none font-mono leading-relaxed">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                  components={{
-                    h1: ({ node: _node, ...props }) => <h1 className="text-2xl font-extrabold text-blue-400 mt-8 mb-6 pb-2 border-b border-slate-700 flex items-center gap-2 [&_strong]:text-blue-400" {...props} />,
-                    h2: ({ node: _node, ...props }) => <h2 className="text-xl font-bold text-indigo-300 mt-8 mb-4 pl-3 border-l-4 border-indigo-500 [&_strong]:text-indigo-300" {...props} />,
-                    h3: ({ node: _node, ...props }) => <h3 className="text-lg font-semibold text-sky-300 mt-6 mb-3 ml-1 [&_strong]:text-sky-300" {...props} />,
-                    strong: ({ node: _node, ...props }) => <span className="font-bold text-amber-400" {...props} />,
-                    ul: ({ node: _node, ...props }) => <ul className="list-disc pl-6 space-y-2 my-2 text-slate-300 leading-relaxed" {...props} />,
-                    code: ({ node: _node, ...props }) => (
-                      <code className="bg-slate-800 text-pink-400 px-1.5 py-0.5 rounded text-sm font-mono border border-slate-700 mx-1" {...props} />
-                    ),
-                    p: ({ node: _node, ...props }) => <p className="mb-4 text-slate-300 leading-relaxed" {...props} />,
-                    a: ({ node: _node, ...props }) => <a className="text-blue-400 hover:text-blue-300 hover:underline transition-colors" target="_blank" rel="noopener noreferrer" {...props} />,
-                  }}
-                  >
-                    {data.analysis_detail}
-                  </ReactMarkdown>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="md:col-span-2">
           <FeedbackSection targetType="alert" targetId={alertId} />
