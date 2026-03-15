@@ -143,6 +143,53 @@ func (db *Postgres) InsertAlertAnalysisArtifacts(
 	return nil
 }
 
+// GetLatestAnalysesByAlertID - alert_id 기준 status별 최신 분석 1건씩 조회 (firing, resolved)
+func (db *Postgres) GetLatestAnalysesByAlertID(alertID string) ([]model.AlertAnalysis, error) {
+	// PostgreSQL DISTINCT ON: status별 최신 1건만 반환
+	query := `
+		SELECT analysis_id, alert_id, incident_id, status, summary, detail,
+		       analysis_model, created_at
+		FROM (
+			SELECT DISTINCT ON (status)
+				analysis_id, alert_id, incident_id, status, summary, detail,
+				analysis_model, created_at
+			FROM alert_analyses
+			WHERE alert_id = $1
+			ORDER BY status, created_at DESC
+		) sub
+		ORDER BY created_at ASC
+	`
+
+	rows, err := db.Pool.Query(context.Background(), query, alertID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []model.AlertAnalysis
+	for rows.Next() {
+		var a model.AlertAnalysis
+		if err := rows.Scan(
+			&a.AnalysisID,
+			&a.AlertID,
+			&a.IncidentID,
+			&a.Status,
+			&a.Summary,
+			&a.Detail,
+			&a.AnalysisModel,
+			&a.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		list = append(list, a)
+	}
+
+	if list == nil {
+		list = []model.AlertAnalysis{}
+	}
+	return list, nil
+}
+
 // GetLatestAlertAnalysisByAlertID - alert_id 기준 최신 분석 1건 조회
 func (db *Postgres) GetLatestAlertAnalysisByAlertID(alertID string) (*model.AlertAnalysis, error) {
 	query := `

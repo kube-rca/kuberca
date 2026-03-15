@@ -38,12 +38,31 @@ definitions:
       status:
         type: string
     type: object
+  model.AlertAnalysisItem:
+    properties:
+      analysis_id:
+        type: integer
+      analysis_model:
+        type: string
+      created_at:
+        type: string
+      detail:
+        type: string
+      status:
+        type: string
+      summary:
+        type: string
+    type: object
   model.AlertDetailResponse:
     properties:
       alarm_title:
         type: string
       alert_id:
         type: string
+      analyses:
+        items:
+          $ref: '#/definitions/model.AlertAnalysisItem'
+        type: array
       analysis_detail:
         type: string
       analysis_summary:
@@ -395,6 +414,11 @@ definitions:
         type: string
       id:
         type: integer
+      severities:
+        description: 빈 배열 = 모든 severity 수신
+        items:
+          type: string
+        type: array
       token:
         type: string
       type:
@@ -426,6 +450,11 @@ definitions:
     properties:
       channel:
         type: string
+      severities:
+        description: 빈 배열 = 모든 severity 수신
+        items:
+          type: string
+        type: array
       token:
         type: string
       type:

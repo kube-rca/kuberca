@@ -75,23 +75,24 @@ type AlertListResponse struct {
 
 // AlertDetailResponse - Alert 상세 조회용 구조체
 type AlertDetailResponse struct {
-	AlertID         string          `json:"alert_id"`
-	IncidentID      *string         `json:"incident_id"`
-	AlarmTitle      string          `json:"alarm_title"`
-	Severity        string          `json:"severity"`
-	Status          string          `json:"status"`
-	FiredAt         time.Time       `json:"fired_at"`
-	ResolvedAt      *time.Time      `json:"resolved_at"`
-	AnalysisSummary *string         `json:"analysis_summary"`
-	AnalysisDetail  *string         `json:"analysis_detail"`
-	Fingerprint     string          `json:"fingerprint"`
-	ThreadTS        string          `json:"thread_ts"`
-	Labels          json.RawMessage `json:"labels" swaggertype:"object"`
-	Annotations     json.RawMessage `json:"annotations" swaggertype:"object"`
-	IsFlapping      bool            `json:"is_flapping"`
-	FlapCycleCount  int             `json:"flap_cycle_count,omitempty"`
-	FlapWindowStart *time.Time      `json:"flap_window_start,omitempty"`
-	IsAnalyzing     bool            `json:"is_analyzing"`
+	AlertID         string              `json:"alert_id"`
+	IncidentID      *string             `json:"incident_id"`
+	AlarmTitle      string              `json:"alarm_title"`
+	Severity        string              `json:"severity"`
+	Status          string              `json:"status"`
+	FiredAt         time.Time           `json:"fired_at"`
+	ResolvedAt      *time.Time          `json:"resolved_at"`
+	AnalysisSummary *string             `json:"analysis_summary"`
+	AnalysisDetail  *string             `json:"analysis_detail"`
+	Fingerprint     string              `json:"fingerprint"`
+	ThreadTS        string              `json:"thread_ts"`
+	Labels          json.RawMessage     `json:"labels" swaggertype:"object"`
+	Annotations     json.RawMessage     `json:"annotations" swaggertype:"object"`
+	IsFlapping      bool                `json:"is_flapping"`
+	FlapCycleCount  int                 `json:"flap_cycle_count,omitempty"`
+	FlapWindowStart *time.Time          `json:"flap_window_start,omitempty"`
+	IsAnalyzing     bool                `json:"is_analyzing"`
+	Analyses        []AlertAnalysisItem `json:"analyses"`
 }
 
 // ============================================================================

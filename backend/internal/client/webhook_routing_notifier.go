@@ -27,10 +27,10 @@ type webhookRoutingNotifier struct {
 	frontendURL         string
 	httpClient          *http.Client
 
-	mu              sync.RWMutex
-	slackClients    map[int]*SlackClient
-	threadStore     sync.Map // alertKey → thread_ts
-	threadRefOwner  sync.Map // thread_ts value → configID (which Slack client sent the original message)
+	mu             sync.RWMutex
+	slackClients   map[int]*SlackClient
+	threadStore    sync.Map // alertKey → thread_ts
+	threadRefOwner sync.Map // thread_ts value → configID (which Slack client sent the original message)
 }
 
 var _ Notifier = (*webhookRoutingNotifier)(nil)

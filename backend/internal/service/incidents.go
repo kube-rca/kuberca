@@ -237,13 +237,35 @@ func (s *RcaService) GetAlertList() ([]model.AlertListResponse, error) {
 	return s.repo.GetAlertList()
 }
 
-// GetAlertDetail - Alert 상세 조회
+// GetAlertDetail - Alert 상세 조회 (analyses 이력 포함)
 func (s *RcaService) GetAlertDetail(id string) (*model.AlertDetailResponse, error) {
 	detail, err := s.repo.GetAlertDetail(id)
 	if err != nil {
 		return nil, err
 	}
 	detail.IsAnalyzing = s.agentService.IsAnalyzing(id)
+
+	// alert_analyses 테이블에서 status별 최신 분석 조회
+	analyses, err := s.repo.GetLatestAnalysesByAlertID(id)
+	if err != nil {
+		log.Printf("Failed to load alert analyses (alert_id=%s): %v", id, err)
+		detail.Analyses = []model.AlertAnalysisItem{}
+		return detail, nil
+	}
+
+	items := make([]model.AlertAnalysisItem, 0, len(analyses))
+	for _, a := range analyses {
+		items = append(items, model.AlertAnalysisItem{
+			AnalysisID:    a.AnalysisID,
+			Status:        a.Status,
+			Summary:       a.Summary,
+			Detail:        a.Detail,
+			AnalysisModel: a.AnalysisModel,
+			CreatedAt:     a.CreatedAt,
+		})
+	}
+	detail.Analyses = items
+
 	return detail, nil
 }
 

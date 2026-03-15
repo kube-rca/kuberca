@@ -1485,6 +1485,29 @@ const docTemplate = `{
                 }
             }
         },
+        "model.AlertAnalysisItem": {
+            "type": "object",
+            "properties": {
+                "analysis_id": {
+                    "type": "integer"
+                },
+                "analysis_model": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "detail": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "summary": {
+                    "type": "string"
+                }
+            }
+        },
         "model.AlertDetailResponse": {
             "type": "object",
             "properties": {
@@ -1493,6 +1516,12 @@ const docTemplate = `{
                 },
                 "alert_id": {
                     "type": "string"
+                },
+                "analyses": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.AlertAnalysisItem"
+                    }
                 },
                 "analysis_detail": {
                     "type": "string"
@@ -2029,6 +2058,13 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "severities": {
+                    "description": "빈 배열 = 모든 severity 수신",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "token": {
                     "type": "string"
                 },
@@ -2076,6 +2112,13 @@ const docTemplate = `{
             "properties": {
                 "channel": {
                     "type": "string"
+                },
+                "severities": {
+                    "description": "빈 배열 = 모든 severity 수신",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "token": {
                     "type": "string"
