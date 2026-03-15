@@ -211,7 +211,7 @@ backend:
 | agent.tolerations | list | `[]` | Tolerations for agent pods assignment. |
 | agent.workers | int | `1` | Uvicorn worker count (WEB_CONCURRENCY). |
 | backend.affinity | object | `{}` | Affinity for backend pods assignment. |
-| backend.analysis.manualAnalyzeSeverities | string | `""` | Comma-separated severities that require manual analysis (MANUAL_ANALYZE_SEVERITIES). Default (empty): all severities are auto-analyzed. Example: "warning" -> warning requires manual trigger, critical stays auto. Example: "warning,critical" -> all severities require manual trigger. |
+| backend.analysis.manualAnalyzeSeverities | string | `""` | Comma-separated severities that require manual analysis (MANUAL_ANALYZE_SEVERITIES). Default (empty): all severities are auto-analyzed. Example: "info" -> info requires manual trigger, warning and critical stay auto. Example: "warning,critical" -> warning and critical require manual trigger, info stays auto. Valid values: info, warning, critical (comma-separated) |
 | backend.auth.admin.password | string | `"kube-rca"` | Admin password (default: kube-rca). |
 | backend.auth.admin.username | string | `"kube-rca"` | Admin login ID (default: kube-rca). |
 | backend.auth.allowSignup | bool | `false` | Allow user signup (ALLOW_SIGNUP). |

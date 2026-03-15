@@ -176,8 +176,9 @@ backend:
   analysis:
     # -- Comma-separated severities that require manual analysis (MANUAL_ANALYZE_SEVERITIES).
     # Default (empty): all severities are auto-analyzed.
-    # Example: "warning" -> warning requires manual trigger, critical stays auto.
-    # Example: "warning,critical" -> all severities require manual trigger.
+    # Example: "info" -> info requires manual trigger, warning and critical stay auto.
+    # Example: "warning,critical" -> warning and critical require manual trigger, info stays auto.
+    # Valid values: info, warning, critical (comma-separated)
     manualAnalyzeSeverities: ""
   auth:
     # -- Enable backend auth.
