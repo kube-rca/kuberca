@@ -28,7 +28,8 @@ func (p *Postgres) EnsureWebhookSchema() error {
 		ALTER TABLE webhook_configs
 		ADD COLUMN IF NOT EXISTS type TEXT NOT NULL DEFAULT 'http',
 		ADD COLUMN IF NOT EXISTS token TEXT NOT NULL DEFAULT '',
-		ADD COLUMN IF NOT EXISTS channel TEXT NOT NULL DEFAULT '';
+		ADD COLUMN IF NOT EXISTS channel TEXT NOT NULL DEFAULT '',
+		ADD COLUMN IF NOT EXISTS severities TEXT[] NOT NULL DEFAULT '{}';
 	`)
 	if err != nil {
 		return fmt.Errorf("failed to alter webhook_configs table(add columns): %w", err)
@@ -65,7 +66,7 @@ func (p *Postgres) EnsureWebhookSchema() error {
 // GetWebhookConfigs - 웹훅 설정 전체 목록 조회 (최신순)
 func (p *Postgres) GetWebhookConfigs(ctx context.Context) ([]model.WebhookConfig, error) {
 	rows, err := p.Pool.Query(ctx, `
-		SELECT id, url, type, token, channel, updated_at
+		SELECT id, url, type, token, channel, severities, updated_at
 		FROM webhook_configs
 		ORDER BY updated_at DESC;
 	`)
@@ -77,8 +78,11 @@ func (p *Postgres) GetWebhookConfigs(ctx context.Context) ([]model.WebhookConfig
 	var configs []model.WebhookConfig
 	for rows.Next() {
 		var cfg model.WebhookConfig
-		if err := rows.Scan(&cfg.ID, &cfg.URL, &cfg.Type, &cfg.Token, &cfg.Channel, &cfg.UpdatedAt); err != nil {
+		if err := rows.Scan(&cfg.ID, &cfg.URL, &cfg.Type, &cfg.Token, &cfg.Channel, &cfg.Severities, &cfg.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan webhook config: %w", err)
+		}
+		if cfg.Severities == nil {
+			cfg.Severities = []string{}
 		}
 		configs = append(configs, cfg)
 	}
@@ -91,26 +95,33 @@ func (p *Postgres) GetWebhookConfigs(ctx context.Context) ([]model.WebhookConfig
 // GetWebhookConfigByID - ID로 단건 조회
 func (p *Postgres) GetWebhookConfigByID(ctx context.Context, id int) (*model.WebhookConfig, error) {
 	row := p.Pool.QueryRow(ctx, `
-		SELECT id, url, type, token, channel, updated_at
+		SELECT id, url, type, token, channel, severities, updated_at
 		FROM webhook_configs
 		WHERE id = $1;
 	`, id)
 
 	var cfg model.WebhookConfig
-	if err := row.Scan(&cfg.ID, &cfg.URL, &cfg.Type, &cfg.Token, &cfg.Channel, &cfg.UpdatedAt); err != nil {
+	if err := row.Scan(&cfg.ID, &cfg.URL, &cfg.Type, &cfg.Token, &cfg.Channel, &cfg.Severities, &cfg.UpdatedAt); err != nil {
 		return nil, fmt.Errorf("webhook config not found: %w", err)
+	}
+	if cfg.Severities == nil {
+		cfg.Severities = []string{}
 	}
 	return &cfg, nil
 }
 
 // CreateWebhookConfig - 신규 웹훅 설정 저장
 func (p *Postgres) CreateWebhookConfig(ctx context.Context, cfg model.WebhookConfig) (int, error) {
+	severities := cfg.Severities
+	if severities == nil {
+		severities = []string{}
+	}
 	var id int
 	err := p.Pool.QueryRow(ctx, `
-		INSERT INTO webhook_configs (url, type, token, channel, updated_at)
-		VALUES ($1, $2, $3, $4, NOW())
+		INSERT INTO webhook_configs (url, type, token, channel, severities, updated_at)
+		VALUES ($1, $2, $3, $4, $5, NOW())
 		RETURNING id;
-	`, cfg.URL, cfg.Type, cfg.Token, cfg.Channel).Scan(&id)
+	`, cfg.URL, cfg.Type, cfg.Token, cfg.Channel, severities).Scan(&id)
 	if err != nil {
 		return 0, fmt.Errorf("failed to insert webhook config: %w", err)
 	}
@@ -119,11 +130,15 @@ func (p *Postgres) CreateWebhookConfig(ctx context.Context, cfg model.WebhookCon
 
 // UpdateWebhookConfig - ID로 웹훅 설정 수정
 func (p *Postgres) UpdateWebhookConfig(ctx context.Context, id int, cfg model.WebhookConfig) error {
+	severities := cfg.Severities
+	if severities == nil {
+		severities = []string{}
+	}
 	tag, err := p.Pool.Exec(ctx, `
 		UPDATE webhook_configs
-		SET url = $1, type = $2, token = $3, channel = $4, updated_at = NOW()
-		WHERE id = $5;
-	`, cfg.URL, cfg.Type, cfg.Token, cfg.Channel, id)
+		SET url = $1, type = $2, token = $3, channel = $4, severities = $5, updated_at = NOW()
+		WHERE id = $6;
+	`, cfg.URL, cfg.Type, cfg.Token, cfg.Channel, severities, id)
 	if err != nil {
 		return fmt.Errorf("failed to update webhook config: %w", err)
 	}

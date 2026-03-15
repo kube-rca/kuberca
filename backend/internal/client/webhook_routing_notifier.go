@@ -29,6 +29,7 @@ type webhookRoutingNotifier struct {
 
 	mu           sync.RWMutex
 	slackClients map[int]*SlackClient
+	threadStore  sync.Map // 모든 Slack 클라이언트에 독립적인 thread ref 저장소
 }
 
 var _ Notifier = (*webhookRoutingNotifier)(nil)
@@ -62,7 +63,8 @@ func NewWebhookRoutingNotifier(
 }
 
 func (n *webhookRoutingNotifier) Notify(event NotifierEvent) error {
-	targets, err := n.resolveNotifiers()
+	severity := extractEventSeverity(event)
+	targets, err := n.resolveNotifiers(severity)
 	if err != nil {
 		log.Printf("Failed to load webhook configs, falling back to default notifier: %v", err)
 		if n.fallback != nil {
@@ -106,35 +108,128 @@ func (n *webhookRoutingNotifier) Notify(event NotifierEvent) error {
 	return errors.Join(errs...)
 }
 
-func (n *webhookRoutingNotifier) StoreThreadRef(alertKey, threadRef string) {
-	store := n.resolveThreadStore()
-	if store == nil {
+// extractEventSeverity - 이벤트에서 severity를 추출한다.
+// severity가 없는 이벤트(FlappingCleared, AnalysisResult)는 "" 반환 → 모든 채널로 전송.
+func extractEventSeverity(event NotifierEvent) string {
+	switch e := event.(type) {
+	case AlertStatusChangedEvent:
+		return e.Alert.Labels["severity"]
+	case *AlertStatusChangedEvent:
+		return e.Alert.Labels["severity"]
+	case FlappingDetectedEvent:
+		return e.Alert.Labels["severity"]
+	case *FlappingDetectedEvent:
+		return e.Alert.Labels["severity"]
+	default:
+		return ""
+	}
+}
+
+// severityMatches - 명시적 severity 필터(비어있지 않은 배열)와 이벤트 severity가 매칭되는지 확인.
+// eventSeverity가 빈 문자열(FlappingCleared 등)이면 항상 true.
+// cfgSeverities가 비어있는 경우는 resolveNotifiers에서 별도 분기하므로 여기서는 비어있지 않음.
+func severityMatches(cfgSeverities []string, eventSeverity string) bool {
+	if eventSeverity == "" {
+		return true
+	}
+	for _, s := range cfgSeverities {
+		if s == eventSeverity {
+			return true
+		}
+	}
+	return false
+}
+
+// forEachSlackClient DB에 등록된 모든 유효한 Slack 클라이언트에 fn을 적용한다.
+func (n *webhookRoutingNotifier) forEachSlackClient(fn func(*SlackClient)) {
+	if n.cfgSource == nil {
 		return
 	}
-	store.StoreThreadRef(alertKey, threadRef)
+	configs, err := n.cfgSource.GetWebhookConfigs(context.Background())
+	if err != nil {
+		return
+	}
+	for _, cfg := range configs {
+		if normalizeWebhookType(cfg.Type) != "slack" {
+			continue
+		}
+		client, ok := n.slackClientForConfig(cfg)
+		if !ok {
+			continue
+		}
+		fn(client)
+	}
+}
+
+func (n *webhookRoutingNotifier) StoreThreadRef(alertKey, threadRef string) {
+	// 자체 threadStore에 저장
+	n.threadStore.Store(alertKey, threadRef)
+	// 모든 Slack 클라이언트에도 전파 (post-restart recovery 지원)
+	n.forEachSlackClient(func(c *SlackClient) {
+		c.StoreThreadRef(alertKey, threadRef)
+	})
+	// fallback store에도 전파
+	if n.fallbackThreadStore != nil {
+		n.fallbackThreadStore.StoreThreadRef(alertKey, threadRef)
+	}
 }
 
 func (n *webhookRoutingNotifier) GetThreadRef(alertKey string) (string, bool) {
-	store := n.resolveThreadStore()
-	if store == nil {
-		return "", false
+	// 각 Slack 클라이언트의 인메모리 threadMap 우선 확인
+	var found string
+	n.forEachSlackClient(func(c *SlackClient) {
+		if found != "" {
+			return
+		}
+		if ref, ok := c.GetThreadRef(alertKey); ok {
+			found = ref
+		}
+	})
+	if found != "" {
+		return found, true
 	}
-	return store.GetThreadRef(alertKey)
+	// 자체 threadStore 확인
+	if val, ok := n.threadStore.Load(alertKey); ok {
+		if ref, ok := val.(string); ok {
+			return ref, true
+		}
+	}
+	// fallback
+	if n.fallbackThreadStore != nil {
+		return n.fallbackThreadStore.GetThreadRef(alertKey)
+	}
+	return "", false
 }
 
 func (n *webhookRoutingNotifier) DeleteThreadRef(alertKey string) {
-	store := n.resolveThreadStore()
-	if store == nil {
-		return
+	n.threadStore.Delete(alertKey)
+	n.forEachSlackClient(func(c *SlackClient) {
+		c.DeleteThreadRef(alertKey)
+	})
+	if n.fallbackThreadStore != nil {
+		n.fallbackThreadStore.DeleteThreadRef(alertKey)
 	}
-	store.DeleteThreadRef(alertKey)
 }
 
 func (n *webhookRoutingNotifier) RequiresThreadRef() bool {
-	return n.resolveThreadStore() != nil
+	if n.cfgSource == nil {
+		return n.fallbackThreadStore != nil
+	}
+	configs, err := n.cfgSource.GetWebhookConfigs(context.Background())
+	if err != nil {
+		return n.fallbackThreadStore != nil
+	}
+	for _, cfg := range configs {
+		if normalizeWebhookType(cfg.Type) == "slack" {
+			if _, ok := n.slackClientForConfig(cfg); ok {
+				return true
+			}
+		}
+	}
+	return false
 }
 
-func (n *webhookRoutingNotifier) resolveNotifiers() ([]Notifier, error) {
+func (n *webhookRoutingNotifier) resolveNotifiers(severity string) ([]Notifier, error) {
 	if n.cfgSource == nil {
 		return nil, nil
 	}
@@ -147,8 +242,30 @@ func (n *webhookRoutingNotifier) resolveNotifiers() ([]Notifier, error) {
 		return nil, nil
 	}
 
+	// 어떤 웹훅이든 명시적으로 claim한 severity 집합 계산.
+	// severity가 없는 이벤트(FlappingCleared 등)는 이 로직을 건너뜀.
+	claimed := make(map[string]bool)
+	if severity != "" {
+		for _, cfg := range configs {
+			for _, s := range cfg.Severities {
+				claimed[s] = true
+			}
+		}
+	}
+
 	targets := make([]Notifier, 0, len(configs))
 	for _, cfg := range configs {
+		var matches bool
+		if len(cfg.Severities) == 0 {
+			// 빈 배열(catch-all): 아무도 claim하지 않은 severity만 수신.
+			// severity == ""인 이벤트(FlappingCleared, AnalysisResult)는 항상 수신.
+			matches = severity == "" || !claimed[severity]
+		} else {
+			matches = severityMatches(cfg.Severities, severity)
+		}
+		if !matches {
+			continue
+		}
 		switch normalizeWebhookType(cfg.Type) {
 		case "slack":
 			slackNotifier, ok := n.slackClientForConfig(cfg)
@@ -170,33 +287,6 @@ func (n *webhookRoutingNotifier) resolveNotifiers() ([]Notifier, error) {
 	}
 
 	return targets, nil
-}
-
-func (n *webhookRoutingNotifier) resolveThreadStore() ThreadRefStore {
-	if n.cfgSource == nil {
-		return n.fallbackThreadStore
-	}
-
-	configs, err := n.cfgSource.GetWebhookConfigs(context.Background())
-	if err != nil {
-		log.Printf("Failed to load webhook configs for thread store: %v", err)
-		return n.fallbackThreadStore
-	}
-	if len(configs) == 0 {
-		return n.fallbackThreadStore
-	}
-
-	for _, cfg := range configs {
-		if normalizeWebhookType(cfg.Type) != "slack" {
-			continue
-		}
-		slackNotifier, ok := n.slackClientForConfig(cfg)
-		if !ok {
-			continue
-		}
-		return slackNotifier
-	}
-	return nil
 }
 
 func (n *webhookRoutingNotifier) slackClientForConfig(cfg model.WebhookConfig) (*SlackClient, bool) {

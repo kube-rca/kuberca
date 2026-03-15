@@ -39,11 +39,17 @@ func (s *WebhookService) CreateWebhookConfig(ctx context.Context, req model.Webh
 		webhookType = "http"
 	}
 
+	severities := req.Severities
+	if severities == nil {
+		severities = []string{}
+	}
+
 	cfg := model.WebhookConfig{
-		URL:     strings.TrimSpace(req.URL),
-		Type:    webhookType,
-		Token:   strings.TrimSpace(req.Token),
-		Channel: strings.TrimSpace(req.Channel),
+		URL:        strings.TrimSpace(req.URL),
+		Type:       webhookType,
+		Token:      strings.TrimSpace(req.Token),
+		Channel:    strings.TrimSpace(req.Channel),
+		Severities: severities,
 	}
 	return s.db.CreateWebhookConfig(ctx, cfg)
 }
@@ -54,11 +60,17 @@ func (s *WebhookService) UpdateWebhookConfig(ctx context.Context, id int, req mo
 		webhookType = "http"
 	}
 
+	severities := req.Severities
+	if severities == nil {
+		severities = []string{}
+	}
+
 	cfg := model.WebhookConfig{
-		URL:     strings.TrimSpace(req.URL),
-		Type:    webhookType,
-		Token:   strings.TrimSpace(req.Token),
-		Channel: strings.TrimSpace(req.Channel),
+		URL:        strings.TrimSpace(req.URL),
+		Type:       webhookType,
+		Token:      strings.TrimSpace(req.Token),
+		Channel:    strings.TrimSpace(req.Channel),
+		Severities: severities,
 	}
 	return s.db.UpdateWebhookConfig(ctx, id, cfg)
 }
