@@ -443,9 +443,83 @@ def _is_gemini_invalid_turn_order(exc: BaseException) -> bool:
 
 
 def _sanitize_message_order(messages: Messages) -> None:
-    """Remove leading non-user messages so the conversation starts with a user turn."""
-    while messages and messages[0].get("role") != "user":
+    """Fix Gemini turn-order violations in conversation history.
+
+    Gemini requires that a function_call turn (assistant with toolUse) is
+    *immediately* followed by a function_response turn (user with toolResult).
+    Sliding-window truncation can break this invariant.
+
+    Strategy:
+    1. Remove orphaned toolResult blocks (no matching toolUse in history)
+    2. Remove orphaned toolUse blocks (no matching toolResult in history)
+    3. Ensure conversation starts with a user turn containing text
+    """
+    # --- Phase 1: Collect all toolUse / toolResult IDs ---
+    tool_use_ids: set[str] = set()
+    tool_result_ids: set[str] = set()
+    for msg in messages:
+        for block in msg.get("content", []):
+            if not isinstance(block, dict):
+                continue
+            tu = block.get("toolUse")
+            if tu:
+                tool_use_ids.add(tu.get("toolUseId", ""))
+            tr = block.get("toolResult")
+            if tr:
+                tool_result_ids.add(tr.get("toolUseId", ""))
+
+    orphan_use = tool_use_ids - tool_result_ids
+    orphan_result = tool_result_ids - tool_use_ids
+
+    # --- Phase 2: Strip orphaned tool blocks ---
+    if orphan_use or orphan_result:
+        logger.info(
+            "Sanitize: removing %d orphaned toolUse, %d orphaned toolResult",
+            len(orphan_use),
+            len(orphan_result),
+        )
+        _strip_tool_blocks(messages, orphan_use, orphan_result)
+
+    # --- Phase 3: Ensure first message is a user turn with text ---
+    while messages and not _has_user_text(messages[0]):
         messages.pop(0)
+
+
+def _strip_tool_blocks(
+    messages: Messages,
+    orphan_use_ids: set[str],
+    orphan_result_ids: set[str],
+) -> None:
+    """Remove content blocks with orphaned toolUse/toolResult IDs, drop empty messages."""
+    i = 0
+    while i < len(messages):
+        content = messages[i].get("content", [])
+        j = 0
+        while j < len(content):
+            block = content[j]
+            if not isinstance(block, dict):
+                j += 1
+                continue
+            tu = block.get("toolUse")
+            if tu and tu.get("toolUseId", "") in orphan_use_ids:
+                content.pop(j)
+                continue
+            tr = block.get("toolResult")
+            if tr and tr.get("toolUseId", "") in orphan_result_ids:
+                content.pop(j)
+                continue
+            j += 1
+        if not content:
+            messages.pop(i)
+        else:
+            i += 1
+
+
+def _has_user_text(msg: dict[str, Any]) -> bool:
+    """Return True if *msg* is a user turn with at least one text block."""
+    if msg.get("role") != "user":
+        return False
+    return any(isinstance(b, dict) and "text" in b for b in msg.get("content", []))
 
 
 def _log_retry(retry_state: object) -> None:
@@ -525,6 +599,8 @@ class StrandsAnalysisEngine:
         try:
             return self._analyze_once(prompt, session_id)
         except Exception as exc:
+            if _is_gemini_invalid_turn_order(exc):
+                return self._recover_turn_order(prompt, session_id)
             if not _is_invalid_conversation_manager_state(exc):
                 raise
 
@@ -560,6 +636,25 @@ class StrandsAnalysisEngine:
                 found_manager or "unknown",
             )
             return result
+
+    def _recover_turn_order(self, prompt: str, session_id: str) -> str:
+        """Reset session and retry when Gemini turn-order sanitization fails."""
+        logger.warning(
+            "gemini_turn_order_recovery session_id=%s — "
+            "sanitization in _invoke_with_retry failed, resetting session",
+            session_id,
+        )
+        self._reset_session_state(session_id)
+        try:
+            result = self._analyze_once(prompt, session_id)
+        except Exception:
+            logger.exception(
+                "gemini_turn_order_recovery_failed session_id=%s",
+                session_id,
+            )
+            raise
+        logger.info("gemini_turn_order_recovery_succeeded session_id=%s", session_id)
+        return result
 
     def _analyze_once(self, prompt: str, session_id: str) -> str:
         entry = self._get_cache_entry(session_id)
