@@ -83,17 +83,6 @@ const NotificationSettings: React.FC = () => {
     return ALL_SEVERITIES.filter((s) => !claimed.has(s));
   };
 
-  // 해당 severity를 이미 다른 웹훅에서 사용 중인지 반환
-  const getSeverityOwner = (sev: string, excludeId: number): string | null => {
-    const owner = webhooks.find(
-      (w) => w.id !== excludeId && (severityMap[w.id] ?? []).includes(sev)
-    );
-    if (!owner) return null;
-    return owner.type === 'slack'
-      ? (owner.channel ? `Slack · ${owner.channel}` : 'Slack')
-      : (owner.url || `Webhook #${owner.id}`);
-  };
-
   const handleSaveRouting = async () => {
     setRoutingSaving(true);
     setRoutingMessage(null);
@@ -229,26 +218,18 @@ const NotificationSettings: React.FC = () => {
                   <div className="flex items-center gap-3 shrink-0 flex-wrap">
                     {ALL_SEVERITIES.map((sev) => {
                       const checked = selected.includes(sev);
-                      const owner = getSeverityOwner(sev, w.id);
                       return (
-                        <div key={sev} className="flex flex-col items-center gap-0.5">
-                          <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => toggleSeverity(w.id, sev)}
-                              className="w-4 h-4 rounded accent-cyan-600"
-                            />
-                            <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${SEVERITY_COLOR[sev]}`}>
-                              {sev}
-                            </span>
-                          </label>
-                          {owner && (
-                            <span className="text-xs text-slate-400 dark:text-slate-500 italic truncate max-w-[80px]" title={`Assigned to: ${owner}`}>
-                              → {owner}
-                            </span>
-                          )}
-                        </div>
+                        <label key={sev} className="flex items-center gap-1.5 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleSeverity(w.id, sev)}
+                            className="w-4 h-4 rounded accent-cyan-600"
+                          />
+                          <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${SEVERITY_COLOR[sev]}`}>
+                            {sev}
+                          </span>
+                        </label>
                       );
                     })}
                     {selected.length === 0 && (() => {

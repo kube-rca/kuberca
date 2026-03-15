@@ -124,7 +124,7 @@ const WebhookSettings: React.FC = () => {
       }
 
       // 신규 생성 시 severity 배정 화면으로 이동
-      navigate(isEditMode ? '/settings/webhooks' : '/settings/notifications');
+      navigate(isEditMode ? '/settings/webhooks' : '/settings/notification');
     } catch (err) {
       setSaveMessage({
         type: 'error',
