@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -33,6 +34,9 @@ type alertStoreMock struct {
 	isFlapping      map[string]bool
 	alreadyResolved map[string]bool
 	threadTS        map[string]string // fingerprint → thread_ts
+
+	// Manual resolve
+	alertByID map[string]*model.AlertDetailResponse
 }
 
 type saveAlertCall struct {
@@ -53,6 +57,7 @@ func newAlertStoreMock() *alertStoreMock {
 		isFlapping:      make(map[string]bool),
 		alreadyResolved: make(map[string]bool),
 		threadTS:        make(map[string]string),
+		alertByID:       make(map[string]*model.AlertDetailResponse),
 	}
 }
 
@@ -158,13 +163,32 @@ func (m *alertStoreMock) UpdateIncidentSeverity(_, _ string) error {
 	return nil
 }
 
+func (m *alertStoreMock) GetAlertDetail(alertID string) (*model.AlertDetailResponse, error) {
+	if a, ok := m.alertByID[alertID]; ok {
+		return a, nil
+	}
+	return nil, fmt.Errorf("alert not found: %s", alertID)
+}
+
+func (m *alertStoreMock) ManualResolveAlert(alertID string) error {
+	if a, ok := m.alertByID[alertID]; ok {
+		if a.Status == "resolved" {
+			return fmt.Errorf("alert already resolved: %s", alertID)
+		}
+		a.Status = "resolved"
+		return nil
+	}
+	return fmt.Errorf("alert not found or already resolved: %s", alertID)
+}
+
 // ============================================================================
 // Mock: client.Notifier (ThreadAwareNotifier)
 // ============================================================================
 
 type notifierMock struct {
-	events     []client.NotifierEvent
-	threadRefs map[string]string
+	events          []client.NotifierEvent
+	threadRefs      map[string]string
+	notifyCallCount int
 }
 
 func newNotifierMock() *notifierMock {
@@ -175,6 +199,7 @@ func newNotifierMock() *notifierMock {
 
 func (m *notifierMock) Notify(event client.NotifierEvent) error {
 	m.events = append(m.events, event)
+	m.notifyCallCount++
 	// Simulate storing thread_ref for firing alerts
 	if e, ok := event.(client.AlertStatusChangedEvent); ok && e.Alert.Status == "firing" {
 		m.threadRefs[e.Alert.Fingerprint] = "ts-" + e.Alert.Fingerprint
@@ -545,4 +570,89 @@ type mockError struct {
 
 func (e *mockError) Error() string {
 	return e.msg
+}
+
+// ============================================================================
+// Tests: ResolveAlert / BulkResolveAlerts
+// ============================================================================
+
+func TestResolveAlert_Success(t *testing.T) {
+	store := newAlertStoreMock()
+	incidentID := "INC-test"
+	store.alertByID["ALR-test0001"] = &model.AlertDetailResponse{
+		AlertID:     "ALR-test0001",
+		IncidentID:  &incidentID,
+		Status:      "firing",
+		Fingerprint: "fp-123",
+		AlarmTitle:  "TestAlert",
+		Severity:    "critical",
+	}
+	store.threadTS["fp-123"] = "1234567.890"
+
+	notifier := &notifierMock{threadRefs: map[string]string{}}
+	svc := NewAlertService(notifier, nil, nil, config.FlappingConfig{}, nil, nil)
+	svc.db = store
+
+	err := svc.ResolveAlert("ALR-test0001")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if notifier.notifyCallCount == 0 {
+		t.Error("expected notifier to be called")
+	}
+}
+
+func TestResolveAlert_AlreadyResolved(t *testing.T) {
+	store := newAlertStoreMock()
+	store.alertByID["ALR-test0002"] = &model.AlertDetailResponse{
+		AlertID: "ALR-test0002",
+		Status:  "resolved",
+	}
+
+	svc := NewAlertService(&notifierMock{threadRefs: map[string]string{}}, nil, nil, config.FlappingConfig{}, nil, nil)
+	svc.db = store
+
+	err := svc.ResolveAlert("ALR-test0002")
+	if err == nil {
+		t.Fatal("expected error for already resolved alert")
+	}
+	if !strings.Contains(err.Error(), "already resolved") {
+		t.Fatalf("expected 'already resolved' error, got: %v", err)
+	}
+}
+
+func TestResolveAlert_NotFound(t *testing.T) {
+	store := newAlertStoreMock()
+	svc := NewAlertService(&notifierMock{threadRefs: map[string]string{}}, nil, nil, config.FlappingConfig{}, nil, nil)
+	svc.db = store
+
+	err := svc.ResolveAlert("ALR-nonexist")
+	if err == nil {
+		t.Fatal("expected error for non-existent alert")
+	}
+}
+
+func TestBulkResolveAlerts(t *testing.T) {
+	store := newAlertStoreMock()
+	store.alertByID["ALR-a1"] = &model.AlertDetailResponse{
+		AlertID: "ALR-a1", Status: "firing", Fingerprint: "fp-a1",
+	}
+	store.alertByID["ALR-a2"] = &model.AlertDetailResponse{
+		AlertID: "ALR-a2", Status: "resolved", Fingerprint: "fp-a2",
+	}
+	store.alertByID["ALR-a3"] = &model.AlertDetailResponse{
+		AlertID: "ALR-a3", Status: "firing", Fingerprint: "fp-a3",
+	}
+
+	svc := NewAlertService(&notifierMock{threadRefs: map[string]string{}}, nil, nil, config.FlappingConfig{}, nil, nil)
+	svc.db = store
+
+	resolved, failed := svc.BulkResolveAlerts([]string{"ALR-a1", "ALR-a2", "ALR-a3", "ALR-nonexist"})
+	if resolved != 2 {
+		t.Errorf("expected 2 resolved, got %d", resolved)
+	}
+	if failed != 2 {
+		t.Errorf("expected 2 failed, got %d", failed)
+	}
 }

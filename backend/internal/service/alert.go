@@ -16,6 +16,8 @@
 package service
 
 import (
+	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
@@ -45,6 +47,8 @@ type alertStore interface {
 	CreateIncident(title, severity string, firedAt time.Time) (string, error)
 	GetOrCreateFiringIncident(title, severity string, firedAt time.Time) (string, bool, error)
 	UpdateIncidentSeverity(incidentID, severity string) error
+	GetAlertDetail(alertID string) (*model.AlertDetailResponse, error)
+	ManualResolveAlert(alertID string) error
 }
 
 // alertAnalyzer - AlertService가 사용하는 Agent 분석 인터페이스
@@ -64,14 +68,18 @@ type AlertService struct {
 
 // NewAlertService 객체 생성
 func NewAlertService(notifier client.Notifier, agentService *AgentService, database *db.Postgres, flappingConfig config.FlappingConfig, sseHub *sse.Hub, appSettings *AppSettingsService) *AlertService {
-	return &AlertService{
-		notifier:     notifier,
-		agentService: agentService,
-		db:           database,
-		appSettings:  appSettings,
-		envFlapping:  flappingConfig,
-		sseHub:       sseHub,
+	svc := &AlertService{
+		notifier:    notifier,
+		db:          database,
+		appSettings: appSettings,
+		envFlapping: flappingConfig,
+		sseHub:      sseHub,
 	}
+	// nil *AgentService를 interface에 직접 할당하면 non-nil 인터페이스가 되므로 명시적 처리
+	if agentService != nil {
+		svc.agentService = agentService
+	}
+	return svc
 }
 
 func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, failed int) {
@@ -423,4 +431,91 @@ func (s *AlertService) shouldAutoAnalyze(severity string) bool {
 		return s.appSettings.ShouldAutoAnalyze(severity)
 	}
 	return true
+}
+
+// ResolveAlert - 단건 수동 resolve (Slack 알림 + Agent 분석 포함)
+func (s *AlertService) ResolveAlert(alertID string) error {
+	return s.resolveAlertInternal(alertID, true)
+}
+
+// resolveAlertInternal - 내부 resolve 로직 (triggerAnalysis로 Agent 분석 제어)
+func (s *AlertService) resolveAlertInternal(alertID string, triggerAnalysis bool) error {
+	// 1. Alert 조회 (기존 GetAlertDetail 재사용)
+	alert, err := s.db.GetAlertDetail(alertID)
+	if err != nil {
+		return fmt.Errorf("alert not found: %s", alertID)
+	}
+
+	// 2. 이미 resolved면 에러
+	if alert.Status == "resolved" {
+		return fmt.Errorf("alert already resolved: %s", alertID)
+	}
+
+	// 3. DB 상태 업데이트
+	if err := s.db.ManualResolveAlert(alertID); err != nil {
+		return fmt.Errorf("failed to resolve alert: %w", err)
+	}
+
+	// 4. SSE 브로드캐스트
+	if s.sseHub != nil {
+		s.sseHub.Broadcast(sse.Event{
+			Type: sse.EventAlertResolved,
+			Data: sse.EventData{AlertID: alertID},
+		})
+	}
+
+	// 5. IncidentID 역참조 (*string → string)
+	incidentID := ""
+	if alert.IncidentID != nil {
+		incidentID = *alert.IncidentID
+	}
+
+	// 6. Slack 알림 ("[Manually Resolved]")
+	threadTS, _ := s.db.GetAlertThreadTS(alert.Fingerprint)
+	if threadTS != "" {
+		s.storeThreadRef(alert.Fingerprint, threadTS)
+	}
+
+	// AlertDetailResponse.Labels/Annotations(json.RawMessage) → model.Alert(map[string]string) 변환
+	var labels map[string]string
+	if len(alert.Labels) > 0 {
+		_ = json.Unmarshal(alert.Labels, &labels)
+	}
+	var annotations map[string]string
+	if len(alert.Annotations) > 0 {
+		_ = json.Unmarshal(alert.Annotations, &annotations)
+	}
+
+	modelAlert := model.Alert{
+		Status:      "resolved",
+		Labels:      labels,
+		Annotations: annotations,
+		Fingerprint: alert.Fingerprint,
+	}
+
+	_ = s.notifier.Notify(client.AlertStatusChangedEvent{
+		Alert:      modelAlert,
+		IncidentID: incidentID,
+		IsManual:   true,
+	})
+
+	// 7. Agent 분석 (단건만, Bulk에서는 triggerAnalysis=false)
+	if triggerAnalysis && s.agentService != nil {
+		go s.agentService.RequestAnalysis(modelAlert, alertID, threadTS, incidentID, false)
+	}
+
+	return nil
+}
+
+// BulkResolveAlerts - 다건 수동 resolve (Agent 분석 스킵)
+func (s *AlertService) BulkResolveAlerts(alertIDs []string) (resolved, failed int) {
+	for _, id := range alertIDs {
+		if err := s.resolveAlertInternal(id, false); err != nil {
+			log.Printf("Failed to resolve alert %s: %v", id, err)
+			failed++
+			continue
+		}
+		resolved++
+	}
+	return
 }
