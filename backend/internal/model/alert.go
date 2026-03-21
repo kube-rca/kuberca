@@ -63,3 +63,23 @@ type Alert struct {
 	// thread_ts 매핑에 사용하여 같은 스레드로 메시지 전송이 가능하게함
 	Fingerprint string `json:"fingerprint"`
 }
+
+// BulkResolveAlertsRequest - 다건 alert resolve 요청 (최대 50건)
+type BulkResolveAlertsRequest struct {
+	AlertIDs []string `json:"alert_ids" binding:"required,max=50"`
+}
+
+// AlertResolveResponse - 단건 alert resolve 응답
+type AlertResolveResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	AlertID string `json:"alert_id"`
+}
+
+// BulkResolveAlertsResponse - 다건 alert resolve 응답
+type BulkResolveAlertsResponse struct {
+	Status   string `json:"status"`
+	Message  string `json:"message"`
+	Resolved int    `json:"resolved"`
+	Failed   int    `json:"failed"`
+}
