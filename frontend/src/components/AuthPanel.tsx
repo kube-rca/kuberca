@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Hexagon, Sun, Moon } from 'lucide-react';
+import { Sun, Moon } from 'lucide-react';
 import { login, register } from '../utils/auth';
 import { useTheme } from '../context/ThemeContext';
 
@@ -134,7 +134,7 @@ const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, oidcProvider, onAut
           {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
         </button>
         <div className="flex items-center gap-3 mb-2">
-          <Hexagon className="w-8 h-8 text-cyan-600 dark:text-cyan-400" strokeWidth={2} />
+          <img src="/logo.png" alt="Kube-RCA" className="w-8 h-8" />
           <h1 className="text-2xl font-semibold font-mono tracking-wider text-slate-900 dark:text-slate-100">Kube-RCA</h1>
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
