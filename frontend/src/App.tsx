@@ -623,7 +623,7 @@ function App() {
                     <div className="bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800 rounded-md p-4 mb-4 text-rose-600 dark:text-rose-400">{alertError}</div>
                   ) : (
                     <>
-                      <AlertTable alerts={paginatedAlerts} onTitleClick={handleAlertTitleClick} />
+                      <AlertTable alerts={paginatedAlerts} onTitleClick={handleAlertTitleClick} onRefresh={() => loadData(true)} />
                       {filteredAlerts.length > 0 && (
                         <div className="mt-6 flex justify-center">
                           <Pagination currentPage={alertCurrentPage} totalPages={Math.ceil(filteredAlerts.length / ITEMS_PER_PAGE)} onPageChange={setAlertCurrentPage} />
