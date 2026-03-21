@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -578,4 +579,21 @@ func (db *Postgres) HasTransitionsSince(fingerprint string, since time.Time) (bo
 	}
 
 	return count > 0, nil
+}
+
+// ManualResolveAlert - alert_id 기준으로 수동 resolve (status='firing' → 'resolved')
+func (db *Postgres) ManualResolveAlert(alertID string) error {
+	query := `
+		UPDATE alerts
+		SET status = 'resolved', resolved_at = NOW(), updated_at = NOW()
+		WHERE alert_id = $1 AND status = 'firing'
+	`
+	result, err := db.Pool.Exec(context.Background(), query, alertID)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("alert not found or already resolved: %s", alertID)
+	}
+	return nil
 }
