@@ -119,6 +119,15 @@ definitions:
         description: firing, resolved
         type: string
     type: object
+  model.AlertResolveResponse:
+    properties:
+      alert_id:
+        type: string
+      message:
+        type: string
+      status:
+        type: string
+    type: object
   model.AlertUpdateResponse:
     properties:
       alert_id:
@@ -243,6 +252,27 @@ definitions:
         type: string
       expiresIn:
         type: integer
+    type: object
+  model.BulkResolveAlertsRequest:
+    properties:
+      alert_ids:
+        items:
+          type: string
+        maxItems: 50
+        type: array
+    required:
+    - alert_ids
+    type: object
+  model.BulkResolveAlertsResponse:
+    properties:
+      failed:
+        type: integer
+      message:
+        type: string
+      resolved:
+        type: integer
+      status:
+        type: string
     type: object
   model.EmbeddingRequest:
     properties:
@@ -595,6 +625,67 @@ paths:
       security:
       - BearerAuth: []
       summary: Update alert's incident ID
+      tags:
+      - alerts
+  /api/v1/alerts/{id}/resolve:
+    post:
+      parameters:
+      - description: Alert ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AlertResolveResponse'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Resolve alert manually (수동 알림 종료)
+      tags:
+      - alerts
+  /api/v1/alerts/bulk-resolve:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Bulk resolve payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.BulkResolveAlertsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.BulkResolveAlertsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Bulk resolve alerts (다건 수동 알림 종료)
       tags:
       - alerts
   /api/v1/auth/config:

@@ -129,7 +129,7 @@ func main() {
 	// 4. HTTP 핸들러 초기화
 	// Alertmanager 웹훅 요청 수신 및 응답 처리
 	alertHandler := handler.NewAlertHandler(alertService)
-	rcaHndlr := handler.NewRcaHandler(rcaSvc)
+	rcaHndlr := handler.NewRcaHandler(rcaSvc, alertService)
 	webhookHndlr := handler.NewWebhookSettingsHandler(webhookSvc)
 	appSettingsHndlr := handler.NewAppSettingsHandler(appSettingsSvc, agentClient)
 	analyticsHndlr := handler.NewAnalyticsHandler(analyticsSvc)
@@ -199,6 +199,8 @@ func main() {
 		protected.DELETE("/alerts/:id/comments/:commentId", rcaHndlr.DeleteAlertComment)
 		protected.POST("/alerts/:id/analyze", rcaHndlr.TriggerAlertAnalysis)
 		protected.POST("/alerts/:id/vote", rcaHndlr.VoteAlertFeedback)
+		protected.POST("/alerts/bulk-resolve", rcaHndlr.BulkResolveAlerts)
+		protected.POST("/alerts/:id/resolve", rcaHndlr.ResolveAlert)
 
 		protected.POST("/embeddings", embeddingHandler.CreateEmbedding)
 		protected.POST("/embeddings/search", embeddingHandler.SearchEmbeddings)
