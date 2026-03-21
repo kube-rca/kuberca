@@ -41,7 +41,7 @@ function RCATable({ rcas, onTitleClick }: RCATableProps) {
   }
 
   return (
-    <div>
+    <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
           <tr className="border-b border-slate-200 dark:border-slate-800">

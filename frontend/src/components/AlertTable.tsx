@@ -40,7 +40,7 @@ function AlertTable({ alerts, onTitleClick }: AlertTableProps) {
   }
 
   return (
-    <div>
+    <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
           <tr className="border-b border-slate-200 dark:border-slate-800">
@@ -96,7 +96,7 @@ function AlertTable({ alerts, onTitleClick }: AlertTableProps) {
               </td>
 
               {/* Namespace */}
-              <td className="px-4 py-3.5 text-sm border-r border-slate-200 dark:border-slate-700">
+              <td className="px-4 py-3.5 text-sm whitespace-nowrap border-r border-slate-200 dark:border-slate-700">
                 <span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded">
                   {alert.namespace || '-'}
                 </span>

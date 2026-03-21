@@ -422,25 +422,29 @@ function App() {
               {/* Incident Dashboard */}
               <Route path="/" element={
                 <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 transition-colors duration-300">
-                  <div className="mb-6 flex flex-col lg:flex-row justify-between items-center gap-4">
-                    <h1 className="text-xl font-semibold font-mono tracking-wide text-slate-900 dark:text-slate-100">Incident Dashboard</h1>
-                    <div className="flex flex-col sm:flex-row items-center justify-end gap-3 w-full sm:w-auto">
-                      <select
-                        value={exportFormat}
-                        onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
-                        className={selectStyle}
-                      >
-                        <option value="csv">CSV</option>
-                        <option value="excel">Excel (.xls)</option>
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => exportRows(filteredRCAs, incidentExportColumns, 'incident_dashboard', exportFormat, incidentSummary)}
-                        disabled={filteredRCAs.length === 0}
-                        className={buttonStyle}
-                      >
-                        Export
-                      </button>
+                  <div className="mb-6 flex flex-col gap-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                      <h1 className="text-xl font-semibold font-mono tracking-wide text-slate-900 dark:text-slate-100">Incident Dashboard</h1>
+                      <div className="flex items-center gap-3">
+                        <select
+                          value={exportFormat}
+                          onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
+                          className={selectStyle}
+                        >
+                          <option value="csv">CSV</option>
+                          <option value="excel">Excel (.xls)</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => exportRows(filteredRCAs, incidentExportColumns, 'incident_dashboard', exportFormat, incidentSummary)}
+                          disabled={filteredRCAs.length === 0}
+                          className={buttonStyle}
+                        >
+                          Export
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap justify-end">
                       <select
                         value={statusFilter}
                         onChange={(e) => {
@@ -528,25 +532,29 @@ function App() {
               {/* Alert Dashboard */}
               <Route path="/alerts" element={
                 <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 transition-colors duration-300">
-                  <div className="mb-6 flex flex-col lg:flex-row justify-between items-center gap-4">
-                    <h1 className="text-xl font-semibold font-mono tracking-wide text-slate-900 dark:text-slate-100">Alert Dashboard</h1>
-                    <div className="flex flex-col sm:flex-row items-center justify-end gap-3 w-full sm:w-auto">
-                      <select
-                        value={exportFormat}
-                        onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
-                        className={selectStyle}
-                      >
-                        <option value="csv">CSV</option>
-                        <option value="excel">Excel (.xls)</option>
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => exportRows(filteredAlerts, alertExportColumns, 'alert_dashboard', exportFormat, alertSummary)}
-                        disabled={filteredAlerts.length === 0}
-                        className={buttonStyle}
-                      >
-                        Export
-                      </button>
+                  <div className="mb-6 flex flex-col gap-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                      <h1 className="text-xl font-semibold font-mono tracking-wide text-slate-900 dark:text-slate-100">Alert Dashboard</h1>
+                      <div className="flex items-center gap-3">
+                        <select
+                          value={exportFormat}
+                          onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
+                          className={selectStyle}
+                        >
+                          <option value="csv">CSV</option>
+                          <option value="excel">Excel (.xls)</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => exportRows(filteredAlerts, alertExportColumns, 'alert_dashboard', exportFormat, alertSummary)}
+                          disabled={filteredAlerts.length === 0}
+                          className={buttonStyle}
+                        >
+                          Export
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap justify-end">
                       <select
                         value={statusFilter}
                         onChange={(e) => {
@@ -632,25 +640,29 @@ function App() {
               {/* Muted Route */}
               <Route path="/muted" element={
                 <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 transition-colors duration-300">
-                  <div className="mb-6 flex flex-col lg:flex-row justify-between items-center gap-4">
-                    <h1 className="text-xl font-semibold font-mono tracking-wide text-slate-900 dark:text-slate-100">Archived Incidents</h1>
-                    <div className="flex flex-col sm:flex-row items-center justify-end gap-3 w-full sm:w-auto">
-                      <select
-                        value={exportFormat}
-                        onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
-                        className={selectStyle}
-                      >
-                        <option value="csv">CSV</option>
-                        <option value="excel">Excel (.xls)</option>
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => exportRows(filteredMutedIncidents, incidentExportColumns, 'archived_incidents', exportFormat, archivedSummary)}
-                        disabled={filteredMutedIncidents.length === 0}
-                        className={buttonStyle}
-                      >
-                        Export
-                      </button>
+                  <div className="mb-6 flex flex-col gap-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                      <h1 className="text-xl font-semibold font-mono tracking-wide text-slate-900 dark:text-slate-100">Archived Incidents</h1>
+                      <div className="flex items-center gap-3">
+                        <select
+                          value={exportFormat}
+                          onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
+                          className={selectStyle}
+                        >
+                          <option value="csv">CSV</option>
+                          <option value="excel">Excel (.xls)</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => exportRows(filteredMutedIncidents, incidentExportColumns, 'archived_incidents', exportFormat, archivedSummary)}
+                          disabled={filteredMutedIncidents.length === 0}
+                          className={buttonStyle}
+                        >
+                          Export
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap justify-end">
                       <select
                         value={statusFilter}
                         onChange={(e) => {

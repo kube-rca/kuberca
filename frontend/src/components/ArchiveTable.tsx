@@ -38,7 +38,7 @@ function ArchiveTable({ rcas, onTitleClick }: ArchiveTableProps) {
   }
 
   return (
-    <div>
+    <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
           <tr className="border-b border-slate-200 dark:border-slate-800">
