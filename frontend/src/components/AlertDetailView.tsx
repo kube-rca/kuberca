@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useNavigate } from 'react-router-dom';
-import { fetchAlertDetail, fetchRCAs, updateAlertIncident, triggerAlertAnalysis } from '../utils/api';
+import { fetchAlertDetail, fetchRCAs, updateAlertIncident, triggerAlertAnalysis, resolveAlert } from '../utils/api';
 import { RCAItem, AlertAnalysisItem } from '../types';
 import FeedbackSection from './FeedbackSection';
 
@@ -183,6 +183,21 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
     setSelectedIncidentId(data?.incident_id || '');
   };
 
+  const handleResolveAlert = async () => {
+    if (!window.confirm('Are you sure you want to resolve this alert?\nSlack notification and AI analysis will be triggered.')) {
+      return;
+    }
+
+    try {
+      await resolveAlert(alertId);
+      alert('Alert resolved.\nResults will be updated once AI analysis is complete.');
+      await loadDetail();
+    } catch (error) {
+      console.error('Resolve failed:', error);
+      alert('An error occurred. Please try again.');
+    }
+  };
+
   const handleAnalyze = async () => {
     const message = data?.analysis_summary
       ? 'Would you like to request re-analysis for this Alert?'
@@ -270,6 +285,15 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
           >
             {analyzing ? 'Analyzing...' : (data.analyses?.length || data.analysis_summary) ? 'Re-Analyze' : 'Analyze'}
           </button>
+
+          {data?.status === 'firing' && (
+            <button
+              onClick={handleResolveAlert}
+              className="px-4 py-1.5 text-sm text-emerald-600 dark:text-emerald-400 border border-emerald-600 dark:border-emerald-400 rounded hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors font-medium"
+            >
+              Resolve
+            </button>
+          )}
         </div>
       </div>
 
