@@ -100,9 +100,9 @@ func (c *SlackClient) IsConfigured() bool {
 func (c *SlackClient) Notify(event NotifierEvent) error {
 	switch e := event.(type) {
 	case AlertStatusChangedEvent:
-		return c.SendAlert(e.Alert, e.Alert.Status, e.IncidentID)
+		return c.SendAlert(e.Alert, e.Alert.Status, e.IncidentID, e.IsManual)
 	case *AlertStatusChangedEvent:
-		return c.SendAlert(e.Alert, e.Alert.Status, e.IncidentID)
+		return c.SendAlert(e.Alert, e.Alert.Status, e.IncidentID, e.IsManual)
 	case FlappingDetectedEvent:
 		return c.SendFlappingDetection(e.Alert, e.IncidentID, e.CycleCount)
 	case *FlappingDetectedEvent:

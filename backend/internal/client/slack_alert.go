@@ -14,7 +14,7 @@ import (
 // firing 알림과 resolved 알림을 다르게 처리:
 //   - firing: 새 메시지 전송 후 thread_ts 저장
 //   - resolved: 기존 쓰레드에 답글로 전송 후 thread_ts 삭제
-func (c *SlackClient) SendAlert(alert model.Alert, status, incidentID string) error {
+func (c *SlackClient) SendAlert(alert model.Alert, status, incidentID string, isManual bool) error {
 	if !c.IsConfigured() {
 		return fmt.Errorf("slack bot token or channel ID not configured")
 	}
@@ -23,11 +23,19 @@ func (c *SlackClient) SendAlert(alert model.Alert, status, incidentID string) er
 	color := c.getColorByStatus(status, alert.Labels["severity"])
 	emoji := c.getEmojiByStatus(status)
 
-	title := fmt.Sprintf("%s [%s] %s",
-		emoji,
-		alert.Labels["severity"],
-		alert.Labels["alertname"],
-	)
+	var title string
+	if isManual {
+		title = fmt.Sprintf("🔧 [Manually Resolved] [%s] %s",
+			alert.Labels["severity"],
+			alert.Labels["alertname"],
+		)
+	} else {
+		title = fmt.Sprintf("%s [%s] %s",
+			emoji,
+			alert.Labels["severity"],
+			alert.Labels["alertname"],
+		)
+	}
 
 	fields := []SlackField{
 		{Title: "Namespace", Value: alert.Labels["namespace"], Short: true},

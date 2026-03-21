@@ -18,6 +18,7 @@ type NotifierEvent interface {
 type AlertStatusChangedEvent struct {
 	Alert      model.Alert
 	IncidentID string
+	IsManual   bool // true면 수동 resolve (Slack 메시지에 "[Manually Resolved]" prefix)
 }
 
 func (AlertStatusChangedEvent) EventType() string {
