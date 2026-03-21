@@ -156,6 +156,40 @@ export const triggerAlertAnalysis = async (alertId: string): Promise<void> => {
 };
 
 /**
+ * Alert를 수동으로 resolve합니다.
+ */
+export const resolveAlert = async (id: string): Promise<void> => {
+  const response = await requestWithAuth(`/api/v1/alerts/${id}/resolve`, {
+    method: 'POST',
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || 'Failed to resolve alert.');
+  }
+};
+
+/**
+ * 여러 Alert를 일괄 resolve합니다.
+ */
+export const bulkResolveAlerts = async (
+  alertIds: string[]
+): Promise<{ resolved: number; failed: number }> => {
+  const response = await requestWithAuth('/api/v1/alerts/bulk-resolve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ alert_ids: alertIds }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to bulk resolve alerts.');
+  }
+
+  const data = await response.json();
+  return { resolved: data.resolved, failed: data.failed };
+};
+
+/**
  * Incident에 대해 수동 분석을 트리거합니다.
  */
 export const triggerIncidentAnalysis = async (incidentId: string): Promise<void> => {
