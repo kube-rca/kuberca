@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -11,12 +12,13 @@ import (
 )
 
 type RcaHandler struct {
-	svc *service.RcaService
+	svc          *service.RcaService
+	alertService *service.AlertService
 }
 
 // 명칭을 NewRcaHandler로 변경
-func NewRcaHandler(svc *service.RcaService) *RcaHandler {
-	return &RcaHandler{svc: svc}
+func NewRcaHandler(svc *service.RcaService, alertService *service.AlertService) *RcaHandler {
+	return &RcaHandler{svc: svc, alertService: alertService}
 }
 
 // GetIncidents godoc
@@ -648,4 +650,71 @@ func (h *RcaHandler) VoteAlertFeedback(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, model.VoteFeedbackResponse{Status: "success"})
+}
+
+// ResolveAlert godoc
+// @Summary Resolve alert manually (수동 알림 종료)
+// @Tags alerts
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Alert ID"
+// @Success 200 {object} model.AlertResolveResponse
+// @Failure 404 {object} map[string]string
+// @Failure 409 {object} map[string]string
+// @Router /api/v1/alerts/{id}/resolve [post]
+func (h *RcaHandler) ResolveAlert(c *gin.Context) {
+	id := c.Param("id")
+
+	err := h.alertService.ResolveAlert(id)
+	if err != nil {
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "not found") {
+			c.JSON(http.StatusNotFound, gin.H{"error": errMsg})
+			return
+		}
+		if strings.Contains(errMsg, "already resolved") {
+			c.JSON(http.StatusConflict, gin.H{"error": errMsg})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "alert resolve 실패"})
+		return
+	}
+
+	c.JSON(http.StatusOK, model.AlertResolveResponse{
+		Status:  "success",
+		Message: "Alert가 성공적으로 종료되었습니다.",
+		AlertID: id,
+	})
+}
+
+// BulkResolveAlerts godoc
+// @Summary Bulk resolve alerts (다건 수동 알림 종료)
+// @Tags alerts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body model.BulkResolveAlertsRequest true "Bulk resolve payload"
+// @Success 200 {object} model.BulkResolveAlertsResponse
+// @Failure 400 {object} map[string]string
+// @Router /api/v1/alerts/bulk-resolve [post]
+func (h *RcaHandler) BulkResolveAlerts(c *gin.Context) {
+	var req model.BulkResolveAlertsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "잘못된 요청입니다."})
+		return
+	}
+
+	if len(req.AlertIDs) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "alert_ids가 비어있습니다."})
+		return
+	}
+
+	resolved, failed := h.alertService.BulkResolveAlerts(req.AlertIDs)
+
+	c.JSON(http.StatusOK, model.BulkResolveAlertsResponse{
+		Status:   "success",
+		Message:  fmt.Sprintf("%d건 resolved, %d건 실패", resolved, failed),
+		Resolved: resolved,
+		Failed:   failed,
+	})
 }
