@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/kube-rca/backend/internal/model"
@@ -34,6 +35,11 @@ func (s *WebhookService) GetWebhookConfig(ctx context.Context, id int) (*model.W
 }
 
 func (s *WebhookService) CreateWebhookConfig(ctx context.Context, req model.WebhookConfigRequest) (int, error) {
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		return 0, fmt.Errorf("webhook name is required")
+	}
+
 	webhookType := strings.ToLower(strings.TrimSpace(req.Type))
 	if webhookType == "" {
 		webhookType = "http"
@@ -45,6 +51,7 @@ func (s *WebhookService) CreateWebhookConfig(ctx context.Context, req model.Webh
 	}
 
 	cfg := model.WebhookConfig{
+		Name:       name,
 		URL:        strings.TrimSpace(req.URL),
 		Type:       webhookType,
 		Token:      strings.TrimSpace(req.Token),
@@ -55,6 +62,11 @@ func (s *WebhookService) CreateWebhookConfig(ctx context.Context, req model.Webh
 }
 
 func (s *WebhookService) UpdateWebhookConfig(ctx context.Context, id int, req model.WebhookConfigRequest) error {
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		return fmt.Errorf("webhook name is required")
+	}
+
 	webhookType := strings.ToLower(strings.TrimSpace(req.Type))
 	if webhookType == "" {
 		webhookType = "http"
@@ -66,6 +78,7 @@ func (s *WebhookService) UpdateWebhookConfig(ctx context.Context, id int, req mo
 	}
 
 	cfg := model.WebhookConfig{
+		Name:       name,
 		URL:        strings.TrimSpace(req.URL),
 		Type:       webhookType,
 		Token:      strings.TrimSpace(req.Token),
