@@ -30,6 +30,11 @@ The KubeRCA Frontend is a React-based web dashboard that provides a user interfa
 - **Muted Incidents** - Manage hidden/muted incidents
 - **Dark Mode** - Toggle between light and dark themes
 - **Authentication** - Login/signup with JWT tokens
+- **Operator Feedback** - Vote and comment on incident/alert analysis results
+- **In-App AI Chat** - Context-aware floating chat panel for incident queries
+- **Webhook Settings** - CRUD management for outbound webhook integrations
+- **SSE Realtime Sync** - Server-Sent Events with polling fallback for live updates
+- **OIDC Login** - One-click Google authentication with email allowlist
 
 ---
 
@@ -37,9 +42,11 @@ The KubeRCA Frontend is a React-based web dashboard that provides a user interfa
 
 The dashboard provides views for:
 - Incident list with filtering and pagination
-- Incident detail with RCA analysis results
+- Incident detail with RCA analysis results and feedback voting/commenting
 - Alert list and detail views
 - Hidden/muted incident management
+- Floating chat panel for AI-powered incident queries
+- Webhook settings management page
 
 ---
 
