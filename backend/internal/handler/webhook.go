@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/kube-rca/backend/internal/model"
@@ -83,6 +84,10 @@ func (h *WebhookSettingsHandler) CreateWebhookConfig(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"status": "error", "error": err.Error()})
 		return
 	}
+	if strings.TrimSpace(req.Name) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"status": "error", "error": "webhook name is required"})
+		return
+	}
 	id, err := h.svc.CreateWebhookConfig(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error": err.Error()})
@@ -115,6 +120,10 @@ func (h *WebhookSettingsHandler) UpdateWebhookConfig(c *gin.Context) {
 	var req model.WebhookConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"status": "error", "error": err.Error()})
+		return
+	}
+	if strings.TrimSpace(req.Name) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"status": "error", "error": "webhook name is required"})
 		return
 	}
 	if err := h.svc.UpdateWebhookConfig(c.Request.Context(), id, req); err != nil {

@@ -5,6 +5,7 @@ import "time"
 // WebhookConfig - DB에 저장되는 웹훅 설정 구조체
 type WebhookConfig struct {
 	ID         int       `json:"id"`
+	Name       string    `json:"name"`
 	URL        string    `json:"url"`
 	Type       string    `json:"type"`
 	Token      string    `json:"token,omitempty"`
@@ -15,6 +16,7 @@ type WebhookConfig struct {
 
 // WebhookConfigRequest - 웹훅 설정 생성/수정 요청 구조체
 type WebhookConfigRequest struct {
+	Name       string   `json:"name" binding:"required"`
 	URL        string   `json:"url"`
 	Type       string   `json:"type"`
 	Token      string   `json:"token,omitempty"`

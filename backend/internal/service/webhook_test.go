@@ -41,6 +41,7 @@ func TestCreateWebhookConfig_MapsAllWebhookFields(t *testing.T) {
 	svc := NewWebhookService(repo)
 
 	req := model.WebhookConfigRequest{
+		Name:    "  Primary Slack Alerts  ",
 		URL:     "  https://slack.com/api/chat.postMessage  ",
 		Type:    "slack",
 		Token:   "xoxb-test",
@@ -53,6 +54,9 @@ func TestCreateWebhookConfig_MapsAllWebhookFields(t *testing.T) {
 
 	if repo.createdCfg.URL != "https://slack.com/api/chat.postMessage" {
 		t.Fatalf("created url = %q, want %q", repo.createdCfg.URL, "https://slack.com/api/chat.postMessage")
+	}
+	if repo.createdCfg.Name != "Primary Slack Alerts" {
+		t.Fatalf("created name = %q, want %q", repo.createdCfg.Name, "Primary Slack Alerts")
 	}
 	if repo.createdCfg.Type != req.Type {
 		t.Fatalf("created type = %q, want %q", repo.createdCfg.Type, req.Type)
@@ -70,6 +74,7 @@ func TestUpdateWebhookConfig_MapsAllWebhookFields(t *testing.T) {
 	svc := NewWebhookService(repo)
 
 	req := model.WebhookConfigRequest{
+		Name:    "  Incident Webhook  ",
 		URL:     " https://example.com/webhook ",
 		Type:    "http",
 		Token:   "token-123",
@@ -87,6 +92,9 @@ func TestUpdateWebhookConfig_MapsAllWebhookFields(t *testing.T) {
 	if repo.updatedCfg.URL != "https://example.com/webhook" {
 		t.Fatalf("updated url = %q, want %q", repo.updatedCfg.URL, "https://example.com/webhook")
 	}
+	if repo.updatedCfg.Name != "Incident Webhook" {
+		t.Fatalf("updated name = %q, want %q", repo.updatedCfg.Name, "Incident Webhook")
+	}
 	if repo.updatedCfg.Type != req.Type {
 		t.Fatalf("updated type = %q, want %q", repo.updatedCfg.Type, req.Type)
 	}
@@ -95,5 +103,39 @@ func TestUpdateWebhookConfig_MapsAllWebhookFields(t *testing.T) {
 	}
 	if repo.updatedCfg.Channel != req.Channel {
 		t.Fatalf("updated channel = %q, want %q", repo.updatedCfg.Channel, req.Channel)
+	}
+}
+
+func TestCreateWebhookConfig_RejectsBlankName(t *testing.T) {
+	repo := &webhookRepoMock{}
+	svc := NewWebhookService(repo)
+
+	_, err := svc.CreateWebhookConfig(context.Background(), model.WebhookConfigRequest{
+		Name: "   ",
+		URL:  "https://example.com/webhook",
+		Type: "http",
+	})
+	if err == nil {
+		t.Fatal("CreateWebhookConfig() error = nil, want error for blank name")
+	}
+	if repo.createdCfg.Name != "" || repo.createdCfg.URL != "" || repo.createdCfg.Type != "" {
+		t.Fatalf("repo should not be called when name is blank, got %+v", repo.createdCfg)
+	}
+}
+
+func TestUpdateWebhookConfig_RejectsBlankName(t *testing.T) {
+	repo := &webhookRepoMock{}
+	svc := NewWebhookService(repo)
+
+	err := svc.UpdateWebhookConfig(context.Background(), 77, model.WebhookConfigRequest{
+		Name: "   ",
+		URL:  "https://example.com/webhook",
+		Type: "http",
+	})
+	if err == nil {
+		t.Fatal("UpdateWebhookConfig() error = nil, want error for blank name")
+	}
+	if repo.updatedID != 0 || repo.updatedCfg.Name != "" || repo.updatedCfg.URL != "" || repo.updatedCfg.Type != "" {
+		t.Fatalf("repo should not be called when name is blank, got id=%d cfg=%+v", repo.updatedID, repo.updatedCfg)
 	}
 }
