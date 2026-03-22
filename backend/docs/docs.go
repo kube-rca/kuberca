@@ -2202,6 +2202,9 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "name": {
+                    "type": "string"
+                },
                 "severities": {
                     "description": "빈 배열 = 모든 severity 수신",
                     "type": "array",
@@ -2253,8 +2256,14 @@ const docTemplate = `{
         },
         "model.WebhookConfigRequest": {
             "type": "object",
+            "required": [
+                "name"
+            ],
             "properties": {
                 "channel": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 },
                 "severities": {

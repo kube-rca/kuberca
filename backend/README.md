@@ -158,6 +158,57 @@ go build -o main .
 | POST | `/:id/resolve` | Manually resolve alert (Slack + Agent analysis) |
 | POST | `/bulk-resolve` | Bulk resolve alerts (up to 50, Slack only) |
 
+### Feedback (`/api/v1/incidents/:id` & `/api/v1/alerts/:id`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/incidents/:id/feedback` | Get incident feedback (votes + comments) |
+| POST | `/incidents/:id/comments` | Add incident comment |
+| PUT | `/incidents/:id/comments/:commentId` | Update incident comment |
+| DELETE | `/incidents/:id/comments/:commentId` | Delete incident comment |
+| POST | `/incidents/:id/vote` | Vote on incident analysis |
+| GET | `/alerts/:id/feedback` | Get alert feedback (votes + comments) |
+| POST | `/alerts/:id/comments` | Add alert comment |
+| PUT | `/alerts/:id/comments/:commentId` | Update alert comment |
+| DELETE | `/alerts/:id/comments/:commentId` | Delete alert comment |
+| POST | `/alerts/:id/vote` | Vote on alert analysis |
+
+### Chat (`/api/v1/chat`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/` | Send chat message (context-aware AI chat) |
+
+### Webhook Settings (`/api/v1/settings/webhooks`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | List webhook configurations |
+| POST | `/` | Create webhook configuration |
+| GET | `/:id` | Get webhook configuration |
+| PUT | `/:id` | Update webhook configuration |
+| DELETE | `/:id` | Delete webhook configuration |
+
+### Realtime Events (`/api/v1/events`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | SSE event stream (incident/alert updates) |
+
+### Analytics (`/api/v1/analytics`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/incidents` | Incident analytics metrics |
+| GET | `/summary` | Overall summary statistics |
+
+### App Settings (`/api/v1/app-settings`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Get app settings |
+| PUT | `/` | Update app settings |
+
 ### Embeddings (`/api/v1/embeddings`)
 
 | Method | Endpoint | Description |
