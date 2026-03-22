@@ -154,6 +154,9 @@ go build -o main .
 | GET | `/` | List alerts |
 | GET | `/:id` | Get alert details |
 | PUT | `/:id/incident` | Reassign alert to different incident |
+| POST | `/:id/analyze` | Trigger alert analysis |
+| POST | `/:id/resolve` | Manually resolve alert (Slack + Agent analysis) |
+| POST | `/bulk-resolve` | Bulk resolve alerts (up to 50, Slack only) |
 
 ### Embeddings (`/api/v1/embeddings`)
 
