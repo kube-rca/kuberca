@@ -90,6 +90,7 @@ const NotificationSettings: React.FC = () => {
       await Promise.all(
         webhooks.map((w) =>
           updateWebhookConfig(w.id, {
+            name: w.name,
             url: w.url,
             type: w.type as 'slack' | 'teams' | 'http',
             token: w.token,
@@ -208,13 +209,17 @@ const NotificationSettings: React.FC = () => {
         ) : (
           <div className="space-y-3 max-w-2xl">
             {webhooks.map((w) => {
-              const label = w.type === 'slack'
+              const label = w.name || `Webhook #${w.id}`;
+              const detail = w.type === 'slack'
                 ? (w.channel ? `Slack · ${w.channel}` : 'Slack')
-                : w.url || `Webhook #${w.id}`;
+                : w.url || 'HTTP Webhook';
               const selected = severityMap[w.id] ?? [];
               return (
                 <div key={w.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 border border-slate-200 dark:border-slate-700 rounded-lg">
-                  <span className="text-sm font-mono text-slate-700 dark:text-slate-200 truncate flex-1 min-w-0">{label}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">{label}</p>
+                    <p className="text-xs font-mono text-slate-500 dark:text-slate-400 truncate">{detail}</p>
+                  </div>
                   <div className="flex items-center gap-3 shrink-0 flex-wrap">
                     {ALL_SEVERITIES.map((sev) => {
                       const checked = selected.includes(sev);

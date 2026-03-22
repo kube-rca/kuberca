@@ -128,7 +128,7 @@ const WebhookList: React.FC = () => {
           {configs.map((cfg) => {
             const type = getWebhookType(cfg);
             const slackChannel = type === 'Slack' ? getSlackChannel(cfg) : '';
-            const primaryText =
+            const secondaryText =
               type === 'Slack'
                 ? (slackChannel ? `Channel: ${slackChannel}` : 'Slack Bot')
                 : cfg.url;
@@ -145,9 +145,14 @@ const WebhookList: React.FC = () => {
                 >
                   {type}
                 </span>
-                <span className="text-sm font-mono text-slate-800 dark:text-slate-100 truncate">
-                  {primaryText || <span className="text-slate-400 italic">No info</span>}
-                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
+                    {cfg.name || 'Unnamed Webhook'}
+                  </p>
+                  <p className="text-xs font-mono text-slate-500 dark:text-slate-400 truncate">
+                    {secondaryText || 'No info'}
+                  </p>
+                </div>
               </div>
               <div className="flex items-center gap-3 shrink-0 ml-4">
                 {(() => {

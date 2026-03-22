@@ -453,6 +453,7 @@ export interface WebhookHeaderItem {
 }
 
 export interface WebhookConfigPayload {
+  name: string;
   url: string;
   type: 'slack' | 'teams' | 'http';
   token?: string;
@@ -495,8 +496,15 @@ const normalizeWebhookConfig = (raw: unknown): WebhookConfig => {
   const record = isRecord(raw) ? raw : {};
 
   const rawSeverities = getRecordValue(record, 'severities');
+  const name =
+    toStringValue(getRecordValue(record, 'name', 'Name')).trim() ||
+    toStringValue(getRecordValue(record, 'channel', 'Channel')).trim() ||
+    toStringValue(getRecordValue(record, 'url', 'URL')).trim() ||
+    'Unnamed Webhook';
+
   return {
     id: Number(getRecordValue(record, 'id', 'ID') ?? 0),
+    name,
     url: toStringValue(getRecordValue(record, 'url', 'URL')),
     type: detectWebhookType(record),
     token: toStringValue(getRecordValue(record, 'token', 'Token')).trim() || undefined,

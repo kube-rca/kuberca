@@ -6,11 +6,19 @@ type WebhookType = 'slack' | 'teams' | 'http';
 
 const SLACK_POST_MESSAGE_URL = 'https://slack.com/api/chat.postMessage';
 
-const buildConfigPayload = (type: WebhookType, url: string, token: string, channel: string, severities: string[]): WebhookConfigPayload => {
+const buildConfigPayload = (
+  name: string,
+  type: WebhookType,
+  url: string,
+  token: string,
+  channel: string,
+  severities: string[],
+): WebhookConfigPayload => {
   const trimmedToken = token.trim();
   const trimmedChannel = channel.trim();
 
   return {
+    name: name.trim(),
     type,
     url: type === 'slack' ? SLACK_POST_MESSAGE_URL : url,
     token: trimmedToken || undefined,
@@ -31,6 +39,7 @@ const WebhookSettings: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
   const isEditMode = Boolean(id);
 
+  const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [webhookType, setWebhookType] = useState<WebhookType>('slack');
   const [token, setToken] = useState('');
@@ -45,6 +54,7 @@ const WebhookSettings: React.FC = () => {
 
     fetchWebhookById(Number(id))
       .then((cfg) => {
+        setName(cfg.name ?? '');
         setUrl(cfg.url);
         setWebhookType(detectSavedWebhookType(cfg));
 
@@ -64,6 +74,13 @@ const WebhookSettings: React.FC = () => {
         setSaveMessage({ type: 'error', text: `Failed to load settings: ${err instanceof Error ? err.message : err}` });
       });
   }, [id, isEditMode]);
+
+  const nameError = useMemo(() => {
+    if (!name.trim()) {
+      return 'Please enter a webhook name.';
+    }
+    return null;
+  }, [name]);
 
   const urlError = useMemo(() => {
     if (webhookType === 'slack') {
@@ -100,6 +117,11 @@ const WebhookSettings: React.FC = () => {
   const handleSave = async () => {
     if (isSaving) return;
 
+    if (nameError) {
+      setSaveMessage({ type: 'error', text: nameError });
+      return;
+    }
+
     const trimmedUrl = url.trim();
     if (webhookType !== 'slack' && (!trimmedUrl || urlError)) {
       setSaveMessage({ type: 'error', text: urlError ?? 'Please enter the Webhook receiver URL.' });
@@ -115,7 +137,7 @@ const WebhookSettings: React.FC = () => {
     setSaveMessage(null);
 
     try {
-      const payload = buildConfigPayload(webhookType, trimmedUrl, token, channel, severities);
+      const payload = buildConfigPayload(name, webhookType, trimmedUrl, token, channel, severities);
 
       if (isEditMode && id) {
         await updateWebhookConfig(Number(id), payload);
@@ -149,6 +171,18 @@ const WebhookSettings: React.FC = () => {
       </div>
 
       <div className="space-y-6 max-w-3xl">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Name</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Primary Slack Alerts"
+            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-cyan-500 focus:border-cyan-500"
+          />
+          {nameError && <p className="mt-1 text-sm text-rose-500 dark:text-rose-400">{nameError}</p>}
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Webhook Type</label>
           <select
@@ -284,7 +318,7 @@ const WebhookSettings: React.FC = () => {
           <div className="flex gap-3">
             <button
               onClick={handleSave}
-              disabled={isSaving || !!urlError || !!slackError}
+              disabled={isSaving || !!nameError || !!urlError || !!slackError}
               className="px-4 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSaving ? 'Saving...' : isEditMode ? 'Update Settings' : 'Save Settings'}
