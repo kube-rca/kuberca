@@ -471,7 +471,11 @@ func (s *AlertService) resolveAlertInternal(alertID string, triggerAnalysis bool
 	}
 
 	// 6. Slack 알림 ("[Manually Resolved]")
-	threadTS, _ := s.db.GetAlertThreadTS(alert.Fingerprint)
+	// GetAlertDetail에서 이미 조회된 ThreadTS를 우선 사용, 없으면 fingerprint 기반 조회
+	threadTS := alert.ThreadTS
+	if threadTS == "" {
+		threadTS, _ = s.db.GetAlertThreadTS(alert.Fingerprint)
+	}
 	if threadTS != "" {
 		s.storeThreadRef(alert.Fingerprint, threadTS)
 	}
@@ -491,6 +495,7 @@ func (s *AlertService) resolveAlertInternal(alertID string, triggerAnalysis bool
 		Labels:      labels,
 		Annotations: annotations,
 		Fingerprint: alert.Fingerprint,
+		StartsAt:    alert.FiredAt,
 	}
 
 	_ = s.notifier.Notify(client.AlertStatusChangedEvent{
