@@ -25,7 +25,7 @@ The KubeRCA Frontend is a React-based web dashboard that provides a user interfa
 
 - **Incident Dashboard** - View and manage Kubernetes incidents
 - **RCA Viewer** - Display AI-generated root cause analysis
-- **Alert Management** - Browse and filter alerts
+- **Alert Management** - Browse, filter, and manually resolve alerts (single & bulk)
 - **Similar Incident Search** - Find related past incidents via vector similarity
 - **Muted Incidents** - Manage hidden/muted incidents
 - **Dark Mode** - Toggle between light and dark themes
