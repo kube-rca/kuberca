@@ -27,12 +27,19 @@
 14. Backend는 Incident 분석 결과를 저장하고 임베딩을 생성해 `embeddings`에 저장합니다.
 15. Frontend는 `POST /api/v1/embeddings/search`로 유사 Incident를 조회합니다.
 
-### 5. 인증 및 OIDC
+### 5. Alert 수동 해제 (Manual Alert Resolve)
+1. Frontend → `POST /api/v1/alerts/:id/resolve` → Backend
+2. Backend → DB: `alerts` 상태 업데이트 (`status='resolved'`, `resolved_at=NOW()`)
+3. Backend → SSE: `EventAlertResolved` 브로드캐스트
+4. Backend → Slack: 기존 thread에 "[Manually Resolved]" 메시지 전송
+5. Backend → Agent: 비동기 분석 요청 (단건만, Bulk에서는 스킵)
+
+### 6. 인증 및 OIDC
 16. Frontend는 초기화 시 `/api/v1/auth/config`, `/api/v1/auth/refresh`를 호출합니다.
 17. OIDC 활성화 시 `/api/v1/auth/oidc/login` → Provider 인증 → `/api/v1/auth/oidc/callback` 흐름으로 로그인합니다.
 18. Backend는 JWT Access Token + Refresh Cookie를 발급하고 보호 API를 제공합니다.
 
-### 6. 운영 기능 (Chat/Feedback/Webhook Settings)
+### 7. 운영 기능 (Chat/Feedback/Webhook Settings)
 19. Frontend의 AI Chat 패널은 Backend `POST /api/v1/chat`을 호출합니다.
 20. Backend는 Agent `POST /chat`으로 컨텍스트 기반 응답을 요청합니다.
 21. Frontend는 Incident/Alert별 피드백 API로 코멘트/투표를 처리합니다.
@@ -54,6 +61,8 @@
   - `POST /api/v1/incidents/:id/resolve`, `GET /api/v1/incidents/:id/alerts`, `POST /api/v1/incidents/mock`
 - Alert
   - `GET /api/v1/alerts`, `GET /api/v1/alerts/:id`, `PUT /api/v1/alerts/:id/incident`
+  - `POST /api/v1/alerts/:id/resolve` - Alert 수동 해제 (Slack 알림 + Agent 분석)
+  - `POST /api/v1/alerts/bulk-resolve` - Alert 다건 일괄 해제 (최대 50건, Slack 알림만)
 - Feedback
   - Incident: `GET /api/v1/incidents/:id/feedback`, `POST /api/v1/incidents/:id/comments`, `PUT /api/v1/incidents/:id/comments/:commentId`, `DELETE /api/v1/incidents/:id/comments/:commentId`, `POST /api/v1/incidents/:id/vote`
   - Alert: `GET /api/v1/alerts/:id/feedback`, `POST /api/v1/alerts/:id/comments`, `PUT /api/v1/alerts/:id/comments/:commentId`, `DELETE /api/v1/alerts/:id/comments/:commentId`, `POST /api/v1/alerts/:id/vote`

@@ -33,4 +33,13 @@ sequenceDiagram
   BE-->>FE: SSE event on /api/v1/events
   FE->>BE: refresh incidents and alerts APIs
   BE-->>FE: updated datasets
+
+  Note over FE,BE: Alert 수동 해제 (Manual Resolve)
+  FE->>BE: POST /api/v1/alerts/:id/resolve
+  BE->>DB: UPDATE alerts SET status='resolved', resolved_at=NOW()
+  BE-->>FE: SSE EventAlertResolved
+  BE->>SL: "[Manually Resolved]" 스레드 메시지
+  BE->>AG: POST /analyze (비동기, 단건만)
+  AG-->>BE: 분석 결과
+  BE->>DB: 분석 결과 저장
 ```
