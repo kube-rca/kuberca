@@ -12,6 +12,11 @@ export interface ExportSummary {
   resolved: number;
 }
 
+export interface ExportMetaRow {
+  label: string;
+  value: string | number | null | undefined;
+}
+
 const sanitizeCell = (value: unknown): string => {
   if (value === null || value === undefined) return '';
   return String(value);
@@ -24,7 +29,12 @@ const escapeCsvCell = (value: string): string => {
   return value;
 };
 
-const buildCsv = <T>(rows: T[], columns: ExportColumn<T>[], summary?: ExportSummary): string => {
+const buildCsv = <T>(
+  rows: T[],
+  columns: ExportColumn<T>[],
+  _summary?: ExportSummary,
+  _metaRows?: ExportMetaRow[]
+): string => {
   const headers = columns.map((col) => escapeCsvCell(col.header)).join(',');
   const lines = rows.map((row) =>
     columns
@@ -32,19 +42,7 @@ const buildCsv = <T>(rows: T[], columns: ExportColumn<T>[], summary?: ExportSumm
       .join(',')
   );
 
-  if (!summary) {
-    return [headers, ...lines].join('\r\n');
-  }
-
-  const summaryLines = [
-    'Metric,Count',
-    `Total,${summary.total}`,
-    `Firing,${summary.firing}`,
-    `Resolved,${summary.resolved}`,
-    '',
-  ];
-
-  return [...summaryLines, headers, ...lines].join('\r\n');
+  return [headers, ...lines].join('\r\n');
 };
 
 const escapeHtml = (value: string): string =>
@@ -55,7 +53,12 @@ const escapeHtml = (value: string): string =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
-const buildExcelHtml = <T>(rows: T[], columns: ExportColumn<T>[], summary?: ExportSummary): string => {
+const buildExcelHtml = <T>(
+  rows: T[],
+  columns: ExportColumn<T>[],
+  _summary?: ExportSummary,
+  _metaRows?: ExportMetaRow[]
+): string => {
   const head = columns.map((col) => `<th>${escapeHtml(col.header)}</th>`).join('');
   const colgroup = columns
     .map((col) => {
@@ -72,11 +75,7 @@ const buildExcelHtml = <T>(rows: T[], columns: ExportColumn<T>[], summary?: Expo
     })
     .join('');
 
-  const summaryHtml = summary
-    ? `<table style="margin-bottom:12px;"><thead><tr><th>Metric</th><th>Count</th></tr></thead><tbody><tr><td>Total</td><td>${summary.total}</td></tr><tr><td>Firing</td><td>${summary.firing}</td></tr><tr><td>Resolved</td><td>${summary.resolved}</td></tr></tbody></table>`
-    : '';
-
-  return `<!doctype html><html><head><meta charset="utf-8"></head><body>${summaryHtml}<table><colgroup>${colgroup}</colgroup><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"></head><body><table><colgroup>${colgroup}</colgroup><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></body></html>`;
 };
 
 const downloadBlob = (blob: Blob, filename: string) => {
@@ -95,7 +94,8 @@ export const exportRows = <T>(
   columns: ExportColumn<T>[],
   baseFilename: string,
   format: ExportFormat,
-  summary?: ExportSummary
+  summary?: ExportSummary,
+  metaRows?: ExportMetaRow[]
 ) => {
   if (!rows.length) return;
 
@@ -109,11 +109,11 @@ export const exportRows = <T>(
   const filename = `${baseFilename}_${stamp}.${format === 'csv' ? 'csv' : 'xls'}`;
 
   if (format === 'csv') {
-    const csv = buildCsv(rows, columns, summary);
+    const csv = buildCsv(rows, columns, summary, metaRows);
     downloadBlob(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' }), filename);
     return;
   }
 
-  const html = buildExcelHtml(rows, columns, summary);
+  const html = buildExcelHtml(rows, columns, summary, metaRows);
   downloadBlob(new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' }), filename);
 };

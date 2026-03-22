@@ -1,9 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { MouseEvent, useEffect, useMemo, useState } from 'react';
 import { AnalyticsDashboardResponse, AnalyticsSeriesPoint, fetchAnalyticsDashboard } from '../utils/api';
+import { ExportColumn, ExportFormat, exportRows } from '../utils/export';
 
 const formatNumber = (value: number) => new Intl.NumberFormat('en-US').format(value);
 
 const format1 = (value: number) => value.toFixed(1);
+
+const selectStyle =
+  'px-4 py-2 text-sm font-medium border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500';
+
+const buttonStyle =
+  'px-4 py-2 text-sm font-semibold border border-cyan-500 rounded-lg bg-cyan-600 text-white hover:bg-cyan-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed';
 
 const normalizeSeries = (points: AnalyticsSeriesPoint[]) => {
   const maxValue = Math.max(1, ...points.map((p) => Math.max(p.incidents, p.alerts)));
@@ -17,6 +24,12 @@ const normalizeSeries = (points: AnalyticsSeriesPoint[]) => {
 
 const linePoints = (values: { x: number; incidentY: number; alertY: number }[], key: 'incidentY' | 'alertY') =>
   values.map((v) => `${v.x},${v[key]}`).join(' ');
+
+const analysisExportColumns: ExportColumn<AnalyticsSeriesPoint>[] = [
+  { key: 'date', header: 'Date', value: (row) => row.date },
+  { key: 'incidents', header: 'Incidents', value: (row) => row.incidents },
+  { key: 'alerts', header: 'Alerts', value: (row) => row.alerts },
+];
 
 const DistributionBars = ({ title, items }: { title: string; items: Array<{ key: string; count: number }> }) => {
   const max = Math.max(1, ...items.map((item) => item.count));
@@ -62,6 +75,22 @@ const TrendLineChart = ({ points }: { points: AnalyticsSeriesPoint[] }) => {
   const normalized = useMemo(() => normalizeSeries(points), [points]);
   const incidentPath = linePoints(normalized, 'incidentY');
   const alertPath = linePoints(normalized, 'alertY');
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [tooltip, setTooltip] = useState<{ left: number; top: number } | null>(null);
+
+  const handleHover = (event: MouseEvent<SVGRectElement>, index: number) => {
+    const bounds = event.currentTarget.ownerSVGElement?.getBoundingClientRect();
+    if (!bounds) return;
+
+    setHoveredIndex(index);
+    setTooltip({
+      left: event.clientX - bounds.left,
+      top: event.clientY - bounds.top,
+    });
+  };
+
+  const hoveredPoint = hoveredIndex !== null ? points[hoveredIndex] : null;
+  const hoveredPosition = hoveredIndex !== null ? normalized[hoveredIndex] : null;
 
   return (
     <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-slate-900">
@@ -72,10 +101,74 @@ const TrendLineChart = ({ points }: { points: AnalyticsSeriesPoint[] }) => {
           <span className="text-amber-600 dark:text-amber-400">Alerts</span>
         </div>
       </div>
-      <svg viewBox="0 0 100 100" className="w-full h-52">
-        <polyline fill="none" stroke="#06b6d4" strokeWidth="2" points={incidentPath} />
-        <polyline fill="none" stroke="#f59e0b" strokeWidth="2" points={alertPath} />
-      </svg>
+      <div className="relative">
+        <svg
+          viewBox="0 0 100 100"
+          className="w-full h-52"
+          onMouseLeave={() => {
+            setHoveredIndex(null);
+            setTooltip(null);
+          }}
+        >
+          {hoveredPosition && (
+            <line
+              x1={hoveredPosition.x}
+              x2={hoveredPosition.x}
+              y1="0"
+              y2="100"
+              stroke="#94a3b8"
+              strokeWidth="0.7"
+              strokeDasharray="2 2"
+            />
+          )}
+          <polyline fill="none" stroke="#06b6d4" strokeWidth="2" points={incidentPath} />
+          <polyline fill="none" stroke="#f59e0b" strokeWidth="2" points={alertPath} />
+          {hoveredPosition && (
+            <>
+              <circle cx={hoveredPosition.x} cy={hoveredPosition.incidentY} r="2.4" fill="#06b6d4" stroke="#fff" strokeWidth="0.9" />
+              <circle cx={hoveredPosition.x} cy={hoveredPosition.alertY} r="2.4" fill="#f59e0b" stroke="#fff" strokeWidth="0.9" />
+            </>
+          )}
+          {normalized.map((point, index) => {
+            const prevX = index === 0 ? 0 : normalized[index - 1].x;
+            const nextX = index === normalized.length - 1 ? 100 : normalized[index + 1].x;
+            const startX = index === 0 ? 0 : (prevX + point.x) / 2;
+            const endX = index === normalized.length - 1 ? 100 : (point.x + nextX) / 2;
+
+            return (
+              <rect
+                key={`${points[index]?.date ?? index}-hover`}
+                x={startX}
+                y={0}
+                width={Math.max(endX - startX, 4)}
+                height={100}
+                fill="transparent"
+                onMouseEnter={(event) => handleHover(event, index)}
+                onMouseMove={(event) => handleHover(event, index)}
+              />
+            );
+          })}
+        </svg>
+        {hoveredPoint && tooltip && (
+          <div
+            className="pointer-events-none absolute z-10 min-w-[140px] rounded-lg border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 px-3 py-2 text-xs shadow-lg backdrop-blur"
+            style={{
+              left: `${Math.min(Math.max(tooltip.left + 12, 8), 220)}px`,
+              top: `${Math.max(tooltip.top - 56, 8)}px`,
+            }}
+          >
+            <div className="mb-1 font-semibold text-slate-800 dark:text-slate-100">{hoveredPoint.date}</div>
+            <div className="flex items-center justify-between gap-4 text-cyan-600 dark:text-cyan-400">
+              <span>Incidents</span>
+              <span className="font-semibold">{formatNumber(hoveredPoint.incidents)}</span>
+            </div>
+            <div className="flex items-center justify-between gap-4 text-amber-600 dark:text-amber-400">
+              <span>Alerts</span>
+              <span className="font-semibold">{formatNumber(hoveredPoint.alerts)}</span>
+            </div>
+          </div>
+        )}
+      </div>
       <div className="mt-2 flex justify-between text-[11px] text-slate-500 dark:text-slate-400">
         <span>{points[0]?.date ?? '-'}</span>
         <span>{points[points.length - 1]?.date ?? '-'}</span>
@@ -86,9 +179,25 @@ const TrendLineChart = ({ points }: { points: AnalyticsSeriesPoint[] }) => {
 
 export default function AnalysisDashboard() {
   const [window, setWindow] = useState('30d');
+  const [exportFormat, setExportFormat] = useState<ExportFormat>('csv');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<AnalyticsDashboardResponse | null>(null);
+
+  const exportMetaRows = data
+    ? [
+        { label: 'Window', value: data.window },
+        { label: 'Generated At', value: data.generated_at },
+        { label: 'Total Incidents', value: data.summary.total_incidents },
+        { label: 'Firing Incidents', value: data.summary.firing_incidents },
+        { label: 'Resolved Incidents', value: data.summary.resolved_incidents },
+        { label: 'Total Alerts', value: data.summary.total_alerts },
+        { label: 'Firing Alerts', value: data.summary.firing_alerts },
+        { label: 'Resolved Alerts', value: data.summary.resolved_alerts },
+        { label: 'Avg MTTR (min)', value: format1(data.summary.avg_mttr_minutes) },
+        { label: 'Avg Alerts / Incident', value: format1(data.summary.avg_alerts_per_incident) },
+      ]
+    : [];
 
   useEffect(() => {
     let active = true;
@@ -114,16 +223,34 @@ export default function AnalysisDashboard() {
     <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 transition-colors duration-300">
       <div className="mb-6 flex flex-col md:flex-row justify-between md:items-center gap-4">
         <h1 className="text-xl font-semibold font-mono tracking-wide text-slate-900 dark:text-slate-100">Analysis Dashboard</h1>
-        <select
-          value={window}
-          onChange={(e) => setWindow(e.target.value)}
-          className="px-4 py-2 text-sm font-medium border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-        >
-          <option value="7d">Last 7 days</option>
-          <option value="14d">Last 14 days</option>
-          <option value="30d">Last 30 days</option>
-          <option value="90d">Last 90 days</option>
-        </select>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <select
+            value={window}
+            onChange={(e) => setWindow(e.target.value)}
+            className={selectStyle}
+          >
+            <option value="7d">Last 7 days</option>
+            <option value="14d">Last 14 days</option>
+            <option value="30d">Last 30 days</option>
+            <option value="90d">Last 90 days</option>
+          </select>
+          <select
+            value={exportFormat}
+            onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
+            className={selectStyle}
+          >
+            <option value="csv">CSV</option>
+            <option value="excel">Excel (.xls)</option>
+          </select>
+          <button
+            type="button"
+            onClick={() => exportRows(data?.series.daily ?? [], analysisExportColumns, 'analysis_dashboard', exportFormat, undefined, exportMetaRows)}
+            disabled={!data || data.series.daily.length === 0}
+            className={buttonStyle}
+          >
+            Export
+          </button>
+        </div>
       </div>
 
       {loading ? (
