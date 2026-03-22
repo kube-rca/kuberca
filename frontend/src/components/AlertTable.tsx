@@ -90,9 +90,11 @@ function AlertTable({ alerts, onTitleClick, onRefresh }: AlertTableProps) {
     );
   }
 
+  const showCheckbox = firingAlerts.length > 0;
+
   return (
     <div className="overflow-x-auto">
-      {firingAlerts.length > 0 && (
+      {showCheckbox && (
         <div className="flex items-center gap-2 mb-2">
           <button
             onClick={handleBulkResolve}
@@ -106,14 +108,16 @@ function AlertTable({ alerts, onTitleClick, onRefresh }: AlertTableProps) {
       <table className="w-full">
         <thead>
           <tr className="border-b border-slate-200 dark:border-slate-800">
-            <th className="px-2 py-2 w-8">
-              <input
-                type="checkbox"
-                checked={allFiringSelected}
-                onChange={toggleSelectAll}
-                className="rounded"
-              />
-            </th>
+            {showCheckbox && (
+              <th className="px-2 py-2 w-8">
+                <input
+                  type="checkbox"
+                  checked={allFiringSelected}
+                  onChange={toggleSelectAll}
+                  className="rounded"
+                />
+              </th>
+            )}
             <th className="px-4 py-3 text-left text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-700">
               Incident ID
             </th>
@@ -138,19 +142,21 @@ function AlertTable({ alerts, onTitleClick, onRefresh }: AlertTableProps) {
           {/* [핵심] filteredData가 아니라 그냥 alerts를 맵핑합니다 */}
           {alerts.map((alert) => (
             <tr key={alert.alert_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer" onClick={() => onTitleClick(alert.alert_id)}>
-              {/* Checkbox */}
-              <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
-                {alert.status === 'firing' ? (
-                  <input
-                    type="checkbox"
-                    checked={selectedAlertIds.has(alert.alert_id)}
-                    onChange={() => toggleSelect(alert.alert_id)}
-                    className="rounded"
-                  />
-                ) : (
-                  <span className="w-4 inline-block" />
-                )}
-              </td>
+              {/* Checkbox - firing alert이 있을 때만 렌더링 */}
+              {showCheckbox && (
+                <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
+                  {alert.status === 'firing' ? (
+                    <input
+                      type="checkbox"
+                      checked={selectedAlertIds.has(alert.alert_id)}
+                      onChange={() => toggleSelect(alert.alert_id)}
+                      className="rounded"
+                    />
+                  ) : (
+                    <span className="w-4 inline-block" />
+                  )}
+                </td>
+              )}
 
               {/* Incident ID */}
               <td className="px-4 py-3.5 text-sm font-semibold whitespace-nowrap border-r border-slate-200 dark:border-slate-700">
