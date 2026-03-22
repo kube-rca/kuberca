@@ -1,7 +1,7 @@
 backend:
   image:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr/backend
-    tag: backend-4bcf251
+    tag: backend-cb483de
   auth:
     secret:
       existingSecret: kube-rca-auth
