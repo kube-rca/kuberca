@@ -46,12 +46,14 @@ flowchart LR
 
 ### Analysis Flow
 
-1. Receive alert payload from Backend
+1. Receive alert payload from Backend (triggered by Alertmanager webhook or manual resolve)
 2. Collect Kubernetes context (logs, events, pod status)
 3. Query Prometheus for relevant metrics
 4. Build analysis prompt with collected context
 5. Send to Strands Agents (Gemini/OpenAI/Anthropic) for RCA
 6. Return structured analysis result
+
+> **Note:** Analysis is triggered both by Alertmanager webhook events and by manual alert resolve actions from the Frontend. Bulk resolve does not trigger Agent analysis.
 
 ---
 
