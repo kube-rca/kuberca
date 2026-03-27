@@ -10,7 +10,7 @@ from app.clients.k8s import KubernetesClient, extract_pod_target
 from app.clients.strands_agent import AnalysisEngine
 from app.clients.summary_store import SummaryStore
 from app.clients.tempo import TempoClient, build_traceql_query
-from app.core.masking import RegexMasker
+from app.core.masking import Masker, RegexMasker
 from app.models.k8s import K8sContext
 from app.schemas.analysis import AlertAnalysisRequest, IncidentSummaryRequest
 
@@ -20,7 +20,7 @@ class AnalysisService:
         self,
         k8s_client: KubernetesClient,
         analysis_engine: AnalysisEngine | None,
-        masker: RegexMasker | None = None,
+        masker: Masker | None = None,
         prometheus_enabled: bool = False,
         tempo_client: TempoClient | None = None,
         tempo_enabled: bool = False,
@@ -318,7 +318,7 @@ def _build_prompt(
     prompt_token_budget: int,
     prompt_max_log_lines: int,
     prompt_max_events: int,
-    masker: RegexMasker,
+    masker: Masker,
 ) -> str:
     alert_payload = cast(
         dict[str, Any],
@@ -896,7 +896,7 @@ def _parse_incident_summary(result: str, original_title: str) -> tuple[str, str,
     return title, summary, result
 
 
-def _build_incident_summary_prompt(request: IncidentSummaryRequest, masker: RegexMasker) -> str:
+def _build_incident_summary_prompt(request: IncidentSummaryRequest, masker: Masker) -> str:
     alerts_info = []
     for alert in request.alerts:
         alert_data = {

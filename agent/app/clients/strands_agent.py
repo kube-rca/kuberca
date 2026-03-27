@@ -33,7 +33,7 @@ from app.clients.prometheus import PrometheusClient
 from app.clients.session_repository import PostgresSessionRepository
 from app.clients.tempo import TempoClient, build_traceql_query
 from app.core.config import Settings
-from app.core.masking import RegexMasker
+from app.core.masking import Masker, RegexMasker
 
 logger = logging.getLogger(__name__)
 
@@ -557,7 +557,7 @@ class StrandsAnalysisEngine:
         k8s_client: KubernetesClient,
         prometheus_client: PrometheusClient | None = None,
         tempo_client: TempoClient | None = None,
-        masker: RegexMasker | None = None,
+        masker: Masker | None = None,
         model_config: ModelConfig | None = None,
     ) -> None:
         if not settings.session_store_dsn:
@@ -777,7 +777,7 @@ def _build_tools(
     k8s_client: KubernetesClient,
     prometheus_client: PrometheusClient | None,
     tempo_client: TempoClient | None,
-    masker: RegexMasker,
+    masker: Masker,
 ) -> list[object]:
     def _mask(data: Any) -> Any:
         return masker.mask_object(data)

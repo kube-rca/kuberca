@@ -5,7 +5,7 @@ import logging
 from typing import Any, cast
 
 from app.clients.strands_agent import AnalysisEngine
-from app.core.masking import RegexMasker
+from app.core.masking import Masker, RegexMasker
 from app.schemas.chat import ChatRequest
 
 logger = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ def _to_pretty_json(payload: dict[str, Any]) -> str:
     return json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True)
 
 
-def _build_chat_prompt(request: ChatRequest, masker: RegexMasker) -> str:
+def _build_chat_prompt(request: ChatRequest, masker: Masker) -> str:
     """Build prompt for chat Q&A about an incident."""
     user_msg = masker.mask_text(request.message).strip() or "Tell me about this incident."
     base = (
@@ -61,7 +61,7 @@ class ChatService:
     def __init__(
         self,
         analysis_engine: AnalysisEngine | None,
-        masker: RegexMasker | None = None,
+        masker: Masker | None = None,
     ) -> None:
         self._logger = logger
         self._analysis_engine = analysis_engine

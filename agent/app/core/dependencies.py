@@ -10,7 +10,7 @@ from app.clients.strands_agent import AnalysisEngine, StrandsAnalysisEngine
 from app.clients.summary_store import PostgresSummaryStore, SummaryStore
 from app.clients.tempo import TempoClient
 from app.core.config import Settings, load_settings
-from app.core.masking import RegexMasker, build_masker
+from app.core.masking import BuiltinRedactor, ChainedMasker, Masker, build_masker
 from app.services.analysis import AnalysisService
 from app.services.chat import ChatService
 
@@ -48,9 +48,14 @@ def get_prometheus_client() -> PrometheusClient | None:
 
 
 @lru_cache
-def get_masker() -> RegexMasker:
+def get_masker() -> Masker:
     settings = get_settings()
-    return build_masker(settings.masking_regex_list)
+    builtin = BuiltinRedactor(
+        enabled=settings.builtin_redaction_enabled,
+        hash_mode=settings.builtin_redaction_hash_mode,
+    )
+    regex = build_masker(settings.masking_regex_list)
+    return ChainedMasker(builtin=builtin, regex=regex)
 
 
 @lru_cache

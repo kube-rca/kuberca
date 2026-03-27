@@ -100,6 +100,9 @@ class Settings:
     prompt_max_events: int
     prompt_summary_max_items: int
     masking_regex_list: list[str]
+    # Builtin redaction
+    builtin_redaction_enabled: bool
+    builtin_redaction_hash_mode: bool
     # LLM Retry (exponential backoff up to 3 minutes)
     llm_retry_max_attempts: int = 10
     llm_retry_min_wait: float = 1.0
@@ -157,6 +160,9 @@ def load_settings() -> Settings:
         prompt_max_events=_get_non_negative_int_env("PROMPT_MAX_EVENTS", 25),
         prompt_summary_max_items=max(1, _get_int_env("PROMPT_SUMMARY_MAX_ITEMS", 3)),
         masking_regex_list=masking_regex_list,
+        # Builtin redaction
+        builtin_redaction_enabled=os.getenv("BUILTIN_REDACTION_ENABLED", "true").lower() != "false",
+        builtin_redaction_hash_mode=os.getenv("BUILTIN_REDACTION_HASH_MODE", "false").lower() == "true",
         # LLM Retry
         llm_retry_max_attempts=_get_int_env("LLM_RETRY_MAX_ATTEMPTS", 10),
         llm_retry_min_wait=_get_float_env("LLM_RETRY_MIN_WAIT", 1.0),
