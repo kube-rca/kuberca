@@ -97,6 +97,10 @@ spec:
               value: {{ .Values.agent.prompt.summaryMaxItems | quote }}
             - name: MASKING_REGEX_LIST_JSON
               value: {{ toJson (default (list) .Values.agent.masking.regexList) | quote }}
+            - name: BUILTIN_REDACTION_ENABLED
+              value: {{ .Values.agent.masking.builtinRedaction | quote }}
+            - name: BUILTIN_REDACTION_HASH_MODE
+              value: {{ .Values.agent.masking.builtinRedactionHashMode | quote }}
             - name: PROMETHEUS_URL
               value: {{ .Values.agent.prometheus.url | quote }}
             - name: PROMETHEUS_HTTP_TIMEOUT_SECONDS

@@ -303,6 +303,10 @@ agent:
   masking:
     # -- Regex list (JSON array) for masking sensitive values before LLM requests and DB persistence.
     regexList: []
+    # -- Enable built-in redaction rules (key denylist, value heuristics, K8s-specific patterns).
+    builtinRedaction: true
+    # -- Use deterministic hash replacement [HASH:xxx] instead of [MASKED] for correlation.
+    builtinRedactionHashMode: false
   prometheus:
     # -- Prometheus base URL (PROMETHEUS_URL). If empty, Prometheus queries are disabled.
     url: ""
