@@ -6,10 +6,8 @@ from app.core.masking import (
     MASK_TOKEN,
     BuiltinRedactor,
     ChainedMasker,
-    RegexMasker,
     build_masker,
 )
-
 
 # ---------------------------------------------------------------------------
 # Existing RegexMasker tests
@@ -98,7 +96,11 @@ def test_builtin_preserves_token_budget_key() -> None:
 def test_builtin_redacts_jwt_in_logs() -> None:
     """JWT tokens in log strings are masked."""
     redactor = BuiltinRedactor()
-    jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+    jwt = (
+        "eyJhbGciOiJIUzI1NiJ9"
+        ".eyJzdWIiOiIxMjM0NTY3ODkwIn0"
+        ".dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+    )
     text = f"auth token: {jwt}"
     result = redactor.redact_text(text)
     assert "eyJ" not in result

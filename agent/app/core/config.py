@@ -161,8 +161,12 @@ def load_settings() -> Settings:
         prompt_summary_max_items=max(1, _get_int_env("PROMPT_SUMMARY_MAX_ITEMS", 3)),
         masking_regex_list=masking_regex_list,
         # Builtin redaction
-        builtin_redaction_enabled=os.getenv("BUILTIN_REDACTION_ENABLED", "true").lower() != "false",
-        builtin_redaction_hash_mode=os.getenv("BUILTIN_REDACTION_HASH_MODE", "false").lower() == "true",
+        builtin_redaction_enabled=(
+            os.getenv("BUILTIN_REDACTION_ENABLED", "true").lower() != "false"
+        ),
+        builtin_redaction_hash_mode=(
+            os.getenv("BUILTIN_REDACTION_HASH_MODE", "false").lower() == "true"
+        ),
         # LLM Retry
         llm_retry_max_attempts=_get_int_env("LLM_RETRY_MAX_ATTEMPTS", 10),
         llm_retry_min_wait=_get_float_env("LLM_RETRY_MIN_WAIT", 1.0),
