@@ -112,7 +112,6 @@ backend:
   resources: {}
   # -- Pod-level security context for backend pods.
   podSecurityContext:
-    runAsNonRoot: true
     seccompProfile:
       type: RuntimeDefault
   # -- Container-level security context for the backend container.
@@ -291,7 +290,6 @@ agent:
   resources: {}
   # -- Pod-level security context for agent pods.
   podSecurityContext:
-    runAsNonRoot: true
     seccompProfile:
       type: RuntimeDefault
   # -- Container-level security context for the agent container.
@@ -447,7 +445,6 @@ frontend:
   resources: {}
   # -- Pod-level security context for frontend pods.
   podSecurityContext:
-    runAsNonRoot: true
     seccompProfile:
       type: RuntimeDefault
   # -- Container-level security context for the frontend container.
@@ -524,7 +521,6 @@ openapi:
   resources: {}
   # -- Pod-level security context for OpenAPI pods.
   podSecurityContext:
-    runAsNonRoot: true
     seccompProfile:
       type: RuntimeDefault
   # -- Container-level security context for the OpenAPI container.
