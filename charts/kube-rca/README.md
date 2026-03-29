@@ -177,6 +177,9 @@ backend:
 | agent.k8s.eventLimit | int | `25` | Kubernetes event limit. |
 | agent.k8s.logTailLines | int | `25` | Kubernetes log tail lines. |
 | agent.logLevel | string | `"info"` | Agent log level (LOG_LEVEL). |
+| agent.loki.httpTimeoutSeconds | int | `10` | Loki HTTP timeout in seconds. |
+| agent.loki.tenantId | string | `""` | Optional Loki tenant header value (LOKI_TENANT_ID / X-Scope-OrgID). |
+| agent.loki.url | string | `""` | Loki base URL (LOKI_URL). If empty, Loki log queries are disabled. |
 | agent.masking.builtinRedaction | bool | `true` | Enable built-in redaction rules (key denylist, value heuristics, K8s-specific patterns). |
 | agent.masking.builtinRedactionHashMode | bool | `false` | Use deterministic hash replacement [HASH:xxx] instead of [MASKED] for correlation. |
 | agent.masking.regexList | list | `[]` | Regex list (JSON array) for masking sensitive values before LLM requests and DB persistence. |

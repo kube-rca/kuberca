@@ -338,6 +338,13 @@ agent:
     lookbackMinutes: 15
     # -- Minutes after alert startsAt for Tempo query window (TEMPO_FORWARD_MINUTES).
     forwardMinutes: 5
+  loki:
+    # -- Loki base URL (LOKI_URL). If empty, Loki log queries are disabled.
+    url: ""
+    # -- Loki HTTP timeout in seconds.
+    httpTimeoutSeconds: 10
+    # -- Optional Loki tenant header value (LOKI_TENANT_ID / X-Scope-OrgID).
+    tenantId: ""
   gemini:
     # -- Gemini model ID for Strands Agents.
     modelId: "gemini-3.1-flash-lite-preview"

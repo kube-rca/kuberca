@@ -120,6 +120,12 @@ spec:
               value: {{ .Values.agent.tempo.lookbackMinutes | quote }}
             - name: TEMPO_FORWARD_MINUTES
               value: {{ .Values.agent.tempo.forwardMinutes | quote }}
+            - name: LOKI_URL
+              value: {{ .Values.agent.loki.url | quote }}
+            - name: LOKI_HTTP_TIMEOUT_SECONDS
+              value: {{ .Values.agent.loki.httpTimeoutSeconds | quote }}
+            - name: LOKI_TENANT_ID
+              value: {{ .Values.agent.loki.tenantId | quote }}
             {{- $cache := default (dict) .Values.agent.cache }}
             {{- $cacheSize := default 128 $cache.size }}
             {{- $cacheTtl := default 0 $cache.ttlSeconds }}

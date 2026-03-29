@@ -82,6 +82,9 @@ agent:
     traceLimit: 5
     lookbackMinutes: 15
     forwardMinutes: 5
+  loki:
+    url: http://loki-gateway.monitoring.svc.cluster.local:80
+    tenantId: "kube-rca"
   prompt:
     tokenBudget: 32000
     maxLogLines: 25
