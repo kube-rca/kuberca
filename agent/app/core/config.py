@@ -108,6 +108,8 @@ class Settings:
     llm_retry_min_wait: float = 1.0
     llm_retry_max_wait: float = 30.0
     llm_retry_total_timeout: float = 180.0
+    # Concurrency
+    max_concurrent_analyses: int = 5
 
     @property
     def session_store_dsn(self) -> str:
@@ -172,4 +174,6 @@ def load_settings() -> Settings:
         llm_retry_min_wait=_get_float_env("LLM_RETRY_MIN_WAIT", 1.0),
         llm_retry_max_wait=_get_float_env("LLM_RETRY_MAX_WAIT", 30.0),
         llm_retry_total_timeout=_get_float_env("LLM_RETRY_TOTAL_TIMEOUT", 180.0),
+        # Concurrency
+        max_concurrent_analyses=_get_int_env("MAX_CONCURRENT_ANALYSES", 5),
     )

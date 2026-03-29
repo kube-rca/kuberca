@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.api import analysis, chat, config, health
+from app.core.concurrency import init_concurrency
 from app.core.dependencies import get_settings
 from app.core.logging import configure_logging
 
@@ -16,7 +17,12 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Starting kube-rca-agent on port %s", settings.port)
+    init_concurrency(settings.max_concurrent_analyses)
+    logger.info(
+        "Starting kube-rca-agent on port %s (max_concurrent_analyses=%d)",
+        settings.port,
+        settings.max_concurrent_analyses,
+    )
     yield
 
 
