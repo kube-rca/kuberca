@@ -812,8 +812,7 @@ class TestParseIncidentSummary:
         assert len(title) <= 101  # 100 + ellipsis char
         assert title.endswith("…")
 
-    def test_summary_truncated_at_max_len(self):
+    def test_summary_not_truncated(self):
         result = "### 제목 (Title)\ntitle\n\n### 요약 (Summary)\n" + "B" * 500
         _, summary, _ = _parse_incident_summary(result, "fallback")
-        assert len(summary) <= 301  # 300 + ellipsis char
-        assert summary.endswith("…")
+        assert len(summary) == 500

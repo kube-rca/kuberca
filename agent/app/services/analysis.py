@@ -901,10 +901,6 @@ def _parse_incident_summary(result: str, original_title: str) -> tuple[str, str,
     if len(title) > _TITLE_MAX_LEN:
         title = title[:_TITLE_MAX_LEN].rstrip() + "…"
 
-    # Enforce summary length limit
-    if len(summary) > _SUMMARY_MAX_LEN:
-        summary = summary[:_SUMMARY_MAX_LEN].rstrip() + "…"
-
     return title, summary, result
 
 
