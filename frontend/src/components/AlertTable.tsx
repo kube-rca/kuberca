@@ -182,7 +182,7 @@ function AlertTable({ alerts, onTitleClick, onRefresh }: AlertTableProps) {
 
               {/* Title */}
               <td className="px-4 py-3.5 text-sm font-medium text-slate-900 dark:text-slate-100 hover:text-cyan-600 dark:hover:text-cyan-400 min-w-[300px] break-words border-r border-slate-200 dark:border-slate-700">
-                {alert.alarm_title}
+                <span className="line-clamp-2" title={alert.alarm_title}>{alert.alarm_title}</span>
               </td>
 
               {/* Namespace */}

@@ -80,7 +80,7 @@ function RCATable({ rcas, onTitleClick }: RCATableProps) {
                   </span>
                 </td>
                 <td className="px-4 py-3.5 text-sm font-medium text-slate-900 dark:text-slate-100 hover:text-cyan-600 dark:hover:text-cyan-400 min-w-[300px] break-words border-r border-slate-200 dark:border-slate-700">
-                  {rca.title}
+                  <span className="line-clamp-2" title={rca.title}>{rca.title}</span>
                 </td>
                 <td className="px-4 py-3.5 text-sm border-r border-slate-200 dark:border-slate-700">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${severityStyles[rawSeverity] || severityStyles.info}`}>
