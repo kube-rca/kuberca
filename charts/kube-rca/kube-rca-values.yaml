@@ -59,6 +59,15 @@ frontend:
       - secretName: kuberca-tls
         hosts:
           - kuberca.kkamji.net
+postgresql:
+  primary:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
 agent:
   image:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr/agent
