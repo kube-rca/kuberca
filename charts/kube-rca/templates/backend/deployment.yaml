@@ -14,6 +14,10 @@ spec:
       labels:
         {{- include "kube-rca.backend.labels" . | nindent 8 }}
     spec:
+      {{- with .Values.backend.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- if .Values.backend.waitForDb.enabled }}
       initContainers:
         - name: wait-for-db
@@ -31,17 +35,16 @@ spec:
               done
               echo "PostgreSQL is accepting connections"
           resources:
-            requests:
-              cpu: 10m
-              memory: 16Mi
-            limits:
-              cpu: 50m
-              memory: 32Mi
+            {{- include "kube-rca.hook.waitJob.resources" . | nindent 12 }}
       {{- end }}
       containers:
         - name: backend
           image: "{{ required "backend.image.repository is required" .Values.backend.image.repository }}:{{ default "latest" .Values.backend.image.tag }}"
           imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          {{- with .Values.backend.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.backend.containerPort }}

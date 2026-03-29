@@ -110,6 +110,17 @@ backend:
     tls: []
   # -- Backend resource requests/limits.
   resources: {}
+  # -- Pod-level security context for backend pods.
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  # -- Container-level security context for the backend container.
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
   # -- Node labels for backend pods assignment.
   nodeSelector: {}
   # -- Tolerations for backend pods assignment.
@@ -130,8 +141,8 @@ backend:
     # -- Interval between checks (seconds).
     checkInterval: 2
   postgresql:
-    # -- PostgreSQL host.
-    host: "kube-rca-postgresql.kube-rca.svc.cluster.local"
+    # -- PostgreSQL host. Leave empty to auto-resolve from the embedded postgresql dependency.
+    host: ""
     # -- PostgreSQL port.
     port: 5432
     # -- PostgreSQL user.
@@ -278,6 +289,17 @@ agent:
     tls: []
   # -- Agent resource requests/limits.
   resources: {}
+  # -- Pod-level security context for agent pods.
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  # -- Container-level security context for the agent container.
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
   # -- Agent log level (LOG_LEVEL).
   logLevel: "info"
   # -- Uvicorn worker count (WEB_CONCURRENCY).
@@ -423,6 +445,17 @@ frontend:
     tls: []
   # -- Frontend resource requests/limits.
   resources: {}
+  # -- Pod-level security context for frontend pods.
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  # -- Container-level security context for the frontend container.
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
   # -- Node labels for frontend pods assignment.
   nodeSelector: {}
   # -- Tolerations for frontend pods assignment.
@@ -489,6 +522,17 @@ openapi:
         port: 8000
   # -- OpenAPI resource requests/limits.
   resources: {}
+  # -- Pod-level security context for OpenAPI pods.
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  # -- Container-level security context for the OpenAPI container.
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
   # -- Node labels for OpenAPI pods assignment.
   nodeSelector: {}
   # -- Tolerations for OpenAPI pods assignment.

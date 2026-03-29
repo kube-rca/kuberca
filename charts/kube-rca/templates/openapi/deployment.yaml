@@ -18,10 +18,18 @@ spec:
       annotations:
         checksum/openapi-config: {{ include (print $.Template.BasePath "/openapi/configmap.yaml") . | sha256sum }}
     spec:
+      {{- with .Values.openapi.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: openapi
           image: "{{ .Values.openapi.image.repository }}:{{ .Values.openapi.image.tag }}"
           imagePullPolicy: {{ .Values.openapi.image.pullPolicy }}
+          {{- with .Values.openapi.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           env:
             - name: BASE_URL
               value: {{ .Values.openapi.baseUrl | quote }}
@@ -45,10 +53,16 @@ spec:
             items:
               - key: default.conf.template
                 path: default.conf.template
+      {{- with .Values.openapi.nodeSelector }}
       nodeSelector:
-        {{- toYaml .Values.openapi.nodeSelector | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.openapi.tolerations }}
       tolerations:
-        {{- toYaml .Values.openapi.tolerations | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.openapi.affinity }}
       affinity:
-        {{- toYaml .Values.openapi.affinity | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 {{- end -}}

@@ -185,6 +185,7 @@ backend:
 | agent.openai.secret.create | bool | `false` | Create a Secret for the OpenAI API key. |
 | agent.openai.secret.existingSecret | string | `"kube-rca-ai"` | Existing Secret name for the OpenAI API key. |
 | agent.openai.secret.key | string | `"openai-api-key"` | Secret key name for the OpenAI API key. |
+| agent.podSecurityContext | object | `{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}}` | Pod-level security context for agent pods. |
 | agent.prometheus.httpTimeoutSeconds | int | `5` | Prometheus HTTP timeout in seconds. |
 | agent.prometheus.url | string | `""` | Prometheus base URL (PROMETHEUS_URL). If empty, Prometheus queries are disabled. |
 | agent.prompt.maxEvents | int | `25` | Max events included in prompt. |
@@ -196,6 +197,7 @@ backend:
 | agent.retry.maxAttempts | int | `5` | Max retry attempts for transient LLM API errors (5xx, 429). |
 | agent.retry.maxWait | float | `60` | Maximum exponential backoff wait time in seconds. |
 | agent.retry.minWait | float | `1` | Minimum exponential backoff wait time in seconds. |
+| agent.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}}` | Container-level security context for the agent container. |
 | agent.service.port | int | `8000` | Agent service port. |
 | agent.service.type | string | `"ClusterIP"` | Agent service type. |
 | agent.sessionDB.host | string | `""` | PostgreSQL host for Strands session persistence. |
@@ -259,8 +261,9 @@ backend:
 | backend.ingress.paths | list | `["/"]` | Paths for backend ingress. |
 | backend.ingress.tls | list | `[]` | TLS configuration for backend ingress. |
 | backend.nodeSelector | object | `{}` | Node labels for backend pods assignment. |
+| backend.podSecurityContext | object | `{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}}` | Pod-level security context for backend pods. |
 | backend.postgresql.database | string | `"kube-rca"` | PostgreSQL database. |
-| backend.postgresql.host | string | `"kube-rca-postgresql.kube-rca.svc.cluster.local"` | PostgreSQL host. |
+| backend.postgresql.host | string | `""` | PostgreSQL host. Leave empty to auto-resolve from the embedded postgresql dependency. |
 | backend.postgresql.port | int | `5432` | PostgreSQL port. |
 | backend.postgresql.retry.initialBackoffSeconds | int | `1` | Initial backoff interval (seconds). |
 | backend.postgresql.retry.maxAttempts | int | `10` | Maximum number of DB connection attempts at startup. |
@@ -270,6 +273,7 @@ backend:
 | backend.postgresql.user | string | `"kube-rca"` | PostgreSQL user. |
 | backend.replicaCount | int | `1` | Number of backend replicas. |
 | backend.resources | object | `{}` | Backend resource requests/limits. |
+| backend.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}}` | Container-level security context for the backend container. |
 | backend.service.port | int | `8080` | Backend service port. |
 | backend.service.type | string | `"ClusterIP"` | Backend service type. |
 | backend.slack.channelId | string | `""` | Slack channel ID (used when backend.slack.source=values). |
@@ -295,8 +299,10 @@ backend:
 | frontend.ingress.paths | list | `["/"]` | Paths for frontend ingress. |
 | frontend.ingress.tls | list | `[]` | TLS configuration for frontend ingress. |
 | frontend.nodeSelector | object | `{}` | Node labels for frontend pods assignment. |
+| frontend.podSecurityContext | object | `{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}}` | Pod-level security context for frontend pods. |
 | frontend.replicaCount | int | `1` | Number of frontend replicas. |
 | frontend.resources | object | `{}` | Frontend resource requests/limits. |
+| frontend.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}}` | Container-level security context for the frontend container. |
 | frontend.service.port | int | `80` | Frontend service port. |
 | frontend.service.type | string | `"ClusterIP"` | Frontend service type. |
 | frontend.tolerations | list | `[]` | Tolerations for frontend pods assignment. |
@@ -334,8 +340,10 @@ backend:
 | openapi.ingress.paths | list | `["/"]` | Paths for OpenAPI ingress. |
 | openapi.ingress.tls | list | `[]` | TLS configuration for OpenAPI ingress. |
 | openapi.nodeSelector | object | `{}` | Node labels for OpenAPI pods assignment. |
+| openapi.podSecurityContext | object | `{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}}` | Pod-level security context for OpenAPI pods. |
 | openapi.replicaCount | int | `1` | Number of OpenAPI replicas. |
 | openapi.resources | object | `{}` | OpenAPI resource requests/limits. |
+| openapi.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}}` | Container-level security context for the OpenAPI container. |
 | openapi.service.port | int | `8080` | OpenAPI service port. |
 | openapi.service.type | string | `"ClusterIP"` | OpenAPI service type. |
 | openapi.specs.agent.name | string | `"agent"` | Display name for agent spec. |

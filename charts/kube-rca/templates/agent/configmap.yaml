@@ -6,8 +6,6 @@ metadata:
     {{- include "kube-rca.agent.labels" . | nindent 4 }}
 data:
   agent-config.yaml: |
-    logLevel: "info"
-    # This is a mock configuration for the agent
+    logLevel: {{ .Values.agent.logLevel | quote }}
     features:
       enableK8sCollector: true
-      enableLogCollection: false

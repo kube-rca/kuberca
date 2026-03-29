@@ -30,6 +30,7 @@ Common labels (base).
 {{- define "kube-rca.labels.base" -}}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 helm.sh/chart: {{ include "kube-rca.chart" . }}
 {{- end -}}
 
