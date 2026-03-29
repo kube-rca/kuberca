@@ -1,4 +1,4 @@
-.PHONY: help incident oomkilled crashloop imagepull networkdelay 404 500 503 504
+.PHONY: help incident oomkilled crashloop imagepull networkdelay 404 500 503 504 ratings-multi
 
 NAMESPACE ?= bookinfo
 KUBE_CONTEXT ?=
@@ -59,6 +59,14 @@ networkdelay: ## Run Network delay scenario (Chaos Mesh)
 	POLL_INTERVAL_SECONDS="$(POLL_INTERVAL_SECONDS)" \
 	FAULT_PERCENTAGE="$(FAULT_PERCENTAGE)" \
 	./scripts/run-503.sh
+
+ratings-multi: ## Run combined ratings faults (404 from load-generator, 503 from reviews)
+	@NAMESPACE="$(NAMESPACE)" \
+	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
+	WAIT_SECONDS="$(WAIT_SECONDS)" \
+	POLL_INTERVAL_SECONDS="$(POLL_INTERVAL_SECONDS)" \
+	FAULT_PERCENTAGE="$(FAULT_PERCENTAGE)" \
+	./scripts/run-ratings-multi.sh
 
 504: ## Run 504 Gateway Timeout scenario (Istio fault injection)
 	@NAMESPACE="$(NAMESPACE)" \

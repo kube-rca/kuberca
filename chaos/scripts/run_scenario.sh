@@ -16,6 +16,7 @@ Scenarios:
   404           Istio fault injection: 404 Not Found
   500           Istio fault injection: 500 Internal Server Error
   503           Istio fault injection: 503 Service Unavailable
+  ratings-multi Combined ratings faults (404 from load-generator, 503 from reviews)
   504           Istio fault injection: 504 Gateway Timeout
 
 Environment:
@@ -23,7 +24,7 @@ Environment:
   KUBE_CONTEXT           Kubernetes context (optional)
   WAIT_SECONDS           Wait timeout (default: 120)
   POLL_INTERVAL_SECONDS  Poll interval (default: 3)
-  FAULT_PERCENTAGE       Fault injection percentage for 4xx/5xx (default: 20)
+  FAULT_PERCENTAGE       Fault injection percentage for 4xx/5xx (default: 40)
 EOF
 }
 
@@ -113,6 +114,53 @@ kubectl_local() {
   fi
 }
 
+get_virtualservice_http_status() {
+  local name=$1
+  kubectl_local -n "$NAMESPACE" get virtualservice "$name" -o jsonpath='{.spec.http[0].fault.abort.httpStatus}' 2>/dev/null || true
+}
+
+ensure_non_conflicting_ratings_faults() {
+  local single_vs_name="ratings-fault-abort"
+  local combined_vs_name="ratings-combined-faults"
+  local existing_status=""
+
+  case "$SCENARIO" in
+    404|503)
+      if kubectl_local -n "$NAMESPACE" get virtualservice "$combined_vs_name" >/dev/null 2>&1; then
+        log_error "combined ratings fault scenario is already active: ${combined_vs_name}"
+        log_error "cleanup 'make ratings-multi' first, then run the single-fault scenario"
+        exit 1
+      fi
+
+      existing_status=$(get_virtualservice_http_status "$single_vs_name")
+      if [ -n "$existing_status" ]; then
+        if [ "$existing_status" = "$SCENARIO" ]; then
+          log_error "ratings ${SCENARIO} scenario is already active: ${single_vs_name}"
+          log_error "cleanup the existing run before starting the same scenario again"
+        else
+          log_error "ratings fault scenario is already active: ${single_vs_name} -> HTTP ${existing_status}"
+          log_error "single 404 and 503 scenarios are mutually exclusive; use 'make ratings-multi' to run them together"
+        fi
+        exit 1
+      fi
+      ;;
+    ratings-multi)
+      if kubectl_local -n "$NAMESPACE" get virtualservice "$combined_vs_name" >/dev/null 2>&1; then
+        log_error "combined ratings fault scenario is already active: ${combined_vs_name}"
+        log_error "cleanup the existing run before starting it again"
+        exit 1
+      fi
+
+      existing_status=$(get_virtualservice_http_status "$single_vs_name")
+      if [ -n "$existing_status" ]; then
+        log_error "single ratings fault scenario is already active: ${single_vs_name} -> HTTP ${existing_status}"
+        log_error "cleanup 404/503 first, then run 'make ratings-multi'"
+        exit 1
+      fi
+      ;;
+  esac
+}
+
 TARGET_MANIFEST=""
 CHAOS_MANIFEST=""
 LABEL_SELECTOR=""
@@ -164,6 +212,11 @@ case "$SCENARIO" in
     LABEL_SELECTOR="app=ratings"
     USE_FAULT_PERCENTAGE="true"
     ;;
+  ratings-multi)
+    CHAOS_MANIFEST="${SCENARIOS_DIR}/ratings-multi/fault-aborts.yaml"
+    LABEL_SELECTOR="app=ratings"
+    USE_FAULT_PERCENTAGE="true"
+    ;;
   504)
     CHAOS_MANIFEST="${SCENARIOS_DIR}/504/fault-delay.yaml"
     LABEL_SELECTOR="app=reviews"
@@ -184,6 +237,8 @@ if ! kubectl_local get namespace "$NAMESPACE" >/dev/null 2>&1; then
   log_error "namespace not found: $NAMESPACE"
   exit 1
 fi
+
+ensure_non_conflicting_ratings_faults
 
 if [ -n "$TARGET_MANIFEST" ]; then
   require_file "$TARGET_MANIFEST"
