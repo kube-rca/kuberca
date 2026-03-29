@@ -422,13 +422,13 @@ func TestSaveAlert_ReFiringAfterResolved_NewAlertID(t *testing.T) {
 	}
 }
 
-func TestProcessWebhook_SkipsInfoSeverity(t *testing.T) {
+func TestProcessWebhook_SkipsNoneSeverity(t *testing.T) {
 	store := newAlertStoreMock()
 	notif := newNotifierMock()
 	analyzer := &analyzerMock{}
 	svc := newTestAlertService(store, notif, analyzer)
 
-	alert := makeAlert("fp-info", "firing", "info")
+	alert := makeAlert("fp-none", "firing", "none")
 	webhook := makeWebhook(alert)
 
 	sent, failed := svc.ProcessWebhook(webhook)
@@ -438,7 +438,7 @@ func TestProcessWebhook_SkipsInfoSeverity(t *testing.T) {
 	}
 
 	if len(store.saveAlertCalls) != 0 {
-		t.Fatalf("SaveAlert called %d times for info severity; want 0", len(store.saveAlertCalls))
+		t.Fatalf("SaveAlert called %d times for none severity; want 0", len(store.saveAlertCalls))
 	}
 }
 

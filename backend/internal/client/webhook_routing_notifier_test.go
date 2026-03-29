@@ -67,7 +67,7 @@ func TestWebhookRoutingNotifier_UsesFallbackWhenNoWebhookConfig(t *testing.T) {
 	fallback := &fallbackNotifierStub{}
 	n := NewWebhookRoutingNotifier(repo, fallback, fallback, "")
 
-	err := n.Notify(AnalysisResultPostedEvent{Content: "analysis"})
+	err := n.Notify(AnalysisResultPostedEvent{ThreadRef: "t1", Content: "analysis"})
 	if err != nil {
 		t.Fatalf("Notify() error = %v", err)
 	}
@@ -116,12 +116,19 @@ func TestWebhookRoutingNotifier_SendsHTTPWebhook(t *testing.T) {
 		}),
 	}
 
-	err := n.Notify(FlappingClearedEvent{Fingerprint: "fp-1", ThreadRef: "t1"})
+	// AlertStatusChangedEvent는 resolveNotifiers 경로로 HTTP 타겟에 도달한다.
+	// (FlappingClearedEvent는 notifyByThread 경로를 사용하므로 Slack 전용)
+	err := n.Notify(AlertStatusChangedEvent{
+		Alert: model.Alert{
+			Status: "firing",
+			Labels: map[string]string{"severity": "warning", "alertname": "test"},
+		},
+	})
 	if err != nil {
 		t.Fatalf("Notify() error = %v", err)
 	}
-	if gotType != NotifierEventFlappingCleared {
-		t.Fatalf("event type = %q, want %q", gotType, NotifierEventFlappingCleared)
+	if gotType != NotifierEventAlertStatusChanged {
+		t.Fatalf("event type = %q, want %q", gotType, NotifierEventAlertStatusChanged)
 	}
 	if gotAuth != "Bearer token-1" {
 		t.Fatalf("authorization = %q, want %q", gotAuth, "Bearer token-1")
@@ -137,7 +144,7 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
 
-func TestWebhookRoutingNotifier_ThreadRefStoreDisabledForThreadlessTargets(t *testing.T) {
+func TestWebhookRoutingNotifier_ThreadRefStoreFallsBackToThreadStore(t *testing.T) {
 	repo := webhookConfigRepoStub{
 		configs: []model.WebhookConfig{
 			{ID: 1, Type: "http", URL: "https://example.com/webhook"},
@@ -147,7 +154,12 @@ func TestWebhookRoutingNotifier_ThreadRefStoreDisabledForThreadlessTargets(t *te
 	n := NewWebhookRoutingNotifier(repo, fallback, fallback, "")
 
 	n.StoreThreadRef("alert-1", "thread-1")
-	if _, ok := n.GetThreadRef("alert-1"); ok {
-		t.Fatal("GetThreadRef() ok = true, want false for threadless targets")
+	// HTTP-only 타겟이라도 fallbackThreadStore가 thread 지원하면 조회 가능
+	ref, ok := n.GetThreadRef("alert-1")
+	if !ok {
+		t.Fatal("GetThreadRef() ok = false, want true (fallback thread store)")
+	}
+	if ref != "thread-1" {
+		t.Fatalf("GetThreadRef() = %q, want %q", ref, "thread-1")
 	}
 }

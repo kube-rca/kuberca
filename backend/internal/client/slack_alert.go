@@ -83,10 +83,9 @@ func (c *SlackClient) SendAlert(alert model.Alert, status, incidentID string, is
 	if status == "firing" && resp.TS != "" {
 		c.StoreThreadTS(alert.Fingerprint, resp.TS)
 	}
-	// resolved: thread_ts 삭제 (메모리 정리)
-	if status == "resolved" {
-		c.DeleteThreadTS(alert.Fingerprint)
-	}
+	// resolved 시 thread_ts를 즉시 삭제하지 않는다.
+	// 비동기 Agent 분석이 완료된 뒤 notifyByThread가 이 값을 참조하기 때문이다.
+	// 다음 firing alert가 오면 같은 fingerprint로 덮어쓰기 되므로 메모리 누수 없음.
 	return nil
 }
 
