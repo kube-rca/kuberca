@@ -29,6 +29,7 @@ from tenacity import (
 from app.clients.conversation_manager import SafeSlidingWindowConversationManager
 from app.clients.k8s import KubernetesClient
 from app.clients.llm_providers import ModelConfig, create_model
+from app.clients.loki import LokiClient
 from app.clients.prometheus import PrometheusClient
 from app.clients.session_repository import PostgresSessionRepository
 from app.clients.tempo import TempoClient, build_traceql_query
@@ -244,6 +245,66 @@ def _tempo_search_summary(arguments: dict[str, Any]) -> dict[str, object]:
         ),
         "limit": arguments.get("limit"),
     }
+
+
+def _loki_query_summary(arguments: dict[str, Any]) -> dict[str, object]:
+    query = arguments.get("query")
+    summary: dict[str, object] = {
+        "query_hash": _hash_text(query if isinstance(query, str) else None),
+        "query_preview": _compact_text(query if isinstance(query, str) else None),
+        "query_length": len(query) if isinstance(query, str) else 0,
+    }
+    if arguments.get("limit") is not None:
+        summary["limit"] = arguments.get("limit")
+    if arguments.get("time"):
+        summary["time"] = arguments.get("time")
+    return summary
+
+
+def _loki_range_summary(arguments: dict[str, Any]) -> dict[str, object]:
+    query = arguments.get("query")
+    start = arguments.get("start")
+    end = arguments.get("end")
+    return {
+        "query_hash": _hash_text(query if isinstance(query, str) else None),
+        "query_preview": _compact_text(query if isinstance(query, str) else None),
+        "query_length": len(query) if isinstance(query, str) else 0,
+        "start": start,
+        "end": end,
+        "window_seconds": _seconds_between(
+            start if isinstance(start, str) else None,
+            end if isinstance(end, str) else None,
+        ),
+        "limit": arguments.get("limit"),
+        "step": arguments.get("step"),
+    }
+
+
+def _loki_result_summary(result: Any) -> dict[str, object]:
+    """Summarize Loki tool result for structured logging.
+
+    Path: result["data"] -> loki_response["data"] -> loki_data["result"] -> streams
+    """
+    summary = _default_result_summary(result)
+    if not isinstance(result, dict):
+        return summary
+    loki_response = result.get("data")
+    if not isinstance(loki_response, dict):
+        return summary
+    loki_data = loki_response.get("data")
+    if not isinstance(loki_data, dict):
+        return summary
+    streams = loki_data.get("result")
+    if isinstance(streams, list):
+        summary["stream_count"] = len(streams)
+        entry_count = 0
+        for stream in streams:
+            if isinstance(stream, dict):
+                values = stream.get("values")
+                if isinstance(values, list):
+                    entry_count += len(values)
+        summary["entry_count"] = entry_count
+    return summary
 
 
 def _log_result_summary(result: Any) -> dict[str, object]:
@@ -557,6 +618,7 @@ class StrandsAnalysisEngine:
         k8s_client: KubernetesClient,
         prometheus_client: PrometheusClient | None = None,
         tempo_client: TempoClient | None = None,
+        loki_client: LokiClient | None = None,
         masker: Masker | None = None,
         model_config: ModelConfig | None = None,
     ) -> None:
@@ -568,7 +630,9 @@ class StrandsAnalysisEngine:
         self._settings = settings
         self._model_config = model_config
         self._masker = masker or RegexMasker()
-        self._tools = _build_tools(k8s_client, prometheus_client, tempo_client, self._masker)
+        self._tools = _build_tools(
+            k8s_client, prometheus_client, tempo_client, loki_client, self._masker
+        )
         self._cache_lock = Lock()
         self._agent_cache: OrderedDict[str, _AgentCacheEntry] = OrderedDict()
         self._cache_size = max(settings.agent_cache_size, 1)
@@ -777,6 +841,7 @@ def _build_tools(
     k8s_client: KubernetesClient,
     prometheus_client: PrometheusClient | None,
     tempo_client: TempoClient | None,
+    loki_client: LokiClient | None,
     masker: Masker,
 ) -> list[object]:
     def _mask(data: Any) -> Any:
@@ -1076,6 +1141,110 @@ def _build_tools(
                 discover_tempo,
                 search_tempo_traces,
                 get_tempo_trace,
+            ]
+        )
+
+    # --- Loki log aggregation tools ---
+
+    @_logged_tool()
+    def discover_loki() -> dict[str, object]:
+        """Return the configured Loki endpoint (LOKI_URL).
+
+        Use this to check if Loki log aggregation is available.
+        """
+        if loki_client is None:
+            return _mask({"warning": "loki client not configured"})
+        return _mask(loki_client.describe_endpoint())
+
+    @_logged_tool(
+        arg_formatter=_loki_query_summary,
+        result_formatter=_loki_result_summary,
+    )
+    def query_loki(
+        query: str,
+        limit: int = 100,
+        time: str | None = None,
+    ) -> dict[str, object]:
+        """Run a Loki instant query using LogQL.
+
+        Use this to search logs at a specific point in time.
+        Unlike get_pod_logs (K8s API, live only), Loki retains historical logs
+        even after pod restarts or deletion.
+
+        Args:
+            query: LogQL query string.
+                   Examples:
+                   - '{namespace="bookinfo", pod="details-v1-xxx"}'
+                   - '{namespace="bookinfo"} |= "error"'
+                   - 'rate({namespace="bookinfo"}[5m])'
+            limit: Max log entries to return (default 100).
+            time: Evaluation time (RFC3339 or Unix timestamp, optional).
+        """
+        if loki_client is None:
+            return _mask({"warning": "loki client not configured"})
+        return _mask(loki_client.query(query, limit=limit, time=time))
+
+    @_logged_tool(
+        arg_formatter=_loki_range_summary,
+        result_formatter=_loki_result_summary,
+    )
+    def query_loki_range(
+        query: str,
+        start: str,
+        end: str,
+        limit: int = 100,
+        step: str | None = None,
+    ) -> dict[str, object]:
+        """Run a Loki range query to get log entries over a time window.
+
+        Use this to retrieve logs around an incident timeframe.
+        Loki retains historical logs even after pod restarts or deletion,
+        making it essential for post-mortem analysis.
+
+        Args:
+            query: LogQL query string (e.g., '{namespace="bookinfo"} |= "error"').
+            start: Start time (RFC3339 e.g., '2024-01-01T00:00:00Z' or Unix timestamp).
+            end: End time (RFC3339 or Unix timestamp).
+            limit: Max log entries to return (default 100).
+            step: Query resolution for metric queries (e.g., '1m', '5m'). Optional.
+        """
+        if loki_client is None:
+            return _mask({"warning": "loki client not configured"})
+        return _mask(loki_client.query_range(query, start=start, end=end, limit=limit, step=step))
+
+    @_logged_tool(result_formatter=_default_result_summary)
+    def list_loki_labels() -> dict[str, object]:
+        """List available label names from Loki.
+
+        Use this to discover what labels are available before building a LogQL query.
+        Common labels: namespace, pod, container, app, stream (stdout/stderr).
+        """
+        if loki_client is None:
+            return _mask({"warning": "loki client not configured"})
+        return _mask(loki_client.list_labels())
+
+    @_logged_tool()
+    def get_loki_label_values(label: str) -> dict[str, object]:
+        """List values for a specific Loki label.
+
+        Use this to find exact pod names, namespaces, or container names
+        before constructing a LogQL query.
+
+        Args:
+            label: Label name (e.g., 'namespace', 'pod', 'container', 'app').
+        """
+        if loki_client is None:
+            return _mask({"warning": "loki client not configured"})
+        return _mask(loki_client.label_values(label))
+
+    if loki_client is not None:
+        tools.extend(
+            [
+                discover_loki,
+                list_loki_labels,
+                get_loki_label_values,
+                query_loki,
+                query_loki_range,
             ]
         )
     return tools

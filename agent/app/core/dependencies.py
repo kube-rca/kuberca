@@ -5,6 +5,7 @@ from functools import lru_cache
 
 from app.clients.k8s import KubernetesClient
 from app.clients.llm_providers import get_provider_config
+from app.clients.loki import LokiClient
 from app.clients.prometheus import PrometheusClient
 from app.clients.strands_agent import AnalysisEngine, StrandsAnalysisEngine
 from app.clients.summary_store import PostgresSummaryStore, SummaryStore
@@ -59,6 +60,15 @@ def get_masker() -> Masker:
 
 
 @lru_cache
+def get_loki_client() -> LokiClient | None:
+    settings = get_settings()
+    client = LokiClient(settings)
+    if not client.enabled:
+        return None
+    return client
+
+
+@lru_cache
 def get_analysis_engine() -> AnalysisEngine | None:
     settings = get_settings()
 
@@ -73,6 +83,7 @@ def get_analysis_engine() -> AnalysisEngine | None:
         get_k8s_client(),
         get_prometheus_client(),
         get_tempo_client(),
+        get_loki_client(),
         masker=get_masker(),
         model_config=model_config,
     )

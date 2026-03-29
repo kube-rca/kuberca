@@ -95,6 +95,9 @@ class Settings:
     tempo_trace_limit: int
     tempo_lookback_minutes: int
     tempo_forward_minutes: int
+    loki_url: str
+    loki_http_timeout_seconds: int
+    loki_tenant_id: str
     prompt_token_budget: int
     prompt_max_log_lines: int
     prompt_max_events: int
@@ -157,6 +160,9 @@ def load_settings() -> Settings:
         tempo_trace_limit=max(1, _get_int_env("TEMPO_TRACE_LIMIT", 5)),
         tempo_lookback_minutes=_get_non_negative_int_env("TEMPO_LOOKBACK_MINUTES", 15),
         tempo_forward_minutes=_get_non_negative_int_env("TEMPO_FORWARD_MINUTES", 5),
+        loki_url=os.getenv("LOKI_URL", "").strip(),
+        loki_http_timeout_seconds=_get_int_env("LOKI_HTTP_TIMEOUT_SECONDS", 10),
+        loki_tenant_id=os.getenv("LOKI_TENANT_ID", "").strip(),
         prompt_token_budget=_get_non_negative_int_env("PROMPT_TOKEN_BUDGET", 32000),
         prompt_max_log_lines=_get_non_negative_int_env("PROMPT_MAX_LOG_LINES", 25),
         prompt_max_events=_get_non_negative_int_env("PROMPT_MAX_EVENTS", 25),
