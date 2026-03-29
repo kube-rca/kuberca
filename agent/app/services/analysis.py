@@ -847,51 +847,63 @@ def _fallback_incident_summary(
     return title, summary, "\n".join(detail_lines)
 
 
+_TITLE_MAX_LEN = 100
+_SUMMARY_MAX_LEN = 300
+
+
+def _extract_inline_value(text: str, keys: list[str]) -> str:
+    """Extract value from inline format like '**제목 (Title)**: content here'."""
+    for line in text.strip().splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        lowered = stripped.lower()
+        if any(key in lowered for key in keys) and ":" in stripped:
+            return stripped.split(":", 1)[1].strip().strip("'\"*")
+    return ""
+
+
 def _parse_incident_summary(result: str, original_title: str) -> tuple[str, str, str]:
     """Parse AI response into title, summary and detail.
 
     The AI is instructed to return structured content with 제목, 요약 and 상세 분석 sections.
-    We extract each section and use the full result as detail.
+    Tries markdown-header extraction first, then inline colon-based extraction.
     """
-    lines = result.strip().split("\n")
+    all_keys = ["제목", "title", "요약", "summary", "상세", "detail"]
 
-    title = ""
-    summary = ""
+    # 1) Markdown header format (### 제목\ncontent)
+    title = _extract_section(result, ["제목", "title"], all_keys) or ""
+    summary = _extract_section(result, ["요약", "summary"], all_keys) or ""
 
-    for line in lines:
-        stripped = line.strip()
-        if not stripped:
-            continue
+    # 2) Inline format (**제목 (Title)**: content)
+    if not title:
+        title = _extract_inline_value(result, ["제목", "title"])
+    if not summary:
+        summary = _extract_inline_value(result, ["요약", "summary"])
 
-        # Extract title
-        if "제목" in stripped or "title" in stripped.lower():
-            # Try to get the content after colon or on the next meaningful line
-            if ":" in stripped:
-                title = stripped.split(":", 1)[1].strip().strip("'\"")
-            continue
-
-        # Extract summary
-        if "요약" in stripped or "summary" in stripped.lower():
-            if ":" in stripped:
-                summary = stripped.split(":", 1)[1].strip()
-            continue
-
-        # If we haven't found title yet and this looks like content, use it
-        if not title and not stripped.startswith(("*", "#", "-")):
-            title = stripped
-            continue
-
-        # If we have title but no summary and this looks like content
-        skip_prefixes = ("*", "#", "-", "상세", "근본", "영향", "해결", "재발")
-        if title and not summary and not stripped.startswith(skip_prefixes):
-            summary = stripped
-            break
+    # Title should be first line only
+    if title:
+        title = title.splitlines()[0].strip().strip("'\"")
 
     # Fallbacks
     if not title:
         title = original_title
     if not summary:
-        summary = result.replace("\n", " ").strip()
+        # Extract first non-empty paragraph instead of the entire response.
+        # When title was already extracted, skip past it to avoid duplication.
+        remainder = result
+        if title and title in remainder:
+            idx = remainder.index(title) + len(title)
+            remainder = remainder[idx:]
+        summary = _extract_first_paragraph(remainder) or _extract_first_paragraph(result)
+
+    # Enforce title length limit
+    if len(title) > _TITLE_MAX_LEN:
+        title = title[:_TITLE_MAX_LEN].rstrip() + "…"
+
+    # Enforce summary length limit
+    if len(summary) > _SUMMARY_MAX_LEN:
+        summary = summary[:_SUMMARY_MAX_LEN].rstrip() + "…"
 
     return title, summary, result
 
@@ -952,9 +964,35 @@ def _split_alert_analysis(result: str) -> tuple[str, str]:
     if not detail:
         detail = result.strip()
     if not summary:
-        summary = detail
+        summary = _extract_first_paragraph(result)
+        if len(summary) > _SUMMARY_MAX_LEN:
+            summary = summary[:_SUMMARY_MAX_LEN].rstrip() + "…"
 
     return summary, detail
+
+
+def _extract_first_paragraph(text: str) -> str:
+    """Extract the first non-empty paragraph from text.
+
+    Splits on blank lines and returns the first paragraph that is not a
+    markdown header (``#``-prefixed) or a section label ending with ``:``.
+    """
+    paragraph: list[str] = []
+    for line in text.strip().splitlines():
+        stripped = line.strip()
+        if not stripped:
+            if paragraph:
+                break
+            continue
+        # Skip markdown headers and section labels
+        if stripped.startswith("#") or stripped.endswith(":") or stripped.endswith("："):
+            if paragraph:
+                break
+            continue
+        paragraph.append(stripped)
+    return (
+        " ".join(paragraph) if paragraph else text.strip().splitlines()[0] if text.strip() else ""
+    )
 
 
 def _extract_section(text: str, keys: list[str], all_keys: list[str]) -> str | None:

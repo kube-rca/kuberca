@@ -12,7 +12,7 @@ from app.schemas.analysis import (
     IncidentSummaryRequest,
     PreviousAnalysisContext,
 )
-from app.services.analysis import AnalysisService
+from app.services.analysis import AnalysisService, _extract_first_paragraph, _parse_incident_summary
 
 
 class FakeKubernetesClient:
@@ -738,3 +738,82 @@ def test_summarize_incident_masks_prompt_and_response() -> None:
     assert "[MASKED]" in engine.last_prompt
     assert secret not in rendered
     assert "[MASKED]" in rendered
+
+
+# ---------------------------------------------------------------------------
+# _parse_incident_summary / _extract_first_paragraph unit tests
+# ---------------------------------------------------------------------------
+
+
+class TestExtractFirstParagraph:
+    def test_returns_first_paragraph(self):
+        text = (
+            "### 제목\n\nThis is the first paragraph."
+            "\nSecond line of same paragraph.\n\nAnother paragraph."
+        )
+        assert (
+            _extract_first_paragraph(text)
+            == "This is the first paragraph. Second line of same paragraph."
+        )
+
+    def test_skips_headers_and_labels(self):
+        text = "### Some Header\n요약:\nActual content here."
+        assert _extract_first_paragraph(text) == "Actual content here."
+
+    def test_empty_text(self):
+        assert _extract_first_paragraph("") == ""
+
+    def test_only_headers(self):
+        text = "### Header\n## Another\n제목:"
+        # Falls back to first line of text
+        assert _extract_first_paragraph(text) == "### Header"
+
+    def test_no_blank_lines(self):
+        text = "Line one.\nLine two.\nLine three."
+        assert _extract_first_paragraph(text) == "Line one. Line two. Line three."
+
+
+class TestParseIncidentSummary:
+    def test_well_structured_response(self):
+        result = (
+            "### 제목 (Title)\n"
+            "[svc] OOMKilled로 인한 Pod 재시작\n\n"
+            "### 요약 (Summary)\n"
+            "메모리 부족으로 Pod가 재시작되었습니다.\n\n"
+            "### 상세 분석 (Detail)\n"
+            "근본 원인 분석 내용..."
+        )
+        title, summary, detail = _parse_incident_summary(result, "fallback-title")
+        assert title == "[svc] OOMKilled로 인한 Pod 재시작"
+        assert summary == "메모리 부족으로 Pod가 재시작되었습니다."
+        assert detail == result
+
+    def test_fallback_title_used_when_extraction_fails(self):
+        result = "Some unstructured response without any section headers."
+        title, summary, detail = _parse_incident_summary(result, "my-fallback")
+        assert title == "my-fallback"
+
+    def test_summary_fallback_uses_first_paragraph_not_entire_response(self):
+        result = (
+            "### 제목 (Title)\n"
+            "[svc] 장애 제목\n\n"
+            "첫 번째 단락입니다.\n\n"
+            "두 번째 단락 — 상세 내용이 길게 이어집니다."
+        )
+        title, summary, detail = _parse_incident_summary(result, "fallback")
+        assert title == "[svc] 장애 제목"
+        # summary should NOT be the entire response
+        assert "두 번째 단락" not in summary
+        assert "첫 번째 단락" in summary
+
+    def test_title_truncated_at_max_len(self):
+        result = "### 제목 (Title)\n" + "A" * 200 + "\n\n### 요약 (Summary)\nShort summary."
+        title, summary, _ = _parse_incident_summary(result, "fallback")
+        assert len(title) <= 101  # 100 + ellipsis char
+        assert title.endswith("…")
+
+    def test_summary_truncated_at_max_len(self):
+        result = "### 제목 (Title)\ntitle\n\n### 요약 (Summary)\n" + "B" * 500
+        _, summary, _ = _parse_incident_summary(result, "fallback")
+        assert len(summary) <= 301  # 300 + ellipsis char
+        assert summary.endswith("…")
