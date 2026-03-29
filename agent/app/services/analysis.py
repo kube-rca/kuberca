@@ -883,7 +883,7 @@ def _parse_incident_summary(result: str, original_title: str) -> tuple[str, str,
 
     # Title should be first line only
     if title:
-        title = title.splitlines()[0].strip().strip("'\"")
+        title = title.splitlines()[0].strip().strip("'\"*")
 
     # Fallbacks
     if not title:
@@ -901,7 +901,9 @@ def _parse_incident_summary(result: str, original_title: str) -> tuple[str, str,
     if len(title) > _TITLE_MAX_LEN:
         title = title[:_TITLE_MAX_LEN].rstrip() + "…"
 
-    return title, summary, result
+    # Extract only the detail section; fall back to full result if not found.
+    detail = _extract_section(result, ["상세 분석", "상세", "detail"], all_keys) or result
+    return title, summary, detail
 
 
 def _build_incident_summary_prompt(request: IncidentSummaryRequest, masker: Masker) -> str:

@@ -786,7 +786,7 @@ class TestParseIncidentSummary:
         title, summary, detail = _parse_incident_summary(result, "fallback-title")
         assert title == "[svc] OOMKilled로 인한 Pod 재시작"
         assert summary == "메모리 부족으로 Pod가 재시작되었습니다."
-        assert detail == result
+        assert detail == "근본 원인 분석 내용..."
 
     def test_fallback_title_used_when_extraction_fails(self):
         result = "Some unstructured response without any section headers."
@@ -816,3 +816,48 @@ class TestParseIncidentSummary:
         result = "### 제목 (Title)\ntitle\n\n### 요약 (Summary)\n" + "B" * 500
         _, summary, _ = _parse_incident_summary(result, "fallback")
         assert len(summary) == 500
+
+    def test_detail_fallback_to_full_result_when_no_detail_section(self):
+        result = "Some unstructured response without any section headers."
+        _, _, detail = _parse_incident_summary(result, "my-fallback")
+        assert detail == result
+
+    def test_bold_markers_stripped_from_title(self):
+        result = (
+            "### 제목 (Title)\n"
+            "**[kube-rca] 복합 장애**\n\n"
+            "### 요약 (Summary)\n"
+            "요약 내용.\n\n"
+            "### 상세 분석 (Detail)\n"
+            "근본 원인..."
+        )
+        title, _, _ = _parse_incident_summary(result, "fallback")
+        assert "**" not in title
+        assert title == "[kube-rca] 복합 장애"
+
+    def test_italic_markers_stripped_from_title(self):
+        result = "### 제목 (Title)\n*긴급 알림*\n\n### 요약 (Summary)\n요약."
+        title, _, _ = _parse_incident_summary(result, "fallback")
+        assert title == "긴급 알림"
+
+    def test_asterisk_in_middle_of_title_preserved(self):
+        result = "### 제목 (Title)\nk8s * wildcard query\n\n### 요약 (Summary)\n요약."
+        title, _, _ = _parse_incident_summary(result, "fallback")
+        assert title == "k8s * wildcard query"
+
+    def test_detail_excludes_title_and_summary(self):
+        result = (
+            "### 제목 (Title)\n"
+            "장애 제목\n\n"
+            "### 요약 (Summary)\n"
+            "요약 한 줄.\n\n"
+            "### 상세 분석 (Detail)\n"
+            "* 근본 원인: OOM\n"
+            "* 영향 범위: bookinfo\n"
+            "* 해결 과정: 리소스 상향"
+        )
+        _, _, detail = _parse_incident_summary(result, "fallback")
+        assert "장애 제목" not in detail
+        assert "요약 한 줄" not in detail
+        assert "근본 원인: OOM" in detail
+        assert "영향 범위: bookinfo" in detail
