@@ -293,6 +293,11 @@ func toSlackMarkdown(text string) string {
 				}
 			}
 		}
+		if !inCodeBlock && !inInlineCode && strings.HasPrefix(text[i:], "***") {
+			builder.WriteByte('*')
+			i += 3
+			continue
+		}
 		if !inCodeBlock && !inInlineCode && strings.HasPrefix(text[i:], "**") {
 			builder.WriteByte('*')
 			i += 2
