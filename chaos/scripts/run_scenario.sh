@@ -193,7 +193,7 @@ if [ -n "$CHAOS_MANIFEST" ]; then
 fi
 
 if [ "$USE_FAULT_PERCENTAGE" = "true" ]; then
-  FAULT_PERCENTAGE=${FAULT_PERCENTAGE:-20}
+  FAULT_PERCENTAGE=${FAULT_PERCENTAGE:-40}
   if ! is_valid_percentage "$FAULT_PERCENTAGE"; then
     log_error "invalid FAULT_PERCENTAGE: $FAULT_PERCENTAGE (expected 0-100)"
     exit 1

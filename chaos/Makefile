@@ -4,7 +4,7 @@ NAMESPACE ?= bookinfo
 KUBE_CONTEXT ?=
 WAIT_SECONDS ?= 120
 POLL_INTERVAL_SECONDS ?= 3
-FAULT_PERCENTAGE ?= 20
+FAULT_PERCENTAGE ?= 40
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make <target>\n\nTargets:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-16s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
