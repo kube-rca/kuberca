@@ -1,6 +1,10 @@
 package client
 
-import "testing"
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+)
 
 func TestToSlackMarkdown(t *testing.T) {
 	tests := []struct {
@@ -56,5 +60,28 @@ func TestToSlackMarkdown(t *testing.T) {
 				t.Fatalf("toSlackMarkdown() = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestSlackAttachmentMarshalsMrkdwnIn(t *testing.T) {
+	msg := SlackMessage{
+		Channel: "C123",
+		Attachments: []SlackAttachment{
+			{
+				Title:    "AI",
+				Text:     "*조치 사항*",
+				MrkdwnIn: []string{"text", "fields"},
+			},
+		},
+	}
+
+	payload, err := json.Marshal(msg)
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+
+	got := string(payload)
+	if !strings.Contains(got, `"mrkdwn_in":["text","fields"]`) {
+		t.Fatalf("expected mrkdwn_in in payload, got %s", got)
 	}
 }

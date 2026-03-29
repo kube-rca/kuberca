@@ -59,6 +59,7 @@ type SlackAttachment struct {
 	Color      string       `json:"color"`
 	Title      string       `json:"title"`
 	Text       string       `json:"text"`
+	MrkdwnIn   []string     `json:"mrkdwn_in,omitempty"`
 	Footer     string       `json:"footer,omitempty"`
 	FooterIcon string       `json:"footer_icon,omitempty"`
 	Ts         int64        `json:"ts,omitempty"`
@@ -233,6 +234,9 @@ func (c *SlackClient) SendToThread(threadTS, text string) error {
 				Color: "#6f42c1", // purple for AI analysis
 				Title: "🤖 AI 분석 결과",
 				Text:  toSlackMarkdown(text),
+				MrkdwnIn: []string{
+					"text",
+				},
 			},
 		},
 	}

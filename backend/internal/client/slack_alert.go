@@ -57,6 +57,7 @@ func (c *SlackClient) SendAlert(alert model.Alert, status, incidentID string, is
 				Color:      color,
 				Title:      title,
 				Text:       alert.Annotations["description"],
+				MrkdwnIn:   []string{"text", "fields"},
 				Fields:     fields,
 				Footer:     "kube-rca",
 				FooterIcon: "https://kubernetes.io/images/favicon.png",
@@ -156,6 +157,7 @@ func (c *SlackClient) SendFlappingDetection(alert model.Alert, incidentID string
 				Color:      "#ff9800", // Orange for flapping warning
 				Title:      title,
 				Text:       description,
+				MrkdwnIn:   []string{"text", "fields"},
 				Fields:     fields,
 				Footer:     "kube-rca",
 				FooterIcon: "https://kubernetes.io/images/favicon.png",
@@ -195,6 +197,7 @@ func (c *SlackClient) SendFlappingCleared(fingerprint, threadTS string) error {
 				Color:      "#36a64f", // Green for cleared
 				Title:      title,
 				Text:       description,
+				MrkdwnIn:   []string{"text"},
 				Footer:     "kube-rca",
 				FooterIcon: "https://kubernetes.io/images/favicon.png",
 				Ts:         time.Now().Unix(),
