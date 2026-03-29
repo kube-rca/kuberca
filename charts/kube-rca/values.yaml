@@ -115,11 +115,7 @@ backend:
     seccompProfile:
       type: RuntimeDefault
   # -- Container-level security context for the backend container.
-  securityContext:
-    allowPrivilegeEscalation: false
-    capabilities:
-      drop:
-        - ALL
+  securityContext: {}
   # -- Node labels for backend pods assignment.
   nodeSelector: {}
   # -- Tolerations for backend pods assignment.
@@ -293,11 +289,7 @@ agent:
     seccompProfile:
       type: RuntimeDefault
   # -- Container-level security context for the agent container.
-  securityContext:
-    allowPrivilegeEscalation: false
-    capabilities:
-      drop:
-        - ALL
+  securityContext: {}
   # -- Agent log level (LOG_LEVEL).
   logLevel: "info"
   # -- Uvicorn worker count (WEB_CONCURRENCY).
@@ -448,11 +440,7 @@ frontend:
     seccompProfile:
       type: RuntimeDefault
   # -- Container-level security context for the frontend container.
-  securityContext:
-    allowPrivilegeEscalation: false
-    capabilities:
-      drop:
-        - ALL
+  securityContext: {}
   # -- Node labels for frontend pods assignment.
   nodeSelector: {}
   # -- Tolerations for frontend pods assignment.
@@ -524,11 +512,7 @@ openapi:
     seccompProfile:
       type: RuntimeDefault
   # -- Container-level security context for the OpenAPI container.
-  securityContext:
-    allowPrivilegeEscalation: false
-    capabilities:
-      drop:
-        - ALL
+  securityContext: {}
   # -- Node labels for OpenAPI pods assignment.
   nodeSelector: {}
   # -- Tolerations for OpenAPI pods assignment.
