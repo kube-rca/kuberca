@@ -927,10 +927,6 @@ def _resolve_analysis_quality(
     if not target.namespace or (not target.pod_name and not target.service_name):
         return "low"
 
-    evidence_count = _count_direct_evidence(k8s_context)
-    if evidence_count <= 0:
-        return "low"
-
     critical_missing = {
         "alert.labels.namespace",
         "k8s.core_api",
@@ -938,7 +934,7 @@ def _resolve_analysis_quality(
     if any(item in critical_missing for item in missing_data):
         return "medium"
 
-    return "high" if evidence_count >= 2 else "medium"
+    return "high"
 
 
 def _resolve_context_target(k8s_context: K8sContext) -> AnalysisTarget:
@@ -971,21 +967,6 @@ def _has_log_lines(snippets: list[object]) -> bool:
         if isinstance(logs, list) and any(isinstance(line, str) and line for line in logs):
             return True
     return False
-
-
-def _count_direct_evidence(k8s_context: K8sContext) -> int:
-    evidence = 0
-    if k8s_context.pod_status is not None:
-        evidence += 1
-    if k8s_context.events:
-        evidence += 1
-    if _has_log_lines(k8s_context.current_logs):
-        evidence += 1
-    if _has_log_lines(k8s_context.previous_logs):
-        evidence += 1
-    if k8s_context.pod_spec is not None:
-        evidence += 1
-    return evidence
 
 
 def _resolve_mesh_type(k8s_context: K8sContext) -> str:

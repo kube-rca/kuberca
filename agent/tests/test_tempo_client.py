@@ -5,7 +5,7 @@ import urllib.parse
 import pytest
 
 import app.clients.tempo as tempo_module
-from app.clients.tempo import TempoClient
+from app.clients.tempo import TempoClient, build_traceql_query
 from app.core.config import load_settings
 
 
@@ -52,6 +52,26 @@ def test_search_traces_normalizes_rfc3339_window_to_unix(
     params = urllib.parse.parse_qs(parsed.query)
     assert params["start"] == ["1770402600"]
     assert params["end"] == ["1770403200"]
+
+
+def test_build_traceql_query_uses_fqdn_service_name() -> None:
+    query = build_traceql_query(service_name="ratings", namespace="bookinfo")
+    assert query == '{ resource.service.name = "ratings.bookinfo" }'
+
+
+def test_build_traceql_query_service_only() -> None:
+    query = build_traceql_query(service_name="ratings", namespace=None)
+    assert query == '{ resource.service.name = "ratings" }'
+
+
+def test_build_traceql_query_namespace_only() -> None:
+    query = build_traceql_query(service_name=None, namespace="bookinfo")
+    assert query == '{ resource.service.name =~ ".*\\.bookinfo" }'
+
+
+def test_build_traceql_query_empty() -> None:
+    query = build_traceql_query(service_name=None, namespace=None)
+    assert query == "{}"
 
 
 def test_search_traces_preserves_unix_window(monkeypatch: pytest.MonkeyPatch) -> None:

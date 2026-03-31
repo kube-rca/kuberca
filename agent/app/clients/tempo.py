@@ -160,12 +160,16 @@ class TempoClient:
         except urllib.error.HTTPError as exc:
             body = exc.read().decode("utf-8", errors="replace")
             self._logger.warning("Tempo HTTP error %s for %s", exc.code, url)
-            return None, {
-                "status_code": exc.code,
-                "reason": str(exc.reason),
-                "url": url,
-                "body": body[:300],
-            }, exc.code
+            return (
+                None,
+                {
+                    "status_code": exc.code,
+                    "reason": str(exc.reason),
+                    "url": url,
+                    "body": body[:300],
+                },
+                exc.code,
+            )
         except Exception as exc:  # noqa: BLE001
             self._logger.warning("Failed to query Tempo: %s", exc)
             return None, {"reason": str(exc), "url": url}, None
@@ -174,11 +178,15 @@ class TempoClient:
             data = json.loads(payload.decode("utf-8"))
         except json.JSONDecodeError as exc:
             self._logger.warning("Failed to decode Tempo response: %s", exc)
-            return None, {
-                "reason": "failed to decode tempo response",
-                "detail": str(exc),
-                "url": url,
-            }, None
+            return (
+                None,
+                {
+                    "reason": "failed to decode tempo response",
+                    "detail": str(exc),
+                    "url": url,
+                },
+                None,
+            )
 
         if not isinstance(data, (dict, list)):
             return None, {"reason": "unexpected tempo payload type", "url": url}, None
@@ -195,16 +203,16 @@ class TempoClient:
 
 
 def build_traceql_query(service_name: str | None, namespace: str | None) -> str:
-    filters: list[str] = []
+    if service_name and namespace:
+        fqdn = f"{service_name}.{namespace}".replace('"', '\\"')
+        return f'{{ resource.service.name = "{fqdn}" }}'
     if service_name:
         escaped = service_name.replace('"', '\\"')
-        filters.append(f'resource.service.name = "{escaped}"')
+        return f'{{ resource.service.name = "{escaped}" }}'
     if namespace:
-        escaped = namespace.replace('"', '\\"')
-        filters.append(f'resource.k8s.namespace.name = "{escaped}"')
-    if not filters:
-        return "{}"
-    return "{ " + " && ".join(filters) + " }"
+        escaped = namespace.replace('"', '\\"').replace(".", "\\.")
+        return f'{{ resource.service.name =~ ".*\\.{escaped}" }}'
+    return "{}"
 
 
 def _extract_trace_summaries(
