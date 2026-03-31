@@ -4,12 +4,13 @@ import time
 from collections import OrderedDict
 from contextlib import contextmanager
 from threading import Lock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
 from tenacity import RetryError
 
-from app.clients.strands_agent import StrandsAnalysisEngine, _is_retryable
+from app.clients.strands_agent import StrandsAnalysisEngine, _has_transport_error, _is_retryable
 
 
 class _FakeServerError(Exception):
@@ -20,6 +21,68 @@ class _FakeServerError(Exception):
 _FakeServerError.__module__ = "google.genai.errors"
 _FakeServerError.__qualname__ = "ServerError"
 _FakeServerError.__name__ = "ServerError"
+
+
+# ---------------------------------------------------------------------------
+# httpx transport error tests
+# ---------------------------------------------------------------------------
+
+
+def test_httpx_read_error_is_retryable() -> None:
+    assert _is_retryable(httpx.ReadError("connection reset"))
+
+
+def test_httpx_connect_error_is_retryable() -> None:
+    assert _is_retryable(httpx.ConnectError("connection refused"))
+
+
+def test_httpx_remote_protocol_error_is_retryable() -> None:
+    assert _is_retryable(httpx.RemoteProtocolError("protocol error"))
+
+
+def test_wrapped_httpx_error_is_retryable() -> None:
+    """Transport error wrapped via __cause__ should be retryable."""
+    wrapper = RuntimeError("event loop failed")
+    wrapper.__cause__ = httpx.ReadError("connection reset")
+    assert _is_retryable(wrapper)
+
+
+def test_has_transport_error_direct() -> None:
+    assert _has_transport_error(httpx.ReadError("read error"))
+
+
+def test_has_transport_error_chained() -> None:
+    wrapper = RuntimeError("strands error")
+    wrapper.__cause__ = httpx.ReadError("read error")
+    assert _has_transport_error(wrapper)
+
+
+def test_has_transport_error_false_for_server_error() -> None:
+    assert not _has_transport_error(_FakeServerError("503"))
+
+
+def test_retries_and_sanitizes_on_transport_error() -> None:
+    """On httpx.ReadError, retry should sanitize messages before next attempt."""
+    engine = _build_engine(max_attempts=5, total_timeout=10)
+    call_count = 0
+
+    def _fake_agent(prompt: str) -> str:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise httpx.ReadError("connection reset")
+        return "success"
+
+    agent = MagicMock()
+    agent.side_effect = _fake_agent
+    agent.messages = []
+
+    with patch("app.clients.strands_agent._sanitize_message_order") as mock_sanitize:
+        result = engine._invoke_with_retry(agent, "test")
+
+    assert result == "success"
+    assert call_count == 2
+    mock_sanitize.assert_called_once_with([])
 
 
 class _FakeSessionRepository:

@@ -26,6 +26,17 @@ from tenacity import (
     wait_random,
 )
 
+try:
+    import httpx as _httpx
+
+    _HTTPX_TRANSPORT_ERRORS: tuple[type[Exception], ...] = (
+        _httpx.ReadError,
+        _httpx.ConnectError,
+        _httpx.RemoteProtocolError,
+    )
+except ImportError:  # pragma: no cover
+    _HTTPX_TRANSPORT_ERRORS = ()
+
 from app.clients.conversation_manager import SafeSlidingWindowConversationManager
 from app.clients.k8s import KubernetesClient
 from app.clients.llm_providers import ModelConfig, create_model
@@ -484,6 +495,9 @@ def _is_invalid_conversation_manager_state(exc: BaseException) -> bool:
 
 def _is_retryable(exc: BaseException) -> bool:
     """Return True for transient server errors (5xx, 429) that warrant a retry."""
+    # httpx transport-level errors (connection dropped mid-stream)
+    if _HTTPX_TRANSPORT_ERRORS and isinstance(exc, _HTTPX_TRANSPORT_ERRORS):
+        return True
     # Gemini SDK — google.api_core.exceptions.ServerError
     if type(exc).__name__ == "ServerError" and "google" in getattr(type(exc), "__module__", ""):
         return True
@@ -495,6 +509,16 @@ def _is_retryable(exc: BaseException) -> bool:
     cause = getattr(exc, "__cause__", None)
     if cause is not None:
         return _is_retryable(cause)
+    return False
+
+
+def _has_transport_error(exc: BaseException) -> bool:
+    """Return True if any exception in the chain is an httpx transport error."""
+    if not _HTTPX_TRANSPORT_ERRORS:
+        return False
+    for err in _iter_exception_chain(exc):
+        if isinstance(err, _HTTPX_TRANSPORT_ERRORS):
+            return True
     return False
 
 
@@ -755,13 +779,21 @@ class StrandsAnalysisEngine:
     def _invoke_with_retry(self, agent: Agent, prompt: str) -> str:
         """Invoke the LLM agent with tenacity retry on transient errors."""
 
+        def _before_retry(retry_state: object) -> None:
+            _log_retry(retry_state)
+            outcome = getattr(retry_state, "outcome", None)
+            exc = outcome.exception() if outcome else None
+            if exc is not None and _has_transport_error(exc):
+                logger.info("Sanitizing agent messages after transport error before retry")
+                _sanitize_message_order(agent.messages)
+
         @retry(
             retry=retry_if_exception(_is_retryable),
             wait=wait_exponential(multiplier=1, min=self._retry_min_wait, max=self._retry_max_wait)
             + wait_random(0, 2),
             stop=stop_after_attempt(self._retry_max_attempts)
             | stop_after_delay(self._retry_total_timeout),
-            before_sleep=_log_retry,
+            before_sleep=_before_retry,
         )
         def _call() -> str:
             return str(agent(prompt))
