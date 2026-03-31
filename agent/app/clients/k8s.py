@@ -6,7 +6,14 @@ from collections.abc import Iterable
 from kubernetes import client, config
 from kubernetes.config.config_exception import ConfigException
 
-from app.models.k8s import K8sContext, PodEventSummary, PodLogSnippet, PodStatusSnapshot, PodSummary
+from app.models.k8s import (
+    AnalysisTarget,
+    K8sContext,
+    PodEventSummary,
+    PodLogSnippet,
+    PodStatusSnapshot,
+    PodSummary,
+)
 
 
 class KubernetesClient:
@@ -22,17 +29,22 @@ class KubernetesClient:
         self._events_api = client.EventsV1Api() if self._core_api else None
 
     def collect_context(
-        self, namespace: str | None, pod_name: str | None, workload: str | None = None
+        self,
+        namespace: str | None,
+        pod_name: str | None,
+        workload: str | None = None,
+        service_name: str | None = None,
     ) -> K8sContext:
+        target = AnalysisTarget(
+            namespace=namespace,
+            pod_name=pod_name,
+            workload=workload,
+            service_name=service_name,
+        )
         warnings: list[str] = []
-        if not namespace or not pod_name:
-            hint = ""
-            if namespace and workload:
-                hint = (
-                    f" Use list_pods_in_namespace('{namespace}', 'app={workload}') "
-                    "to discover pods."
-                )
-            warnings.append(f"namespace/pod_name missing from alert labels.{hint}")
+
+        if not namespace:
+            warnings.append("namespace missing from alert labels")
             return K8sContext(
                 namespace=namespace,
                 pod_name=pod_name,
@@ -41,6 +53,7 @@ class KubernetesClient:
                 events=[],
                 previous_logs=[],
                 warnings=warnings,
+                target=target,
             )
 
         if self._core_api is None:
@@ -53,12 +66,50 @@ class KubernetesClient:
                 events=[],
                 previous_logs=[],
                 warnings=warnings,
+                target=target,
             )
 
-        pod = self._read_pod(namespace, pod_name, warnings)
-        pod_status = self._extract_pod_status(pod) if pod else None
-        events = self._list_pod_events(namespace, pod_name, warnings)
-        previous_logs = self._get_previous_logs(namespace, pod, warnings)
+        pod = None
+        pod_status = None
+        events: list[PodEventSummary] = []
+        current_logs: list[PodLogSnippet] = []
+        previous_logs: list[PodLogSnippet] = []
+        pod_spec: dict[str, object] | None = None
+        workload_status: dict[str, object] | None = None
+        pod_metrics: dict[str, object] | None = None
+        node_status: dict[str, object] | None = None
+        service_manifest: dict[str, object] | None = None
+        endpoints_manifest: dict[str, object] | None = None
+
+        if pod_name:
+            pod = self._read_pod(namespace, pod_name, warnings)
+            pod_status = self._extract_pod_status(pod) if pod else None
+            events = self._list_pod_events(namespace, pod_name, warnings)
+            current_logs = self._get_current_logs(
+                namespace,
+                pod,
+                container=None,
+                tail_lines=None,
+                since_seconds=None,
+            )
+            previous_logs = self._get_previous_logs(namespace, pod, warnings)
+            pod_spec = self._summarize_pod_spec(pod) if pod else None
+            workload_status = self.get_workload_summary(namespace, pod_name)
+            pod_metrics = self.get_pod_metrics(namespace, pod_name)
+            if pod_status and pod_status.node_name:
+                node_status = self.get_node_status(pod_status.node_name)
+        else:
+            hint = ""
+            if workload:
+                hint = (
+                    f" Use list_pods_in_namespace('{namespace}', 'app={workload}') "
+                    "to discover pods."
+                )
+            warnings.append(f"pod_name missing from alert labels.{hint}")
+
+        if service_name:
+            service_manifest = self.get_manifest(namespace, "v1", "services", service_name)
+            endpoints_manifest = self.get_manifest(namespace, "v1", "endpoints", service_name)
 
         return K8sContext(
             namespace=namespace,
@@ -68,6 +119,14 @@ class KubernetesClient:
             events=events,
             previous_logs=previous_logs,
             warnings=warnings,
+            target=target,
+            current_logs=current_logs,
+            pod_spec=pod_spec,
+            workload_status=workload_status,
+            pod_metrics=pod_metrics,
+            node_status=node_status,
+            service_manifest=service_manifest,
+            endpoints_manifest=endpoints_manifest,
         )
 
     def get_pod_status(self, namespace: str, pod_name: str) -> PodStatusSnapshot | None:
@@ -725,9 +784,7 @@ class KubernetesClient:
             return [], f"core events query failed: {exc}"
         return [self._to_event_summary(item) for item in response.items], None
 
-    def _list_namespace_events_v1(
-        self, namespace: str
-    ) -> tuple[list[PodEventSummary], str | None]:
+    def _list_namespace_events_v1(self, namespace: str) -> tuple[list[PodEventSummary], str | None]:
         if self._events_api is None:
             return [], None
         try:
@@ -1297,24 +1354,25 @@ class KubernetesClient:
         return str(value)
 
 
-def extract_pod_target(labels: dict[str, str]) -> tuple[str | None, str | None, str | None]:
-    """Extract namespace, pod name, and workload from alert labels.
-
-    Returns:
-        tuple: (namespace, pod_name, workload)
-        - namespace: from 'namespace' or 'destination_service_namespace' labels
-        - pod_name: from 'pod' label
-        - workload: from 'workload' or 'destination_workload' labels (for pod discovery)
-    """
+def resolve_alert_target(labels: dict[str, str]) -> AnalysisTarget:
+    """Resolve alert target fields from labels using portable priority rules."""
     namespace_keys = ["namespace", "destination_service_namespace"]
     pod_keys = ["pod"]
     workload_keys = ["workload", "destination_workload"]
+    service_keys = [
+        "destination_service_name",
+        "service",
+        "destination_workload",
+        "workload",
+        "app",
+    ]
 
-    namespace = _first_label_value(labels, namespace_keys)
-    pod_name = _first_label_value(labels, pod_keys)
-    workload = _first_label_value(labels, workload_keys)
-
-    return namespace, pod_name, workload
+    return AnalysisTarget(
+        namespace=_first_label_value(labels, namespace_keys),
+        pod_name=_first_label_value(labels, pod_keys),
+        workload=_first_label_value(labels, workload_keys),
+        service_name=_first_label_value(labels, service_keys),
+    )
 
 
 def _first_label_value(labels: dict[str, str], keys: Iterable[str]) -> str | None:

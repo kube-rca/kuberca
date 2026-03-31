@@ -117,6 +117,7 @@ def get_chat_service() -> ChatService:
 @lru_cache
 def get_analysis_service() -> AnalysisService:
     prometheus_client = get_prometheus_client()
+    loki_client = get_loki_client()
     tempo_client = get_tempo_client()
     settings = get_settings()
     return AnalysisService(
@@ -124,6 +125,7 @@ def get_analysis_service() -> AnalysisService:
         get_analysis_engine(),
         masker=get_masker(),
         prometheus_enabled=prometheus_client is not None,
+        loki_enabled=loki_client is not None,
         tempo_client=tempo_client,
         tempo_enabled=tempo_client is not None,
         tempo_trace_limit=settings.tempo_trace_limit,

@@ -4,7 +4,13 @@ import json
 from datetime import datetime, timedelta, timezone
 
 from app.core.masking import RegexMasker
-from app.models.k8s import K8sContext, PodEventSummary, PodLogSnippet, PodStatusSnapshot
+from app.models.k8s import (
+    AnalysisTarget,
+    K8sContext,
+    PodEventSummary,
+    PodLogSnippet,
+    PodStatusSnapshot,
+)
 from app.schemas.alert import Alert
 from app.schemas.analysis import (
     AlertAnalysisRequest,
@@ -20,9 +26,34 @@ class FakeKubernetesClient:
         self._context = context
 
     def collect_context(
-        self, namespace: str | None, pod_name: str | None, workload: str | None = None
+        self,
+        namespace: str | None,
+        pod_name: str | None,
+        workload: str | None = None,
+        service_name: str | None = None,
     ) -> K8sContext:
-        return self._context
+        return K8sContext(
+            namespace=self._context.namespace,
+            pod_name=self._context.pod_name,
+            workload=self._context.workload,
+            pod_status=self._context.pod_status,
+            events=self._context.events,
+            previous_logs=self._context.previous_logs,
+            warnings=self._context.warnings,
+            target=AnalysisTarget(
+                namespace=namespace,
+                pod_name=pod_name,
+                workload=workload,
+                service_name=service_name,
+            ),
+            current_logs=self._context.current_logs,
+            pod_spec=self._context.pod_spec,
+            workload_status=self._context.workload_status,
+            pod_metrics=self._context.pod_metrics,
+            node_status=self._context.node_status,
+            service_manifest=self._context.service_manifest,
+            endpoints_manifest=self._context.endpoints_manifest,
+        )
 
 
 class FakeAnalysisEngine:
@@ -122,6 +153,22 @@ def _sample_request() -> AlertAnalysisRequest:
     )
 
 
+def _sample_request_with_service() -> AlertAnalysisRequest:
+    return AlertAnalysisRequest(
+        alert=Alert(
+            status="firing",
+            labels={
+                "namespace": "default",
+                "pod": "demo-pod",
+                "service": "demo-svc",
+            },
+            annotations={"summary": "Test"},
+            fingerprint="abc123",
+        ),
+        thread_ts="1234567890.123456",
+    )
+
+
 def _sample_request_with_starts_at(starts_at: str) -> AlertAnalysisRequest:
     return AlertAnalysisRequest(
         alert=Alert(
@@ -174,7 +221,8 @@ def test_analysis_service_fallback() -> None:
     assert "analysis_engine.not_configured" in context.get("missing_data", [])
     capabilities = context.get("capabilities")
     assert isinstance(capabilities, dict)
-    assert capabilities.get("traffic_policy") == "unknown"
+    assert capabilities.get("mesh_type") == "unknown"
+    assert capabilities.get("routing_evidence") == "unavailable"
 
 
 def test_analysis_service_quality_high_with_only_optional_missing_data() -> None:
@@ -204,6 +252,47 @@ def test_analysis_service_quality_high_with_only_optional_missing_data() -> None
         ],
         previous_logs=[PodLogSnippet(container="app", previous=True, logs=["ok"])],
         warnings=[],
+        current_logs=[PodLogSnippet(container="app", previous=False, logs=["live"])],
+        pod_spec={
+            "containers": [{"name": "app", "image": "demo"}],
+            "init_containers": [],
+        },
+        workload_status={"kind": "Deployment", "name": "demo", "ready_replicas": 1},
+        service_manifest={"metadata": {"name": "demo-svc"}, "spec": {"selector": {"app": "demo"}}},
+        endpoints_manifest={"metadata": {"name": "demo-svc"}, "subsets": [{"addresses": [{}]}]},
+    )
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=FakeAnalysisEngine("ok"),
+        prometheus_enabled=False,
+    )
+
+    _, _, _, response_context, _ = service.analyze(_sample_request_with_service())
+
+    assert response_context.get("analysis_quality") == "high"
+    assert "istio.routing_manifest" not in response_context.get("missing_data", [])
+
+
+def test_analysis_service_service_target_missing_still_high_quality() -> None:
+    """Pod-level alerts without service label can still achieve high quality."""
+    context = K8sContext(
+        namespace="default",
+        pod_name="demo-pod",
+        workload=None,
+        pod_status=PodStatusSnapshot(
+            phase="Running",
+            node_name="node-a",
+            start_time=None,
+            reason=None,
+            message=None,
+            conditions=[],
+            container_statuses=[],
+        ),
+        events=[],
+        previous_logs=[PodLogSnippet(container="app", previous=True, logs=["ok"])],
+        warnings=[],
+        current_logs=[PodLogSnippet(container="app", previous=False, logs=["live"])],
+        pod_spec={"containers": [{"name": "app", "image": "demo"}], "init_containers": []},
     )
     service = AnalysisService(
         FakeKubernetesClient(context),
@@ -214,7 +303,7 @@ def test_analysis_service_quality_high_with_only_optional_missing_data() -> None
     _, _, _, response_context, _ = service.analyze(_sample_request())
 
     assert response_context.get("analysis_quality") == "high"
-    assert "traffic_policy.match_conditions" not in response_context.get("missing_data", [])
+    assert "analysis.target.service_name" in response_context.get("missing_data", [])
 
 
 def test_analysis_service_uses_engine() -> None:
@@ -311,12 +400,76 @@ def test_analysis_service_prompt_with_tempo() -> None:
 
     assert "search_tempo_traces" in engine.last_prompt
     assert "get_tempo_trace" in engine.last_prompt
+    assert "get_service" in engine.last_prompt
+    assert "get_endpoints" in engine.last_prompt
     assert "get_manifest" in engine.last_prompt
     assert "list_manifests" in engine.last_prompt
     assert '"tempo"' in engine.last_prompt
     assert '"capabilities"' in engine.last_prompt
     assert '"missing_data"' in engine.last_prompt
+    assert "kubectl logs" not in engine.last_prompt
+    assert "istioctl proxy-config" not in engine.last_prompt
     assert tempo.calls
+
+
+def test_analysis_service_prompt_with_loki() -> None:
+    context = K8sContext(
+        namespace="default",
+        pod_name="demo-pod",
+        workload=None,
+        pod_status=None,
+        events=[],
+        previous_logs=[],
+        warnings=[],
+    )
+    engine = CapturingAnalysisEngine("ok")
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=engine,
+        loki_enabled=True,
+    )
+
+    service.analyze(_sample_request())
+
+    assert "query_loki_range" in engine.last_prompt
+    assert "list_loki_labels" in engine.last_prompt
+
+
+def test_analysis_service_detects_istio_mesh_and_uses_wrapper_tools() -> None:
+    context = K8sContext(
+        namespace="bookinfo",
+        pod_name="ratings-v1",
+        workload="ratings",
+        pod_status=None,
+        events=[],
+        previous_logs=[],
+        warnings=[],
+        pod_spec={
+            "containers": [
+                {"name": "ratings", "image": "ratings:v1"},
+                {"name": "istio-proxy", "image": "proxy:v1"},
+            ],
+            "init_containers": [],
+        },
+    )
+    engine = CapturingAnalysisEngine("ok")
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=engine,
+        prometheus_enabled=False,
+    )
+
+    _, _, _, response_context, _ = service.analyze(
+        _sample_request_with_starts_at("2024-01-01T12:00:00Z")
+    )
+
+    capabilities = response_context.get("capabilities")
+    assert isinstance(capabilities, dict)
+    assert capabilities.get("mesh_type") == "istio"
+    assert capabilities.get("routing_evidence") == "manifest_only"
+    assert "list_virtual_services" in engine.last_prompt
+    assert "list_destination_rules" in engine.last_prompt
+    assert "list_service_entries" in engine.last_prompt
 
 
 def test_analysis_service_adds_tempo_trace_artifacts() -> None:

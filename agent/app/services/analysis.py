@@ -6,12 +6,12 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, cast
 from uuid import uuid4
 
-from app.clients.k8s import KubernetesClient, extract_pod_target
+from app.clients.k8s import KubernetesClient, resolve_alert_target
 from app.clients.strands_agent import AnalysisEngine
 from app.clients.summary_store import SummaryStore
 from app.clients.tempo import TempoClient, build_traceql_query
 from app.core.masking import Masker, RegexMasker
-from app.models.k8s import K8sContext
+from app.models.k8s import AnalysisTarget, K8sContext
 from app.schemas.analysis import AlertAnalysisRequest, IncidentSummaryRequest
 
 
@@ -22,6 +22,7 @@ class AnalysisService:
         analysis_engine: AnalysisEngine | None,
         masker: Masker | None = None,
         prometheus_enabled: bool = False,
+        loki_enabled: bool = False,
         tempo_client: TempoClient | None = None,
         tempo_enabled: bool = False,
         tempo_trace_limit: int = 5,
@@ -38,6 +39,7 @@ class AnalysisService:
         self._analysis_engine = analysis_engine
         self._masker = masker or RegexMasker()
         self._prometheus_enabled = prometheus_enabled
+        self._loki_enabled = loki_enabled
         self._tempo_client = tempo_client
         self._tempo_enabled = tempo_enabled and tempo_client is not None
         self._tempo_trace_limit = max(1, tempo_trace_limit)
@@ -52,9 +54,14 @@ class AnalysisService:
     def analyze(
         self, request: AlertAnalysisRequest
     ) -> tuple[str, str, str, dict[str, object], list[dict[str, object]]]:
-        namespace, pod_name, workload = extract_pod_target(request.alert.labels)
-        k8s_context = self._k8s_client.collect_context(namespace, pod_name, workload)
-        tempo_context = self._collect_tempo_context(request)
+        target = resolve_alert_target(request.alert.labels)
+        k8s_context = self._k8s_client.collect_context(
+            target.namespace,
+            target.pod_name,
+            target.workload,
+            service_name=target.service_name,
+        )
+        tempo_context = self._collect_tempo_context(request, target)
         artifacts = _build_alert_artifacts(k8s_context, tempo_context)
         masked_artifacts = cast(list[dict[str, object]], self._masker.mask_object(artifacts))
         capabilities, capability_warnings = self._collect_capabilities(
@@ -62,7 +69,6 @@ class AnalysisService:
             tempo_context=tempo_context,
         )
         base_missing_data = _collect_missing_data(
-            labels=request.alert.labels,
             k8s_context=k8s_context,
             tempo_context=tempo_context,
             capabilities=capabilities,
@@ -85,6 +91,7 @@ class AnalysisService:
             warnings = _dedupe_strings(warnings)
 
             analysis_quality = _resolve_analysis_quality(
+                k8s_context=k8s_context,
                 missing_data=missing_data,
                 capabilities=capabilities,
                 engine_issue=engine_issue,
@@ -121,6 +128,7 @@ class AnalysisService:
             request,
             k8s_context,
             self._prometheus_enabled,
+            self._loki_enabled,
             self._tempo_enabled,
             tempo_context,
             capabilities,
@@ -225,13 +233,13 @@ class AnalysisService:
     def _collect_tempo_context(
         self,
         request: AlertAnalysisRequest,
+        target: AnalysisTarget,
     ) -> dict[str, object] | None:
         if not self._tempo_enabled or self._tempo_client is None:
             return None
 
-        labels = request.alert.labels
-        namespace = _resolve_trace_namespace(labels)
-        service_name = _resolve_trace_service_name(labels)
+        namespace = target.namespace
+        service_name = target.service_name
         analysis_type = request.analysis_type or request.alert.status
         start, end = _resolve_tempo_window(
             request.alert.starts_at,
@@ -286,11 +294,12 @@ class AnalysisService:
     ) -> tuple[dict[str, str], list[str]]:
         capabilities: dict[str, str] = {
             "k8s_core": "ok",
-            "prometheus": "ok" if self._prometheus_enabled else "unavailable",
-            "tempo": "ok" if self._tempo_enabled else "unavailable",
             "manifest_read": "ok",
-            "mesh": "unknown",
-            "traffic_policy": "unknown",
+            "prometheus": "ok" if self._prometheus_enabled else "unavailable",
+            "loki": "ok" if self._loki_enabled else "unavailable",
+            "tempo": "ok" if self._tempo_enabled else "unavailable",
+            "mesh_type": _resolve_mesh_type(k8s_context),
+            "routing_evidence": "unavailable",
         }
         warnings: list[str] = []
         if any(
@@ -298,7 +307,13 @@ class AnalysisService:
         ):
             capabilities["k8s_core"] = "unavailable"
             capabilities["manifest_read"] = "unavailable"
+            capabilities["mesh_type"] = "unknown"
+            capabilities["routing_evidence"] = "unavailable"
             warnings.append("kubernetes core api unavailable")
+        elif capabilities["mesh_type"] == "istio":
+            capabilities["routing_evidence"] = "manifest_only"
+        elif capabilities["mesh_type"] == "none":
+            capabilities["routing_evidence"] = "not_applicable"
         if tempo_context and tempo_context.get("query_status") == "error":
             capabilities["tempo"] = "degraded"
 
@@ -309,6 +324,7 @@ def _build_prompt(
     request: AlertAnalysisRequest,
     k8s_context: K8sContext,
     prometheus_enabled: bool,
+    loki_enabled: bool,
     tempo_enabled: bool,
     tempo_context: dict[str, object] | None,
     capabilities: dict[str, str],
@@ -332,6 +348,7 @@ def _build_prompt(
         payload["incident_id"] = masker.mask_text(request.incident_id)
 
     analysis_type = request.analysis_type or request.alert.status
+    mesh_type = capabilities.get("mesh_type", "unknown")
 
     tool_lines = [
         "- get_pod_status, get_pod_spec",
@@ -340,14 +357,33 @@ def _build_prompt(
         "- get_previous_pod_logs, get_pod_logs",
         "- get_workload_status, get_daemonset_manifest, get_node_status",
         "- get_pod_metrics, get_node_metrics",
+        "- get_service, get_endpoints",
         "- get_manifest, list_manifests",
     ]
     if prometheus_enabled:
         tool_lines.append("- discover_prometheus, list_prometheus_metrics")
         tool_lines.append("- query_prometheus, query_prometheus_range")
+    if loki_enabled:
+        tool_lines.append("- discover_loki, list_loki_labels, get_loki_label_values")
+        tool_lines.append("- query_loki, query_loki_range")
     if tempo_enabled:
         tool_lines.append("- discover_tempo, search_tempo_traces, get_tempo_trace")
+    if mesh_type == "istio":
+        tool_lines.append("- list_virtual_services, list_destination_rules, list_service_entries")
     tool_block = "\n".join(tool_lines)
+    policy_block = (
+        "Analysis policy:\n"
+        "- Prefer built-in tools over manual kubectl/istioctl instructions.\n"
+        "- Do not ask the user to run kubectl, istioctl, or equivalent commands "
+        "when available tools can fetch the same evidence.\n"
+        "- Do not mention Prometheus, Loki, Tempo, or Istio as action items "
+        "when the corresponding capability is unavailable.\n"
+        "- If direct evidence is incomplete, label the conclusion as a "
+        "hypothesis and explain the confidence gap.\n"
+        "- If mesh_type is 'none', do not mention Istio resources or mesh routing.\n"
+        "- If mesh_type is 'istio', treat routing evidence as manifest-only "
+        "and do not claim live proxy state.\n\n"
+    )
 
     summary_block = _format_session_summaries(
         [masker.mask_text(summary) for summary in recent_summaries]
@@ -372,6 +408,7 @@ def _build_prompt(
             "- Use '-' for unordered lists (do not use '*').\n"
             "- Limit each subsection to 3-5 bullets; one sentence per bullet (<= 120 chars).\n"
             "- Use inline code only for literal keys/values/commands.\n"
+            f"{policy_block}"
             "You may call tools if needed:\n"
             f"{tool_block}\n\n"
             "Previous firing analysis (DO NOT repeat this content):\n"
@@ -398,10 +435,11 @@ def _build_prompt(
             "- Use inline code only for literal keys/values/commands; "
             "avoid excessive code formatting.\n"
             "If data is missing, state what is missing.\n"
-            "- Do not infer user/header traffic match conditions without direct "
-            "manifest/log evidence.\n"
-            "- For routing policy evidence, use get_manifest/list_manifests with "
-            "explicit apiVersion/resource.\n"
+            "- Prefer direct evidence from logs, events, workload state, "
+            "Service, and Endpoints before adding manual follow-up actions.\n"
+            "- Do not infer routing behavior or external dependency failures "
+            "without direct evidence.\n"
+            f"{policy_block}"
             "You may call tools if needed:\n"
             f"{tool_block}\n\n"
         )
@@ -423,6 +461,18 @@ def _build_prompt(
             "'istio_request.*', 'kube_pod.*', 'node_.*'\n\n"
         )
 
+    if loki_enabled:
+        prompt += (
+            "For Loki queries:\n"
+            "1. Use list_loki_labels() and get_loki_label_values(label) to "
+            "discover labels before building LogQL.\n"
+            "2. Use query_loki_range(query, start, end, limit, step) for "
+            "incident-time historical logs.\n"
+            "3. Use query_loki(query, limit, time) for point-in-time log checks.\n"
+            "4. Before claiming that detailed logs are missing, check whether "
+            "Loki is available and query the incident window.\n\n"
+        )
+
     if tempo_enabled:
         prompt += (
             "For Tempo trace queries:\n"
@@ -431,6 +481,16 @@ def _build_prompt(
             "3. Use alert's startsAt to search around the incident time window.\n"
             "4. Prioritize failed spans and high-latency path evidence.\n"
             "5. If tempo query has warnings/errors, treat as query failure, not no-data.\n\n"
+        )
+
+    if mesh_type == "istio":
+        prompt += (
+            "For Istio routing evidence:\n"
+            "1. Use get_service(namespace, name) and get_endpoints(namespace, name) first.\n"
+            "2. Use list_virtual_services(), list_destination_rules(), and "
+            "list_service_entries() for manifest evidence.\n"
+            "3. Treat routing evidence as desired-state configuration only; "
+            "do not claim live Envoy behavior.\n\n"
         )
 
     if summary_block:
@@ -490,22 +550,37 @@ def _prepare_k8s_context(
     else:
         context["events"] = events[:max_events]
 
-    logs = context.get("previous_logs") or []
     if max_log_lines <= 0:
+        context["current_logs"] = []
         context["previous_logs"] = []
         return context
 
-    trimmed_logs: list[dict[str, object]] = []
-    for snippet in logs:
-        lines = snippet.get("logs") or []
-        lines = _dedupe_consecutive_lines(lines)
-        if max_log_lines > 0:
-            lines = lines[-max_log_lines:]
-        trimmed = dict(snippet)
-        trimmed["logs"] = lines
-        trimmed_logs.append(trimmed)
-    context["previous_logs"] = trimmed_logs
+    context["current_logs"] = _trim_log_context(
+        context.get("current_logs") or [],
+        max_log_lines=max_log_lines,
+    )
+    context["previous_logs"] = _trim_log_context(
+        context.get("previous_logs") or [],
+        max_log_lines=max_log_lines,
+    )
     return context
+
+
+def _trim_log_context(raw_snippets: list[object], *, max_log_lines: int) -> list[dict[str, object]]:
+    trimmed_logs: list[dict[str, object]] = []
+    for snippet in raw_snippets:
+        if not isinstance(snippet, dict):
+            continue
+        lines = snippet.get("logs") or []
+        if not isinstance(lines, list):
+            lines = []
+        normalized = [line for line in lines if isinstance(line, str)]
+        normalized = _dedupe_consecutive_lines(normalized)
+        normalized = normalized[-max_log_lines:]
+        trimmed = dict(snippet)
+        trimmed["logs"] = normalized
+        trimmed_logs.append(trimmed)
+    return trimmed_logs
 
 
 def _apply_prompt_budget(
@@ -532,7 +607,15 @@ def _apply_prompt_budget(
             header = f"{header} ({note})"
         return f"{header}:\n{_to_pretty_json(context)}\n"
 
-    # Step 1: remove previous logs
+    # Step 1: remove optional trace context first
+    if context_dict.get("tempo"):
+        trimmed = dict(context_dict)
+        trimmed.pop("tempo", None)
+        candidate = prompt_prefix + alert_block + build_context_block(trimmed, "tempo omitted")
+        if len(candidate) <= budget_chars:
+            return candidate
+
+    # Step 2: remove previous logs
     if context_dict.get("previous_logs"):
         trimmed = dict(context_dict)
         trimmed["previous_logs"] = []
@@ -540,10 +623,20 @@ def _apply_prompt_budget(
         if len(candidate) <= budget_chars:
             return candidate
 
-    # Step 2: remove events
+    # Step 2b: remove all logs (current + previous)
+    if context_dict.get("current_logs") or context_dict.get("previous_logs"):
+        trimmed = dict(context_dict)
+        trimmed["current_logs"] = []
+        trimmed["previous_logs"] = []
+        candidate = prompt_prefix + alert_block + build_context_block(trimmed, "all logs omitted")
+        if len(candidate) <= budget_chars:
+            return candidate
+
+    # Step 3: remove events + all logs
     if context_dict.get("events"):
         trimmed = dict(context_dict)
         trimmed["events"] = []
+        trimmed["current_logs"] = []
         trimmed["previous_logs"] = []
         candidate = (
             prompt_prefix + alert_block + build_context_block(trimmed, "events/logs omitted")
@@ -551,13 +644,13 @@ def _apply_prompt_budget(
         if len(candidate) <= budget_chars:
             return candidate
 
-    # Step 3: compact context
+    # Step 4: compact context
     compact = _compact_context_dict(context_dict)
     candidate = prompt_prefix + alert_block + build_context_block(compact, "compact")
     if len(candidate) <= budget_chars:
         return candidate
 
-    # Step 4: omit context entirely
+    # Step 5: omit context entirely
     return prompt_prefix + alert_block + build_context_block(None, "omitted due to prompt budget")
 
 
@@ -576,10 +669,17 @@ def _compact_context_dict(context: dict[str, object]) -> dict[str, object]:
     if isinstance(tempo, dict):
         compact_tempo = _compact_tempo_context(tempo)
     return {
+        "target": context.get("target"),
         "namespace": context.get("namespace"),
         "pod_name": context.get("pod_name"),
         "workload": context.get("workload"),
+        "service_name": context.get("service_name"),
         "pod_status": compact_status,
+        "current_logs": _compact_log_snippets(context.get("current_logs")),
+        "pod_spec": _compact_pod_spec(context.get("pod_spec")),
+        "workload_status": _compact_workload_status(context.get("workload_status")),
+        "service_manifest": _compact_service_manifest(context.get("service_manifest")),
+        "endpoints_manifest": _compact_endpoints_manifest(context.get("endpoints_manifest")),
         "tempo": compact_tempo,
         "warnings": context.get("warnings") or [],
         "capabilities": context.get("capabilities") or {},
@@ -597,6 +697,124 @@ def _dedupe_consecutive_lines(lines: list[str]) -> list[str]:
         deduped.append(line)
         last = line
     return deduped
+
+
+def _compact_log_snippets(
+    raw_snippets: object, *, limit_snippets: int = 1
+) -> list[dict[str, object]]:
+    if not isinstance(raw_snippets, list):
+        return []
+    compact: list[dict[str, object]] = []
+    for snippet in raw_snippets[:limit_snippets]:
+        if not isinstance(snippet, dict):
+            continue
+        logs = snippet.get("logs")
+        if not isinstance(logs, list):
+            logs = []
+        lines = [line for line in logs if isinstance(line, str)]
+        lines = _dedupe_consecutive_lines(lines)[-5:]
+        compact.append(
+            {
+                "container": snippet.get("container"),
+                "previous": snippet.get("previous"),
+                "error": snippet.get("error"),
+                "logs": lines,
+            }
+        )
+    return compact
+
+
+def _compact_pod_spec(raw_pod_spec: object) -> dict[str, object] | None:
+    if not isinstance(raw_pod_spec, dict):
+        return None
+    return {
+        "service_account": raw_pod_spec.get("service_account"),
+        "restart_policy": raw_pod_spec.get("restart_policy"),
+        "containers": _compact_container_specs(raw_pod_spec.get("containers")),
+        "init_containers": _compact_container_specs(raw_pod_spec.get("init_containers")),
+    }
+
+
+def _compact_container_specs(raw_containers: object) -> list[dict[str, object]]:
+    if not isinstance(raw_containers, list):
+        return []
+    compact: list[dict[str, object]] = []
+    for container in raw_containers[:4]:
+        if not isinstance(container, dict):
+            continue
+        compact.append(
+            {
+                "name": container.get("name"),
+                "image": container.get("image"),
+                "liveness_probe": container.get("liveness_probe") is not None,
+                "readiness_probe": container.get("readiness_probe") is not None,
+                "startup_probe": container.get("startup_probe") is not None,
+            }
+        )
+    return compact
+
+
+def _compact_workload_status(raw_workload_status: object) -> dict[str, object] | None:
+    if not isinstance(raw_workload_status, dict):
+        return None
+    return {
+        "kind": raw_workload_status.get("kind"),
+        "name": raw_workload_status.get("name"),
+        "replicas": raw_workload_status.get("replicas"),
+        "ready_replicas": raw_workload_status.get("ready_replicas"),
+        "available_replicas": raw_workload_status.get("available_replicas"),
+        "unavailable_replicas": raw_workload_status.get("unavailable_replicas"),
+        "conditions": raw_workload_status.get("conditions"),
+    }
+
+
+def _compact_service_manifest(raw_service_manifest: object) -> dict[str, object] | None:
+    if not isinstance(raw_service_manifest, dict):
+        return None
+    spec = raw_service_manifest.get("spec")
+    if not isinstance(spec, dict):
+        spec = {}
+    return {
+        "metadata": _compact_manifest_metadata(raw_service_manifest.get("metadata")),
+        "spec": {
+            "type": spec.get("type"),
+            "selector": spec.get("selector"),
+            "ports": spec.get("ports"),
+        },
+    }
+
+
+def _compact_endpoints_manifest(raw_endpoints_manifest: object) -> dict[str, object] | None:
+    if not isinstance(raw_endpoints_manifest, dict):
+        return None
+    subsets = raw_endpoints_manifest.get("subsets")
+    endpoint_summary: list[dict[str, object]] = []
+    if isinstance(subsets, list):
+        for subset in subsets[:3]:
+            if not isinstance(subset, dict):
+                continue
+            addresses = subset.get("addresses")
+            ports = subset.get("ports")
+            endpoint_summary.append(
+                {
+                    "address_count": len(addresses) if isinstance(addresses, list) else 0,
+                    "port_count": len(ports) if isinstance(ports, list) else 0,
+                }
+            )
+    return {
+        "metadata": _compact_manifest_metadata(raw_endpoints_manifest.get("metadata")),
+        "subsets": endpoint_summary,
+    }
+
+
+def _compact_manifest_metadata(raw_metadata: object) -> dict[str, object] | None:
+    if not isinstance(raw_metadata, dict):
+        return None
+    return {
+        "name": raw_metadata.get("name"),
+        "namespace": raw_metadata.get("namespace"),
+        "labels": raw_metadata.get("labels"),
+    }
 
 
 def _prompt_budget_to_chars(prompt_token_budget: int) -> int:
@@ -647,34 +865,6 @@ def _build_alert_fallback_key(request: AlertAnalysisRequest) -> str:
     return compact
 
 
-def _resolve_trace_namespace(labels: dict[str, str]) -> str | None:
-    return _first_non_empty_label(
-        labels,
-        ["destination_service_namespace", "namespace"],
-    )
-
-
-def _resolve_trace_service_name(labels: dict[str, str]) -> str | None:
-    return _first_non_empty_label(
-        labels,
-        [
-            "destination_service_name",
-            "service",
-            "destination_workload",
-            "workload",
-            "app",
-        ],
-    )
-
-
-def _first_non_empty_label(labels: dict[str, str], keys: list[str]) -> str | None:
-    for key in keys:
-        value = labels.get(key)
-        if value:
-            return value
-    return None
-
-
 def _resolve_tempo_window(
     starts_at: datetime | None,
     *,
@@ -703,32 +893,49 @@ def _to_iso_z(value: datetime) -> str:
 
 def _collect_missing_data(
     *,
-    labels: dict[str, str],
     k8s_context: K8sContext,
     tempo_context: dict[str, object] | None,
     capabilities: dict[str, str],
 ) -> list[str]:
     missing_data: list[str] = []
-    if not _first_non_empty_label(labels, ["namespace", "destination_service_namespace"]):
+    target = _resolve_context_target(k8s_context)
+    if not target.namespace:
         missing_data.append("alert.labels.namespace")
-    if not _first_non_empty_label(labels, ["pod"]):
+    if not target.pod_name:
         missing_data.append("alert.labels.pod")
+    if not target.service_name:
+        missing_data.append("analysis.target.service_name")
     if k8s_context.pod_status is None:
         missing_data.append("k8s.pod_status")
     if not k8s_context.events:
         missing_data.append("k8s.events")
-    if not k8s_context.previous_logs:
+    if not _has_log_lines(k8s_context.current_logs):
+        missing_data.append("k8s.current_logs")
+    if not _has_log_lines(k8s_context.previous_logs):
         missing_data.append("k8s.previous_logs")
+    if k8s_context.pod_spec is None:
+        missing_data.append("k8s.pod_spec")
+    if k8s_context.workload_status is None:
+        missing_data.append("k8s.workload_status")
+    if k8s_context.service_manifest is None:
+        missing_data.append("k8s.service")
+    if k8s_context.endpoints_manifest is None:
+        missing_data.append("k8s.endpoints")
     if capabilities.get("k8s_core") != "ok":
         missing_data.append("k8s.core_api")
     if capabilities.get("manifest_read") != "ok":
         missing_data.append("k8s.manifest_read")
     if capabilities.get("prometheus") != "ok":
         missing_data.append("prometheus.metrics")
+    if capabilities.get("loki") != "ok":
+        missing_data.append("loki.logs")
     if capabilities.get("tempo") == "unavailable":
         missing_data.append("tempo.traces")
-    if capabilities.get("traffic_policy") in {"unsupported", "unavailable"}:
-        missing_data.append("traffic_policy.match_conditions")
+    if (
+        capabilities.get("mesh_type") == "istio"
+        and capabilities.get("routing_evidence") == "unavailable"
+    ):
+        missing_data.append("istio.routing_manifest")
     if tempo_context:
         if tempo_context.get("query_status") == "error":
             missing_data.append("tempo.query_result")
@@ -757,6 +964,7 @@ def _collect_analysis_warnings(
 
 def _resolve_analysis_quality(
     *,
+    k8s_context: K8sContext,
     missing_data: list[str],
     capabilities: dict[str, str],
     engine_issue: str | None,
@@ -765,32 +973,79 @@ def _resolve_analysis_quality(
         return "low"
     if capabilities.get("k8s_core") != "ok":
         return "low"
-
-    optional_codes = {
-        "prometheus.metrics",
-        "tempo.traces",
-        "tempo.query_result",
-        "k8s.manifest_read",
-        "traffic_policy.match_conditions",
-    }
-    non_optional_missing = [item for item in missing_data if item not in optional_codes]
-    if not non_optional_missing:
-        return "high"
-
-    critical_codes = {
-        "alert.labels.namespace",
-        "alert.labels.pod",
-        "k8s.core_api",
-        "k8s.pod_status",
-    }
-    critical_count = sum(1 for item in non_optional_missing if item in critical_codes)
-    if critical_count >= 2:
+    target = _resolve_context_target(k8s_context)
+    if not target.namespace or (not target.pod_name and not target.service_name):
         return "low"
-    if critical_count >= 1:
+
+    evidence_count = _count_direct_evidence(k8s_context)
+    if evidence_count <= 0:
+        return "low"
+
+    critical_missing = {
+        "alert.labels.namespace",
+        "k8s.core_api",
+    }
+    if any(item in critical_missing for item in missing_data):
         return "medium"
-    if len(non_optional_missing) >= 2:
-        return "medium"
-    return "high"
+
+    return "high" if evidence_count >= 2 else "medium"
+
+
+def _resolve_context_target(k8s_context: K8sContext) -> AnalysisTarget:
+    if k8s_context.target is not None:
+        return k8s_context.target
+    return AnalysisTarget(
+        namespace=k8s_context.namespace,
+        pod_name=k8s_context.pod_name,
+        workload=k8s_context.workload,
+        service_name=None,
+    )
+
+
+def _has_log_lines(snippets: list[object]) -> bool:
+    for snippet in snippets:
+        logs = getattr(snippet, "logs", None)
+        if logs is None and isinstance(snippet, dict):
+            logs = snippet.get("logs")
+        if isinstance(logs, list) and any(isinstance(line, str) and line for line in logs):
+            return True
+    return False
+
+
+def _count_direct_evidence(k8s_context: K8sContext) -> int:
+    evidence = 0
+    if k8s_context.pod_status is not None:
+        evidence += 1
+    if k8s_context.events:
+        evidence += 1
+    if _has_log_lines(k8s_context.current_logs):
+        evidence += 1
+    if _has_log_lines(k8s_context.previous_logs):
+        evidence += 1
+    if k8s_context.pod_spec is not None:
+        evidence += 1
+    if k8s_context.workload_status is not None:
+        evidence += 1
+    if k8s_context.service_manifest is not None:
+        evidence += 1
+    if k8s_context.endpoints_manifest is not None:
+        evidence += 1
+    return evidence
+
+
+def _resolve_mesh_type(k8s_context: K8sContext) -> str:
+    if k8s_context.pod_spec is None:
+        return "unknown"
+
+    containers = k8s_context.pod_spec.get("containers")
+    if not isinstance(containers, list):
+        return "unknown"
+    for container in containers:
+        if not isinstance(container, dict):
+            continue
+        if container.get("name") == "istio-proxy":
+            return "istio"
+    return "none"
 
 
 def _dedupe_strings(values: list[str]) -> list[str]:
@@ -1060,12 +1315,13 @@ def _build_alert_artifacts(
             }
         )
 
-    for snippet in k8s_context.previous_logs:
+    for snippet in [*k8s_context.current_logs, *k8s_context.previous_logs]:
         logs = snippet.logs[:20]
+        log_kind = "previous" if snippet.previous else "current"
         artifacts.append(
             {
                 "type": "log",
-                "summary": f"{snippet.container} logs ({len(logs)} lines)",
+                "summary": f"{snippet.container} {log_kind} logs ({len(logs)} lines)",
                 "result": {
                     "container": snippet.container,
                     "previous": snippet.previous,

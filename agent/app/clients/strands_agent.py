@@ -195,6 +195,15 @@ def _namespace_name_summary(arguments: dict[str, Any]) -> dict[str, object]:
     }
 
 
+def _namespace_selector_limit_summary(arguments: dict[str, Any]) -> dict[str, object]:
+    summary = {"namespace": arguments.get("namespace")}
+    if "label_selector" in arguments and arguments.get("label_selector"):
+        summary["label_selector"] = arguments.get("label_selector")
+    if "limit" in arguments and arguments.get("limit") is not None:
+        summary["limit"] = arguments.get("limit")
+    return summary
+
+
 def _prometheus_query_summary(arguments: dict[str, Any]) -> dict[str, object]:
     query = arguments.get("query")
     summary: dict[str, object] = {
@@ -926,6 +935,32 @@ def _build_tools(
             return _mask({"warning": "daemonset not found"})
         return _mask(manifest)
 
+    @_logged_tool(arg_formatter=_namespace_name_summary)
+    def get_service(namespace: str, name: str) -> dict[str, object]:
+        """Fetch a Service manifest by name."""
+        manifest = k8s_client.get_manifest(
+            namespace,
+            api_version="v1",
+            resource="services",
+            name=name,
+        )
+        if manifest is None:
+            return _mask({"warning": "service not found"})
+        return _mask(manifest)
+
+    @_logged_tool(arg_formatter=_namespace_name_summary)
+    def get_endpoints(namespace: str, name: str) -> dict[str, object]:
+        """Fetch an Endpoints manifest by name."""
+        manifest = k8s_client.get_manifest(
+            namespace,
+            api_version="v1",
+            resource="endpoints",
+            name=name,
+        )
+        if manifest is None:
+            return _mask({"warning": "endpoints not found"})
+        return _mask(manifest)
+
     @_logged_tool()
     def get_node_status(node_name: str) -> dict[str, object]:
         """Fetch node status details."""
@@ -1109,6 +1144,66 @@ def _build_tools(
             )
         )
 
+    @_logged_tool(
+        arg_formatter=_namespace_selector_limit_summary,
+        result_formatter=_default_result_summary,
+    )
+    def list_virtual_services(
+        namespace: str,
+        label_selector: str | None = None,
+        limit: int = 20,
+    ) -> list[dict[str, object]]:
+        """List Istio VirtualService manifests in a namespace."""
+        return _mask(
+            k8s_client.list_manifests(
+                namespace,
+                api_version="networking.istio.io/v1",
+                resource="virtualservices",
+                label_selector=label_selector,
+                limit=limit,
+            )
+        )
+
+    @_logged_tool(
+        arg_formatter=_namespace_selector_limit_summary,
+        result_formatter=_default_result_summary,
+    )
+    def list_destination_rules(
+        namespace: str,
+        label_selector: str | None = None,
+        limit: int = 20,
+    ) -> list[dict[str, object]]:
+        """List Istio DestinationRule manifests in a namespace."""
+        return _mask(
+            k8s_client.list_manifests(
+                namespace,
+                api_version="networking.istio.io/v1",
+                resource="destinationrules",
+                label_selector=label_selector,
+                limit=limit,
+            )
+        )
+
+    @_logged_tool(
+        arg_formatter=_namespace_selector_limit_summary,
+        result_formatter=_default_result_summary,
+    )
+    def list_service_entries(
+        namespace: str,
+        label_selector: str | None = None,
+        limit: int = 20,
+    ) -> list[dict[str, object]]:
+        """List Istio ServiceEntry manifests in a namespace."""
+        return _mask(
+            k8s_client.list_manifests(
+                namespace,
+                api_version="networking.istio.io/v1",
+                resource="serviceentries",
+                label_selector=label_selector,
+                limit=limit,
+            )
+        )
+
     tools: list[object] = [
         get_pod_status,
         get_pod_spec,
@@ -1120,11 +1215,16 @@ def _build_tools(
         get_pod_logs,
         get_workload_status,
         get_daemonset_manifest,
+        get_service,
+        get_endpoints,
         get_node_status,
         get_pod_metrics,
         get_node_metrics,
         get_manifest,
         list_manifests,
+        list_virtual_services,
+        list_destination_rules,
+        list_service_entries,
     ]
     if prometheus_client is not None:
         tools.extend(

@@ -19,14 +19,14 @@
 
 ## Overview
 
-The KubeRCA Agent is a Python-based analysis service that performs Root Cause Analysis (RCA) on Kubernetes incidents. It receives alert payloads from the Backend, collects relevant context from the Kubernetes cluster and Prometheus, and uses LLM via Strands Agents (Gemini/OpenAI/Anthropic) to generate comprehensive analysis reports.
+The KubeRCA Agent is a Python-based analysis service that performs Root Cause Analysis (RCA) on Kubernetes incidents. It receives alert payloads from the Backend, collects relevant context from the Kubernetes cluster, and uses LLM via Strands Agents (Gemini/OpenAI/Anthropic) to generate comprehensive analysis reports. Prometheus, Loki, Tempo, and Istio-specific evidence are optional enrichers rather than hard requirements.
 
 ### Key Features
 
 - **AI-Powered RCA** - Uses Strands Agents with Gemini/OpenAI/Anthropic for intelligent analysis
-- **Kubernetes Context** - Collects pod logs, events, and resource status
+- **Portable Kubernetes Baseline** - Collects pod logs, events, workload, Service, and Endpoints evidence without requiring mesh/APM stacks
 - **Generic Manifest Read Tools** - Reads namespaced core/CRD manifests via `apiVersion` + `resource`
-- **Prometheus Integration** - Queries relevant metrics for analysis
+- **Optional Observability Enrichers** - Uses Prometheus, Loki, and Tempo when configured, while degrading gracefully when they are unavailable
 - **Session Persistence** - PostgreSQL-backed session history when `SESSION_DB_*` is configured
 - **Fallback Mode** - Returns basic summary when the provider API key is unavailable
 
@@ -47,9 +47,9 @@ flowchart LR
 ### Analysis Flow
 
 1. Receive alert payload from Backend (triggered by Alertmanager webhook or manual resolve)
-2. Collect Kubernetes context (logs, events, pod status)
-3. Query Prometheus for relevant metrics
-4. Build analysis prompt with collected context
+2. Collect Kubernetes baseline context (logs, events, pod/workload status, Service, Endpoints)
+3. Optionally query Prometheus/Loki/Tempo when those backends are configured
+4. Build a capability-aware analysis prompt with collected context
 5. Send to Strands Agents (Gemini/OpenAI/Anthropic) for RCA
 6. Return structured analysis result
 
@@ -133,7 +133,7 @@ make format  # Auto-format code
 
 ### POST /analyze
 
-Analyzes a single alert with Kubernetes/Prometheus context.
+Analyzes a single alert with Kubernetes baseline context and optional observability enrichers.
 
 **Request:**
 ```json
@@ -243,6 +243,14 @@ Notes:
 |----------|-------------|---------|
 | `PROMETHEUS_URL` | Prometheus base URL | - |
 | `PROMETHEUS_HTTP_TIMEOUT_SECONDS` | HTTP timeout | `5` |
+
+### Loki (Historical Logs)
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `LOKI_URL` | Loki base URL | - |
+| `LOKI_HTTP_TIMEOUT_SECONDS` | Loki HTTP timeout | `10` |
+| `LOKI_TENANT_ID` | Loki tenant header value (`X-Scope-OrgID`) | - |
 
 ### Tempo (APM Traces)
 
