@@ -7,14 +7,14 @@ backend:
       existingSecret: kube-rca-auth
     oidc:
       enabled: true
-      redirectUri: "https://kuberca.kkamji.net/api/v1/auth/oidc/callback"
+      redirectUri: "https://kuberca2.kkamji.net/api/v1/auth/oidc/callback"
       allowedEmails:
         - rlaxowl5460@gmail.com
       secret:
         existingSecret: kube-rca-auth
     cors:
       allowedOrigins:
-        - https://kuberca.kkamji.net
+        - https://kuberca2.kkamji.net
   postgresql:
     host: kube-rca-postgresql.kube-rca.svc.cluster.local
     port: 5432
@@ -31,15 +31,14 @@ backend:
     annotations:
       nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
       cert-manager.io/cluster-issuer: letsencrypt-prod
-      external-dns.alpha.kubernetes.io/target: 121.130.214.237
     hosts:
-      - api-kuberca.kkamji.net
+      - api-kuberca2.kkamji.net
     paths:
       - /
     tls:
-      - secretName: api-kuberca-tls
+      - secretName: api-kuberca2-tls
         hosts:
-          - api-kuberca.kkamji.net
+          - api-kuberca2.kkamji.net
 frontend:
   image:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr/frontend
@@ -50,15 +49,14 @@ frontend:
     annotations:
       nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
       cert-manager.io/cluster-issuer: letsencrypt-prod
-      external-dns.alpha.kubernetes.io/target: 121.130.214.237
     hosts:
-      - kuberca.kkamji.net
+      - kuberca2.kkamji.net
     paths:
       - /
     tls:
-      - secretName: kuberca-tls
+      - secretName: kuberca2-tls
         hosts:
-          - kuberca.kkamji.net
+          - kuberca2.kkamji.net
 postgresql:
   primary:
     persistence:
@@ -111,12 +109,11 @@ openapi:
     annotations:
       nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
       cert-manager.io/cluster-issuer: letsencrypt-prod
-      external-dns.alpha.kubernetes.io/target: 121.130.214.237
     hosts:
-      - docs-kuberca.kkamji.net
+      - docs-kuberca2.kkamji.net
     paths:
       - /
     tls:
-      - secretName: docs-kuberca-tls
+      - secretName: docs-kuberca2-tls
         hosts:
-          - docs-kuberca.kkamji.net
+          - docs-kuberca2.kkamji.net
