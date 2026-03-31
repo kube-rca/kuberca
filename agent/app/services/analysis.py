@@ -691,10 +691,6 @@ def _compact_context_dict(context: dict[str, object]) -> dict[str, object]:
         "service_name": context.get("service_name"),
         "pod_status": compact_status,
         "current_logs": _compact_log_snippets(context.get("current_logs")),
-        "pod_spec": _compact_pod_spec(context.get("pod_spec")),
-        "workload_status": _compact_workload_status(context.get("workload_status")),
-        "service_manifest": _compact_service_manifest(context.get("service_manifest")),
-        "endpoints_manifest": _compact_endpoints_manifest(context.get("endpoints_manifest")),
         "tempo": compact_tempo,
         "warnings": context.get("warnings") or [],
         "capabilities": context.get("capabilities") or {},
@@ -767,59 +763,6 @@ def _compact_container_specs(raw_containers: object) -> list[dict[str, object]]:
             }
         )
     return compact
-
-
-def _compact_workload_status(raw_workload_status: object) -> dict[str, object] | None:
-    if not isinstance(raw_workload_status, dict):
-        return None
-    return {
-        "kind": raw_workload_status.get("kind"),
-        "name": raw_workload_status.get("name"),
-        "replicas": raw_workload_status.get("replicas"),
-        "ready_replicas": raw_workload_status.get("ready_replicas"),
-        "available_replicas": raw_workload_status.get("available_replicas"),
-        "unavailable_replicas": raw_workload_status.get("unavailable_replicas"),
-        "conditions": raw_workload_status.get("conditions"),
-    }
-
-
-def _compact_service_manifest(raw_service_manifest: object) -> dict[str, object] | None:
-    if not isinstance(raw_service_manifest, dict):
-        return None
-    spec = raw_service_manifest.get("spec")
-    if not isinstance(spec, dict):
-        spec = {}
-    return {
-        "metadata": _compact_manifest_metadata(raw_service_manifest.get("metadata")),
-        "spec": {
-            "type": spec.get("type"),
-            "selector": spec.get("selector"),
-            "ports": spec.get("ports"),
-        },
-    }
-
-
-def _compact_endpoints_manifest(raw_endpoints_manifest: object) -> dict[str, object] | None:
-    if not isinstance(raw_endpoints_manifest, dict):
-        return None
-    subsets = raw_endpoints_manifest.get("subsets")
-    endpoint_summary: list[dict[str, object]] = []
-    if isinstance(subsets, list):
-        for subset in subsets[:3]:
-            if not isinstance(subset, dict):
-                continue
-            addresses = subset.get("addresses")
-            ports = subset.get("ports")
-            endpoint_summary.append(
-                {
-                    "address_count": len(addresses) if isinstance(addresses, list) else 0,
-                    "port_count": len(ports) if isinstance(ports, list) else 0,
-                }
-            )
-    return {
-        "metadata": _compact_manifest_metadata(raw_endpoints_manifest.get("metadata")),
-        "subsets": endpoint_summary,
-    }
 
 
 def _compact_manifest_metadata(raw_metadata: object) -> dict[str, object] | None:
@@ -928,14 +871,6 @@ def _collect_missing_data(
         missing_data.append("k8s.current_logs")
     if not _has_log_lines(k8s_context.previous_logs) and _total_restart_count(k8s_context) > 0:
         missing_data.append("k8s.previous_logs")
-    if k8s_context.pod_spec is None:
-        missing_data.append("k8s.pod_spec")
-    if k8s_context.workload_status is None:
-        missing_data.append("k8s.workload_status")
-    if k8s_context.service_manifest is None and target.service_name:
-        missing_data.append("k8s.service")
-    if k8s_context.endpoints_manifest is None and target.service_name:
-        missing_data.append("k8s.endpoints")
     if capabilities.get("k8s_core") != "ok":
         missing_data.append("k8s.core_api")
     if capabilities.get("manifest_read") != "ok":
@@ -1049,12 +984,6 @@ def _count_direct_evidence(k8s_context: K8sContext) -> int:
     if _has_log_lines(k8s_context.previous_logs):
         evidence += 1
     if k8s_context.pod_spec is not None:
-        evidence += 1
-    if k8s_context.workload_status is not None:
-        evidence += 1
-    if k8s_context.service_manifest is not None:
-        evidence += 1
-    if k8s_context.endpoints_manifest is not None:
         evidence += 1
     return evidence
 

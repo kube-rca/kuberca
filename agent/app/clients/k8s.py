@@ -75,11 +75,6 @@ class KubernetesClient:
         current_logs: list[PodLogSnippet] = []
         previous_logs: list[PodLogSnippet] = []
         pod_spec: dict[str, object] | None = None
-        workload_status: dict[str, object] | None = None
-        pod_metrics: dict[str, object] | None = None
-        node_status: dict[str, object] | None = None
-        service_manifest: dict[str, object] | None = None
-        endpoints_manifest: dict[str, object] | None = None
 
         if pod_name:
             pod = self._read_pod(namespace, pod_name, warnings)
@@ -94,10 +89,6 @@ class KubernetesClient:
             )
             previous_logs = self._get_previous_logs(namespace, pod, warnings)
             pod_spec = self._summarize_pod_spec(pod) if pod else None
-            workload_status = self.get_workload_summary(namespace, pod_name)
-            pod_metrics = self.get_pod_metrics(namespace, pod_name)
-            if pod_status and pod_status.node_name:
-                node_status = self.get_node_status(pod_status.node_name)
         else:
             hint = ""
             if workload:
@@ -106,10 +97,6 @@ class KubernetesClient:
                     "to discover pods."
                 )
             warnings.append(f"pod_name missing from alert labels.{hint}")
-
-        if service_name:
-            service_manifest = self.get_manifest(namespace, "v1", "services", service_name)
-            endpoints_manifest = self.get_manifest(namespace, "v1", "endpoints", service_name)
 
         return K8sContext(
             namespace=namespace,
@@ -122,11 +109,6 @@ class KubernetesClient:
             target=target,
             current_logs=current_logs,
             pod_spec=pod_spec,
-            workload_status=workload_status,
-            pod_metrics=pod_metrics,
-            node_status=node_status,
-            service_manifest=service_manifest,
-            endpoints_manifest=endpoints_manifest,
         )
 
     def get_pod_status(self, namespace: str, pod_name: str) -> PodStatusSnapshot | None:
