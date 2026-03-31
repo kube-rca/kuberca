@@ -90,12 +90,7 @@ class KubernetesClient:
             previous_logs = self._get_previous_logs(namespace, pod, warnings)
             pod_spec = self._summarize_pod_spec(pod) if pod else None
         else:
-            hint = ""
-            if workload:
-                hint = (
-                    f" Use list_pods_in_namespace('{namespace}', 'app={workload}') "
-                    "to discover pods."
-                )
+            hint = self._build_pod_discovery_hint(namespace, workload, service_name)
             warnings.append(f"pod_name missing from alert labels.{hint}")
 
         return K8sContext(
@@ -118,6 +113,22 @@ class KubernetesClient:
         if pod is None:
             return None
         return self._extract_pod_status(pod)
+
+    @staticmethod
+    def _build_pod_discovery_hint(
+        namespace: str,
+        workload: str | None,
+        service_name: str | None,
+    ) -> str:
+        """Build actionable discovery hint for LLM tools."""
+        if workload:
+            return f" Use list_pods_in_namespace('{namespace}', 'app={workload}') to discover pods."
+        if service_name:
+            return (
+                f" Use list_pods_in_namespace('{namespace}') "
+                f"to discover pods related to service '{service_name}'."
+            )
+        return f" Use list_pods_in_namespace('{namespace}') to discover affected pods."
 
     def list_pod_events(self, namespace: str, pod_name: str) -> list[PodEventSummary]:
         if self._core_api is None:
@@ -1339,8 +1350,8 @@ class KubernetesClient:
 def resolve_alert_target(labels: dict[str, str]) -> AnalysisTarget:
     """Resolve alert target fields from labels using portable priority rules."""
     namespace_keys = ["namespace", "destination_service_namespace"]
-    pod_keys = ["pod"]
-    workload_keys = ["workload", "destination_workload"]
+    pod_keys = ["pod", "pod_name", "exported_pod"]
+    workload_keys = ["workload", "destination_workload", "app", "k8s_app"]
     service_keys = [
         "destination_service_name",
         "service",
@@ -1357,9 +1368,12 @@ def resolve_alert_target(labels: dict[str, str]) -> AnalysisTarget:
     )
 
 
+_SENTINEL_VALUES = frozenset({"unknown", "none", ""})
+
+
 def _first_label_value(labels: dict[str, str], keys: Iterable[str]) -> str | None:
     for key in keys:
         value = labels.get(key)
-        if value:
+        if value and value.lower() not in _SENTINEL_VALUES:
             return value
     return None

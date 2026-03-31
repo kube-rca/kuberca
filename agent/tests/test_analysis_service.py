@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta, timezone
 
+from app.clients.k8s import resolve_alert_target
 from app.core.masking import RegexMasker
 from app.models.k8s import (
     AnalysisTarget,
@@ -18,7 +19,12 @@ from app.schemas.analysis import (
     IncidentSummaryRequest,
     PreviousAnalysisContext,
 )
-from app.services.analysis import AnalysisService, _extract_first_paragraph, _parse_incident_summary
+from app.services.analysis import (
+    AnalysisService,
+    _categorize_analysis_error,
+    _extract_first_paragraph,
+    _parse_incident_summary,
+)
 
 
 class FakeKubernetesClient:
@@ -1014,3 +1020,266 @@ class TestParseIncidentSummary:
         assert "요약 한 줄" not in detail
         assert "근본 원인: OOM" in detail
         assert "영향 범위: bookinfo" in detail
+
+
+# ── resolve_alert_target: expanded label keys ──
+
+
+def test_resolve_target_pod_name_key() -> None:
+    labels = {"namespace": "default", "pod_name": "demo-pod"}
+    target = resolve_alert_target(labels)
+    assert target.pod_name == "demo-pod"
+
+
+def test_resolve_target_exported_pod_key() -> None:
+    labels = {"namespace": "default", "exported_pod": "export-pod"}
+    target = resolve_alert_target(labels)
+    assert target.pod_name == "export-pod"
+
+
+def test_resolve_target_pod_priority_over_pod_name() -> None:
+    labels = {"namespace": "default", "pod": "primary", "pod_name": "secondary"}
+    target = resolve_alert_target(labels)
+    assert target.pod_name == "primary"
+
+
+def test_resolve_target_app_as_workload() -> None:
+    labels = {"namespace": "default", "app": "my-app"}
+    target = resolve_alert_target(labels)
+    assert target.workload == "my-app"
+
+
+def test_resolve_target_k8s_app_as_workload() -> None:
+    labels = {"namespace": "default", "k8s_app": "my-svc"}
+    target = resolve_alert_target(labels)
+    assert target.workload == "my-svc"
+
+
+def test_resolve_target_workload_priority_over_app() -> None:
+    labels = {"namespace": "default", "workload": "deploy-a", "app": "app-b"}
+    target = resolve_alert_target(labels)
+    assert target.workload == "deploy-a"
+
+
+# ── resolve_alert_target: sentinel value filtering ──
+
+
+def test_resolve_target_sentinel_unknown_filtered() -> None:
+    labels = {"namespace": "bookinfo", "destination_workload": "unknown"}
+    target = resolve_alert_target(labels)
+    assert target.workload is None
+
+
+def test_resolve_target_sentinel_none_filtered() -> None:
+    labels = {"namespace": "bookinfo", "pod": "none"}
+    target = resolve_alert_target(labels)
+    assert target.pod_name is None
+
+
+def test_resolve_target_sentinel_case_insensitive() -> None:
+    labels = {"namespace": "bookinfo", "destination_workload": "Unknown"}
+    target = resolve_alert_target(labels)
+    assert target.workload is None
+
+
+def test_resolve_target_sentinel_skips_to_next_key() -> None:
+    labels = {
+        "namespace": "bookinfo",
+        "destination_workload": "unknown",
+        "app": "reviews",
+    }
+    target = resolve_alert_target(labels)
+    assert target.workload == "reviews"
+
+
+# ── _categorize_analysis_error ──
+
+
+def test_categorize_error_auth_401() -> None:
+    exc = Exception("HTTP 401 Unauthorized")
+    cat = _categorize_analysis_error(exc)
+    assert cat.name == "llm_auth"
+
+
+def test_categorize_error_rate_limit() -> None:
+    exc = Exception("HTTP 429 rate limit exceeded")
+    cat = _categorize_analysis_error(exc)
+    assert cat.name == "llm_rate_limit"
+
+
+def test_categorize_error_timeout() -> None:
+    exc = Exception("request timed out after 180s")
+    cat = _categorize_analysis_error(exc)
+    assert cat.name == "llm_timeout"
+
+
+def test_categorize_error_session_db() -> None:
+    exc = Exception("psycopg2.OperationalError: connection refused")
+    cat = _categorize_analysis_error(exc)
+    assert cat.name == "session_db"
+
+
+def test_categorize_error_bad_request() -> None:
+    exc = Exception("HTTP 400 bad request")
+    cat = _categorize_analysis_error(exc)
+    assert cat.name == "llm_bad_request"
+
+
+def test_categorize_error_empty_str() -> None:
+    exc = RuntimeError()
+    cat = _categorize_analysis_error(exc)
+    assert cat.name == "unknown"
+    assert "RuntimeError" in cat.user_message
+
+
+def test_categorize_error_chained_cause() -> None:
+    cause = ConnectionError("connection refused to session db")
+    outer = RuntimeError()
+    outer.__cause__ = cause
+    cat = _categorize_analysis_error(outer)
+    assert cat.name == "session_db"
+
+
+# ── fallback_summary: events and annotations ──
+
+
+def test_fallback_with_events() -> None:
+    context = K8sContext(
+        namespace="default",
+        pod_name="demo-pod",
+        workload=None,
+        pod_status=None,
+        events=[
+            PodEventSummary(
+                type="Warning",
+                reason="BackOff",
+                message="Back-off restarting failed container",
+                count=3,
+                first_timestamp=None,
+                last_timestamp=None,
+                involved_object=None,
+            )
+        ],
+        previous_logs=[],
+        warnings=[],
+    )
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=None,
+    )
+    analysis, _, _, _, _ = service.analyze(_sample_request())
+    assert "recent_events (1)" in analysis
+    assert "[Warning] BackOff" in analysis
+
+
+def test_fallback_with_alert_annotation() -> None:
+    context = K8sContext(
+        namespace="default",
+        pod_name="demo-pod",
+        workload=None,
+        pod_status=None,
+        events=[],
+        previous_logs=[],
+        warnings=[],
+    )
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=None,
+    )
+    request = AlertAnalysisRequest(
+        alert=Alert(
+            status="firing",
+            labels={"namespace": "default", "pod": "demo-pod"},
+            annotations={"summary": "Pod is crash looping"},
+            fingerprint="ann-test",
+        ),
+        thread_ts="1234567890.123456",
+    )
+    analysis, _, _, _, _ = service.analyze(request)
+    assert "alert_summary: Pod is crash looping" in analysis
+
+
+# ── _resolve_analysis_quality: workload medium path ──
+
+
+def test_quality_medium_with_workload_no_pod() -> None:
+    """k8s_app resolves workload only (not in service_keys) -> medium quality."""
+    context = K8sContext(
+        namespace="bookinfo",
+        pod_name=None,
+        workload="reviews",
+        pod_status=None,
+        events=[],
+        previous_logs=[],
+        warnings=[],
+    )
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=FakeAnalysisEngine("## 요약\ntest\n## 상세 분석\ndetail"),
+    )
+    request = AlertAnalysisRequest(
+        alert=Alert(
+            status="firing",
+            labels={"namespace": "bookinfo", "k8s_app": "reviews"},
+            annotations={},
+            fingerprint="quality-test",
+        ),
+        thread_ts="1234567890.123456",
+    )
+    _, _, _, ctx, _ = service.analyze(request)
+    assert ctx.get("analysis_quality") == "medium"
+
+
+def test_quality_low_without_workload_or_pod() -> None:
+    context = K8sContext(
+        namespace="bookinfo",
+        pod_name=None,
+        workload=None,
+        pod_status=None,
+        events=[],
+        previous_logs=[],
+        warnings=[],
+    )
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=FakeAnalysisEngine("## 요약\ntest\n## 상세 분석\ndetail"),
+    )
+    request = AlertAnalysisRequest(
+        alert=Alert(
+            status="firing",
+            labels={"namespace": "bookinfo"},
+            annotations={},
+            fingerprint="quality-low-test",
+        ),
+        thread_ts="1234567890.123456",
+    )
+    _, _, _, ctx, _ = service.analyze(request)
+    assert ctx.get("analysis_quality") == "low"
+
+
+# ── error categorization in service.analyze() integration ──
+
+
+class FailingAnalysisEngine:
+    def analyze(self, prompt: str, incident_id: str | None = None) -> str:
+        raise RuntimeError()
+
+
+def test_analysis_service_error_categorization_integration() -> None:
+    context = K8sContext(
+        namespace="default",
+        pod_name="demo-pod",
+        workload=None,
+        pod_status=None,
+        events=[],
+        previous_logs=[],
+        warnings=[],
+    )
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=FailingAnalysisEngine(),
+    )
+    analysis, _, _, ctx, _ = service.analyze(_sample_request())
+    assert "analysis engine unavailable" in analysis
+    assert "RuntimeError" in analysis
+    assert ctx.get("analysis_quality") == "low"

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, cast
 from uuid import uuid4
@@ -163,12 +164,18 @@ class AnalysisService:
             masked_context = build_masked_context()
             return analysis, summary, detail, masked_context, masked_artifacts
         except Exception as exc:  # noqa: BLE001
-            self._logger.exception("Strands analysis failed")
+            error_cat = _categorize_analysis_error(exc)
+            self._logger.exception(
+                "Strands analysis failed: category=%s exc_type=%s exc_repr=%r",
+                error_cat.name,
+                type(exc).__name__,
+                exc,
+            )
             analysis = self._masker.mask_text(
-                _fallback_summary(request, k8s_context, f"analysis failed: {exc}")
+                _fallback_summary(request, k8s_context, error_cat.user_message)
             )
             summary, detail = _split_alert_analysis(analysis)
-            masked_context = build_masked_context(engine_issue="execution_failed")
+            masked_context = build_masked_context(engine_issue=error_cat.name)
             return analysis, summary, detail, masked_context, masked_artifacts
 
     def summarize_incident(self, request: IncidentSummaryRequest) -> tuple[str, str, str]:
@@ -924,7 +931,11 @@ def _resolve_analysis_quality(
     if capabilities.get("k8s_core") != "ok":
         return "low"
     target = _resolve_context_target(k8s_context)
-    if not target.namespace or (not target.pod_name and not target.service_name):
+    if not target.namespace:
+        return "low"
+    if not target.pod_name and not target.service_name:
+        if k8s_context.workload:
+            return "medium"
         return "low"
 
     critical_missing = {
@@ -984,6 +995,44 @@ def _resolve_mesh_type(k8s_context: K8sContext) -> str:
     return "none"
 
 
+@dataclass(frozen=True)
+class _AnalysisErrorCategory:
+    name: str
+    user_message: str
+
+
+def _iter_exc_chain(exc: BaseException) -> list[BaseException]:
+    """Collect all exceptions in __cause__/__context__ chain."""
+    chain: list[BaseException] = []
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current and id(current) not in seen:
+        chain.append(current)
+        seen.add(id(current))
+        current = getattr(current, "__cause__", None) or getattr(current, "__context__", None)
+    return chain
+
+
+def _categorize_analysis_error(exc: Exception) -> _AnalysisErrorCategory:
+    """Categorize analysis exception for structured logging and user messaging."""
+    exc_chain_str = " ".join(str(e) for e in _iter_exc_chain(exc) if str(e)).lower()
+    exc_type = type(exc).__name__
+
+    if any(
+        kw in exc_chain_str for kw in ("401", "403", "api_key", "unauthorized", "authentication")
+    ):
+        return _AnalysisErrorCategory("llm_auth", "LLM API authentication failed")
+    if any(kw in exc_chain_str for kw in ("429", "rate limit", "resource_exhausted")):
+        return _AnalysisErrorCategory("llm_rate_limit", "LLM API rate limit exceeded")
+    if any(kw in exc_chain_str for kw in ("timeout", "timed out", "deadline")):
+        return _AnalysisErrorCategory("llm_timeout", "LLM request timed out")
+    if any(kw in exc_chain_str for kw in ("connection refused", "psycopg", "operationalerror")):
+        return _AnalysisErrorCategory("session_db", "session database unavailable")
+    if any(kw in exc_chain_str for kw in ("400", "bad request")):
+        return _AnalysisErrorCategory("llm_bad_request", "LLM API rejected the request")
+    return _AnalysisErrorCategory("unknown", f"analysis failed ({exc_type})")
+
+
 def _dedupe_strings(values: list[str]) -> list[str]:
     deduped: list[str] = []
     seen: set[str] = set()
@@ -1007,10 +1056,18 @@ def _fallback_summary(
     ]
     if k8s_context.namespace or k8s_context.pod_name:
         lines.append(f"target: namespace={k8s_context.namespace}, pod={k8s_context.pod_name}")
+    if k8s_context.events:
+        lines.append(f"recent_events ({len(k8s_context.events)}):")
+        for event in k8s_context.events[:5]:
+            lines.append(f"  - [{event.type}] {event.reason}: {event.message}")
     if k8s_context.warnings:
         lines.append("warnings: " + ", ".join(k8s_context.warnings))
     if k8s_context.pod_status:
         lines.append(f"pod_phase: {k8s_context.pod_status.phase}")
+    if alert.annotations:
+        ann_summary = alert.annotations.get("summary") or alert.annotations.get("description")
+        if ann_summary:
+            lines.append(f"alert_summary: {ann_summary}")
     return "\n".join(lines)
 
 
