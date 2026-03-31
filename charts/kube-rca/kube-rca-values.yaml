@@ -91,7 +91,7 @@ agent:
     maxEvents: 25
     summaryMaxItems: 3
   gemini:
-    modelId: "gemini-3.1-pro-preview"
+    modelId: "gemini-3-flash-preview"
   openai:
     modelId: "gpt-5-mini"
   sessionDB:
