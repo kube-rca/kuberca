@@ -243,8 +243,9 @@ func (s *AppSettingsService) SyncEnvDefaults(ctx context.Context) {
 			continue
 		}
 
-		// ENV 변경 감지: 저장된 ENV 스냅샷과 현재 ENV 비교
-		envChanged := stored == nil || string(stored.Value) != string(envJSON)
+		// ENV 변경 감지: 저장된 ENV 스냅샷과 현재 ENV를 정규화된 JSON으로 비교.
+		// PostgreSQL JSONB는 key를 알파벳순으로 재정렬하므로 string 직접 비교는 불가.
+		envChanged := stored == nil || !jsonBytesEqual(stored.Value, envJSON)
 		if envChanged {
 			// ENV가 바뀜 → 설정값 덮어쓰기 + 스냅샷 갱신
 			if err := s.db.UpsertAppSetting(ctx, key, envJSON); err != nil {
@@ -260,6 +261,19 @@ func (s *AppSettingsService) SyncEnvDefaults(ctx context.Context) {
 			log.Printf("SyncEnvDefaults: %s unchanged, keeping DB value", key)
 		}
 	}
+}
+
+func jsonBytesEqual(a, b []byte) bool {
+	var va, vb interface{}
+	if err := json.Unmarshal(a, &va); err != nil {
+		return false
+	}
+	if err := json.Unmarshal(b, &vb); err != nil {
+		return false
+	}
+	ra, _ := json.Marshal(va)
+	rb, _ := json.Marshal(vb)
+	return string(ra) == string(rb)
 }
 
 // GetSettingWithFallback - 개별 키 조회 + ENV fallback 포함 응답 생성
