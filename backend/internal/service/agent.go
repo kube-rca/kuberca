@@ -45,6 +45,7 @@ func NewAgentService(agentClient *client.AgentClient, notifier client.Notifier, 
 }
 
 func (s *AgentService) RequestAnalysis(alert model.Alert, alertID, threadTS, incidentID string, skipThreadCheck bool) {
+	threadTS = s.analysisThreadContext(alertID, alert.Fingerprint, threadTS)
 	if !skipThreadCheck && threadTS == "" && s.requiresThreadRef() {
 		log.Printf("No thread_ref for alert (alert_id=%s, fingerprint=%s), skipping agent request", alertID, alert.Fingerprint)
 		return
@@ -140,18 +141,44 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, alertID, threadTS, inc
 		})
 	}
 
-	// 분석 결과를 Slack 쓰레드에 전송 (threadTS가 있을 때만)
-	if threadTS != "" {
-		log.Printf("Sending analysis notification (thread_ref=%s)", threadTS)
-		if err := s.notifier.Notify(client.AnalysisResultPostedEvent{
+	deliveries, err := s.db.GetAlertNotificationDeliveries(alertID)
+	if err != nil {
+		log.Printf("Failed to load alert notification deliveries (alert_id=%s): %v", alertID, err)
+	} else if notifier, ok := s.notifier.(client.DeliveryAwareNotifier); ok {
+		if len(deliveries) == 0 {
+			deliveries, err = s.recoverLegacyDeliveries(alertID, alert.Fingerprint, incidentID, alert.Status, threadTS)
+			if err != nil {
+				log.Printf("Failed to recover legacy deliveries (alert_id=%s): %v", alertID, err)
+				deliveries = nil
+			}
+		}
+		if len(deliveries) == 0 {
+			if threadTS != "" {
+				log.Printf("Attempting direct thread notification without persisted delivery (alert_id=%s, thread_ref=%s)", alertID, threadTS)
+				if err := s.notifier.Notify(client.AnalysisResultPostedEvent{
+					ThreadRef: threadTS,
+					Content:   resp.Analysis,
+				}); err != nil {
+					log.Printf("Failed direct analysis notification fallback: %v", err)
+				}
+			} else {
+				log.Printf("Skipping analysis notification (alert_id=%s, skip_reason=no_active_delivery)", alertID)
+			}
+			goto analysisDone
+		}
+		log.Printf("Sending analysis notification (alert_id=%s, delivery_count=%d)", alertID, len(deliveries))
+		if err := notifier.NotifyThreadEvent(client.AnalysisResultPostedEvent{
 			ThreadRef: threadTS,
 			Content:   resp.Analysis,
-		}); err != nil {
+		}, deliveries); err != nil {
 			log.Printf("Failed to send analysis notification: %v", err)
+		} else if touchErr := s.db.TouchAlertNotificationDeliveries(alertID, time.Now().UTC()); touchErr != nil {
+			log.Printf("Failed to touch alert notification deliveries: %v", touchErr)
 		}
 	} else {
-		log.Printf("Skipping analysis notification (no thread_ref, alert_id=%s)", alertID)
+		log.Printf("Skipping analysis notification (alert_id=%s, skip_reason=notifier_not_delivery_aware)", alertID)
 	}
+analysisDone:
 
 	log.Printf(
 		"Agent analysis finished (alert_id=%s, fingerprint=%s, incident_id=%s, elapsed_ms=%d)",
@@ -232,6 +259,24 @@ func (s *AgentService) requiresThreadRef() bool {
 	}
 	_, ok := s.notifier.(client.ThreadRefStore)
 	return ok
+}
+
+func (s *AgentService) analysisThreadContext(alertID, fingerprint, threadTS string) string {
+	if alertID != "" {
+		deliveries, err := s.db.GetAlertNotificationDeliveries(alertID)
+		if err == nil && len(deliveries) > 0 {
+			return deliveries[0].ThreadTS
+		}
+	}
+	if threadTS != "" {
+		return threadTS
+	}
+	legacyThreadTS, _ := s.db.GetAlertThreadTS(fingerprint)
+	return legacyThreadTS
+}
+
+func (s *AgentService) recoverLegacyDeliveries(alertID, fingerprint, incidentID, status, legacyThreadTS string) ([]model.AlertNotificationDelivery, error) {
+	return recoverLegacyDeliveries(s.notifier, s.db.UpsertAlertNotificationDeliveries, alertID, fingerprint, incidentID, status, legacyThreadTS)
 }
 
 // IsAnalyzing returns true if an analysis is currently in-flight for the given alertID.

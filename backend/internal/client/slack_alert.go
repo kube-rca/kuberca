@@ -4,6 +4,7 @@ package client
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/kube-rca/backend/internal/model"
@@ -15,11 +16,32 @@ import (
 //   - firing: 새 메시지 전송 후 thread_ts 저장
 //   - resolved: 기존 쓰레드에 답글로 전송 후 thread_ts 삭제
 func (c *SlackClient) SendAlert(alert model.Alert, status, incidentID string, isManual bool) error {
+	if status == "resolved" {
+		if threadTS, ok := c.GetThreadTS(alert.Fingerprint); ok {
+			return c.SendAlertReply(alert, status, incidentID, isManual, c.channelID, threadTS)
+		}
+	}
+	_, err := c.SendAlertWithReceipt(alert, status, incidentID, isManual)
+	return err
+}
+
+func (c *SlackClient) SendAlertWithReceipt(alert model.Alert, status, incidentID string, isManual bool) (*NotificationDeliveryReceipt, error) {
+	return c.sendAlertWithThread(alert, status, incidentID, isManual, c.channelID, "")
+}
+
+func (c *SlackClient) SendAlertReply(alert model.Alert, status, incidentID string, isManual bool, channelID, threadTS string) error {
+	_, err := c.sendAlertWithThread(alert, status, incidentID, isManual, channelID, threadTS)
+	return err
+}
+
+func (c *SlackClient) sendAlertWithThread(alert model.Alert, status, incidentID string, isManual bool, channelID, threadTS string) (*NotificationDeliveryReceipt, error) {
 	if !c.IsConfigured() {
-		return fmt.Errorf("slack bot token or channel ID not configured")
+		return nil, fmt.Errorf("slack bot token or channel ID not configured")
+	}
+	if strings.TrimSpace(channelID) == "" {
+		return nil, fmt.Errorf("channel ID not configured")
 	}
 
-	// 1. 메시지 포맷팅
 	color := c.getColorByStatus(status, alert.Labels["severity"])
 	emoji := c.getEmojiByStatus(status)
 
@@ -51,7 +73,7 @@ func (c *SlackClient) SendAlert(alert model.Alert, status, incidentID string, is
 	}
 
 	msg := SlackMessage{
-		Channel: c.channelID,
+		Channel: channelID,
 		Attachments: []SlackAttachment{
 			{
 				Color:      color,
@@ -66,28 +88,25 @@ func (c *SlackClient) SendAlert(alert model.Alert, status, incidentID string, is
 		},
 	}
 
-	// 2. resolved 알림: 기존 쓰레드로 전송
-	// fingerprint로 저장된 thread_ts를 조회하여 해당 쓰레드로 전송
-	if status == "resolved" {
-		if threadTS, ok := c.GetThreadTS(alert.Fingerprint); ok {
-			msg.ThreadTS = threadTS
-		}
+	if strings.TrimSpace(threadTS) != "" {
+		msg.ThreadTS = threadTS
 	}
 
-	// 3. Slack API 호출
 	resp, err := c.send(msg)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// 4. thread_ts 저장
-	if status == "firing" && resp.TS != "" {
+	if status == "firing" && resp.TS != "" && msg.ThreadTS == "" {
 		c.StoreThreadTS(alert.Fingerprint, resp.TS)
+		return &NotificationDeliveryReceipt{
+			NotifierType:  "slack",
+			ChannelID:     channelID,
+			RootMessageTS: resp.TS,
+			ThreadTS:      resp.TS,
+		}, nil
 	}
-	// resolved 시 thread_ts를 즉시 삭제하지 않는다.
-	// 비동기 Agent 분석이 완료된 뒤 notifyByThread가 이 값을 참조하기 때문이다.
-	// 다음 firing alert가 오면 같은 fingerprint로 덮어쓰기 되므로 메모리 누수 없음.
-	return nil
+	return nil, nil
 }
 
 // Status에 따른 적절한 메시지 색상 반환
@@ -115,14 +134,19 @@ func (c *SlackClient) getEmojiByStatus(status string) string {
 
 // SendFlappingDetection - Flapping 감지 시 오렌지 경고 메시지 전송
 func (c *SlackClient) SendFlappingDetection(alert model.Alert, incidentID string, cycleCount int) error {
+	threadTS := ""
+	if ts, ok := c.GetThreadTS(alert.Fingerprint); ok {
+		threadTS = ts
+	}
+	return c.SendFlappingDetectionInChannel(alert, incidentID, cycleCount, c.channelID, threadTS)
+}
+
+func (c *SlackClient) SendFlappingDetectionInChannel(alert model.Alert, incidentID string, cycleCount int, channelID, threadTS string) error {
 	if !c.IsConfigured() {
 		return fmt.Errorf("slack bot token or channel ID not configured")
 	}
-
-	// 기존 thread_ts 조회 (같은 스레드에 계속 전송)
-	var threadTS string
-	if ts, ok := c.GetThreadTS(alert.Fingerprint); ok {
-		threadTS = ts
+	if strings.TrimSpace(channelID) == "" {
+		return fmt.Errorf("channel ID not configured")
 	}
 
 	emoji := "⚠️"
@@ -150,7 +174,7 @@ func (c *SlackClient) SendFlappingDetection(alert model.Alert, incidentID string
 	}
 
 	msg := SlackMessage{
-		Channel:  c.channelID,
+		Channel:  channelID,
 		ThreadTS: threadTS, // 기존 스레드에 계속 전송
 		Attachments: []SlackAttachment{
 			{
@@ -172,7 +196,7 @@ func (c *SlackClient) SendFlappingDetection(alert model.Alert, incidentID string
 	}
 
 	// 새 메시지인 경우 thread_ts 저장
-	if threadTS == "" && resp.TS != "" {
+	if strings.TrimSpace(threadTS) == "" && resp.TS != "" {
 		c.StoreThreadTS(alert.Fingerprint, resp.TS)
 	}
 
@@ -181,8 +205,18 @@ func (c *SlackClient) SendFlappingDetection(alert model.Alert, incidentID string
 
 // SendFlappingCleared - Flapping 해제 시 녹색 성공 메시지 전송
 func (c *SlackClient) SendFlappingCleared(fingerprint, threadTS string) error {
+	return c.SendFlappingClearedInChannel(c.channelID, threadTS)
+}
+
+func (c *SlackClient) SendFlappingClearedInChannel(channelID, threadTS string) error {
 	if !c.IsConfigured() {
 		return fmt.Errorf("slack bot token or channel ID not configured")
+	}
+	if strings.TrimSpace(channelID) == "" {
+		return fmt.Errorf("channel ID not configured")
+	}
+	if strings.TrimSpace(threadTS) == "" {
+		return fmt.Errorf("thread_ts is required for flapping cleared notification")
 	}
 
 	emoji := "✅"
@@ -190,7 +224,7 @@ func (c *SlackClient) SendFlappingCleared(fingerprint, threadTS string) error {
 	description := "이 알림이 30분 이상 안정 상태를 유지하여 Flapping 상태가 해제되었습니다.\n정상 알림 모니터링이 재개됩니다."
 
 	msg := SlackMessage{
-		Channel:  c.channelID,
+		Channel:  channelID,
 		ThreadTS: threadTS,
 		Attachments: []SlackAttachment{
 			{

@@ -222,12 +222,22 @@ func (c *SlackClient) RequiresThreadRef() bool {
 
 // 특정 쓰레드에 메시지 전송 (Agent 분석 결과 전송용, 일단 분리하지않음)
 func (c *SlackClient) SendToThread(threadTS, text string) error {
+	return c.SendToThreadInChannel(c.channelID, threadTS, text)
+}
+
+func (c *SlackClient) SendToThreadInChannel(channelID, threadTS, text string) error {
 	if !c.IsConfigured() {
 		return fmt.Errorf("slack bot token or channel ID not configured")
 	}
+	if strings.TrimSpace(channelID) == "" {
+		return fmt.Errorf("channel ID not configured for thread delivery")
+	}
+	if strings.TrimSpace(threadTS) == "" {
+		return fmt.Errorf("thread_ts is required for thread delivery")
+	}
 
 	msg := SlackMessage{
-		Channel:  c.channelID,
+		Channel:  channelID,
 		ThreadTS: threadTS,
 		Attachments: []SlackAttachment{
 			{

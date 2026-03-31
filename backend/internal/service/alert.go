@@ -49,6 +49,9 @@ type alertStore interface {
 	UpdateIncidentSeverity(incidentID, severity string) error
 	GetAlertDetail(alertID string) (*model.AlertDetailResponse, error)
 	ManualResolveAlert(alertID string) error
+	UpsertAlertNotificationDeliveries(deliveries []model.AlertNotificationDelivery) error
+	GetAlertNotificationDeliveries(alertID string) ([]model.AlertNotificationDelivery, error)
+	TouchAlertNotificationDeliveries(alertID string, at time.Time) error
 }
 
 // alertAnalyzer - AlertService가 사용하는 Agent 분석 인터페이스
@@ -146,33 +149,84 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 			continue
 		}
 
-		// 5. resolved 알림: DB에서 thread_ts 조회하여 메모리에 복원
-		// (백엔드 재시작 시 메모리가 초기화되므로 DB에서 복원 필요)
-		if alert.Status == "resolved" {
-			if threadTS, ok := s.db.GetAlertThreadTS(alert.Fingerprint); ok {
-				s.storeThreadRef(alert.Fingerprint, threadTS)
-			}
-		}
-
-		// 6. 알림 채널 전송 - Flapping 상태에 따라 다르게 처리
+		// 5. 알림 채널 전송 - firing root message와 thread reply를 분리한다.
+		notificationSent := false
 		if isNewFlapping {
-			// 새로 Flapping 감지됨 - 오렌지 경고 메시지 전송
-			err = s.notifier.Notify(client.FlappingDetectedEvent{
-				Alert:      alert,
-				IncidentID: incidentID,
-				CycleCount: s.getFlappingCycleCount(alert.Fingerprint),
-			})
+			deliveries, deliveryErr := s.db.GetAlertNotificationDeliveries(alertID)
+			if deliveryErr != nil {
+				err = deliveryErr
+			} else {
+				if len(deliveries) == 0 {
+					deliveries, deliveryErr = s.recoverLegacyDeliveries(alertID, alert.Fingerprint, incidentID, alert.Status, s.analysisThreadContext(alertID, alert.Fingerprint))
+					if deliveryErr != nil {
+						err = deliveryErr
+						goto flappingDone
+					}
+				}
+				if len(deliveries) == 0 {
+					log.Printf("Skipping flapping notification (alert_id=%s, fingerprint=%s, skip_reason=no_active_delivery)", alertID, alert.Fingerprint)
+					goto flappingDone
+				}
+				err = s.notifyThreadEvent(client.FlappingDetectedEvent{
+					Alert:      alert,
+					IncidentID: incidentID,
+					CycleCount: s.getFlappingCycleCount(alert.Fingerprint),
+				}, deliveries)
+				notificationSent = err == nil
+			}
+		flappingDone:
 		} else if isFlapping {
 			// 이미 Flapping 중 - 알림 스킵
 			log.Printf("Skipping notification for flapping alert (fingerprint=%s)", alert.Fingerprint)
 			sent++
 			goto skipSlack
+		} else if alert.Status == "firing" {
+			receipts, notifyErr := s.notifyRootWithReceipts(client.AlertStatusChangedEvent{
+				Alert:      alert,
+				IncidentID: incidentID,
+			})
+			err = notifyErr
+			if err == nil {
+				notificationSent = true
+				if persistErr := s.persistDeliveries(alertID, alert.Fingerprint, incidentID, alert.Status, receipts); persistErr != nil {
+					log.Printf("Failed to persist notification deliveries: %v", persistErr)
+				}
+				if len(receipts) > 0 {
+					if persistErr := s.db.UpdateAlertThreadTS(alert.Fingerprint, receipts[0].ThreadTS); persistErr != nil {
+						log.Printf("Failed to save legacy thread_ts to DB: %v", persistErr)
+					}
+				}
+			}
+		} else if alert.Status == "resolved" {
+			deliveries, deliveryErr := s.db.GetAlertNotificationDeliveries(alertID)
+			if deliveryErr != nil {
+				err = deliveryErr
+			} else {
+				if len(deliveries) == 0 {
+					deliveries, deliveryErr = s.recoverLegacyDeliveries(alertID, alert.Fingerprint, incidentID, alert.Status, s.analysisThreadContext(alertID, alert.Fingerprint))
+					if deliveryErr != nil {
+						err = deliveryErr
+						goto resolvedDone
+					}
+				}
+				if len(deliveries) == 0 {
+					log.Printf("Skipping resolved notification (alert_id=%s, fingerprint=%s, skip_reason=no_active_delivery)", alertID, alert.Fingerprint)
+					goto resolvedDone
+				}
+				err = s.notifyThreadEvent(client.AlertStatusChangedEvent{
+					Alert:      alert,
+					IncidentID: incidentID,
+				}, deliveries)
+				notificationSent = err == nil
+			}
+		resolvedDone:
 		} else {
 			// 정상 Alert 전송
 			err = s.notifier.Notify(client.AlertStatusChangedEvent{
 				Alert:      alert,
 				IncidentID: incidentID,
 			})
+			notificationSent = err == nil
 		}
 
 		if err != nil {
@@ -181,23 +235,16 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 			continue
 		}
 
-		log.Printf("Sent alert notification (fingerprint=%s, alert_id=%s, status=%s, incident_id=%s, flapping=%v)", alert.Fingerprint, alertID, alert.Status, incidentID, isFlapping)
-		sent++
-
-	skipSlack:
-		// 7. thread_ts를 DB에 저장 (firing 알림일 때)
-		if alert.Status == "firing" {
-			if threadTS, ok := s.getThreadRef(alert.Fingerprint); ok {
-				if err := s.db.UpdateAlertThreadTS(alert.Fingerprint, threadTS); err != nil {
-					log.Printf("Failed to save thread_ts to DB: %v", err)
-				}
-			}
+		if notificationSent {
+			log.Printf("Sent alert notification (fingerprint=%s, alert_id=%s, status=%s, incident_id=%s, flapping=%v)", alert.Fingerprint, alertID, alert.Status, incidentID, isFlapping)
+			sent++
 		}
 
-		// 8. Agent에 비동기 분석 요청 - Flapping 중이거나 자동 분석 대상이 아니면 스킵
+	skipSlack:
+		// 6. Agent에 비동기 분석 요청 - Flapping 중이거나 자동 분석 대상이 아니면 스킵
 		severity := alert.Labels["severity"]
 		if !isFlapping && s.shouldAutoAnalyze(severity) {
-			threadTS, _ := s.db.GetAlertThreadTS(alert.Fingerprint)
+			threadTS := s.analysisThreadContext(alertID, alert.Fingerprint)
 			go s.agentService.RequestAnalysis(alert, alertID, threadTS, incidentID, false)
 		} else if isFlapping {
 			log.Printf("Skipping Agent analysis for flapping alert (fingerprint=%s)", alert.Fingerprint)
@@ -365,13 +412,24 @@ func (s *AlertService) scheduleFlappingClearanceCheck(fingerprint string, resolv
 	}
 
 	// Slack에 Flapping 해제 메시지 전송
-	if threadTS, ok := s.db.GetAlertThreadTS(fingerprint); ok {
-		if err := s.notifier.Notify(client.FlappingClearedEvent{
-			Fingerprint: fingerprint,
-			ThreadRef:   threadTS,
-		}); err != nil {
-			log.Printf("Failed to send flapping cleared notification: %v", err)
+	deliveries, err := s.db.GetAlertNotificationDeliveries(alert.AlertID)
+	if err != nil {
+		log.Printf("Failed to load deliveries for flapping cleared notification: %v", err)
+		return
+	}
+	if len(deliveries) == 0 {
+		deliveries, err = s.recoverLegacyDeliveries(alert.AlertID, fingerprint, ptrToString(alert.IncidentID), alert.Status, alert.ThreadTS)
+		if err != nil {
+			log.Printf("Failed to recover legacy deliveries for flapping cleared notification: %v", err)
+			return
 		}
+	}
+	if len(deliveries) == 0 {
+		log.Printf("Skipping flapping cleared notification (alert_id=%s, fingerprint=%s, skip_reason=no_active_delivery)", alert.AlertID, fingerprint)
+		return
+	}
+	if err := s.notifyThreadEvent(client.FlappingClearedEvent{Fingerprint: fingerprint}, deliveries); err != nil {
+		log.Printf("Failed to send flapping cleared notification: %v", err)
 	}
 }
 
@@ -409,20 +467,132 @@ func (s *AlertService) getFlappingCycleCount(fingerprint string) int {
 	return count
 }
 
-func (s *AlertService) storeThreadRef(alertKey, threadRef string) {
-	store, ok := s.notifier.(client.ThreadRefStore)
+func (s *AlertService) notifyRootWithReceipts(event client.AlertStatusChangedEvent) ([]client.NotificationDeliveryReceipt, error) {
+	notifier, ok := s.notifier.(client.DeliveryAwareNotifier)
 	if !ok {
-		return
+		if err := s.notifier.Notify(event); err != nil {
+			return nil, err
+		}
+		return nil, nil
 	}
-	store.StoreThreadRef(alertKey, threadRef)
+	return notifier.NotifyRootWithReceipts(event)
 }
 
-func (s *AlertService) getThreadRef(alertKey string) (string, bool) {
-	store, ok := s.notifier.(client.ThreadRefStore)
+func (s *AlertService) notifyThreadEvent(event client.NotifierEvent, deliveries []model.AlertNotificationDelivery) error {
+	notifier, ok := s.notifier.(client.DeliveryAwareNotifier)
 	if !ok {
-		return "", false
+		return fmt.Errorf("notifier does not support strict thread delivery")
 	}
-	return store.GetThreadRef(alertKey)
+	if err := notifier.NotifyThreadEvent(event, deliveries); err != nil {
+		return err
+	}
+	if len(deliveries) > 0 {
+		if touchErr := s.db.TouchAlertNotificationDeliveries(deliveries[0].AlertID, time.Now().UTC()); touchErr != nil {
+			log.Printf("Failed to touch notification deliveries: %v", touchErr)
+		}
+	}
+	return nil
+}
+
+func (s *AlertService) persistDeliveries(alertID, fingerprint, incidentID, status string, receipts []client.NotificationDeliveryReceipt) error {
+	if len(receipts) == 0 {
+		return nil
+	}
+
+	var incidentIDPtr *string
+	if incidentID != "" {
+		incidentIDPtr = &incidentID
+	}
+
+	deliveries := make([]model.AlertNotificationDelivery, 0, len(receipts))
+	for _, receipt := range receipts {
+		if receipt.ThreadTS == "" || receipt.ChannelID == "" {
+			continue
+		}
+		deliveries = append(deliveries, model.AlertNotificationDelivery{
+			AlertID:         alertID,
+			Fingerprint:     fingerprint,
+			IncidentID:      incidentIDPtr,
+			NotifierType:    receipt.NotifierType,
+			WebhookConfigID: receipt.WebhookConfigID,
+			RouteKey:        model.BuildNotificationRouteKey(receipt.NotifierType, receipt.WebhookConfigID, receipt.ChannelID),
+			ChannelID:       receipt.ChannelID,
+			RootMessageTS:   receipt.RootMessageTS,
+			ThreadTS:        receipt.ThreadTS,
+			Status:          status,
+			IsActive:        true,
+		})
+	}
+
+	return s.db.UpsertAlertNotificationDeliveries(deliveries)
+}
+
+func (s *AlertService) analysisThreadContext(alertID, fingerprint string) string {
+	deliveries, err := s.db.GetAlertNotificationDeliveries(alertID)
+	if err == nil && len(deliveries) > 0 {
+		return deliveries[0].ThreadTS
+	}
+	threadTS, _ := s.db.GetAlertThreadTS(fingerprint)
+	return threadTS
+}
+
+func (s *AlertService) recoverLegacyDeliveries(alertID, fingerprint, incidentID, status, legacyThreadTS string) ([]model.AlertNotificationDelivery, error) {
+	return recoverLegacyDeliveries(s.notifier, s.db.UpsertAlertNotificationDeliveries, alertID, fingerprint, incidentID, status, legacyThreadTS)
+}
+
+// recoverLegacyDeliveries converts a legacy thread_ts record into a
+// notification delivery row. It is shared by AlertService and AgentService.
+func recoverLegacyDeliveries(
+	notifier client.Notifier,
+	upsert func([]model.AlertNotificationDelivery) error,
+	alertID, fingerprint, incidentID, status, legacyThreadTS string,
+) ([]model.AlertNotificationDelivery, error) {
+	if alertID == "" || legacyThreadTS == "" {
+		return nil, nil
+	}
+
+	deliveryNotifier, ok := notifier.(client.DeliveryAwareNotifier)
+	if !ok {
+		return nil, nil
+	}
+
+	routes, err := deliveryNotifier.ListSlackRoutes()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load slack routes for legacy recovery: %w", err)
+	}
+	if len(routes) != 1 {
+		return nil, nil
+	}
+
+	route := routes[0]
+	var incidentIDPtr *string
+	if incidentID != "" {
+		incidentIDPtr = &incidentID
+	}
+	delivery := model.AlertNotificationDelivery{
+		AlertID:         alertID,
+		Fingerprint:     fingerprint,
+		IncidentID:      incidentIDPtr,
+		NotifierType:    route.NotifierType,
+		WebhookConfigID: route.WebhookConfigID,
+		RouteKey:        model.BuildNotificationRouteKey(route.NotifierType, route.WebhookConfigID, route.ChannelID),
+		ChannelID:       route.ChannelID,
+		RootMessageTS:   legacyThreadTS,
+		ThreadTS:        legacyThreadTS,
+		Status:          status,
+		IsActive:        true,
+	}
+	if err := upsert([]model.AlertNotificationDelivery{delivery}); err != nil {
+		return nil, fmt.Errorf("failed to upsert legacy delivery: %w", err)
+	}
+	return []model.AlertNotificationDelivery{delivery}, nil
+}
+
+func ptrToString(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return *v
 }
 
 // shouldAutoAnalyze - 주어진 severity의 alert를 자동 분석해야 하는지 판단
@@ -470,16 +640,6 @@ func (s *AlertService) resolveAlertInternal(alertID string, triggerAnalysis bool
 		incidentID = *alert.IncidentID
 	}
 
-	// 6. Slack 알림 ("[Manually Resolved]")
-	// GetAlertDetail에서 이미 조회된 ThreadTS를 우선 사용, 없으면 fingerprint 기반 조회
-	threadTS := alert.ThreadTS
-	if threadTS == "" {
-		threadTS, _ = s.db.GetAlertThreadTS(alert.Fingerprint)
-	}
-	if threadTS != "" {
-		s.storeThreadRef(alert.Fingerprint, threadTS)
-	}
-
 	// AlertDetailResponse.Labels/Annotations(json.RawMessage) → model.Alert(map[string]string) 변환
 	var labels map[string]string
 	if len(alert.Labels) > 0 {
@@ -498,14 +658,31 @@ func (s *AlertService) resolveAlertInternal(alertID string, triggerAnalysis bool
 		StartsAt:    alert.FiredAt,
 	}
 
-	_ = s.notifier.Notify(client.AlertStatusChangedEvent{
-		Alert:      modelAlert,
-		IncidentID: incidentID,
-		IsManual:   true,
-	})
+	deliveries, err := s.db.GetAlertNotificationDeliveries(alertID)
+	if err != nil {
+		log.Printf("Failed to load deliveries for manual resolve notification: %v", err)
+	} else {
+		if len(deliveries) == 0 {
+			deliveries, err = s.recoverLegacyDeliveries(alertID, alert.Fingerprint, incidentID, modelAlert.Status, s.analysisThreadContext(alertID, alert.Fingerprint))
+			if err != nil {
+				log.Printf("Failed to recover legacy deliveries for manual resolve notification: %v", err)
+				deliveries = nil
+			}
+		}
+		if len(deliveries) == 0 {
+			log.Printf("Skipping manual resolve notification (alert_id=%s, fingerprint=%s, skip_reason=no_active_delivery)", alertID, alert.Fingerprint)
+		} else if err := s.notifyThreadEvent(client.AlertStatusChangedEvent{
+			Alert:      modelAlert,
+			IncidentID: incidentID,
+			IsManual:   true,
+		}, deliveries); err != nil {
+			log.Printf("Failed to send manual resolve notification: %v", err)
+		}
+	}
 
 	// 7. Agent 분석 (단건만, Bulk에서는 triggerAnalysis=false)
 	if triggerAnalysis && s.agentService != nil {
+		threadTS := s.analysisThreadContext(alertID, alert.Fingerprint)
 		go s.agentService.RequestAnalysis(modelAlert, alertID, threadTS, incidentID, false)
 	}
 

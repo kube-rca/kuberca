@@ -48,6 +48,11 @@ func main() {
 		log.Fatalf("Failed to ensure alert analysis schema: %v", err)
 	}
 
+	// Alert notification delivery 스키마 생성
+	if err := pgRepo.EnsureAlertNotificationDeliverySchema(); err != nil {
+		log.Fatalf("Failed to ensure alert notification delivery schema: %v", err)
+	}
+
 	// 피드백(투표/코멘트) 스키마 생성
 	if err := pgRepo.EnsureFeedbackSchema(); err != nil {
 		log.Fatalf("Failed to ensure feedback schema: %v", err)

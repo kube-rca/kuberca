@@ -9,6 +9,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/kube-rca/backend/internal/config"
 	"github.com/kube-rca/backend/internal/model"
 )
 
@@ -62,17 +63,17 @@ func (f *fallbackNotifierStub) DeleteThreadRef(alertKey string) {
 	delete(f.store, alertKey)
 }
 
-func TestWebhookRoutingNotifier_UsesFallbackWhenNoWebhookConfig(t *testing.T) {
+func TestWebhookRoutingNotifier_StrictThreadRoutingSkipsFallbackWhenNoWebhookConfig(t *testing.T) {
 	repo := webhookConfigRepoStub{}
 	fallback := &fallbackNotifierStub{}
 	n := NewWebhookRoutingNotifier(repo, fallback, fallback, "")
 
 	err := n.Notify(AnalysisResultPostedEvent{ThreadRef: "t1", Content: "analysis"})
-	if err != nil {
-		t.Fatalf("Notify() error = %v", err)
+	if err == nil {
+		t.Fatal("Notify() error = nil, want strict routing error")
 	}
-	if fallback.notifyCount != 1 {
-		t.Fatalf("fallback notify count = %d, want 1", fallback.notifyCount)
+	if fallback.notifyCount != 0 {
+		t.Fatalf("fallback notify count = %d, want 0", fallback.notifyCount)
 	}
 }
 
@@ -161,5 +162,163 @@ func TestWebhookRoutingNotifier_ThreadRefStoreFallsBackToThreadStore(t *testing.
 	}
 	if ref != "thread-1" {
 		t.Fatalf("GetThreadRef() = %q, want %q", ref, "thread-1")
+	}
+}
+
+func TestWebhookRoutingNotifier_NotifyRootWithReceipts_ReturnsSlackReceipt(t *testing.T) {
+	repo := webhookConfigRepoStub{
+		configs: []model.WebhookConfig{
+			{
+				ID:         1,
+				Type:       "slack",
+				Token:      "token-1",
+				Channel:    "C123",
+				Severities: []string{"warning"},
+			},
+		},
+	}
+	fallback := &fallbackNotifierStub{}
+	n := NewWebhookRoutingNotifier(repo, fallback, fallback, "")
+	impl := n.(*webhookRoutingNotifier)
+	impl.slackClients[1] = NewSlackClient(config.SlackConfig{
+		BotToken:  "token-1",
+		ChannelID: "C123",
+	})
+	impl.slackClients[1].httpClient = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(`{"ok":true,"ts":"1712345678.000100"}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+
+	receipts, err := n.NotifyRootWithReceipts(AlertStatusChangedEvent{
+		Alert: model.Alert{
+			Status: "firing",
+			Labels: map[string]string{
+				"severity":  "warning",
+				"alertname": "test",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("NotifyRootWithReceipts() error = %v", err)
+	}
+	if len(receipts) != 1 {
+		t.Fatalf("receipt count = %d, want 1", len(receipts))
+	}
+	if receipts[0].WebhookConfigID == nil || *receipts[0].WebhookConfigID != 1 {
+		t.Fatalf("receipt webhook_config_id = %v, want 1", receipts[0].WebhookConfigID)
+	}
+	if receipts[0].ChannelID != "C123" {
+		t.Fatalf("receipt channel_id = %q, want %q", receipts[0].ChannelID, "C123")
+	}
+	if receipts[0].ThreadTS != "1712345678.000100" {
+		t.Fatalf("receipt thread_ts = %q, want %q", receipts[0].ThreadTS, "1712345678.000100")
+	}
+}
+
+func TestWebhookRoutingNotifier_NotifyThreadEvent_UsesExplicitDelivery(t *testing.T) {
+	repo := webhookConfigRepoStub{
+		configs: []model.WebhookConfig{
+			{
+				ID:      7,
+				Type:    "slack",
+				Token:   "token-7",
+				Channel: "C999",
+			},
+		},
+	}
+	fallback := &fallbackNotifierStub{}
+	n := NewWebhookRoutingNotifier(repo, fallback, fallback, "")
+	impl := n.(*webhookRoutingNotifier)
+	impl.slackClients[7] = NewSlackClient(config.SlackConfig{
+		BotToken:  "token-7",
+		ChannelID: "C999",
+	})
+
+	var captured struct {
+		Channel  string `json:"channel"`
+		ThreadTS string `json:"thread_ts"`
+	}
+	impl.slackClients[7].httpClient = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			defer req.Body.Close()
+			body, _ := io.ReadAll(req.Body)
+			_ = json.Unmarshal(body, &captured)
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(`{"ok":true,"ts":"1712345678.000200"}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+
+	configID := 7
+	err := n.NotifyThreadEvent(
+		AnalysisResultPostedEvent{Content: "analysis"},
+		[]model.AlertNotificationDelivery{
+			{
+				AlertID:         "ALR-1",
+				Fingerprint:     "fp-1",
+				NotifierType:    "slack",
+				WebhookConfigID: &configID,
+				RouteKey:        model.BuildNotificationRouteKey("slack", &configID, "C777"),
+				ChannelID:       "C777",
+				ThreadTS:        "1712345678.000123",
+				RootMessageTS:   "1712345678.000123",
+				IsActive:        true,
+			},
+		},
+	)
+	if err != nil {
+		t.Fatalf("NotifyThreadEvent() error = %v", err)
+	}
+	if captured.Channel != "C777" {
+		t.Fatalf("channel = %q, want %q", captured.Channel, "C777")
+	}
+	if captured.ThreadTS != "1712345678.000123" {
+		t.Fatalf("thread_ts = %q, want %q", captured.ThreadTS, "1712345678.000123")
+	}
+}
+
+func TestWebhookRoutingNotifier_Notify_UsesFallbackSlackWhenThreadKnown(t *testing.T) {
+	fallback := NewSlackClient(config.SlackConfig{
+		BotToken:  "token-fallback",
+		ChannelID: "C-fallback",
+	})
+	var captured struct {
+		Channel  string `json:"channel"`
+		ThreadTS string `json:"thread_ts"`
+	}
+	fallback.httpClient = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			defer req.Body.Close()
+			body, _ := io.ReadAll(req.Body)
+			_ = json.Unmarshal(body, &captured)
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(`{"ok":true,"ts":"1712345678.000300"}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+	fallback.StoreThreadRef("fp-1", "1712345678.000111")
+
+	n := NewWebhookRoutingNotifier(webhookConfigRepoStub{}, fallback, fallback, "")
+	err := n.Notify(AnalysisResultPostedEvent{
+		ThreadRef: "1712345678.000111",
+		Content:   "analysis",
+	})
+	if err != nil {
+		t.Fatalf("Notify() error = %v", err)
+	}
+	if captured.Channel != "C-fallback" {
+		t.Fatalf("channel = %q, want %q", captured.Channel, "C-fallback")
+	}
+	if captured.ThreadTS != "1712345678.000111" {
+		t.Fatalf("thread_ts = %q, want %q", captured.ThreadTS, "1712345678.000111")
 	}
 }

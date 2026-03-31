@@ -81,3 +81,26 @@ type ThreadAwareNotifier interface {
 	ThreadRefStore
 	ThreadRefRequirement
 }
+
+// NotificationDeliveryReceipt는 Slack root message 전송 결과를 DB에 저장하기 위한 메타데이터다.
+type NotificationDeliveryReceipt struct {
+	NotifierType    string
+	WebhookConfigID *int
+	ChannelID       string
+	RootMessageTS   string
+	ThreadTS        string
+}
+
+type NotificationRoute struct {
+	NotifierType    string
+	WebhookConfigID *int
+	ChannelID       string
+}
+
+// DeliveryAwareNotifier는 root message receipt 저장과 strict thread delivery를 지원한다.
+type DeliveryAwareNotifier interface {
+	ThreadAwareNotifier
+	NotifyRootWithReceipts(event NotifierEvent) ([]NotificationDeliveryReceipt, error)
+	NotifyThreadEvent(event NotifierEvent, deliveries []model.AlertNotificationDelivery) error
+	ListSlackRoutes() ([]NotificationRoute, error)
+}

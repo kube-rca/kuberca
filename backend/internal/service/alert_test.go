@@ -34,6 +34,7 @@ type alertStoreMock struct {
 	isFlapping      map[string]bool
 	alreadyResolved map[string]bool
 	threadTS        map[string]string // fingerprint → thread_ts
+	deliveries      map[string][]model.AlertNotificationDelivery
 
 	// Manual resolve
 	alertByID map[string]*model.AlertDetailResponse
@@ -57,6 +58,7 @@ func newAlertStoreMock() *alertStoreMock {
 		isFlapping:      make(map[string]bool),
 		alreadyResolved: make(map[string]bool),
 		threadTS:        make(map[string]string),
+		deliveries:      make(map[string][]model.AlertNotificationDelivery),
 		alertByID:       make(map[string]*model.AlertDetailResponse),
 	}
 }
@@ -181,6 +183,39 @@ func (m *alertStoreMock) ManualResolveAlert(alertID string) error {
 	return fmt.Errorf("alert not found or already resolved: %s", alertID)
 }
 
+func (m *alertStoreMock) UpsertAlertNotificationDeliveries(deliveries []model.AlertNotificationDelivery) error {
+	for _, delivery := range deliveries {
+		existing := m.deliveries[delivery.AlertID]
+		replaced := false
+		for i := range existing {
+			if existing[i].RouteKey == delivery.RouteKey {
+				existing[i] = delivery
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			existing = append(existing, delivery)
+		}
+		m.deliveries[delivery.AlertID] = existing
+	}
+	return nil
+}
+
+func (m *alertStoreMock) GetAlertNotificationDeliveries(alertID string) ([]model.AlertNotificationDelivery, error) {
+	return append([]model.AlertNotificationDelivery(nil), m.deliveries[alertID]...), nil
+}
+
+func (m *alertStoreMock) TouchAlertNotificationDeliveries(alertID string, at time.Time) error {
+	items := m.deliveries[alertID]
+	for i := range items {
+		ts := at
+		items[i].LastUsedAt = &ts
+	}
+	m.deliveries[alertID] = items
+	return nil
+}
+
 // ============================================================================
 // Mock: client.Notifier (ThreadAwareNotifier)
 // ============================================================================
@@ -189,11 +224,19 @@ type notifierMock struct {
 	events          []client.NotifierEvent
 	threadRefs      map[string]string
 	notifyCallCount int
+	rootReceipts    []client.NotificationDeliveryReceipt
+	routes          []client.NotificationRoute
 }
 
 func newNotifierMock() *notifierMock {
 	return &notifierMock{
 		threadRefs: map[string]string{},
+		routes: []client.NotificationRoute{
+			{
+				NotifierType: "slack",
+				ChannelID:    "C-test",
+			},
+		},
 	}
 }
 
@@ -205,6 +248,34 @@ func (m *notifierMock) Notify(event client.NotifierEvent) error {
 		m.threadRefs[e.Alert.Fingerprint] = "ts-" + e.Alert.Fingerprint
 	}
 	return nil
+}
+
+func (m *notifierMock) NotifyRootWithReceipts(event client.NotifierEvent) ([]client.NotificationDeliveryReceipt, error) {
+	m.events = append(m.events, event)
+	m.notifyCallCount++
+	e, ok := event.(client.AlertStatusChangedEvent)
+	if !ok {
+		return nil, nil
+	}
+	receipt := client.NotificationDeliveryReceipt{
+		NotifierType:  "slack",
+		ChannelID:     "C-test",
+		RootMessageTS: "ts-" + e.Alert.Fingerprint,
+		ThreadTS:      "ts-" + e.Alert.Fingerprint,
+	}
+	m.rootReceipts = append(m.rootReceipts, receipt)
+	m.threadRefs[e.Alert.Fingerprint] = receipt.ThreadTS
+	return []client.NotificationDeliveryReceipt{receipt}, nil
+}
+
+func (m *notifierMock) NotifyThreadEvent(event client.NotifierEvent, deliveries []model.AlertNotificationDelivery) error {
+	m.events = append(m.events, event)
+	m.notifyCallCount++
+	return nil
+}
+
+func (m *notifierMock) ListSlackRoutes() ([]client.NotificationRoute, error) {
+	return append([]client.NotificationRoute(nil), m.routes...), nil
 }
 
 func (m *notifierMock) StoreThreadRef(alertKey, threadRef string) {
@@ -588,6 +659,18 @@ func TestResolveAlert_Success(t *testing.T) {
 		Severity:    "critical",
 	}
 	store.threadTS["fp-123"] = "1234567.890"
+	store.deliveries["ALR-test0001"] = []model.AlertNotificationDelivery{
+		{
+			AlertID:       "ALR-test0001",
+			Fingerprint:   "fp-123",
+			NotifierType:  "slack",
+			RouteKey:      "slack:fallback:C-test",
+			ChannelID:     "C-test",
+			RootMessageTS: "1234567.890",
+			ThreadTS:      "1234567.890",
+			IsActive:      true,
+		},
+	}
 
 	notifier := &notifierMock{threadRefs: map[string]string{}}
 	svc := NewAlertService(notifier, nil, nil, config.FlappingConfig{}, nil, nil)
@@ -600,6 +683,32 @@ func TestResolveAlert_Success(t *testing.T) {
 
 	if notifier.notifyCallCount == 0 {
 		t.Error("expected notifier to be called")
+	}
+}
+
+func TestProcessWebhook_ResolvedRecoversLegacyDeliveryForSingleRoute(t *testing.T) {
+	store := newAlertStoreMock()
+	store.saveAlertResults = []saveAlertResult{
+		{AlertID: "ALR-recover01", Err: nil},
+	}
+	store.threadTS["fp-recover"] = "1712345678.000111"
+
+	notifier := newNotifierMock()
+	analyzer := &analyzerMock{}
+	svc := newTestAlertService(store, notifier, analyzer)
+
+	alert := makeAlert("fp-recover", "resolved", "warning")
+	sent, failed := svc.ProcessWebhook(makeWebhook(alert))
+	if sent != 1 || failed != 0 {
+		t.Fatalf("ProcessWebhook() = sent=%d, failed=%d; want sent=1, failed=0", sent, failed)
+	}
+
+	deliveries := store.deliveries["ALR-recover01"]
+	if len(deliveries) != 1 {
+		t.Fatalf("delivery count = %d, want 1", len(deliveries))
+	}
+	if deliveries[0].ThreadTS != "1712345678.000111" {
+		t.Fatalf("delivery thread_ts = %q, want %q", deliveries[0].ThreadTS, "1712345678.000111")
 	}
 }
 
