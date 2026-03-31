@@ -435,7 +435,10 @@ def _build_prompt(
             "- 조치 사항 must be actionable operator recommendations "
             "(e.g., '메모리 limit을 512Mi로 상향 조정하십시오'), "
             "not descriptions of what you plan to investigate.\n"
-            "- 누락된 데이터 lists data you could NOT obtain even after using tools.\n"
+            "- 누락된 데이터 lists ONLY data you could NOT obtain even after using tools. "
+            "Do NOT list data that is expectedly absent "
+            "(e.g., previous_logs when restart_count is 0, "
+            "or service info when no service label exists).\n"
             "- Prefer direct evidence from logs, events, workload state, "
             "Service, and Endpoints before adding manual follow-up actions.\n"
             "- Do not infer routing behavior or external dependency failures "
@@ -454,7 +457,7 @@ def _build_prompt(
             "- Use inline code only for literal keys/values/commands; "
             "avoid excessive code formatting.\n"
             f"{policy_block}"
-            "You may call tools to gather evidence:\n"
+            "Use these tools to gather evidence before writing your analysis:\n"
             f"{tool_block}\n\n"
         )
 
@@ -925,15 +928,15 @@ def _collect_missing_data(
         missing_data.append("k8s.events")
     if not _has_log_lines(k8s_context.current_logs):
         missing_data.append("k8s.current_logs")
-    if not _has_log_lines(k8s_context.previous_logs):
+    if not _has_log_lines(k8s_context.previous_logs) and _total_restart_count(k8s_context) > 0:
         missing_data.append("k8s.previous_logs")
     if k8s_context.pod_spec is None:
         missing_data.append("k8s.pod_spec")
     if k8s_context.workload_status is None:
         missing_data.append("k8s.workload_status")
-    if k8s_context.service_manifest is None:
+    if k8s_context.service_manifest is None and target.service_name:
         missing_data.append("k8s.service")
-    if k8s_context.endpoints_manifest is None:
+    if k8s_context.endpoints_manifest is None and target.service_name:
         missing_data.append("k8s.endpoints")
     if capabilities.get("k8s_core") != "ok":
         missing_data.append("k8s.core_api")
@@ -1014,6 +1017,17 @@ def _resolve_context_target(k8s_context: K8sContext) -> AnalysisTarget:
         workload=k8s_context.workload,
         service_name=None,
     )
+
+
+def _total_restart_count(k8s_context: K8sContext) -> int:
+    if k8s_context.pod_status is None:
+        return -1
+    total = 0
+    for cs in k8s_context.pod_status.container_statuses:
+        rc = cs.get("restart_count") if isinstance(cs, dict) else getattr(cs, "restart_count", 0)
+        if isinstance(rc, int):
+            total += rc
+    return total
 
 
 def _has_log_lines(snippets: list[object]) -> bool:
