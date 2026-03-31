@@ -294,6 +294,7 @@ func toSlackMarkdown(text string) string {
 					end++
 				}
 				heading := strings.TrimSpace(text[k:end])
+				heading = stripMarkdownBold(heading)
 				if heading != "" {
 					builder.WriteByte('*')
 					builder.WriteString(heading)
@@ -323,4 +324,19 @@ func toSlackMarkdown(text string) string {
 	}
 
 	return builder.String()
+}
+
+func stripMarkdownBold(s string) string {
+	for {
+		if strings.HasPrefix(s, "***") && strings.HasSuffix(s, "***") && len(s) > 6 {
+			s = s[3 : len(s)-3]
+			continue
+		}
+		if strings.HasPrefix(s, "**") && strings.HasSuffix(s, "**") && len(s) > 4 {
+			s = s[2 : len(s)-2]
+			continue
+		}
+		break
+	}
+	return s
 }

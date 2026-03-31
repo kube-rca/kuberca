@@ -52,6 +52,16 @@ func TestToSlackMarkdown(t *testing.T) {
 			input: "```\n***not bold***\n```\n***bold italic***",
 			want:  "```\n***not bold***\n```\n*bold italic*",
 		},
+		{
+			name:  "heading-with-bold-inside",
+			input: "#### **근본 원인**\n내용",
+			want:  "*근본 원인*\n내용",
+		},
+		{
+			name:  "heading-with-bold-italic-inside",
+			input: "### ***확인 근거***\n설명",
+			want:  "*확인 근거*\n설명",
+		},
 	}
 
 	for _, tt := range tests {
