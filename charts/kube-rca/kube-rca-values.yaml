@@ -73,7 +73,7 @@ agent:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr/agent
     tag: agent-55a0abd
   workers: 4
-  aiProvider: anthropic
+  aiProvider: gemini
   prometheus:
     url: kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
   tempo:
