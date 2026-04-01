@@ -225,6 +225,7 @@ Notes:
 | `GEMINI_MODEL_ID` | Gemini model ID | `gemini-3-flash-preview` |
 | `OPENAI_MODEL_ID` | OpenAI model ID | `gpt-4o` |
 | `ANTHROPIC_MODEL_ID` | Anthropic model ID | `claude-sonnet-4-20250514` |
+| `ANTHROPIC_MAX_TOKENS` | Anthropic max output tokens | `4096` |
 | `PROMETHEUS_URL` | Prometheus base URL | - (disabled) |
 | `LOG_LEVEL` | Logging level | `info` |
 | `WEB_CONCURRENCY` | Uvicorn worker count | `1` |

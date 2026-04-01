@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.core.config import load_settings
+from app.core.config import DEFAULT_ANTHROPIC_MAX_TOKENS, load_settings
 
 
 def test_load_settings_parses_masking_regex_list_json(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -53,3 +53,24 @@ def test_load_settings_uses_exponential_llm_retry_defaults(
     assert settings.llm_retry_max_attempts == 10
     assert settings.llm_retry_max_wait == 30.0
     assert settings.llm_retry_total_timeout == 180.0
+
+
+def test_load_settings_uses_anthropic_max_tokens_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("ANTHROPIC_MAX_TOKENS", raising=False)
+
+    settings = load_settings()
+
+    assert settings.anthropic_max_tokens == DEFAULT_ANTHROPIC_MAX_TOKENS
+
+
+@pytest.mark.parametrize("value", ["abc", "0", "-1"])
+def test_load_settings_falls_back_for_invalid_anthropic_max_tokens(
+    monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_MAX_TOKENS", value)
+
+    settings = load_settings()
+
+    assert settings.anthropic_max_tokens == DEFAULT_ANTHROPIC_MAX_TOKENS

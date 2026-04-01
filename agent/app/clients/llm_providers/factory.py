@@ -11,7 +11,7 @@ from app.clients.llm_providers.base import (
     ModelConfig,
     StrandsModel,
 )
-from app.core.config import Settings
+from app.core.config import DEFAULT_ANTHROPIC_MAX_TOKENS, Settings
 
 logger = logging.getLogger(__name__)
 
@@ -94,11 +94,11 @@ def _create_anthropic_model(config: ModelConfig) -> StrandsModel:
     model_kwargs: dict[str, Any] = {
         "client_args": {"api_key": config.api_key},
         "model_id": config.model_id,
+        # strands.models.anthropic expects max_tokens to be present in config.
+        "max_tokens": config.max_tokens or DEFAULT_ANTHROPIC_MAX_TOKENS,
     }
     if config.temperature is not None:
-        model_kwargs["temperature"] = config.temperature
-    if config.max_tokens is not None:
-        model_kwargs["max_tokens"] = config.max_tokens
+        model_kwargs["params"] = {"temperature": config.temperature}
 
     return AnthropicModel(**model_kwargs)
 
@@ -150,4 +150,9 @@ def get_provider_config(settings: Settings) -> ModelConfig | None:
         provider=provider,
         model_id=model_id,
         api_key=api_key,
+        max_tokens=(
+            settings.anthropic_max_tokens
+            if provider == LLMProvider.ANTHROPIC
+            else None
+        ),
     )

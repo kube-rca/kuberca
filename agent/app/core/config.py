@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass
 
 DEFAULT_GEMINI_MODEL_ID = "gemini-3-flash-preview"
+DEFAULT_ANTHROPIC_MAX_TOKENS = 4096
 DEFAULT_AI_PROVIDER = "gemini"
 
 
@@ -21,6 +22,19 @@ def _get_int_env(name: str, default: int) -> int:
 
 def _get_non_negative_int_env(name: str, default: int) -> int:
     return max(0, _get_int_env(name, default))
+
+
+def _get_positive_int_env(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if not value:
+        return default
+    try:
+        parsed = int(value)
+    except ValueError:
+        return default
+    if parsed <= 0:
+        return default
+    return parsed
 
 
 def _get_float_env(name: str, default: float) -> float:
@@ -74,6 +88,7 @@ class Settings:
     gemini_model_id: str
     openai_model_id: str
     anthropic_model_id: str
+    anthropic_max_tokens: int
     openai_api_key: str
     anthropic_api_key: str
     # Session DB settings
@@ -139,6 +154,9 @@ def load_settings() -> Settings:
         gemini_model_id=os.getenv("GEMINI_MODEL_ID", DEFAULT_GEMINI_MODEL_ID),
         openai_model_id=os.getenv("OPENAI_MODEL_ID", "").strip(),
         anthropic_model_id=os.getenv("ANTHROPIC_MODEL_ID", "").strip(),
+        anthropic_max_tokens=_get_positive_int_env(
+            "ANTHROPIC_MAX_TOKENS", DEFAULT_ANTHROPIC_MAX_TOKENS
+        ),
         openai_api_key=os.getenv("OPENAI_API_KEY", ""),
         anthropic_api_key=os.getenv("ANTHROPIC_API_KEY", ""),
         # Session DB settings
