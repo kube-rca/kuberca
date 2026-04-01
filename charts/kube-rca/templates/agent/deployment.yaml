@@ -64,6 +64,8 @@ spec:
               value: {{ .Values.agent.openai.modelId | quote }}
             - name: ANTHROPIC_MODEL_ID
               value: {{ .Values.agent.anthropic.modelId | quote }}
+            - name: ANTHROPIC_MAX_TOKENS
+              value: {{ .Values.agent.anthropic.maxTokens | quote }}
             {{- $provider := default "gemini" .Values.agent.aiProvider | lower }}
             {{- if eq $provider "gemini" }}
             - name: GEMINI_API_KEY

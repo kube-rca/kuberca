@@ -368,6 +368,8 @@ agent:
   anthropic:
     # -- Anthropic model ID for Strands Agents.
     modelId: "claude-haiku-4-5"
+    # -- Anthropic maximum output tokens.
+    maxTokens: 4096
     secret:
       # -- Create a Secret for the Anthropic API key.
       create: false

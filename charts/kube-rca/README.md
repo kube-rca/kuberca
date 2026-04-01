@@ -152,6 +152,7 @@ backend:
 |-----|------|---------|-------------|
 | agent.affinity | object | `{}` | Affinity for agent pods assignment. |
 | agent.aiProvider | string | `"gemini"` | AI provider for agent (AI_PROVIDER). Allowed: gemini, openai, anthropic. |
+| agent.anthropic.maxTokens | int | `4096` | Anthropic maximum output tokens. |
 | agent.anthropic.modelId | string | `"claude-haiku-4-5"` | Anthropic model ID for Strands Agents. |
 | agent.anthropic.secret.create | bool | `false` | Create a Secret for the Anthropic API key. |
 | agent.anthropic.secret.existingSecret | string | `"kube-rca-ai"` | Existing Secret name for the Anthropic API key. |
