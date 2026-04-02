@@ -57,14 +57,31 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, alertID, threadTS, inc
 	key := s.analysisKey(alertID, alert.Fingerprint)
 	if key != "" {
 		if startedAt, ok := s.beginAnalysis(key); !ok {
-			log.Printf(
-				"Skipping duplicate alert analysis request (alert_id=%s, fingerprint=%s, incident_id=%s, in_flight_ms=%d)",
-				alertID,
-				alert.Fingerprint,
-				incidentID,
-				time.Since(startedAt).Milliseconds(),
-			)
-			return
+			// Resolved 분석이 Firing 분석 in-flight에 의해 차단된 경우 → 대기 후 재시도
+			if alert.Status == "resolved" {
+				log.Printf(
+					"Resolved analysis waiting for in-flight firing analysis (key=%s, in_flight_ms=%d)",
+					key, time.Since(startedAt).Milliseconds(),
+				)
+				if completed := s.waitForAnalysisCompletion(key, 3*time.Minute); !completed {
+					log.Printf("Resolved analysis wait timed out (key=%s), skipping", key)
+					return
+				}
+				// Firing 완료 → resolved 분석 시작
+				if _, ok := s.beginAnalysis(key); !ok {
+					log.Printf("Skipping resolved analysis — still blocked after wait (key=%s)", key)
+					return
+				}
+			} else {
+				log.Printf(
+					"Skipping duplicate alert analysis request (alert_id=%s, fingerprint=%s, incident_id=%s, in_flight_ms=%d)",
+					alertID,
+					alert.Fingerprint,
+					incidentID,
+					time.Since(startedAt).Milliseconds(),
+				)
+				return
+			}
 		}
 		defer s.finishAnalysis(key)
 	}
@@ -220,6 +237,31 @@ func (s *AgentService) finishAnalysis(key string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.inFlight, key)
+}
+
+// waitForAnalysisCompletion blocks until the in-flight analysis identified by
+// key completes (removed from inFlight map) or the timeout elapses.
+// Returns true if the analysis completed, false on timeout.
+// This allows a resolved analysis to wait for the preceding firing analysis
+// so that loadPreviousFiringAnalysis can reference its results.
+func (s *AgentService) waitForAnalysisCompletion(key string, timeout time.Duration) bool {
+	deadline := time.After(timeout)
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-deadline:
+			return false
+		case <-ticker.C:
+			s.mu.Lock()
+			_, exists := s.inFlight[key]
+			s.mu.Unlock()
+			if !exists {
+				return true
+			}
+		}
+	}
 }
 
 // loadPreviousFiringAnalysis - fingerprint 기준 최신 firing 분석 컨텍스트 조회

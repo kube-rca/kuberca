@@ -84,3 +84,45 @@ func TestAnalysisKeyReturnsEmptyWhenBothMissing(t *testing.T) {
 		t.Fatalf("expected empty string, got %s", key)
 	}
 }
+
+func TestWaitForAnalysisCompletionReturnsAfterFinish(t *testing.T) {
+	svc := &AgentService{inFlight: make(map[string]time.Time)}
+
+	// Firing 분석 시작
+	if _, ok := svc.beginAnalysis("alert:ALR-1"); !ok {
+		t.Fatal("firing beginAnalysis should succeed")
+	}
+
+	// Resolved 분석 시도 → 차단됨
+	if _, ok := svc.beginAnalysis("alert:ALR-1"); ok {
+		t.Fatal("resolved beginAnalysis should be blocked while firing is in-flight")
+	}
+
+	// Firing 완료 시뮬레이션 (별도 goroutine)
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		svc.finishAnalysis("alert:ALR-1")
+	}()
+
+	// waitForAnalysisCompletion: firing 완료 후 반환
+	completed := svc.waitForAnalysisCompletion("alert:ALR-1", 5*time.Second)
+	if !completed {
+		t.Fatal("should complete after firing finishes")
+	}
+
+	// Resolved 분석 시작 가능
+	if _, ok := svc.beginAnalysis("alert:ALR-1"); !ok {
+		t.Fatal("resolved beginAnalysis should succeed after firing completes")
+	}
+}
+
+func TestWaitForAnalysisCompletionTimesOut(t *testing.T) {
+	svc := &AgentService{inFlight: make(map[string]time.Time)}
+	svc.inFlight["alert:ALR-1"] = time.Now()
+
+	// Ticker 간격(2s)보다 짧은 timeout으로 deadline 경로를 빠르게 검증
+	completed := svc.waitForAnalysisCompletion("alert:ALR-1", 100*time.Millisecond)
+	if completed {
+		t.Fatal("should timeout when analysis never completes")
+	}
+}
