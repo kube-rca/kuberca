@@ -157,7 +157,7 @@ spec:
             - name: SESSION_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ default "postgresql" $sessionSecret.existingSecret | quote }}
+                  name: {{ include "kube-rca.postgresql.secretName" . | quote }}
                   key: {{ default "password" $sessionSecret.key | quote }}
             {{- end }}
           volumeMounts:
