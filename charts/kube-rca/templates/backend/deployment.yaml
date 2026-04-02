@@ -59,7 +59,7 @@ spec:
             - name: PGPASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ default "postgresql" $pgSecret.existingSecret | quote }}
+                  name: {{ include "kube-rca.postgresql.secretName" . | quote }}
                   key: {{ default "password" $pgSecret.key | quote }}
             - name: PGDATABASE
               value: {{ default "kube-rca" .Values.backend.postgresql.database | quote }}
@@ -201,7 +201,7 @@ spec:
             - name: AI_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.backend.embedding.apiKey.existingSecret | quote }}
+                  name: {{ include "kube-rca.backend.embeddingSecretName" . | quote }}
                   key: {{ .Values.backend.embedding.apiKey.key | quote }}
             {{- $flapping := default (dict) .Values.backend.flapping }}
             - name: FLAP_ENABLED
