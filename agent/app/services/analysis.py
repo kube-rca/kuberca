@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, cast
@@ -1099,15 +1100,30 @@ _TITLE_MAX_LEN = 100
 _SUMMARY_MAX_LEN = 300
 
 
+_BOLD_VALUE_RE = re.compile(r"^(?:\d+\.\s*)?\*{1,2}[^*]+\*{1,2}\s*(.*)", re.DOTALL)
+
+
 def _extract_inline_value(text: str, keys: list[str]) -> str:
-    """Extract value from inline format like '**제목 (Title)**: content here'."""
+    """Extract value from inline formats.
+
+    Supports both colon-separated (``**제목 (Title)**: content``) and
+    colon-less bold (``**제목 (Title)** content``) formats that LLMs
+    sometimes produce.
+    """
     for line in text.strip().splitlines():
         stripped = line.strip()
         if not stripped:
             continue
         lowered = stripped.lower()
-        if any(key in lowered for key in keys) and ":" in stripped:
+        if not any(key in lowered for key in keys):
+            continue
+        # 1) Colon-separated: **key**: value  /  key: value
+        if ":" in stripped:
             return stripped.split(":", 1)[1].strip().strip("'\"*")
+        # 2) Bold-marker without colon: **key** value
+        m = _BOLD_VALUE_RE.match(stripped)
+        if m and m.group(1).strip():
+            return m.group(1).strip().strip("'\"*")
     return ""
 
 
@@ -1182,22 +1198,24 @@ def _build_incident_summary_prompt(request: IncidentSummaryRequest, masker: Mask
     return (
         "You are kube-rca-agent. An incident has been resolved and you need to "
         "provide a final RCA summary.\n"
-        "Analyze all the alerts and their individual analyses to synthesize a "
-        "comprehensive incident summary.\n\n"
-        "Return your response in Korean with the following structure:\n"
-        "1. **제목 (Title)**: A concise incident title (max 100 chars) that includes:\n"
-        "   - The specific service/pod/namespace affected\n"
-        "   - The root cause or error type\n"
-        "   - Examples:\n"
-        "     - '[payment-service] OOMKilled로 인한 Pod 재시작'\n"
-        "     - '[nginx/prod] ImagePullBackOff - 잘못된 이미지 태그'\n"
-        "     - '[redis-cluster] 메모리 부족으로 인한 연결 실패'\n"
-        "2. **요약 (Summary)**: 1-2 sentences describing the root cause and resolution\n"
-        "3. **상세 분석 (Detail)**:\n"
-        "   - 근본 원인 (Root Cause)\n"
-        "   - 영향 범위 (Impact)\n"
-        "   - 해결 과정 (Resolution)\n"
-        "   - 재발 방지 권고 (Prevention Recommendations)\n\n"
+        "Analyze ALL alerts and their individual analyses to synthesize a "
+        "comprehensive incident summary. Every distinct alert type "
+        "(e.g. 5xx errors AND 4xx errors) must be addressed in the summary "
+        "and detail sections.\n\n"
+        "IMPORTANT: Use EXACTLY this format with colon separators:\n"
+        "**제목 (Title)**: A concise incident title (max 100 chars) that includes:\n"
+        "  - The specific service/pod/namespace affected\n"
+        "  - The root cause or error type\n"
+        "  - Examples:\n"
+        "    - '[payment-service] OOMKilled로 인한 Pod 재시작'\n"
+        "    - '[nginx/prod] ImagePullBackOff - 잘못된 이미지 태그'\n"
+        "    - '[redis-cluster] 메모리 부족으로 인한 연결 실패'\n"
+        "**요약 (Summary)**: 1-2 sentences describing the root cause and resolution\n"
+        "**상세 분석 (Detail)**:\n"
+        "  - 근본 원인 (Root Cause)\n"
+        "  - 영향 범위 (Impact)\n"
+        "  - 해결 과정 (Resolution)\n"
+        "  - 재발 방지 권고 (Prevention Recommendations)\n\n"
         f"Incident data:\n{_to_pretty_json(incident_data)}\n"
     )
 

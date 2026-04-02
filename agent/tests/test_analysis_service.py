@@ -1021,6 +1021,43 @@ class TestParseIncidentSummary:
         assert "근본 원인: OOM" in detail
         assert "영향 범위: bookinfo" in detail
 
+    def test_bold_without_colon_extracts_title_and_summary(self):
+        """LLM이 colon 없이 **key** value 형식으로 응답한 경우."""
+        result = (
+            "**제목 (Title)** [bookinfo/ratings] Istio 503 에러 유발\n\n"
+            "**요약 (Summary)** ratings 서비스에 Fault Injection이 설정되었습니다.\n\n"
+            "**상세 분석 (Detail)**\n"
+            "근본 원인 분석 내용..."
+        )
+        title, summary, detail = _parse_incident_summary(result, "Ongoing")
+        assert title == "[bookinfo/ratings] Istio 503 에러 유발"
+        assert summary == "ratings 서비스에 Fault Injection이 설정되었습니다."
+        assert title != "Ongoing"
+
+    def test_bold_with_colon_still_works(self):
+        """기존 **key**: value 형식이 여전히 동작하는지 검증."""
+        result = (
+            "**제목 (Title)**: [svc] OOMKilled 장애\n\n"
+            "**요약 (Summary)**: 메모리 부족으로 재시작.\n\n"
+            "**상세 분석 (Detail)**:\n"
+            "근본 원인..."
+        )
+        title, summary, _ = _parse_incident_summary(result, "Ongoing")
+        assert title == "[svc] OOMKilled 장애"
+        assert summary == "메모리 부족으로 재시작."
+
+    def test_numbered_bold_without_colon(self):
+        """1. **key** value 형식 (번호 포함, colon 없음)."""
+        result = (
+            "1. **제목 (Title)** [ns/pod] 장애\n\n"
+            "2. **요약 (Summary)** 요약 내용.\n\n"
+            "3. **상세 분석 (Detail)**\n"
+            "상세..."
+        )
+        title, summary, _ = _parse_incident_summary(result, "Ongoing")
+        assert title == "[ns/pod] 장애"
+        assert summary == "요약 내용."
+
 
 # ── resolve_alert_target: expanded label keys ──
 
