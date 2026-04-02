@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.6.0](https://github.com/kube-rca/helm-charts/compare/0.5.0...0.6.0) (2026-04-02)
+
+
+### Features
+
+* add built-in Redaction option [KAN-174] ([f1a0915](https://github.com/kube-rca/helm-charts/commit/f1a09154aa4ca730fb91ca7346d2c9ea1d01aff8))
+* add cert manager and move ingress hosts to 2 domains ([413da8e](https://github.com/kube-rca/helm-charts/commit/413da8e82378538c5f403f4a092a0160f487936d))
+* add gp2 values for stateful apps ([5fcd369](https://github.com/kube-rca/helm-charts/commit/5fcd369002967cd18a5a32a5cb4df7ba0d5d942a))
+* alert flapping 환경변수 (KAN-155) ([7532d90](https://github.com/kube-rca/helm-charts/commit/7532d90f6b4485644795601e4081cc3356d97575))
+* flapping enable/disable (KAN-155) ([09f8058](https://github.com/kube-rca/helm-charts/commit/09f8058bafe6f3f7092d6967bb5a1f5bd64e6399))
+* **kube-rca:** add LLM retry configuration for agent (KAN-159) ([605d9dd](https://github.com/kube-rca/helm-charts/commit/605d9dd713d21f074ffe76f41bbcab33db5caf1d))
+* **kube-rca:** add Loki env vars for agent deployment ([1ecbe44](https://github.com/kube-rca/helm-charts/commit/1ecbe440f00c9068172456afaed0ec055982113e))
+* **kube-rca:** add MANUAL_ANALYZE_SEVERITIES env for analysis mode (KAN-172) ([d2091d6](https://github.com/kube-rca/helm-charts/commit/d2091d65460457ed20bf3cc71f49d90c62c6de2f))
+* **kube-rca:** add OIDC authentication helm values and deployment env ([7a96d50](https://github.com/kube-rca/helm-charts/commit/7a96d50748531a36842ee9cf7b42a39567ddbed2))
+* **kube-rca:** replace hook job with initContainer and add DB-aware probes ([e708991](https://github.com/kube-rca/helm-charts/commit/e708991ffb6d6511e559bf010581336964d13488))
+
+
+### Bug Fixes
+
+* **chart:** add agent startupProbe and sync eks values ([c94dcda](https://github.com/kube-rca/helm-charts/commit/c94dcdaab9a1dad843ca0f1d8510a3227db80dcd))
+* **chart:** add anthropic max token env ([a5c8090](https://github.com/kube-rca/helm-charts/commit/a5c8090b2192a9e6e8d9987e65634bb97a58596f))
+* **kube-rca:** harden chart security, add probes, fix secret bug ([03c8560](https://github.com/kube-rca/helm-charts/commit/03c8560fc4ffa2e0fa40619a24ca7ca3c3e08dfb))
+* **kube-rca:** increase postgresql CPU limits to resolve throttling ([147216d](https://github.com/kube-rca/helm-charts/commit/147216d267ba33b3128a2abb7850adb697955e5f))
+* **kube-rca:** remove container securityContext defaults ([cf439c6](https://github.com/kube-rca/helm-charts/commit/cf439c6dc0437c6f74e29ee5a3db79bc6c2b9cdc))
+* **kube-rca:** remove runAsNonRoot from default podSecurityContext ([4e8dc20](https://github.com/kube-rca/helm-charts/commit/4e8dc20133e4ccdc6d06387d6cb20c8369c6fddb))
+* publish chart and image paths under kube-rca-ecr ([128aaa6](https://github.com/kube-rca/helm-charts/commit/128aaa6c043e8caa2a50fbdcac62e4ae754f0293))
+
 ## [0.5.0](https://github.com/kube-rca/helm-charts/compare/0.4.0...0.5.0) (2026-02-09)
 
 
