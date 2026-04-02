@@ -126,6 +126,8 @@ backend:
     provider: "gemini"
     model: "gemini-embedding-001"
     apiKey:
+      # -- Embedding API key value. When set (and no existingSecret), uses the agent's generated Secret.
+      value: ""
       existingSecret: "kube-rca-ai"
       key: "ai-studio-api-key"
   waitForDb:
@@ -348,6 +350,8 @@ agent:
   gemini:
     # -- Gemini model ID for Strands Agents.
     modelId: "gemini-3.1-flash-lite-preview"
+    # -- Gemini API key value. When set (and no existingSecret), chart creates the Secret.
+    apiKey: ""
     secret:
       # -- Create a Secret for the Gemini API key.
       create: false
@@ -358,6 +362,8 @@ agent:
   openai:
     # -- OpenAI model ID for Strands Agents.
     modelId: "gpt-5-mini"
+    # -- OpenAI API key value. When set (and no existingSecret), chart creates the Secret.
+    apiKey: ""
     secret:
       # -- Create a Secret for the OpenAI API key.
       create: false
@@ -370,6 +376,8 @@ agent:
     modelId: "claude-haiku-4-5"
     # -- Anthropic maximum output tokens.
     maxTokens: 4096
+    # -- Anthropic API key value. When set (and no existingSecret), chart creates the Secret.
+    apiKey: ""
     secret:
       # -- Create a Secret for the Anthropic API key.
       create: false

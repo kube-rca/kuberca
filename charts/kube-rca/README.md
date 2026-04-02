@@ -1,15 +1,172 @@
 # kube-rca
 
-![Version: 0.5.0](https://img.shields.io/badge/Version-0.5.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.1.0](https://img.shields.io/badge/AppVersion-0.1.0-informational?style=flat-square)
+![Version: 0.6.0](https://img.shields.io/badge/Version-0.6.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.1.0](https://img.shields.io/badge/AppVersion-0.1.0-informational?style=flat-square)
 
 Deploy kube-rca backend and frontend
 
 ## Quick Start
 
+### Prerequisites
+
+- Kubernetes cluster (v1.32+)
+- Helm 3.x
+- kubectl configured for your cluster
+- An Ingress controller (e.g., [ingress-nginx](https://kubernetes.github.io/ingress-nginx/deploy/)) — required for UI access
+- A [Google AI Studio API key](https://aistudio.google.com/apikey) (recommended for Quick Start, covers both analysis and embedding with a single key)
+
+> **Other AI providers:** OpenAI and Anthropic are also supported. See [AI Provider Configuration](#ai-provider-configuration) for details.
+
+### Step 1: Create Secrets
+
 ```bash
-helm repo add bitnami https://charts.bitnami.com/bitnami
-helm install kube-rca ./charts/kube-rca -n kube-rca --create-namespace
+# PostgreSQL password
+kubectl create namespace kube-rca
+kubectl create secret generic postgresql \
+  -n kube-rca \
+  --from-literal=password="your-db-password" \
+  --from-literal=postgres-password="your-admin-password"
+
+# AI API key (Gemini recommended — used by both agent analysis and backend embedding)
+kubectl create secret generic kube-rca-ai \
+  -n kube-rca \
+  --from-literal=ai-studio-api-key="YOUR_GEMINI_API_KEY"
 ```
+
+### Step 2: Create Values Override
+
+Create a `my-values.yaml`:
+
+```yaml
+backend:
+  slack:
+    enabled: false       # Disable Slack for Quick Start
+
+agent:
+  aiProvider: "gemini"
+
+frontend:
+  ingress:
+    enabled: true
+    ingressClassName: "nginx"   # Match your ingress controller (kubectl get ingressclass)
+    hosts:
+      - "kube-rca.local"       # Or your domain
+```
+
+### Step 3: Install
+
+**Option A — From OCI Registry (recommended):**
+
+```bash
+helm install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/charts/kube-rca \
+  --version 0.6.0 \
+  -n kube-rca \
+  -f my-values.yaml
+```
+
+**Option B — From source (after cloning the repo):**
+
+```bash
+helm install kube-rca ./charts/kube-rca \
+  -n kube-rca \
+  -f my-values.yaml
+```
+
+### Step 4: Verify
+
+```bash
+# Wait for all pods to be ready
+kubectl get pods -n kube-rca -w
+
+# Expected (all Running):
+#   kube-rca-backend-xxx     1/1  Running
+#   kube-rca-agent-xxx       1/1  Running
+#   kube-rca-frontend-xxx    1/1  Running
+#   kube-rca-postgresql-0    1/1  Running
+
+# Test backend health
+kubectl port-forward svc/kube-rca-backend 8080:8080 -n kube-rca
+# In another terminal:
+curl http://localhost:8080/ping
+# Expected: {"message":"pong"}
+```
+
+### Step 5: Access the UI
+
+For local testing, add to `/etc/hosts`:
+
+```
+# Replace with your Ingress controller's external IP (kubectl get svc -n ingress-nginx)
+127.0.0.1 kube-rca.local
+```
+
+Open `http://kube-rca.local` in your browser.
+
+> **Default login:** username `kube-rca` / password `kube-rca`
+>
+> These are set via `backend.auth.admin.username` and `backend.auth.admin.password`. **Change them before production use.**
+
+### Step 6: Connect Alertmanager (Optional)
+
+Add KubeRCA as a webhook receiver in your Alertmanager configuration:
+
+```yaml
+# alertmanager.yml
+receivers:
+  - name: "kube-rca"
+    webhook_configs:
+      - url: "http://kube-rca-backend.kube-rca.svc.cluster.local:8080/webhook/alertmanager"
+        send_resolved: true
+
+route:
+  receiver: "kube-rca"
+```
+
+If using `kube-prometheus-stack`, add to your Helm values:
+
+```yaml
+alertmanager:
+  config:
+    receivers:
+      - name: "kube-rca"
+        webhook_configs:
+          - url: "http://kube-rca-backend.kube-rca.svc.cluster.local:8080/webhook/alertmanager"
+            send_resolved: true
+    route:
+      receiver: "kube-rca"
+```
+
+### Uninstall
+
+```bash
+helm uninstall kube-rca -n kube-rca
+
+# PostgreSQL PVCs persist after uninstall. To delete all data:
+kubectl delete pvc -n kube-rca -l app.kubernetes.io/name=postgresql
+kubectl delete namespace kube-rca
+```
+
+### AI Provider Configuration
+
+The default setup uses **Gemini** for both the agent (RCA analysis) and backend (embedding). To use a different provider for the agent:
+
+| Provider | `agent.aiProvider` | Secret key required in `kube-rca-ai` |
+|----------|-------------------|--------------------------------------|
+| Gemini (default) | `"gemini"` | `ai-studio-api-key` |
+| OpenAI | `"openai"` | `openai-api-key` |
+| Anthropic | `"anthropic"` | `anthropic-api-key` |
+
+> **Note:** Backend embedding uses Gemini by default (`backend.embedding.provider`). If you choose OpenAI or Anthropic for the agent, you still need a Gemini API key for embedding — or override `backend.embedding` to match your provider.
+
+### Troubleshooting
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Pod `CrashLoopBackOff` (backend) | PostgreSQL Secret missing or wrong key | Verify: `kubectl get secret postgresql -n kube-rca -o yaml` |
+| Pod `CrashLoopBackOff` (agent) | AI API key Secret missing | Verify: `kubectl get secret kube-rca-ai -n kube-rca -o yaml` |
+| Ingress has no IP/hostname | Ingress controller not installed | Install one: `kubectl get ingressclass` should list your controller |
+| UI loads but API calls fail (401/502) | Ingress not routing `/api/*` to backend | Check Ingress rules: `kubectl describe ingress -n kube-rca` |
+| `403 Forbidden` on login | Default credentials changed or OIDC misconfigured | Check `backend.auth.admin.*` values or OIDC setup |
+| Analysis returns empty results | Agent has no cluster access | Verify agent ServiceAccount RBAC: `kubectl auth can-i list pods --as=system:serviceaccount:kube-rca:kube-rca-agent -n default` |
 
 ## Architecture
 
@@ -152,6 +309,7 @@ backend:
 |-----|------|---------|-------------|
 | agent.affinity | object | `{}` | Affinity for agent pods assignment. |
 | agent.aiProvider | string | `"gemini"` | AI provider for agent (AI_PROVIDER). Allowed: gemini, openai, anthropic. |
+| agent.anthropic.apiKey | string | `""` | Anthropic API key value. When set (and no existingSecret), chart creates the Secret. |
 | agent.anthropic.maxTokens | int | `4096` | Anthropic maximum output tokens. |
 | agent.anthropic.modelId | string | `"claude-haiku-4-5"` | Anthropic model ID for Strands Agents. |
 | agent.anthropic.secret.create | bool | `false` | Create a Secret for the Anthropic API key. |
@@ -160,13 +318,14 @@ backend:
 | agent.cache.size | int | `128` | Max number of cached agents (AGENT_CACHE_SIZE). |
 | agent.cache.ttlSeconds | int | `0` | Cache TTL in seconds (AGENT_CACHE_TTL_SECONDS, 0 = disable). |
 | agent.containerPort | int | `8000` | Agent container port. |
+| agent.gemini.apiKey | string | `""` | Gemini API key value. When set (and no existingSecret), chart creates the Secret. |
 | agent.gemini.modelId | string | `"gemini-3.1-flash-lite-preview"` | Gemini model ID for Strands Agents. |
 | agent.gemini.secret.create | bool | `false` | Create a Secret for the Gemini API key. |
 | agent.gemini.secret.existingSecret | string | `"kube-rca-ai"` | Existing Secret name for the Gemini API key. |
 | agent.gemini.secret.key | string | `"ai-studio-api-key"` | Secret key name for the Gemini API key. |
 | agent.image.pullPolicy | string | `"IfNotPresent"` | Agent image pull policy. |
 | agent.image.repository | string | `"public.ecr.aws/r5b7j2e4/kube-rca-ecr/agent"` | Agent image repository. |
-| agent.image.tag | string | `"agent-1.1.0"` | Agent image tag. |
+| agent.image.tag | string | `"agent-1.2.0"` | Agent image tag. |
 | agent.ingress.annotations | object | `{}` | Annotations for agent ingress. |
 | agent.ingress.enabled | bool | `false` | Enable agent ingress. |
 | agent.ingress.hosts | list | `[]` | Hostnames for agent ingress. |
@@ -185,6 +344,7 @@ backend:
 | agent.masking.builtinRedactionHashMode | bool | `false` | Use deterministic hash replacement [HASH:xxx] instead of [MASKED] for correlation. |
 | agent.masking.regexList | list | `[]` | Regex list (JSON array) for masking sensitive values before LLM requests and DB persistence. |
 | agent.nodeSelector | object | `{}` | Node labels for agent pods assignment. |
+| agent.openai.apiKey | string | `""` | OpenAI API key value. When set (and no existingSecret), chart creates the Secret. |
 | agent.openai.modelId | string | `"gpt-5-mini"` | OpenAI model ID for Strands Agents. |
 | agent.openai.secret.create | bool | `false` | Create a Secret for the OpenAI API key. |
 | agent.openai.secret.existingSecret | string | `"kube-rca-ai"` | Existing Secret name for the OpenAI API key. |
@@ -248,6 +408,7 @@ backend:
 | backend.containerPort | int | `8080` | Backend container port. |
 | backend.embedding.apiKey.existingSecret | string | `"kube-rca-ai"` |  |
 | backend.embedding.apiKey.key | string | `"ai-studio-api-key"` |  |
+| backend.embedding.apiKey.value | string | `""` | Embedding API key value. When set (and no existingSecret), uses the agent's generated Secret. |
 | backend.embedding.model | string | `"gemini-embedding-001"` |  |
 | backend.embedding.provider | string | `"gemini"` |  |
 | backend.flapping.clearanceWindowMinutes | int | `30` | Time (minutes) after last resolved to clear flapping status (FLAP_CLEARANCE_WINDOW_MINUTES). |
@@ -256,7 +417,7 @@ backend:
 | backend.flapping.enabled | bool | `true` | Enable alert flapping detection (FLAP_ENABLED). |
 | backend.image.pullPolicy | string | `"IfNotPresent"` | Backend image pull policy. |
 | backend.image.repository | string | `"public.ecr.aws/r5b7j2e4/kube-rca-ecr/backend"` | Backend image repository. |
-| backend.image.tag | string | `"backend-0.4.0"` | Backend image tag. |
+| backend.image.tag | string | `"backend-0.5.0"` | Backend image tag. |
 | backend.ingress.annotations | object | `{}` | Annotations for backend ingress. |
 | backend.ingress.enabled | bool | `false` | Enable backend ingress. |
 | backend.ingress.hosts | list | `[]` | Hostnames for backend ingress. |
@@ -294,7 +455,7 @@ backend:
 | frontend.containerPort | int | `80` | Frontend container port. |
 | frontend.image.pullPolicy | string | `"IfNotPresent"` | Frontend image pull policy. |
 | frontend.image.repository | string | `"public.ecr.aws/r5b7j2e4/kube-rca-ecr/frontend"` | Frontend image repository. |
-| frontend.image.tag | string | `"frontend-0.3.0"` | Frontend image tag. |
+| frontend.image.tag | string | `"frontend-0.4.0"` | Frontend image tag. |
 | frontend.ingress.annotations | object | `{}` | Annotations for frontend ingress. |
 | frontend.ingress.enabled | bool | `false` | Enable frontend ingress. |
 | frontend.ingress.hosts | list | `[]` | Hostnames for frontend ingress. |

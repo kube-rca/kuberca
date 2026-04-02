@@ -5,10 +5,167 @@
 
 ## Quick Start
 
+### Prerequisites
+
+- Kubernetes cluster (v1.32+)
+- Helm 3.x
+- kubectl configured for your cluster
+- An Ingress controller (e.g., [ingress-nginx](https://kubernetes.github.io/ingress-nginx/deploy/)) — required for UI access
+- A [Google AI Studio API key](https://aistudio.google.com/apikey) (recommended for Quick Start, covers both analysis and embedding with a single key)
+
+> **Other AI providers:** OpenAI and Anthropic are also supported. See [AI Provider Configuration](#ai-provider-configuration) for details.
+
+### Step 1: Create Secrets
+
 ```bash
-helm repo add bitnami https://charts.bitnami.com/bitnami
-helm install kube-rca ./charts/kube-rca -n kube-rca --create-namespace
+# PostgreSQL password
+kubectl create namespace kube-rca
+kubectl create secret generic postgresql \
+  -n kube-rca \
+  --from-literal=password="your-db-password" \
+  --from-literal=postgres-password="your-admin-password"
+
+# AI API key (Gemini recommended — used by both agent analysis and backend embedding)
+kubectl create secret generic kube-rca-ai \
+  -n kube-rca \
+  --from-literal=ai-studio-api-key="YOUR_GEMINI_API_KEY"
 ```
+
+### Step 2: Create Values Override
+
+Create a `my-values.yaml`:
+
+```yaml
+backend:
+  slack:
+    enabled: false       # Disable Slack for Quick Start
+
+agent:
+  aiProvider: "gemini"
+
+frontend:
+  ingress:
+    enabled: true
+    ingressClassName: "nginx"   # Match your ingress controller (kubectl get ingressclass)
+    hosts:
+      - "kube-rca.local"       # Or your domain
+```
+
+### Step 3: Install
+
+**Option A — From OCI Registry (recommended):**
+
+```bash
+helm install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/charts/kube-rca \
+  --version 0.6.0 \
+  -n kube-rca \
+  -f my-values.yaml
+```
+
+**Option B — From source (after cloning the repo):**
+
+```bash
+helm install kube-rca ./charts/kube-rca \
+  -n kube-rca \
+  -f my-values.yaml
+```
+
+### Step 4: Verify
+
+```bash
+# Wait for all pods to be ready
+kubectl get pods -n kube-rca -w
+
+# Expected (all Running):
+#   kube-rca-backend-xxx     1/1  Running
+#   kube-rca-agent-xxx       1/1  Running
+#   kube-rca-frontend-xxx    1/1  Running
+#   kube-rca-postgresql-0    1/1  Running
+
+# Test backend health
+kubectl port-forward svc/kube-rca-backend 8080:8080 -n kube-rca
+# In another terminal:
+curl http://localhost:8080/ping
+# Expected: {"message":"pong"}
+```
+
+### Step 5: Access the UI
+
+For local testing, add to `/etc/hosts`:
+
+```
+# Replace with your Ingress controller's external IP (kubectl get svc -n ingress-nginx)
+127.0.0.1 kube-rca.local
+```
+
+Open `http://kube-rca.local` in your browser.
+
+> **Default login:** username `kube-rca` / password `kube-rca`
+>
+> These are set via `backend.auth.admin.username` and `backend.auth.admin.password`. **Change them before production use.**
+
+### Step 6: Connect Alertmanager (Optional)
+
+Add KubeRCA as a webhook receiver in your Alertmanager configuration:
+
+```yaml
+# alertmanager.yml
+receivers:
+  - name: "kube-rca"
+    webhook_configs:
+      - url: "http://kube-rca-backend.kube-rca.svc.cluster.local:8080/webhook/alertmanager"
+        send_resolved: true
+
+route:
+  receiver: "kube-rca"
+```
+
+If using `kube-prometheus-stack`, add to your Helm values:
+
+```yaml
+alertmanager:
+  config:
+    receivers:
+      - name: "kube-rca"
+        webhook_configs:
+          - url: "http://kube-rca-backend.kube-rca.svc.cluster.local:8080/webhook/alertmanager"
+            send_resolved: true
+    route:
+      receiver: "kube-rca"
+```
+
+### Uninstall
+
+```bash
+helm uninstall kube-rca -n kube-rca
+
+# PostgreSQL PVCs persist after uninstall. To delete all data:
+kubectl delete pvc -n kube-rca -l app.kubernetes.io/name=postgresql
+kubectl delete namespace kube-rca
+```
+
+### AI Provider Configuration
+
+The default setup uses **Gemini** for both the agent (RCA analysis) and backend (embedding). To use a different provider for the agent:
+
+| Provider | `agent.aiProvider` | Secret key required in `kube-rca-ai` |
+|----------|-------------------|--------------------------------------|
+| Gemini (default) | `"gemini"` | `ai-studio-api-key` |
+| OpenAI | `"openai"` | `openai-api-key` |
+| Anthropic | `"anthropic"` | `anthropic-api-key` |
+
+> **Note:** Backend embedding uses Gemini by default (`backend.embedding.provider`). If you choose OpenAI or Anthropic for the agent, you still need a Gemini API key for embedding — or override `backend.embedding` to match your provider.
+
+### Troubleshooting
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Pod `CrashLoopBackOff` (backend) | PostgreSQL Secret missing or wrong key | Verify: `kubectl get secret postgresql -n kube-rca -o yaml` |
+| Pod `CrashLoopBackOff` (agent) | AI API key Secret missing | Verify: `kubectl get secret kube-rca-ai -n kube-rca -o yaml` |
+| Ingress has no IP/hostname | Ingress controller not installed | Install one: `kubectl get ingressclass` should list your controller |
+| UI loads but API calls fail (401/502) | Ingress not routing `/api/*` to backend | Check Ingress rules: `kubectl describe ingress -n kube-rca` |
+| `403 Forbidden` on login | Default credentials changed or OIDC misconfigured | Check `backend.auth.admin.*` values or OIDC setup |
+| Analysis returns empty results | Agent has no cluster access | Verify agent ServiceAccount RBAC: `kubectl auth can-i list pods --as=system:serviceaccount:kube-rca:kube-rca-agent -n default` |
 
 ## Architecture
 
