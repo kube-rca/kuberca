@@ -15,6 +15,7 @@ from threading import Lock
 from typing import Any, Protocol
 
 from strands import Agent, tool
+from strands.handlers.callback_handler import null_callback_handler
 from strands.session import RepositorySessionManager
 from strands.types.content import Messages
 from tenacity import (
@@ -856,6 +857,7 @@ class StrandsAnalysisEngine:
         return Agent(
             model=model,
             tools=self._tools,
+            callback_handler=null_callback_handler,
             session_manager=session_manager,
             conversation_manager=conversation_manager,
         )
