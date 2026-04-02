@@ -273,6 +273,46 @@ PostgreSQL connection string for wait-for-db.
 {{- end -}}
 
 {{/*
+PostgreSQL Secret name.
+If backend.postgresql.secret.existingSecret is set, use it.
+Otherwise fall back to the bitnami-generated Secret name.
+*/}}
+{{- define "kube-rca.postgresql.secretName" -}}
+{{- $pgSecret := default (dict) .Values.backend.postgresql.secret -}}
+{{- $existing := default "" $pgSecret.existingSecret -}}
+{{- if $existing -}}
+{{- $existing -}}
+{{- else -}}
+{{- include "kube-rca.postgresql.primary.fullname" . -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Backend embedding API key Secret name.
+If backend.embedding.apiKey.existingSecret is set, use it.
+Otherwise resolve from the active agent provider's Secret.
+*/}}
+{{- define "kube-rca.backend.embeddingSecretName" -}}
+{{- $embedding := default (dict) .Values.backend.embedding -}}
+{{- $apiKey := default (dict) $embedding.apiKey -}}
+{{- $existing := default "" $apiKey.existingSecret -}}
+{{- if $existing -}}
+{{- $existing -}}
+{{- else -}}
+{{- $provider := default "gemini" .Values.agent.aiProvider | lower -}}
+{{- if eq $provider "gemini" -}}
+{{- include "kube-rca.agent.geminiSecretName" . -}}
+{{- else if eq $provider "openai" -}}
+{{- include "kube-rca.agent.openaiSecretName" . -}}
+{{- else if eq $provider "anthropic" -}}
+{{- include "kube-rca.agent.anthropicSecretName" . -}}
+{{- else -}}
+{{- include "kube-rca.agent.geminiSecretName" . -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Backend service endpoint for wait-for-backend.
 */}}
 {{- define "kube-rca.hook.backend.host" -}}
