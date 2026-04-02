@@ -16,34 +16,37 @@ Deploy kube-rca backend and frontend
 
 > **Other AI providers:** OpenAI and Anthropic are also supported. See [AI Provider Configuration](#ai-provider-configuration) for details.
 
-### Step 1: Create Secrets
+### Step 1: Create Values File
 
-```bash
-# PostgreSQL password
-kubectl create namespace kube-rca
-kubectl create secret generic postgresql \
-  -n kube-rca \
-  --from-literal=password="your-db-password" \
-  --from-literal=postgres-password="your-admin-password"
-
-# AI API key (Gemini recommended — used by both agent analysis and backend embedding)
-kubectl create secret generic kube-rca-ai \
-  -n kube-rca \
-  --from-literal=ai-studio-api-key="YOUR_GEMINI_API_KEY"
-```
-
-### Step 2: Create Values Override
-
-Create a `my-values.yaml`:
+Create a `my-values.yaml` with your configuration:
 
 ```yaml
+# PostgreSQL — chart auto-creates the Secret
+postgresql:
+  auth:
+    existingSecret: ""          # Let bitnami subchart generate the Secret
+    password: "change-me"       # Set your DB password
+
+# Backend
 backend:
   slack:
-    enabled: false       # Disable Slack for Quick Start
+    enabled: false              # Disable Slack for Quick Start
+  postgresql:
+    secret:
+      existingSecret: ""        # Auto-resolve from bitnami
+  embedding:
+    apiKey:
+      existingSecret: ""        # Share the agent's AI key Secret
 
+# Agent — set your AI provider and API key
 agent:
-  aiProvider: "gemini"
+  aiProvider: "gemini"          # Options: gemini, openai, anthropic
+  gemini:
+    apiKey: "YOUR_GEMINI_API_KEY"
+    secret:
+      existingSecret: ""        # Chart creates the Secret from apiKey above
 
+# Frontend
 frontend:
   ingress:
     enabled: true
@@ -52,14 +55,18 @@ frontend:
       - "kube-rca.local"       # Or your domain
 ```
 
-### Step 3: Install
+> **Other AI providers:** See [AI Provider Configuration](#ai-provider-configuration) below.
+>
+> **Production use:** For production, use `existingSecret` with [ExternalSecrets](https://external-secrets.io/) or [Sealed Secrets](https://sealed-secrets.netlify.app/) instead of inline values.
+
+### Step 2: Install
 
 **Option A — From OCI Registry (recommended):**
 
 ```bash
 helm install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/charts/kube-rca \
   --version 0.6.0 \
-  -n kube-rca \
+  -n kube-rca --create-namespace \
   -f my-values.yaml
 ```
 
@@ -67,11 +74,11 @@ helm install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/charts/kube-rca
 
 ```bash
 helm install kube-rca ./charts/kube-rca \
-  -n kube-rca \
+  -n kube-rca --create-namespace \
   -f my-values.yaml
 ```
 
-### Step 4: Verify
+### Step 3: Verify
 
 ```bash
 # Wait for all pods to be ready
@@ -90,7 +97,7 @@ curl http://localhost:8080/ping
 # Expected: {"message":"pong"}
 ```
 
-### Step 5: Access the UI
+### Step 4: Access the UI
 
 For local testing, add to `/etc/hosts`:
 
@@ -105,7 +112,7 @@ Open `http://kube-rca.local` in your browser.
 >
 > These are set via `backend.auth.admin.username` and `backend.auth.admin.password`. **Change them before production use.**
 
-### Step 6: Connect Alertmanager (Optional)
+### Step 5: Connect Alertmanager (Optional)
 
 Add KubeRCA as a webhook receiver in your Alertmanager configuration:
 
