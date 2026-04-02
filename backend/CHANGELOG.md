@@ -1,5 +1,58 @@
 # Changelog
 
+## [0.5.0](https://github.com/kube-rca/backend/compare/0.4.0...0.5.0) (2026-04-02)
+
+
+### Features
+
+* Add a required `name` field to webhook configurations, includin… ([cb483de](https://github.com/kube-rca/backend/commit/cb483de3d0c06c324f84ed714421ad8bbc4e79c3))
+* Add a required `name` field to webhook configurations, including database schema, API requests, and validation logic. ([fac832d](https://github.com/kube-rca/backend/commit/fac832d4cf5a7ae2853b100f023e176f311e3180))
+* add auto/manual analysis mode with severity-based control (KAN-172) ([48ecf14](https://github.com/kube-rca/backend/commit/48ecf14fdab1f6fa8a8d6b7cc2f228dd27935e41))
+* add firing/resolved analysis split to alert detail API ([4bcf251](https://github.com/kube-rca/backend/commit/4bcf251fa58b57d17210db9c58d2f22ac2ccd882))
+* add multi-provider OIDC support with auto-detection ([04ee09b](https://github.com/kube-rca/backend/commit/04ee09b776b4ea1534e48d3ba1f39a18222c2e77))
+* add notifier events and webhook-based routing ([e1aceba](https://github.com/kube-rca/backend/commit/e1aceba598a4398fd2bed710dd28bbbe2b412657))
+* add notifier events and webhook-based routing ([e1aceba](https://github.com/kube-rca/backend/commit/e1aceba598a4398fd2bed710dd28bbbe2b412657))
+* add notifier events and webhook-based routing ([c77a6f4](https://github.com/kube-rca/backend/commit/c77a6f4893cbc0060f1d929373066cc34577c448))
+* add settings option ([b6c9231](https://github.com/kube-rca/backend/commit/b6c92315f00df16f7ed5e6cca572d4314844e1ea))
+* add severity-channel mapping rule ([d8f8638](https://github.com/kube-rca/backend/commit/d8f863866c97c5982c3360547d9ca3e9e9214a20))
+* add SSE support for real-time event notifications (KAN-165) ([d26e895](https://github.com/kube-rca/backend/commit/d26e895380870a3f0fa17d681bcf02faba2486cd))
+* Alanlysis 기능 추가 (KAN-170) ([1d9f4a8](https://github.com/kube-rca/backend/commit/1d9f4a8e9723577156d3ef166abb42b833be17fe))
+* allow info severity payload ([ad77cf9](https://github.com/kube-rca/backend/commit/ad77cf925b56a1cddeb3bd8f031b9b727d156b3f))
+* **analyze:** add analysis SSE events and is_analyzing API field (KAN-173) ([b2ebbe4](https://github.com/kube-rca/backend/commit/b2ebbe437d95fdf59f2134586d8761b968d02ebc))
+* **analyze:** add in-flight dedup guard and configurable agent timeout ([f421628](https://github.com/kube-rca/backend/commit/f4216280d8043d800dd598ee72e5f794ced9fdd4))
+* **analyze:** differentiate resolved alert analysis from firing ([f5545f0](https://github.com/kube-rca/backend/commit/f5545f053cebc0d054860ea9d6e53f319ea3dab3))
+* **backend:** add IsManual flag to AlertStatusChangedEvent for manual resolve Slack prefix ([69a09bc](https://github.com/kube-rca/backend/commit/69a09bcf853308dedfd23bf41a1b8613251183ef))
+* **backend:** add manual alert resolve request/response models ([038b545](https://github.com/kube-rca/backend/commit/038b5455821f0ba8969a42f37bc433cb2217e837))
+* **backend:** add ManualResolveAlert DB function ([b03d56d](https://github.com/kube-rca/backend/commit/b03d56d77e95e66de425e4b6ba8a0585a45d8c38))
+* **backend:** add ResolveAlert and BulkResolveAlerts handlers with alertService dependency ([652266d](https://github.com/kube-rca/backend/commit/652266d8b971df2e79f8377d0951e30412a7a48a))
+* **backend:** add ResolveAlert and BulkResolveAlerts service methods with tests ([8aa926c](https://github.com/kube-rca/backend/commit/8aa926c1668147531307d894a3a909a3c1084679))
+* **backend:** DB-backed notification delivery tracking with strict thread routing ([433faa7](https://github.com/kube-rca/backend/commit/433faa7f25da4e634ec7bc5e5cba967d7980bf95))
+* **backend:** register alert resolve routes and update OpenAPI docs ([6efb61b](https://github.com/kube-rca/backend/commit/6efb61b3afab4674265a9519a59928ff229d5c3c))
+* **db:** add connection retry with exponential backoff and DB-aware health endpoints ([bc1c23a](https://github.com/kube-rca/backend/commit/bc1c23a26b6f424a8f9d6b89816bdb2ea5944a9b))
+* display OIDC login_id as 'Name (email)' format ([493873f](https://github.com/kube-rca/backend/commit/493873f85d6cefec8d669969320f9c5e417d8015))
+* **incidents:** expose is_analyzing field in incident detail API ([358c316](https://github.com/kube-rca/backend/commit/358c31680ce5b940208fcfd0f858b26b5904213e))
+* remove duplicated setting ([add8fa3](https://github.com/kube-rca/backend/commit/add8fa3f2bc906a689d4c951c83d030b64d51874))
+* sync UI/Helm setting ([a7dab54](https://github.com/kube-rca/backend/commit/a7dab54ed5393e69343c91d46d47133cb3ddb6d1))
+
+
+### Bug Fixes
+
+* add prompt=select_account to OIDC auth URL ([50ce8f3](https://github.com/kube-rca/backend/commit/50ce8f39ee2b589d7f6cda73f342791b024c79e6))
+* **alerts:** resolve fingerprint dedup causing alert history loss ([#25](https://github.com/kube-rca/backend/issues/25)) ([d1fc66e](https://github.com/kube-rca/backend/commit/d1fc66ec413e2cf528cd2bb5c5048feea1ac7c83))
+* analysis-channel mapping rule ([22af24a](https://github.com/kube-rca/backend/commit/22af24a25cf9fdcc2ad741a56144d629296e6d6e))
+* **analyze:** correct fingerprint lookup and add incident-level analysis ([7dbd88a](https://github.com/kube-rca/backend/commit/7dbd88a801d983b3f30c94d552c8a2e6cabd821f))
+* **backend:** allow resolved analysis to wait for in-flight firing analysis ([8b83561](https://github.com/kube-rca/backend/commit/8b83561902355691ca562e4fac8a755d820d6017))
+* **backend:** enable markdown rendering for Slack attachments ([d45c938](https://github.com/kube-rca/backend/commit/d45c93808e3e96a17b6761e609dd762252d78c89))
+* **backend:** handle triple asterisk in Slack markdown conversion ([56eb03e](https://github.com/kube-rca/backend/commit/56eb03e3ea49aa905008789bcd4d638af1fb630f))
+* **backend:** preserve thread_ts on resolved alerts for async analysis routing ([da9ed5c](https://github.com/kube-rca/backend/commit/da9ed5c63db41e90af787af4caaa7cb7ed55f63e))
+* **backend:** set StartsAt and prefer direct ThreadTS in manual resolve ([77ce68e](https://github.com/kube-rca/backend/commit/77ce68e5b967ddec195403384a9f1c8969a7cd9a))
+* **backend:** strip markdown bold markers inside heading for Slack conversion ([58b58bd](https://github.com/kube-rca/backend/commit/58b58bd51f4af33b8435e5914cd8ec8cc7dd52b9))
+* **backend:** use semantic JSON comparison for SyncEnvDefaults ([af34aae](https://github.com/kube-rca/backend/commit/af34aae8e1d9794ed9ebcdc83ca8cfedd377e098))
+* **deps:** upgrade google.golang.org/grpc to v1.79.3 ([ad6fda1](https://github.com/kube-rca/backend/commit/ad6fda1ddfa8985d9a2d8aaeb83549afffbb5a6e))
+* edit thread_ts analysis mapping rule ([f8b309f](https://github.com/kube-rca/backend/commit/f8b309f76293a7301a63cbabea580a96055f4737))
+* **incidents:** prevent duplicate ongoing incidents with atomic upsert ([09b391a](https://github.com/kube-rca/backend/commit/09b391a02948165b5b45f563344a2467d3dd3d36))
+* use email as login_id for OIDC users instead of oidc_{sub} ([2efb25b](https://github.com/kube-rca/backend/commit/2efb25bf82a8bbaed3ca49125e6d2128feb5e05a))
+
 ## [0.4.0](https://github.com/kube-rca/backend/compare/0.3.0...0.4.0) (2026-02-27)
 
 
