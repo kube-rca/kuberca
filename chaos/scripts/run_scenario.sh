@@ -262,6 +262,7 @@ if [ "$USE_FAULT_PERCENTAGE" = "true" ]; then
 fi
 
 cleanup() {
+  trap '' INT TERM
   log_info "Cleaning up..."
   if [ -n "$CHAOS_MANIFEST" ]; then
     kubectl_local -n "$NAMESPACE" delete -f "$CHAOS_MANIFEST" --ignore-not-found=true >/dev/null 2>&1 || true
@@ -273,6 +274,7 @@ cleanup() {
     rm -f "$TMP_MANIFEST"
   fi
   log_ok "Cleanup complete"
+  exit 0
 }
 
 trap cleanup EXIT
