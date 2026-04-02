@@ -1,5 +1,49 @@
 # Changelog
 
+## [1.2.0](https://github.com/kube-rca/agent/compare/1.1.0...1.2.0) (2026-04-02)
+
+
+### Features
+
+* add built-in redaction masking-chaining [KAN-174] ([fb7777e](https://github.com/kube-rca/agent/commit/fb7777e50ed7c7d768e2eefff511e86c26bfdb72))
+* add settings option ([241e12c](https://github.com/kube-rca/agent/commit/241e12c4ba80449bd9a86e4fb57fadf6ef44799b))
+* add total timeout stop condition to LLM retry logic ([41ab472](https://github.com/kube-rca/agent/commit/41ab472e05dc6632505c60b8b65c85db15b513ad))
+* **agent:** add Loki log aggregation client and Strands tools ([fc4788b](https://github.com/kube-rca/agent/commit/fc4788b8e0716b36278f596699976e9eb7824f90))
+* **agent:** add tool timing logs for analysis ([6777f6e](https://github.com/kube-rca/agent/commit/6777f6ee854a2f72a5c9857a41b9b73290aa225a))
+* **agent:** async 엔드포인트 전환으로 분석 병렬 처리 지원 ([97d1b0d](https://github.com/kube-rca/agent/commit/97d1b0dbd4a8e2363c88d3a4701604782ae2c35f))
+* **agent:** portable K8s baseline context and capability-aware prompt ([8f111d0](https://github.com/kube-rca/agent/commit/8f111d0ec76b5b65050c2a87fd3d277632e7e1d5))
+* **agent:** tune LLM retry to 3-min exponential backoff ([89dc3d2](https://github.com/kube-rca/agent/commit/89dc3d214f8b02367c791899a447db03f069bdb1))
+* **analyze:** differentiate resolved alert analysis from firing ([da6ed90](https://github.com/kube-rca/agent/commit/da6ed904a9c157f8c2979385e24b0610c683af78))
+
+
+### Bug Fixes
+
+* **agent:** add httpx transport errors to LLM retry and sanitize messages ([8ca98d7](https://github.com/kube-rca/agent/commit/8ca98d76c6bbdea81d8ec2f5380c021cc95cfb09))
+* **agent:** context-aware missing data and stronger tool usage directive ([175d5f0](https://github.com/kube-rca/agent/commit/175d5f0b31f8d5401fc2f0e8f234f21a2b541885))
+* **agent:** disable default PrintingCallbackHandler in Strands Agent ([6f4620c](https://github.com/kube-rca/agent/commit/6f4620ce55ca76ad232646ab5e6b2eefeea6327b))
+* **agent:** enforce completed-findings tone and active tool usage in prompt ([b92db2a](https://github.com/kube-rca/agent/commit/b92db2a602d54d6fb05a6ec81faf6e4fb6a89238))
+* **agent:** extract detail section only and strip markdown bold from title ([d421e11](https://github.com/kube-rca/agent/commit/d421e11b18d7d41aad31d14a69b9d9b908859ba6))
+* **agent:** handle Gemini turn-order violations from sliding-window truncation ([c715989](https://github.com/kube-rca/agent/commit/c71598913181299c83d2e9c2d95cf270d48cc7d6))
+* **agent:** improve analysis fallback for missing pod labels and empty exceptions ([79c5440](https://github.com/kube-rca/agent/commit/79c544059de0e25e2ac097d64afaeaa8aa15ae02))
+* **agent:** improve incident summary parsing for bold-without-colon LLM responses ([22fd82b](https://github.com/kube-rca/agent/commit/22fd82b32e17e60afdddc78fe50e1f176d24a17d))
+* **agent:** prevent entire LLM response from leaking into incident title and summary ([3fb72ec](https://github.com/kube-rca/agent/commit/3fb72eccaf060ebf7de8a8d9607214d80f0ef595))
+* **agent:** remove incident summary length limit to prevent truncation ([8c06521](https://github.com/kube-rca/agent/commit/8c06521e6357fe4895780eec8a1397ffe494dbb6))
+* **agent:** set anthropic max token defaults ([55a0abd](https://github.com/kube-rca/agent/commit/55a0abd399b02e334a560219533675b30d0f9cb0))
+* **agent:** upgrade strands-agents 1.23.0 → 1.30.0, remove thought signature monkey-patch ([dbbcd22](https://github.com/kube-rca/agent/commit/dbbcd226d35e81bc7a3873f4c744b73953e8ee2e))
+* **agent:** use FQDN service.name for Tempo TraceQL queries ([6f1d453](https://github.com/kube-rca/agent/commit/6f1d453a8691616255d3ea7c8105cb0538d344e2))
+* **analysis:** remove hardcoded summary length limits ([c4ea258](https://github.com/kube-rca/agent/commit/c4ea258b6b099bef1f5254553ab9afd4e9d19b5d))
+* **deps:** upgrade cryptography 46.0.6, requests 2.33.0 ([20bcf65](https://github.com/kube-rca/agent/commit/20bcf6554657aab48decf2269571b572ac307410))
+* **deps:** upgrade pyasn1 to 0.6.3 ([00374f3](https://github.com/kube-rca/agent/commit/00374f35310714126a19bd4e350cb82e03f1c6e9))
+* **deps:** upgrade Pygments 2.19.2 to 2.20.0 ([eff7999](https://github.com/kube-rca/agent/commit/eff79991cbb4aa5bfd008a0d2a843750bdade7b4))
+* **deps:** upgrade PyJWT 2.10.1 → 2.12.1 (CVE-2026-32597) ([f4badf7](https://github.com/kube-rca/agent/commit/f4badf7f057c9716ed67e2f2f31777137114536b))
+* lint check ([fe64a5b](https://github.com/kube-rca/agent/commit/fe64a5b3702ebbb1cfac82fc68fb2c19a6fb6a8f))
+* **prompt:** enforce bold markdown headers for analysis subsections ([37c5215](https://github.com/kube-rca/agent/commit/37c521511c656af8cca84476c805f458558a7746))
+
+
+### Documentation
+
+* **agent:** note manual resolve as analysis trigger source ([d915336](https://github.com/kube-rca/agent/commit/d915336ef2de1f977458d66cb2300e5f7f35221d))
+
 ## [1.1.0](https://github.com/kube-rca/agent/compare/1.0.0...1.1.0) (2026-02-22)
 
 
