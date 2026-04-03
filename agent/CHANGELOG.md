@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.2.1](https://github.com/kube-rca/agent/compare/1.2.0...1.2.1) (2026-04-03)
+
+
+### Bug Fixes
+
+* **agent:** bypass kubernetes client event_time validation via raw JSON ([e692ab8](https://github.com/kube-rca/agent/commit/e692ab8a3c90f23cc3e674b19fe607c95375d7e8))
+* **agent:** handle PostgreSQL race condition in session schema initialization ([93e0dda](https://github.com/kube-rca/agent/commit/93e0dda04ceabd2f7189550f80b04f1025bdf737))
+* **agent:** improve analysis reliability and resource management ([88bdf8b](https://github.com/kube-rca/agent/commit/88bdf8bb10ba601a53b6aca4e8ce903488d6dae0))
+
+
+### Performance Improvements
+
+* **agent:** add analysis pipeline timing instrumentation ([f71b7a8](https://github.com/kube-rca/agent/commit/f71b7a8cb180297633e857df7243ed35b04f70de))
+
 ## [1.2.0](https://github.com/kube-rca/agent/compare/1.1.0...1.2.0) (2026-04-02)
 
 
