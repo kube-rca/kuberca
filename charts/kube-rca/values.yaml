@@ -252,8 +252,8 @@ backend:
         # -- Secret key for JWT secret.
         jwtSecret: kube-rca-jwt-secret
 agent:
-  # -- Number of agent replicas.
-  replicaCount: 1
+  # -- Number of agent replicas. Use 2+ for concurrent analysis (Python GIL limits per-process parallelism).
+  replicaCount: 2
   image:
     # -- Agent image repository.
     repository: "public.ecr.aws/r5b7j2e4/kube-rca-ecr/agent"

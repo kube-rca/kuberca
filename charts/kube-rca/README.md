@@ -363,7 +363,7 @@ backend:
 | agent.prompt.maxLogLines | int | `25` | Max log lines included in prompt. |
 | agent.prompt.summaryMaxItems | int | `3` | Max session summaries included in prompt. |
 | agent.prompt.tokenBudget | int | `32000` | Prompt token budget (approx). |
-| agent.replicaCount | int | `1` | Number of agent replicas. |
+| agent.replicaCount | int | `2` | Number of agent replicas. Use 2+ for concurrent analysis (Python GIL limits per-process parallelism). |
 | agent.resources | object | `{}` | Agent resource requests/limits. |
 | agent.retry.maxAttempts | int | `5` | Max retry attempts for transient LLM API errors (5xx, 429). |
 | agent.retry.maxWait | float | `60` | Maximum exponential backoff wait time in seconds. |
