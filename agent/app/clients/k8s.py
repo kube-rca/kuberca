@@ -781,19 +781,22 @@ class KubernetesClient:
         if self._events_api is None:
             return [], None
         try:
-            response = self._events_api.list_namespaced_event(
+            raw = self._events_api.list_namespaced_event(
                 namespace=namespace,
                 limit=self._event_limit,
                 _request_timeout=self._timeout_seconds,
-                _check_return_type=False,
+                _preload_content=False,
             )
+            import json as _json
+
+            data = _json.loads(raw.data)
         except Exception as exc:  # noqa: BLE001
             self._logger.warning("Failed to list events.k8s.io for %s: %s", namespace, exc)
             return [], f"events.k8s.io query failed: {exc}"
         summaries: list[PodEventSummary] = []
-        for item in response.items:
+        for item in data.get("items", []):
             try:
-                summaries.append(self._to_event_summary_v1(item))
+                summaries.append(self._to_event_summary_v1_raw(item))
             except Exception:  # noqa: BLE001
                 continue
         return summaries, None
@@ -1332,6 +1335,47 @@ class KubernetesClient:
             first_timestamp=self._to_iso(first_timestamp),
             last_timestamp=self._to_iso(last_timestamp),
             involved_object=self._summarize_object_ref(regarding),
+        )
+
+    def _to_event_summary_v1_raw(self, event: dict[str, object]) -> PodEventSummary:
+        """Parse an events.k8s.io/v1 Event from raw JSON dict.
+
+        Bypasses kubernetes client model validation which rejects
+        event_time=None even though the K8s API allows it.
+        """
+        metadata = event.get("metadata") or {}
+        series = event.get("series") or {}
+        regarding = event.get("regarding") or event.get("related")
+        message = event.get("note") or event.get("deprecatedMessage")
+        first_timestamp = (
+            event.get("deprecatedFirstTimestamp")
+            or event.get("eventTime")
+            or (metadata.get("creationTimestamp") if isinstance(metadata, dict) else None)
+        )
+        last_timestamp = (
+            event.get("deprecatedLastTimestamp")
+            or (series.get("lastObservedTime") if isinstance(series, dict) else None)
+            or event.get("eventTime")
+            or (metadata.get("creationTimestamp") if isinstance(metadata, dict) else None)
+        )
+        count = (series.get("count") if isinstance(series, dict) else None) or event.get(
+            "deprecatedCount"
+        )
+        involved_ref: dict[str, str | None] | None = None
+        if isinstance(regarding, dict):
+            involved_ref = {
+                "kind": regarding.get("kind"),  # type: ignore[assignment]
+                "namespace": regarding.get("namespace"),  # type: ignore[assignment]
+                "name": regarding.get("name"),  # type: ignore[assignment]
+            }
+        return PodEventSummary(
+            type=event.get("type"),  # type: ignore[arg-type]
+            reason=event.get("reason"),  # type: ignore[arg-type]
+            message=message,  # type: ignore[arg-type]
+            count=count,  # type: ignore[arg-type]
+            first_timestamp=str(first_timestamp) if first_timestamp else None,
+            last_timestamp=str(last_timestamp) if last_timestamp else None,
+            involved_object=involved_ref,
         )
 
     @staticmethod
