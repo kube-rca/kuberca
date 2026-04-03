@@ -1,7 +1,7 @@
 backend:
   image:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr/backend
-    tag: backend-af34aae
+    tag: backend-2961b49
   auth:
     secret:
       existingSecret: kube-rca-auth
@@ -42,7 +42,7 @@ backend:
 frontend:
   image:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr/frontend
-    tag: frontend-bf44b53
+    tag: frontend-65a19e8
   ingress:
     enabled: true
     ingressClassName: nginx
@@ -71,7 +71,7 @@ postgresql:
 agent:
   image:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr/agent
-    tag: agent-55a0abd
+    tag: agent-31c116c
   workers: 4
   aiProvider: gemini
   prometheus:
