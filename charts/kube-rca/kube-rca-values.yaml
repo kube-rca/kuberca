@@ -71,7 +71,7 @@ postgresql:
 agent:
   image:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr/agent
-    tag: agent-f71b7a8
+    tag: agent-88bdf8b
   workers: 4
   aiProvider: gemini
   prometheus:
