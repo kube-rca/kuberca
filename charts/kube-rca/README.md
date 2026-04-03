@@ -1,6 +1,6 @@
 # kube-rca
 
-![Version: 0.6.0](https://img.shields.io/badge/Version-0.6.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.1.0](https://img.shields.io/badge/AppVersion-0.1.0-informational?style=flat-square)
+![Version: 0.7.0](https://img.shields.io/badge/Version-0.7.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.1.0](https://img.shields.io/badge/AppVersion-0.1.0-informational?style=flat-square)
 
 Deploy kube-rca backend and frontend
 
@@ -65,7 +65,7 @@ frontend:
 
 ```bash
 helm install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/charts/kube-rca \
-  --version 0.6.0 \
+  --version 0.7.0 \
   -n kube-rca --create-namespace \
   -f my-values.yaml
 ```
@@ -332,7 +332,7 @@ backend:
 | agent.gemini.secret.key | string | `"ai-studio-api-key"` | Secret key name for the Gemini API key. |
 | agent.image.pullPolicy | string | `"IfNotPresent"` | Agent image pull policy. |
 | agent.image.repository | string | `"public.ecr.aws/r5b7j2e4/kube-rca-ecr/agent"` | Agent image repository. |
-| agent.image.tag | string | `"agent-1.2.0"` | Agent image tag. |
+| agent.image.tag | string | `"agent-1.2.1"` | Agent image tag. |
 | agent.ingress.annotations | object | `{}` | Annotations for agent ingress. |
 | agent.ingress.enabled | bool | `false` | Enable agent ingress. |
 | agent.ingress.hosts | list | `[]` | Hostnames for agent ingress. |
@@ -424,7 +424,7 @@ backend:
 | backend.flapping.enabled | bool | `true` | Enable alert flapping detection (FLAP_ENABLED). |
 | backend.image.pullPolicy | string | `"IfNotPresent"` | Backend image pull policy. |
 | backend.image.repository | string | `"public.ecr.aws/r5b7j2e4/kube-rca-ecr/backend"` | Backend image repository. |
-| backend.image.tag | string | `"backend-0.5.0"` | Backend image tag. |
+| backend.image.tag | string | `"backend-0.5.1"` | Backend image tag. |
 | backend.ingress.annotations | object | `{}` | Annotations for backend ingress. |
 | backend.ingress.enabled | bool | `false` | Enable backend ingress. |
 | backend.ingress.hosts | list | `[]` | Hostnames for backend ingress. |
@@ -462,7 +462,7 @@ backend:
 | frontend.containerPort | int | `80` | Frontend container port. |
 | frontend.image.pullPolicy | string | `"IfNotPresent"` | Frontend image pull policy. |
 | frontend.image.repository | string | `"public.ecr.aws/r5b7j2e4/kube-rca-ecr/frontend"` | Frontend image repository. |
-| frontend.image.tag | string | `"frontend-0.4.0"` | Frontend image tag. |
+| frontend.image.tag | string | `"frontend-0.4.1"` | Frontend image tag. |
 | frontend.ingress.annotations | object | `{}` | Annotations for frontend ingress. |
 | frontend.ingress.enabled | bool | `false` | Enable frontend ingress. |
 | frontend.ingress.hosts | list | `[]` | Hostnames for frontend ingress. |
