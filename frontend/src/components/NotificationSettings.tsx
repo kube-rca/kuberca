@@ -70,18 +70,6 @@ const NotificationSettings: React.FC = () => {
     });
   };
 
-  // severities=[] 웹훅이 실제로 수신할 severity 목록 계산
-  const getEffectiveSeverities = (webhookId: number): string[] => {
-    const assigned = severityMap[webhookId] ?? [];
-    if (assigned.length > 0) return assigned;
-    const claimed = new Set<string>();
-    for (const w of webhooks) {
-      if (w.id !== webhookId) {
-        (severityMap[w.id] ?? []).forEach((s) => claimed.add(s));
-      }
-    }
-    return ALL_SEVERITIES.filter((s) => !claimed.has(s));
-  };
 
   const handleSaveRouting = async () => {
     setRoutingSaving(true);
@@ -237,22 +225,6 @@ const NotificationSettings: React.FC = () => {
                         </label>
                       );
                     })}
-                    {selected.length === 0 && (() => {
-                      const effective = getEffectiveSeverities(w.id);
-                      if (effective.length === 0) {
-                        return <span className="text-xs text-slate-400 dark:text-slate-500 italic">—</span>;
-                      }
-                      if (effective.length === ALL_SEVERITIES.length) {
-                        return <span className="text-xs text-slate-400 dark:text-slate-500 italic">all</span>;
-                      }
-                      return (
-                        <div className="flex items-center gap-1">
-                          {effective.map((s) => (
-                            <span key={s} className={`text-xs font-semibold px-1.5 py-0.5 rounded ${SEVERITY_COLOR[s]}`}>{s}</span>
-                          ))}
-                        </div>
-                      );
-                    })()}
                   </div>
                 </div>
               );
