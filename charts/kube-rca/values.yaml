@@ -258,7 +258,7 @@ agent:
     # -- Agent image repository.
     repository: "public.ecr.aws/r5b7j2e4/kube-rca-ecr/agent"
     # -- Agent image tag.
-    tag: "agent-1.2.0"
+    tag: "agent-1.2.1"
     # -- Agent image pull policy.
     pullPolicy: IfNotPresent
   service:
