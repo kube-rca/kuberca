@@ -424,7 +424,7 @@ frontend:
     # -- Frontend image repository.
     repository: "public.ecr.aws/r5b7j2e4/kube-rca-ecr/frontend"
     # -- Frontend image tag.
-    tag: "frontend-0.4.0"
+    tag: "frontend-0.4.1"
     # -- Frontend image pull policy.
     pullPolicy: IfNotPresent
   service:
