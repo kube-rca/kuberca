@@ -79,12 +79,13 @@ agent:
 > | Gemini (기본) | `"gemini"` | `agent.gemini.apiKey` |
 > | OpenAI | `"openai"` | `agent.openai.apiKey` |
 > | Anthropic | `"anthropic"` | `agent.anthropic.apiKey` |
+>
+> **주의:** Backend의 임베딩 기능은 현재 **Gemini API만 지원**합니다. OpenAI/Anthropic을 Agent에 사용하더라도 임베딩용 Gemini API Key가 별도로 필요합니다.
 
 ### 2단계: Helm 설치
 
 ```bash
 helm install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/charts/kube-rca \
-  --version 0.6.0 \
   -n kube-rca --create-namespace \
   -f my-values.yaml
 ```
@@ -262,5 +263,7 @@ KubeRCA를 프로덕션 환경에 적용하려면:
 - OIDC 인증 설정 (Google, GitHub 등)
 - Prometheus/Loki/Tempo 연동으로 풍부한 컨텍스트 수집
 - 리소스 요청/제한 조정
+
+전체 Helm values 옵션과 상세 설정은 [Helm Chart README](https://github.com/kube-rca/helm-charts/blob/main/charts/kube-rca/README.md)를 참고하세요.
 
 **프로덕션 적용 및 기술 지원이 필요하시면 [contact@cloudbro.ai](mailto:contact@cloudbro.ai)로 문의해 주세요.**
