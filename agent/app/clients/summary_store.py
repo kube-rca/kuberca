@@ -4,6 +4,7 @@ import logging
 from typing import Protocol
 
 import psycopg
+from psycopg.errors import DuplicateTable, UniqueViolation
 from psycopg.rows import dict_row
 
 
@@ -39,10 +40,13 @@ class PostgresSummaryStore(SummaryStore):
             ON kube_rca_session_summaries(session_id, summary_id DESC)
             """,
         ]
-        with self._connect() as conn:
-            with conn.cursor() as cur:
-                for statement in statements:
-                    cur.execute(statement)
+        try:
+            with self._connect() as conn:
+                with conn.cursor() as cur:
+                    for statement in statements:
+                        cur.execute(statement)
+        except (UniqueViolation, DuplicateTable) as exc:
+            self._logger.debug("Schema already exists, skipping creation: %s", exc)
 
     def list_summaries(self, session_id: str, limit: int) -> list[str]:
         if limit <= 0:

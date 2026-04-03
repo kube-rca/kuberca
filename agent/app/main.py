@@ -18,6 +18,18 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_concurrency(settings.max_concurrent_analyses)
+
+    # Eagerly initialize analysis engine and session schema
+    # before any requests are served — avoids race condition
+    # on concurrent first requests (CREATE TABLE IF NOT EXISTS).
+    from app.core.dependencies import get_analysis_engine
+
+    engine = get_analysis_engine()
+    if engine:
+        logger.info("Analysis engine pre-initialized (session schema ready)")
+    else:
+        logger.warning("Analysis engine not initialized (no AI provider configured)")
+
     logger.info(
         "Starting kube-rca-agent on port %s (max_concurrent_analyses=%d)",
         settings.port,

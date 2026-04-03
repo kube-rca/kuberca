@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from typing import Any
 
 import psycopg
-from psycopg.errors import UniqueViolation
+from psycopg.errors import DuplicateTable, UniqueViolation
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from strands.session import SessionRepository
@@ -58,10 +58,13 @@ class PostgresSessionRepository(SessionRepository):
             """,
         ]
 
-        with self._connect() as conn:
-            with conn.cursor() as cur:
-                for statement in statements:
-                    cur.execute(statement)
+        try:
+            with self._connect() as conn:
+                with conn.cursor() as cur:
+                    for statement in statements:
+                        cur.execute(statement)
+        except (UniqueViolation, DuplicateTable) as exc:
+            self._logger.debug("Schema already exists, skipping creation: %s", exc)
 
     @contextmanager
     def session_lock(self, session_id: str) -> Iterator[None]:
