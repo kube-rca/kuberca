@@ -169,6 +169,7 @@ ALT_REASON=""
 REASON_MODE="waiting"
 USE_FAULT_PERCENTAGE="false"
 TMP_MANIFEST=""
+ORIG_CHAOS_MANIFEST=""
 
 case "$SCENARIO" in
   oomkilled)
@@ -256,6 +257,7 @@ if [ "$USE_FAULT_PERCENTAGE" = "true" ]; then
   if [ -n "$CHAOS_MANIFEST" ]; then
     TMP_MANIFEST=$(mktemp)
     apply_fault_percentage "$CHAOS_MANIFEST" "$TMP_MANIFEST" "$FAULT_PERCENTAGE"
+    ORIG_CHAOS_MANIFEST="$CHAOS_MANIFEST"
     CHAOS_MANIFEST="$TMP_MANIFEST"
     log_info "Fault injection percentage set to ${FAULT_PERCENTAGE}%"
   fi
@@ -264,11 +266,12 @@ fi
 cleanup() {
   trap '' INT TERM
   log_info "Cleaning up..."
-  if [ -n "$CHAOS_MANIFEST" ]; then
-    kubectl_local -n "$NAMESPACE" delete -f "$CHAOS_MANIFEST" --ignore-not-found=true >/dev/null 2>&1 || true
+  local cleanup_manifest="${ORIG_CHAOS_MANIFEST:-$CHAOS_MANIFEST}"
+  if [ -n "$cleanup_manifest" ]; then
+    kubectl_local -n "$NAMESPACE" delete -f "$cleanup_manifest" --ignore-not-found=true || true
   fi
   if [ -n "$TARGET_MANIFEST" ]; then
-    kubectl_local -n "$NAMESPACE" delete -f "$TARGET_MANIFEST" --ignore-not-found=true >/dev/null 2>&1 || true
+    kubectl_local -n "$NAMESPACE" delete -f "$TARGET_MANIFEST" --ignore-not-found=true || true
   fi
   if [ -n "$TMP_MANIFEST" ] && [ -f "$TMP_MANIFEST" ]; then
     rm -f "$TMP_MANIFEST"
