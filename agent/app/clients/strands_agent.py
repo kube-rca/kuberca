@@ -755,10 +755,26 @@ class StrandsAnalysisEngine:
         return result
 
     def _analyze_once(self, prompt: str, session_id: str) -> str:
+        t0 = time.perf_counter()
         entry = self._get_cache_entry(session_id)
+        t_cache = time.perf_counter()
+
         with self._session_repo.session_lock(session_id):
+            t_lock = time.perf_counter()
             with entry.lock:
-                return self._invoke_with_retry(entry.agent, prompt)
+                result = self._invoke_with_retry(entry.agent, prompt)
+                t_invoke = time.perf_counter()
+
+        logger.info(
+            "strands_analyze_once_timing session_id=%s "
+            "cache_ms=%.1f lock_ms=%.1f invoke_ms=%.1f total_ms=%.1f",
+            session_id,
+            (t_cache - t0) * 1000,
+            (t_lock - t_cache) * 1000,
+            (t_invoke - t_lock) * 1000,
+            (t_invoke - t0) * 1000,
+        )
+        return result
 
     def _read_stored_manager_name(self, session_id: str) -> str | None:
         try:

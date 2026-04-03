@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, cast
@@ -56,14 +57,22 @@ class AnalysisService:
     def analyze(
         self, request: AlertAnalysisRequest
     ) -> tuple[str, str, str, dict[str, object], list[dict[str, object]]]:
+        t_start = time.perf_counter()
+
         target = resolve_alert_target(request.alert.labels)
+        t_resolve = time.perf_counter()
+
         k8s_context = self._k8s_client.collect_context(
             target.namespace,
             target.pod_name,
             target.workload,
             service_name=target.service_name,
         )
+        t_k8s = time.perf_counter()
+
         tempo_context = self._collect_tempo_context(request, target)
+        t_tempo = time.perf_counter()
+
         artifacts = _build_alert_artifacts(k8s_context, tempo_context)
         masked_artifacts = cast(list[dict[str, object]], self._masker.mask_object(artifacts))
         capabilities, capability_warnings = self._collect_capabilities(
@@ -142,9 +151,12 @@ class AnalysisService:
             effective_max_events,
             self._masker,
         )
+        t_prompt = time.perf_counter()
+
         try:
             session_id = _build_runtime_session_id(summary_key)
             analysis = self._analysis_engine.analyze(prompt, session_id)
+            t_llm = time.perf_counter()
             if not isinstance(analysis, str):
                 analysis = ""
             analysis = self._masker.mask_text(analysis)
@@ -159,12 +171,29 @@ class AnalysisService:
                 )
                 summary, detail = _split_alert_analysis(analysis)
                 masked_context = build_masked_context(engine_issue="empty_response")
+                self._log_analysis_timing(
+                    t_start,
+                    t_resolve,
+                    t_k8s,
+                    t_tempo,
+                    t_prompt,
+                    t_llm,
+                )
                 return analysis, summary, detail, masked_context, masked_artifacts
             summary, detail = _split_alert_analysis(analysis)
             self._store_summary(summary_key, summary)
             masked_context = build_masked_context()
+            self._log_analysis_timing(
+                t_start,
+                t_resolve,
+                t_k8s,
+                t_tempo,
+                t_prompt,
+                t_llm,
+            )
             return analysis, summary, detail, masked_context, masked_artifacts
         except Exception as exc:  # noqa: BLE001
+            t_llm = time.perf_counter()
             error_cat = _categorize_analysis_error(exc)
             self._logger.exception(
                 "Strands analysis failed: category=%s exc_type=%s exc_repr=%r",
@@ -177,7 +206,38 @@ class AnalysisService:
             )
             summary, detail = _split_alert_analysis(analysis)
             masked_context = build_masked_context(engine_issue=error_cat.name)
+            self._log_analysis_timing(
+                t_start,
+                t_resolve,
+                t_k8s,
+                t_tempo,
+                t_prompt,
+                t_llm,
+            )
             return analysis, summary, detail, masked_context, masked_artifacts
+
+    def _log_analysis_timing(
+        self,
+        t_start: float,
+        t_resolve: float,
+        t_k8s: float,
+        t_tempo: float,
+        t_prompt: float,
+        t_llm: float,
+    ) -> None:
+        pre_llm_ms = (t_prompt - t_start) * 1000
+        total_ms = (t_llm - t_start) * 1000
+        self._logger.info(
+            "analysis_timing resolve_ms=%.1f k8s_ms=%.1f tempo_ms=%.1f "
+            "prompt_build_ms=%.1f llm_ms=%.1f pre_llm_ms=%.1f total_ms=%.1f",
+            (t_resolve - t_start) * 1000,
+            (t_k8s - t_resolve) * 1000,
+            (t_tempo - t_k8s) * 1000,
+            (t_prompt - t_tempo) * 1000,
+            (t_llm - t_prompt) * 1000,
+            pre_llm_ms,
+            total_ms,
+        )
 
     def summarize_incident(self, request: IncidentSummaryRequest) -> tuple[str, str, str]:
         """Synthesize final RCA summary for a resolved incident.
