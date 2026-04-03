@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/kube-rca/frontend/compare/0.4.0...0.4.1) (2026-04-03)
+
+
+### Bug Fixes
+
+* **frontend:** remove duplicate severity badge in webhook routing ([c44ab8e](https://github.com/kube-rca/frontend/commit/c44ab8e98dffa427e31734a9b1b8993b43b7c416))
+
 ## [0.4.0](https://github.com/kube-rca/frontend/compare/0.3.0...0.4.0) (2026-03-29)
 
 
