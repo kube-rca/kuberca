@@ -86,6 +86,7 @@ agent:
 
 ```bash
 helm install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/charts/kube-rca \
+  --version 0.7.0 \
   -n kube-rca --create-namespace \
   -f my-values.yaml
 ```
