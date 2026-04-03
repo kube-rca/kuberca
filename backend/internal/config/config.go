@@ -26,8 +26,11 @@ type SlackConfig struct {
 }
 
 type AgentConfig struct {
-	BaseURL            string
-	HTTPTimeoutSeconds int
+	BaseURL              string
+	HTTPTimeoutSeconds   int
+	RetryMaxAttempts     int
+	RetryBaseBackoffSecs int
+	RetryMaxBackoffSecs  int
 }
 
 type EmbeddingConfig struct {
@@ -98,8 +101,11 @@ func Load() Config {
 			FrontendURL: os.Getenv("FRONTEND_URL"),
 		},
 		Agent: AgentConfig{
-			BaseURL:            getenv("AGENT_URL", "http://kube-rca-agent.kube-rca.svc:8000"),
-			HTTPTimeoutSeconds: getenvInt("AGENT_HTTP_TIMEOUT_SECONDS", 240),
+			BaseURL:              getenv("AGENT_URL", "http://kube-rca-agent.kube-rca.svc:8000"),
+			HTTPTimeoutSeconds:   getenvInt("AGENT_HTTP_TIMEOUT_SECONDS", 240),
+			RetryMaxAttempts:     getenvInt("AGENT_RETRY_MAX_ATTEMPTS", 3),
+			RetryBaseBackoffSecs: getenvInt("AGENT_RETRY_BASE_BACKOFF_SECONDS", 5),
+			RetryMaxBackoffSecs:  getenvInt("AGENT_RETRY_MAX_BACKOFF_SECONDS", 15),
 		},
 		Embedding: EmbeddingConfig{
 			Provider: getenv("EMBEDDING_PROVIDER", "google"),

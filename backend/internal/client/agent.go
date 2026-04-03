@@ -13,9 +13,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"strings"
 	"time"
@@ -24,10 +26,41 @@ import (
 	"github.com/kube-rca/backend/internal/model"
 )
 
+// AgentError represents an error from the Agent HTTP API with a status code.
+type AgentError struct {
+	StatusCode int
+	Message    string
+}
+
+func (e *AgentError) Error() string {
+	return fmt.Sprintf("agent returned status %d: %s", e.StatusCode, e.Message)
+}
+
+// isRetryableAgentError returns true for transient errors worth retrying.
+func isRetryableAgentError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var agentErr *AgentError
+	if errors.As(err, &agentErr) {
+		return agentErr.StatusCode >= 500
+	}
+	// HTTP client timeout (240s) — LLM analysis timed out, retrying won't help.
+	var netErr interface{ Timeout() bool }
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return false
+	}
+	// Network errors (connection refused, DNS, etc.) are retryable.
+	return true
+}
+
 // AgentClient 구조체 정의
 type AgentClient struct {
-	baseURL    string
-	httpClient *http.Client
+	baseURL          string
+	httpClient       *http.Client
+	retryMaxAttempts int
+	retryBaseBackoff time.Duration
+	retryMaxBackoff  time.Duration
 }
 
 // PreviousAnalysisContext - 이전 firing 분석 컨텍스트 (resolved 분석 시 참조)
@@ -127,17 +160,35 @@ func NewAgentClient(cfg config.AgentConfig) *AgentClient {
 	}
 	timeout := time.Duration(timeoutSeconds) * time.Second
 
+	retryMaxAttempts := cfg.RetryMaxAttempts
+	if retryMaxAttempts <= 0 {
+		retryMaxAttempts = 1
+	}
+	retryBaseBackoff := time.Duration(cfg.RetryBaseBackoffSecs) * time.Second
+	if retryBaseBackoff <= 0 {
+		retryBaseBackoff = 5 * time.Second
+	}
+	retryMaxBackoff := time.Duration(cfg.RetryMaxBackoffSecs) * time.Second
+	if retryMaxBackoff <= 0 {
+		retryMaxBackoff = 15 * time.Second
+	}
+
 	log.Printf(
-		"Agent client initialized (base_url=%s, timeout_seconds=%d)",
+		"Agent client initialized (base_url=%s, timeout_seconds=%d, retry_max_attempts=%d, retry_base_backoff=%s)",
 		baseURL,
 		timeoutSeconds,
+		retryMaxAttempts,
+		retryBaseBackoff,
 	)
 
 	return &AgentClient{
 		baseURL: baseURL,
 		httpClient: &http.Client{
-			Timeout: timeout, // AI 분석 시간 고려 (LLM retry 3분 + context 수집 여유)
+			Timeout: timeout,
 		},
+		retryMaxAttempts: retryMaxAttempts,
+		retryBaseBackoff: retryBaseBackoff,
+		retryMaxBackoff:  retryMaxBackoff,
 	}
 }
 
@@ -146,8 +197,42 @@ func (c *AgentClient) IsConfigured() bool {
 	return c.baseURL != ""
 }
 
-// POST /analyze 분석 요청하고 분석 결과 반환 (동기)
+// POST /analyze 분석 요청하고 분석 결과 반환 (동기, 재시도 포함)
 func (c *AgentClient) RequestAnalysis(alert model.Alert, threadTS, incidentID, analysisType string, prevAnalysis *PreviousAnalysisContext) (*AgentAnalysisResponse, error) {
+	var lastErr error
+
+	for attempt := 0; attempt < c.retryMaxAttempts; attempt++ {
+		resp, err := c.doRequestAnalysis(alert, threadTS, incidentID, analysisType, prevAnalysis)
+		if err == nil {
+			return resp, nil
+		}
+
+		lastErr = err
+
+		if !isRetryableAgentError(err) {
+			log.Printf("Agent analysis failed with non-retryable error (attempt=%d/%d): %v",
+				attempt+1, c.retryMaxAttempts, err)
+			return nil, err
+		}
+
+		if attempt < c.retryMaxAttempts-1 {
+			backoff := c.retryBaseBackoff * (1 << uint(attempt))
+			if backoff > c.retryMaxBackoff {
+				backoff = c.retryMaxBackoff
+			}
+			jitter := time.Duration(float64(backoff) * (0.75 + rand.Float64()*0.5))
+			log.Printf("Agent analysis attempt %d/%d failed: %v — retrying in %s",
+				attempt+1, c.retryMaxAttempts, err, jitter)
+			time.Sleep(jitter)
+		}
+	}
+
+	log.Printf("Agent analysis failed after %d attempts: %v", c.retryMaxAttempts, lastErr)
+	return nil, lastErr
+}
+
+// doRequestAnalysis executes a single HTTP request to the Agent /analyze endpoint.
+func (c *AgentClient) doRequestAnalysis(alert model.Alert, threadTS, incidentID, analysisType string, prevAnalysis *PreviousAnalysisContext) (*AgentAnalysisResponse, error) {
 	req := AgentAnalysisRequest{
 		Alert:            alert,
 		ThreadTS:         threadTS,
@@ -165,7 +250,6 @@ func (c *AgentClient) RequestAnalysis(alert model.Alert, threadTS, incidentID, a
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-
 	httpReq.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(httpReq)
@@ -174,13 +258,13 @@ func (c *AgentClient) RequestAnalysis(alert model.Alert, threadTS, incidentID, a
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("agent returned status: %d", resp.StatusCode)
-	}
-
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, &AgentError{StatusCode: resp.StatusCode, Message: string(body)}
 	}
 
 	var analysisResp AgentAnalysisResponse
