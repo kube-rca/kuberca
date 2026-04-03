@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.0](https://github.com/kube-rca/helm-charts/compare/0.6.0...0.7.0) (2026-04-03)
+
+
+### Features
+
+* **helm:** add inline apiKey value fields to values.yaml ([c8b1630](https://github.com/kube-rca/helm-charts/commit/c8b163096f0bce1a0c5a511bb90733670343930a))
+* **helm:** add postgresql and embedding secret name auto-resolve helpers ([a209880](https://github.com/kube-rca/helm-charts/commit/a209880dcf45e69bc919383ab9ce81a07059d4df))
+* **helm:** populate agent secrets with inline apiKey values ([e207f3f](https://github.com/kube-rca/helm-charts/commit/e207f3f7dd7083f81a415d468f706b67ddf86b3e))
+* **helm:** use auto-resolve helper for agent session DB secret ([b29727e](https://github.com/kube-rca/helm-charts/commit/b29727e804687b4a912df6d8015638829c9d9e86))
+* **helm:** use auto-resolve helpers for postgresql and embedding secrets ([d0e1ae9](https://github.com/kube-rca/helm-charts/commit/d0e1ae9e12b54bf8fc9ee903be31d75ca8c27798))
+
+
+### Performance Improvements
+
+* **kube-rca:** increase agent replicaCount default to 2 ([9ceefb2](https://github.com/kube-rca/helm-charts/commit/9ceefb244b8442d1c7eb155a13433d4839057c3c))
+
 ## [0.6.0](https://github.com/kube-rca/helm-charts/compare/0.5.0...0.6.0) (2026-04-02)
 
 
