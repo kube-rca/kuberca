@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.1](https://github.com/kube-rca/backend/compare/0.5.0...0.5.1) (2026-04-03)
+
+
+### Bug Fixes
+
+* **backend:** add retry with exponential backoff for agent analysis requests ([9b34ed3](https://github.com/kube-rca/backend/commit/9b34ed36efb5ca336a0201b749d11fa7cf899f75))
+* **backend:** upgrade go-jose/v4 to 4.1.4 for JWE panic fix (GHSA high) ([2d349e5](https://github.com/kube-rca/backend/commit/2d349e567e2dd428779e9fb133af80928f35e792))
+
 ## [0.5.0](https://github.com/kube-rca/backend/compare/0.4.0...0.5.0) (2026-04-02)
 
 
