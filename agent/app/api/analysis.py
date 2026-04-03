@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from app.core.concurrency import run_in_thread_limited
 from app.core.dependencies import get_analysis_service
@@ -17,11 +17,12 @@ router = APIRouter()
 
 @router.post("/analyze", response_model=AlertAnalysisResponse)
 async def analyze_alert(
+    http_request: Request,
     request: AlertAnalysisRequest,
     service: AnalysisService = Depends(get_analysis_service),  # noqa: B008
 ) -> AlertAnalysisResponse:
     analysis, summary, detail, context, artifacts = await run_in_thread_limited(
-        service.analyze, request
+        service.analyze, request, request=http_request
     )
     analysis_quality = _extract_optional_str(context, "analysis_quality")
     missing_data = _extract_optional_str_list(context, "missing_data")
@@ -46,11 +47,14 @@ async def analyze_alert(
 
 @router.post("/summarize-incident", response_model=IncidentSummaryResponse)
 async def summarize_incident(
+    http_request: Request,
     request: IncidentSummaryRequest,
     service: AnalysisService = Depends(get_analysis_service),  # noqa: B008
 ) -> IncidentSummaryResponse:
     """Generate final RCA summary for a resolved incident."""
-    title, summary, detail = await run_in_thread_limited(service.summarize_incident, request)
+    title, summary, detail = await run_in_thread_limited(
+        service.summarize_incident, request, request=http_request
+    )
     return IncidentSummaryResponse(status="ok", title=title, summary=summary, detail=detail)
 
 

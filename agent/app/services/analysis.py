@@ -540,6 +540,10 @@ def _build_prompt(
             "   - Example: query_prometheus_range(\n"
             "       query='rate(http_requests_total{pod=\"my-pod\"}[5m])',\n"
             "       start='<startsAt - 1h>', end='<startsAt>', step='1m')\n"
+            "PromQL label matching operators: = (exact), != (not equal), "
+            "=~ (regex match), !~ (negative regex).\n"
+            "IMPORTANT: the regex operator is =~ NOT ~=. "
+            'Example: {response_code=~"5.."} matches 500, 502, 503, etc.\n'
             "Example patterns: 'container_memory.*', 'container_cpu.*', 'http_.*',\n"
             "'istio_request.*', 'kube_pod.*', 'node_.*'\n\n"
         )

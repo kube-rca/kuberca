@@ -785,11 +785,18 @@ class KubernetesClient:
                 namespace=namespace,
                 limit=self._event_limit,
                 _request_timeout=self._timeout_seconds,
+                _check_return_type=False,
             )
         except Exception as exc:  # noqa: BLE001
             self._logger.warning("Failed to list events.k8s.io for %s: %s", namespace, exc)
             return [], f"events.k8s.io query failed: {exc}"
-        return [self._to_event_summary_v1(item) for item in response.items], None
+        summaries: list[PodEventSummary] = []
+        for item in response.items:
+            try:
+                summaries.append(self._to_event_summary_v1(item))
+            except Exception:  # noqa: BLE001
+                continue
+        return summaries, None
 
     def _list_cluster_events_core(self) -> tuple[list[PodEventSummary], str | None]:
         if self._core_api is None:
