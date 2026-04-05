@@ -34,16 +34,18 @@ class KubernetesClient:
         pod_name: str | None,
         workload: str | None = None,
         service_name: str | None = None,
+        node_name: str | None = None,
     ) -> K8sContext:
         target = AnalysisTarget(
             namespace=namespace,
             pod_name=pod_name,
             workload=workload,
             service_name=service_name,
+            node_name=node_name,
         )
         warnings: list[str] = []
 
-        if not namespace:
+        if not namespace and not node_name:
             warnings.append("namespace missing from alert labels")
             return K8sContext(
                 namespace=namespace,
@@ -76,7 +78,7 @@ class KubernetesClient:
         previous_logs: list[PodLogSnippet] = []
         pod_spec: dict[str, object] | None = None
 
-        if pod_name:
+        if namespace and pod_name:
             pod = self._read_pod(namespace, pod_name, warnings)
             pod_status = self._extract_pod_status(pod) if pod else None
             events = self._list_pod_events(namespace, pod_name, warnings)
@@ -89,9 +91,15 @@ class KubernetesClient:
             )
             previous_logs = self._get_previous_logs(namespace, pod, warnings)
             pod_spec = self._summarize_pod_spec(pod) if pod else None
-        else:
+        elif namespace:
             hint = self._build_pod_discovery_hint(namespace, workload, service_name)
             warnings.append(f"pod_name missing from alert labels.{hint}")
+
+        node_status: dict[str, object] | None = None
+        if node_name:
+            node_status = self.get_node_status(node_name)
+            if node_status is None:
+                warnings.append(f"node '{node_name}' not found or inaccessible")
 
         return K8sContext(
             namespace=namespace,
@@ -104,6 +112,7 @@ class KubernetesClient:
             target=target,
             current_logs=current_logs,
             pod_spec=pod_spec,
+            node_status=node_status,
         )
 
     def get_pod_status(self, namespace: str, pod_name: str) -> PodStatusSnapshot | None:
@@ -1410,12 +1419,14 @@ def resolve_alert_target(labels: dict[str, str]) -> AnalysisTarget:
         "workload",
         "app",
     ]
+    node_keys = ["node", "nodename", "exported_node"]
 
     return AnalysisTarget(
         namespace=_first_label_value(labels, namespace_keys),
         pod_name=_first_label_value(labels, pod_keys),
         workload=_first_label_value(labels, workload_keys),
         service_name=_first_label_value(labels, service_keys),
+        node_name=_first_label_value(labels, node_keys),
     )
 
 

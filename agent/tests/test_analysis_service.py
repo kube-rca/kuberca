@@ -22,8 +22,10 @@ from app.schemas.analysis import (
 from app.services.analysis import (
     AnalysisService,
     _categorize_analysis_error,
+    _collect_missing_data,
     _extract_first_paragraph,
     _parse_incident_summary,
+    _resolve_analysis_quality,
 )
 
 
@@ -37,6 +39,7 @@ class FakeKubernetesClient:
         pod_name: str | None,
         workload: str | None = None,
         service_name: str | None = None,
+        node_name: str | None = None,
     ) -> K8sContext:
         return K8sContext(
             namespace=self._context.namespace,
@@ -51,6 +54,7 @@ class FakeKubernetesClient:
                 pod_name=pod_name,
                 workload=workload,
                 service_name=service_name,
+                node_name=node_name,
             ),
             current_logs=self._context.current_logs,
             pod_spec=self._context.pod_spec,
@@ -1127,6 +1131,134 @@ def test_resolve_target_sentinel_skips_to_next_key() -> None:
     }
     target = resolve_alert_target(labels)
     assert target.workload == "reviews"
+
+
+# ── resolve_alert_target: node label extraction ──
+
+
+def test_resolve_target_node_label() -> None:
+    labels = {"alertname": "NodeFilesystemSpaceFillingUp", "node": "ip-10-0-1-179.ec2.internal"}
+    target = resolve_alert_target(labels)
+    assert target.node_name == "ip-10-0-1-179.ec2.internal"
+
+
+def test_resolve_target_nodename_label() -> None:
+    labels = {"alertname": "NodeFilesystemSpaceFillingUp", "nodename": "worker-01"}
+    target = resolve_alert_target(labels)
+    assert target.node_name == "worker-01"
+
+
+def test_resolve_target_node_priority_over_nodename() -> None:
+    labels = {"node": "primary-node", "nodename": "fallback-node"}
+    target = resolve_alert_target(labels)
+    assert target.node_name == "primary-node"
+
+
+def test_resolve_target_node_sentinel_filtered() -> None:
+    labels = {"node": "unknown"}
+    target = resolve_alert_target(labels)
+    assert target.node_name is None
+
+
+def test_resolve_target_node_with_namespace() -> None:
+    labels = {
+        "namespace": "monitoring",
+        "node": "worker-02",
+        "alertname": "NodeMemoryHighUtilization",
+    }
+    target = resolve_alert_target(labels)
+    assert target.node_name == "worker-02"
+    assert target.namespace == "monitoring"
+
+
+# ── _resolve_analysis_quality: node alerts ──
+
+
+def _make_node_k8s_context(
+    *,
+    node_name: str | None = "worker-01",
+    node_status: dict[str, object] | None = None,
+    namespace: str | None = None,
+) -> K8sContext:
+    return K8sContext(
+        namespace=namespace,
+        pod_name=None,
+        workload=None,
+        pod_status=None,
+        events=[],
+        previous_logs=[],
+        warnings=[],
+        target=AnalysisTarget(
+            namespace=namespace,
+            pod_name=None,
+            workload=None,
+            service_name=None,
+            node_name=node_name,
+        ),
+        node_status=node_status,
+    )
+
+
+def test_quality_node_alert_with_status_is_high() -> None:
+    ctx = _make_node_k8s_context(node_status={"name": "worker-01", "conditions": []})
+    quality = _resolve_analysis_quality(
+        k8s_context=ctx,
+        missing_data=[],
+        capabilities={"k8s_core": "ok"},
+        engine_issue=None,
+    )
+    assert quality == "high"
+
+
+def test_quality_node_alert_without_status_is_medium() -> None:
+    ctx = _make_node_k8s_context(node_status=None)
+    quality = _resolve_analysis_quality(
+        k8s_context=ctx,
+        missing_data=[],
+        capabilities={"k8s_core": "ok"},
+        engine_issue=None,
+    )
+    assert quality == "medium"
+
+
+def test_quality_node_alert_no_namespace_not_penalized() -> None:
+    ctx = _make_node_k8s_context(
+        node_status={"name": "worker-01", "conditions": []},
+        namespace=None,
+    )
+    quality = _resolve_analysis_quality(
+        k8s_context=ctx,
+        missing_data=[],
+        capabilities={"k8s_core": "ok"},
+        engine_issue=None,
+    )
+    assert quality == "high"
+
+
+# ── _collect_missing_data: node alerts ──
+
+
+def test_missing_data_node_alert_no_pod_not_reported() -> None:
+    ctx = _make_node_k8s_context(node_status={"name": "worker-01", "conditions": []})
+    missing = _collect_missing_data(
+        k8s_context=ctx,
+        tempo_context=None,
+        capabilities={"k8s_core": "ok", "manifest_read": "ok", "prometheus": "ok", "loki": "ok"},
+    )
+    assert "alert.labels.namespace" not in missing
+    assert "alert.labels.pod" not in missing
+    assert "k8s.pod_status" not in missing
+
+
+def test_missing_data_node_alert_node_status_missing() -> None:
+    ctx = _make_node_k8s_context(node_status=None)
+    missing = _collect_missing_data(
+        k8s_context=ctx,
+        tempo_context=None,
+        capabilities={"k8s_core": "ok", "manifest_read": "ok", "prometheus": "ok", "loki": "ok"},
+    )
+    assert "k8s.node_status" in missing
+    assert "alert.labels.pod" not in missing
 
 
 # ── _categorize_analysis_error ──

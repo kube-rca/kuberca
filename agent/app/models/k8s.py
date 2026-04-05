@@ -65,6 +65,7 @@ class AnalysisTarget:
     pod_name: str | None
     workload: str | None
     service_name: str | None
+    node_name: str | None = None
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)

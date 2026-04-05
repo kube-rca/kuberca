@@ -33,6 +33,7 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "B", "I", "UP"]
+unfixable = ["F401"]
 
 [tool.ruff.format]
 quote-style = "double"
