@@ -3,7 +3,6 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "release-as": "1.0.0",
       "extra-files": [
         "backend/VERSION",
         "agent/pyproject.toml",
