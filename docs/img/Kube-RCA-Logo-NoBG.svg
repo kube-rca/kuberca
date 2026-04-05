@@ -1,0 +1,38 @@
+<svg width="260" height="260" viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="hexBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"></stop>
+      <stop offset="50%" stop-color="#6366f1"></stop>
+      <stop offset="100%" stop-color="#a855f7"></stop>
+    </linearGradient>
+
+    <radialGradient id="coreBg" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#1e293b"></stop>
+      <stop offset="100%" stop-color="#000000"></stop>
+    </radialGradient>
+
+    <linearGradient id="wave" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f97316"></stop>
+      <stop offset="50%" stop-color="#e11d48"></stop>
+      <stop offset="100%" stop-color="#facc15"></stop>
+    </linearGradient>
+  </defs>
+
+  <!-- Hexagon border -->
+  <polygon points="130,25 220,80 220,180 130,235 40,180 40,80" fill="none" stroke="url(#hexBorder)" stroke-width="8" stroke-linejoin="round"></polygon>
+
+  <!-- Inner background -->
+  <polygon points="130,45 205,90 205,170 130,215 55,170 55,90" fill="url(#coreBg)" stroke="rgba(255,255,255,0.08)" stroke-width="1"></polygon>
+
+  <!-- Cloud shape -->
+  <path d="M100 150c-18 0-32-13-32-30s14-30 32-30c4-12 16-22 30-22 18 0 32 13 32 30 14 2 25 14 25 28 0 16-14 30-32 30H100z" fill="#0f766e"></path>
+
+  <!-- Waveform -->
+  <path d="M75 150 L95 150 L110 125 L130 165 L150 110 L170 150 L185 150" fill="none" stroke="url(#wave)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path>
+
+  <!-- Dots -->
+  <circle cx="95" cy="100" r="6" fill="#facc15"></circle>
+  <circle cx="165" cy="100" r="6" fill="#fb7185"></circle>
+  <circle cx="95" cy="180" r="6" fill="#34d399"></circle>
+  <circle cx="165" cy="180" r="6" fill="#f97316"></circle>
+</svg>
