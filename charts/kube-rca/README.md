@@ -1,6 +1,6 @@
 # kube-rca
 
-![Version: 0.7.0](https://img.shields.io/badge/Version-0.7.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.1.0](https://img.shields.io/badge/AppVersion-0.1.0-informational?style=flat-square)
+![Version: 1.0.0](https://img.shields.io/badge/Version-1.0.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.1.0](https://img.shields.io/badge/AppVersion-0.1.0-informational?style=flat-square)
 
 Deploy kube-rca backend and frontend
 
@@ -64,16 +64,18 @@ frontend:
 **Option A — From OCI Registry (recommended):**
 
 ```bash
-helm install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/charts/kube-rca \
-  --version 0.7.0 \
+helm upgrade --install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/charts/kube-rca \
   -n kube-rca --create-namespace \
   -f my-values.yaml
 ```
 
-**Option B — From source (after cloning the repo):**
+**Option B — From source (after cloning the repo root):**
 
 ```bash
-helm install kube-rca ./charts/kube-rca \
+git clone https://github.com/kube-rca/kuberca.git
+cd kuberca
+
+helm upgrade --install kube-rca ./charts/kube-rca \
   -n kube-rca --create-namespace \
   -f my-values.yaml
 ```

@@ -85,8 +85,7 @@ agent:
 ### 2단계: Helm 설치
 
 ```bash
-helm install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/charts/kube-rca \
-  --version 0.7.0 \
+helm upgrade --install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/charts/kube-rca \
   -n kube-rca --create-namespace \
   -f my-values.yaml
 ```
