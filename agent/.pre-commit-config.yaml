@@ -1,0 +1,32 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format --check
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [pre-commit]
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [pre-commit]
+      - id: export-openapi
+        name: Export OpenAPI spec
+        entry: bash
+        args:
+          - -c
+          - |
+              uv run python scripts/export_openapi.py
+              if ! git diff --quiet -- docs/openapi.json; then
+                echo "pre-commit: OpenAPI spec changed. Stage 'docs/openapi.json' and retry." >&2
+                exit 1
+              fi
+        language: system
+        files: ^(app/|scripts/export_openapi\.py)
+        pass_filenames: false
+        stages: [pre-commit]
