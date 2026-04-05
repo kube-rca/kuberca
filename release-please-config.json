@@ -4,6 +4,7 @@
     ".": {
       "release-type": "simple",
       "component": "kuberca",
+      "release-as": "1.0.0",
       "extra-files": [
         "backend/VERSION",
         "agent/pyproject.toml",
