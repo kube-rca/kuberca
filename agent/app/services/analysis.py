@@ -67,6 +67,7 @@ class AnalysisService:
             target.pod_name,
             target.workload,
             service_name=target.service_name,
+            node_name=target.node_name,
         )
         t_k8s = time.perf_counter()
 
@@ -580,6 +581,22 @@ def _build_prompt(
             "do not claim live Envoy behavior.\n\n"
         )
 
+    if k8s_context.target and k8s_context.target.node_name:
+        node_name = k8s_context.target.node_name
+        prompt += (
+            "This alert targets a specific Kubernetes node.\n"
+            f"Node name: {node_name}\n"
+            "For node-level alerts:\n"
+            "1. Use get_node_status(node_name) to check node conditions, "
+            "capacity, and taints.\n"
+            "2. Use get_node_metrics(node_name) to check CPU/memory usage.\n"
+            "3. Use list_cluster_events() to find node-related events.\n"
+            "4. If Prometheus is available, query node_* metrics "
+            "(e.g., node_filesystem_avail_bytes, node_memory_MemAvailable_bytes).\n"
+            "5. This is a node-level issue - focus on node health, disk, memory, "
+            "and system-level diagnostics rather than pod/namespace data.\n\n"
+        )
+
     if summary_block:
         prompt += summary_block
 
@@ -887,6 +904,7 @@ def _build_alert_fallback_key(request: AlertAnalysisRequest) -> str:
         _normalize_session_token(labels.get("alertname")),
         _normalize_session_token(labels.get("namespace")),
         _normalize_session_token(labels.get("pod")),
+        _normalize_session_token(labels.get("node")),
         _normalize_session_token(labels.get("workload")),
         _normalize_session_token(labels.get("destination_workload")),
         _normalize_session_token(labels.get("destination_service_name")),
@@ -929,20 +947,28 @@ def _collect_missing_data(
 ) -> list[str]:
     missing_data: list[str] = []
     target = _resolve_context_target(k8s_context)
-    if not target.namespace:
+    is_node_alert = bool(target.node_name)
+
+    if not target.namespace and not is_node_alert:
         missing_data.append("alert.labels.namespace")
-    if not target.pod_name:
+    if not target.pod_name and not is_node_alert:
         missing_data.append("alert.labels.pod")
-    if not target.service_name:
+    if not target.service_name and not is_node_alert:
         missing_data.append("analysis.target.service_name")
-    if k8s_context.pod_status is None:
-        missing_data.append("k8s.pod_status")
-    if not k8s_context.events:
-        missing_data.append("k8s.events")
-    if not _has_log_lines(k8s_context.current_logs):
-        missing_data.append("k8s.current_logs")
-    if not _has_log_lines(k8s_context.previous_logs) and _total_restart_count(k8s_context) > 0:
-        missing_data.append("k8s.previous_logs")
+
+    if is_node_alert and k8s_context.node_status is None:
+        missing_data.append("k8s.node_status")
+
+    if not is_node_alert:
+        if k8s_context.pod_status is None:
+            missing_data.append("k8s.pod_status")
+        if not k8s_context.events:
+            missing_data.append("k8s.events")
+        if not _has_log_lines(k8s_context.current_logs):
+            missing_data.append("k8s.current_logs")
+        if not _has_log_lines(k8s_context.previous_logs) and _total_restart_count(k8s_context) > 0:
+            missing_data.append("k8s.previous_logs")
+
     if capabilities.get("k8s_core") != "ok":
         missing_data.append("k8s.core_api")
     if capabilities.get("manifest_read") != "ok":
@@ -996,6 +1022,12 @@ def _resolve_analysis_quality(
     if capabilities.get("k8s_core") != "ok":
         return "low"
     target = _resolve_context_target(k8s_context)
+
+    if target.node_name:
+        if k8s_context.node_status is not None:
+            return "high"
+        return "medium"
+
     if not target.namespace:
         return "low"
     if not target.pod_name and not target.service_name:
@@ -1121,6 +1153,14 @@ def _fallback_summary(
     ]
     if k8s_context.namespace or k8s_context.pod_name:
         lines.append(f"target: namespace={k8s_context.namespace}, pod={k8s_context.pod_name}")
+    if k8s_context.target and k8s_context.target.node_name:
+        lines.append(f"target_node: {k8s_context.target.node_name}")
+    if k8s_context.node_status:
+        conditions = k8s_context.node_status.get("conditions", [])
+        if isinstance(conditions, list):
+            for cond in conditions:
+                if isinstance(cond, dict) and cond.get("status") != "False":
+                    lines.append(f"  node_condition: {cond.get('type')}={cond.get('status')}")
     if k8s_context.events:
         lines.append(f"recent_events ({len(k8s_context.events)}):")
         for event in k8s_context.events[:5]:
