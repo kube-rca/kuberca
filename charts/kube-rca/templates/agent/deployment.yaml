@@ -1,0 +1,200 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kube-rca.agent.name" . }}
+  labels:
+    {{- include "kube-rca.agent.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.agent.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "kube-rca.agent.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "kube-rca.agent.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "kube-rca.agent.name" . }}
+      {{- with .Values.agent.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- $sessionDBHost := default "" .Values.agent.sessionDB.host }}
+      {{- if $sessionDBHost }}
+      initContainers:
+        - name: wait-for-db
+          image: "{{ .Values.hooks.waitJob.image.repository }}:{{ .Values.hooks.waitJob.image.tag }}"
+          imagePullPolicy: {{ .Values.hooks.waitJob.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until nc -z -w 5 {{ $sessionDBHost }} {{ default 5432 .Values.agent.sessionDB.port }}; do
+                echo "Waiting for session DB..."
+                sleep 2
+              done
+          resources:
+            {{- include "kube-rca.hook.waitJob.resources" . | nindent 12 }}
+      {{- end }}
+      containers:
+        - name: agent
+          image: "{{ required "agent.image.repository is required" .Values.agent.image.repository }}:{{ default "latest" .Values.agent.image.tag }}"
+          imagePullPolicy: {{ .Values.agent.image.pullPolicy }}
+          {{- with .Values.agent.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.agent.containerPort }}
+          env:
+            - name: AGENT_CONFIG_PATH
+              value: /etc/agent/config/agent-config.yaml
+            - name: PORT
+              value: {{ .Values.agent.containerPort | quote }}
+            - name: WEB_CONCURRENCY
+              value: {{ default 1 .Values.agent.workers | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.agent.logLevel | quote }}
+            - name: AI_PROVIDER
+              value: {{ default "gemini" .Values.agent.aiProvider | quote }}
+            - name: GEMINI_MODEL_ID
+              value: {{ .Values.agent.gemini.modelId | quote }}
+            - name: OPENAI_MODEL_ID
+              value: {{ .Values.agent.openai.modelId | quote }}
+            - name: ANTHROPIC_MODEL_ID
+              value: {{ .Values.agent.anthropic.modelId | quote }}
+            - name: ANTHROPIC_MAX_TOKENS
+              value: {{ .Values.agent.anthropic.maxTokens | quote }}
+            {{- $provider := default "gemini" .Values.agent.aiProvider | lower }}
+            {{- if eq $provider "gemini" }}
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kube-rca.agent.geminiSecretName" . }}
+                  key: {{ .Values.agent.gemini.secret.key }}
+            {{- else if eq $provider "openai" }}
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kube-rca.agent.openaiSecretName" . }}
+                  key: {{ .Values.agent.openai.secret.key }}
+            {{- else if eq $provider "anthropic" }}
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kube-rca.agent.anthropicSecretName" . }}
+                  key: {{ .Values.agent.anthropic.secret.key }}
+            {{- end }}
+            - name: K8S_API_TIMEOUT_SECONDS
+              value: {{ .Values.agent.k8s.apiTimeoutSeconds | quote }}
+            - name: K8S_EVENT_LIMIT
+              value: {{ .Values.agent.k8s.eventLimit | quote }}
+            - name: K8S_LOG_TAIL_LINES
+              value: {{ .Values.agent.k8s.logTailLines | quote }}
+            - name: PROMPT_TOKEN_BUDGET
+              value: {{ .Values.agent.prompt.tokenBudget | quote }}
+            - name: PROMPT_MAX_LOG_LINES
+              value: {{ .Values.agent.prompt.maxLogLines | quote }}
+            - name: PROMPT_MAX_EVENTS
+              value: {{ .Values.agent.prompt.maxEvents | quote }}
+            - name: PROMPT_SUMMARY_MAX_ITEMS
+              value: {{ .Values.agent.prompt.summaryMaxItems | quote }}
+            - name: MASKING_REGEX_LIST_JSON
+              value: {{ toJson (default (list) .Values.agent.masking.regexList) | quote }}
+            - name: BUILTIN_REDACTION_ENABLED
+              value: {{ .Values.agent.masking.builtinRedaction | quote }}
+            - name: BUILTIN_REDACTION_HASH_MODE
+              value: {{ .Values.agent.masking.builtinRedactionHashMode | quote }}
+            - name: PROMETHEUS_URL
+              value: {{ .Values.agent.prometheus.url | quote }}
+            - name: PROMETHEUS_HTTP_TIMEOUT_SECONDS
+              value: {{ .Values.agent.prometheus.httpTimeoutSeconds | quote }}
+            - name: TEMPO_URL
+              value: {{ .Values.agent.tempo.url | quote }}
+            - name: TEMPO_HTTP_TIMEOUT_SECONDS
+              value: {{ .Values.agent.tempo.httpTimeoutSeconds | quote }}
+            - name: TEMPO_TENANT_ID
+              value: {{ .Values.agent.tempo.tenantId | quote }}
+            - name: TEMPO_TRACE_LIMIT
+              value: {{ .Values.agent.tempo.traceLimit | quote }}
+            - name: TEMPO_LOOKBACK_MINUTES
+              value: {{ .Values.agent.tempo.lookbackMinutes | quote }}
+            - name: TEMPO_FORWARD_MINUTES
+              value: {{ .Values.agent.tempo.forwardMinutes | quote }}
+            - name: LOKI_URL
+              value: {{ .Values.agent.loki.url | quote }}
+            - name: LOKI_HTTP_TIMEOUT_SECONDS
+              value: {{ .Values.agent.loki.httpTimeoutSeconds | quote }}
+            - name: LOKI_TENANT_ID
+              value: {{ .Values.agent.loki.tenantId | quote }}
+            {{- $cache := default (dict) .Values.agent.cache }}
+            {{- $cacheSize := default 128 $cache.size }}
+            {{- $cacheTtl := default 0 $cache.ttlSeconds }}
+            - name: AGENT_CACHE_SIZE
+              value: {{ $cacheSize | quote }}
+            - name: AGENT_CACHE_TTL_SECONDS
+              value: {{ $cacheTtl | quote }}
+            {{- $retry := default (dict) .Values.agent.retry }}
+            - name: LLM_RETRY_MAX_ATTEMPTS
+              value: {{ default 5 $retry.maxAttempts | quote }}
+            - name: LLM_RETRY_MIN_WAIT
+              value: {{ default 1.0 $retry.minWait | quote }}
+            - name: LLM_RETRY_MAX_WAIT
+              value: {{ default 60.0 $retry.maxWait | quote }}
+            {{- $sessionDB := default (dict) .Values.agent.sessionDB }}
+            {{- $sessionDBHost := default "" $sessionDB.host }}
+            {{- if $sessionDBHost }}
+            - name: SESSION_DB_HOST
+              value: {{ $sessionDBHost | quote }}
+            - name: SESSION_DB_PORT
+              value: {{ default 5432 $sessionDB.port | quote }}
+            - name: SESSION_DB_NAME
+              value: {{ default "" $sessionDB.name | quote }}
+            - name: SESSION_DB_USER
+              value: {{ default "" $sessionDB.user | quote }}
+            {{- $sessionSecret := default (dict) $sessionDB.secret }}
+            - name: SESSION_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kube-rca.postgresql.secretName" . | quote }}
+                  key: {{ default "password" $sessionSecret.key | quote }}
+            {{- end }}
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/agent/config
+              readOnly: true
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+            failureThreshold: 18
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.agent.resources | nindent 12 }}
+      {{- with .Values.agent.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.agent.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.agent.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: config-volume
+          configMap:
+            name: {{ include "kube-rca.agent.name" . }}-config

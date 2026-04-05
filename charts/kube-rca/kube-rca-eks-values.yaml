@@ -1,0 +1,121 @@
+backend:
+  image:
+    repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr/backend
+    tag: backend-2961b49
+  auth:
+    secret:
+      existingSecret: kube-rca-auth
+    oidc:
+      enabled: true
+      redirectUri: "https://kuberca2.kkamji.net/api/v1/auth/oidc/callback"
+      allowedEmails:
+        - rlaxowl5460@gmail.com
+      secret:
+        existingSecret: kube-rca-auth
+    cors:
+      allowedOrigins:
+        - https://kuberca2.kkamji.net
+  postgresql:
+    host: kube-rca-postgresql.kube-rca.svc.cluster.local
+    port: 5432
+    user: kube-rca
+    database: kube-rca
+  flapping:
+    enabled: true
+    detectionWindowMinutes: 30
+    cycleThreshold: 3
+    clearanceWindowMinutes: 30
+  ingress:
+    enabled: false
+    ingressClassName: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - api-kuberca2.kkamji.net
+    paths:
+      - /
+    tls:
+      - secretName: api-kuberca2-tls
+        hosts:
+          - api-kuberca2.kkamji.net
+frontend:
+  image:
+    repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr/frontend
+    tag: frontend-65a19e8
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - kuberca2.kkamji.net
+    paths:
+      - /
+    tls:
+      - secretName: kuberca2-tls
+        hosts:
+          - kuberca2.kkamji.net
+postgresql:
+  primary:
+    persistence:
+      storageClass: gp2
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+agent:
+  image:
+    repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr/agent
+    tag: agent-31c116c
+  workers: 4
+  aiProvider: gemini
+  prometheus:
+    url: kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+  tempo:
+    url: http://tempo.monitoring.svc.cluster.local:3200
+    httpTimeoutSeconds: 10
+    traceLimit: 5
+    lookbackMinutes: 15
+    forwardMinutes: 5
+  loki:
+    url: http://loki-gateway.monitoring.svc.cluster.local:80
+    tenantId: "kube-rca"
+  prompt:
+    tokenBudget: 32000
+    maxLogLines: 25
+    maxEvents: 25
+    summaryMaxItems: 3
+  gemini:
+    modelId: "gemini-3-flash-preview"
+  anthropic:
+    modelId: "claude-sonnet-4-6"
+  openai:
+    modelId: "gpt-5-mini"
+  sessionDB:
+    host: kube-rca-postgresql.kube-rca.svc.cluster.local
+    port: 5432
+    name: kube-rca
+    user: kube-rca
+  ingress:
+    enabled: false
+openapi:
+  enabled: true
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - docs-kuberca2.kkamji.net
+    paths:
+      - /
+    tls:
+      - secretName: docs-kuberca2-tls
+        hosts:
+          - docs-kuberca2.kkamji.net

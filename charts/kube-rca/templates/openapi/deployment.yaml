@@ -1,0 +1,68 @@
+{{- if .Values.openapi.enabled -}}
+{{- $urls := list (dict "url" "/specs/backend.json" "name" .Values.openapi.specs.backend.name) (dict "url" "/specs/agent.json" "name" .Values.openapi.specs.agent.name) -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kube-rca.openapi.name" . }}
+  labels:
+    {{- include "kube-rca.openapi.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.openapi.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "kube-rca.openapi.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "kube-rca.openapi.labels" . | nindent 8 }}
+      annotations:
+        checksum/openapi-config: {{ include (print $.Template.BasePath "/openapi/configmap.yaml") . | sha256sum }}
+    spec:
+      {{- with .Values.openapi.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: openapi
+          image: "{{ .Values.openapi.image.repository }}:{{ .Values.openapi.image.tag }}"
+          imagePullPolicy: {{ .Values.openapi.image.pullPolicy }}
+          {{- with .Values.openapi.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            - name: BASE_URL
+              value: {{ .Values.openapi.baseUrl | quote }}
+            - name: PORT
+              value: {{ .Values.openapi.containerPort | quote }}
+            - name: URLS
+              value: {{ $urls | toJson | quote }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.openapi.containerPort }}
+          volumeMounts:
+            - name: openapi-config
+              mountPath: /etc/nginx/templates/default.conf.template
+              subPath: default.conf.template
+          resources:
+            {{- toYaml .Values.openapi.resources | nindent 12 }}
+      volumes:
+        - name: openapi-config
+          configMap:
+            name: {{ include "kube-rca.openapi.name" . }}-config
+            items:
+              - key: default.conf.template
+                path: default.conf.template
+      {{- with .Values.openapi.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.openapi.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.openapi.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end -}}

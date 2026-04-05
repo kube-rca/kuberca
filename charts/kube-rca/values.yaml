@@ -1,0 +1,538 @@
+# Default values for kube-rca.
+
+# -- Override the name of the chart.
+nameOverride: ""
+# -- Override the full name of the release.
+fullnameOverride: ""
+# Helm Hook configuration for readiness checks.
+# Default: wait for DB only.
+hooks:
+  # -- Enable Helm hooks for readiness checks.
+  enabled: true
+  waitJob:
+    image:
+      # -- Wait job image repository.
+      repository: busybox
+      # -- Wait job image tag.
+      tag: "1.36"
+      # -- Wait job image pull policy.
+      pullPolicy: IfNotPresent
+    # -- Number of retries before giving up.
+    backoffLimit: 6
+    # -- Maximum time for the job to complete.
+    activeDeadlineSeconds: 300
+    # -- Interval between connection checks (seconds).
+    checkInterval: 5
+    # -- Timeout for each check (seconds).
+    checkTimeout: 10
+    resources:
+      requests:
+        cpu: 10m
+        memory: 16Mi
+      limits:
+        cpu: 50m
+        memory: 32Mi
+  waitForDb:
+    # -- (Deprecated) Use backend.waitForDb instead. Legacy post-install hook.
+    enabled: false
+  waitForBackend:
+    # -- Enable wait-for-backend post-install hook (optional).
+    enabled: false
+    # -- Backend health check path.
+    healthPath: "/ping"
+  waitForAgent:
+    # -- Enable wait-for-agent post-install hook (optional).
+    enabled: false
+    # -- Agent health check path.
+    healthPath: "/healthz"
+postgresql:
+  auth:
+    username: "kube-rca"
+    database: "kube-rca"
+    existingSecret: "postgresql"
+    secretKeys:
+      adminPasswordKey: "postgres-password"
+      userPasswordKey: "password"
+  primary:
+    initdb:
+      scripts:
+        enable-pgvector.sh: |
+          #!/bin/sh
+          set -e
+          DB_USER="postgres"
+          if [ -n "${POSTGRES_POSTGRES_PASSWORD_FILE:-}" ] && [ -f "$POSTGRES_POSTGRES_PASSWORD_FILE" ]; then
+            PGPASSWORD="$(cat "$POSTGRES_POSTGRES_PASSWORD_FILE")"
+          elif [ -n "${POSTGRES_POSTGRES_PASSWORD:-}" ]; then
+            PGPASSWORD="$POSTGRES_POSTGRES_PASSWORD"
+          else
+            DB_USER="${POSTGRES_USER:-postgres}"
+            if [ -n "${POSTGRES_PASSWORD_FILE:-}" ] && [ -f "$POSTGRES_PASSWORD_FILE" ]; then
+              PGPASSWORD="$(cat "$POSTGRES_PASSWORD_FILE")"
+            elif [ -n "${POSTGRES_PASSWORD:-}" ]; then
+              PGPASSWORD="$POSTGRES_PASSWORD"
+            fi
+          fi
+          export PGPASSWORD
+          DB_NAME="${POSTGRES_DATABASE:-kube-rca}"
+          psql -U "$DB_USER" -d "$DB_NAME" -c "CREATE EXTENSION IF NOT EXISTS vector;"
+backend:
+  # -- Number of backend replicas.
+  replicaCount: 1
+  image:
+    # -- Backend image repository.
+    repository: "public.ecr.aws/r5b7j2e4/kube-rca-ecr/backend"
+    # -- Backend image tag.
+    tag: "backend-0.5.1"
+    # -- Backend image pull policy.
+    pullPolicy: IfNotPresent
+  service:
+    # -- Backend service type.
+    type: ClusterIP
+    # -- Backend service port.
+    port: 8080
+  # -- Backend container port.
+  containerPort: 8080
+  ingress:
+    # -- Enable backend ingress.
+    enabled: false
+    # -- IngressClass name for backend ingress.
+    ingressClassName: ""
+    # -- Annotations for backend ingress.
+    annotations: {}
+    # -- Hostnames for backend ingress.
+    hosts: []
+    # -- Paths for backend ingress.
+    paths:
+      - /
+    # -- PathType for backend ingress.
+    pathType: Prefix
+    # -- TLS configuration for backend ingress.
+    tls: []
+  # -- Backend resource requests/limits.
+  resources: {}
+  # -- Pod-level security context for backend pods.
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+  # -- Container-level security context for the backend container.
+  securityContext: {}
+  # -- Node labels for backend pods assignment.
+  nodeSelector: {}
+  # -- Tolerations for backend pods assignment.
+  tolerations: []
+  # -- Affinity for backend pods assignment.
+  affinity: {}
+  embedding:
+    provider: "gemini"
+    model: "gemini-embedding-001"
+    apiKey:
+      # -- Embedding API key value. When set (and no existingSecret), uses the agent's generated Secret.
+      value: ""
+      existingSecret: "kube-rca-ai"
+      key: "ai-studio-api-key"
+  waitForDb:
+    # -- Enable init container to wait for DB before backend starts.
+    enabled: true
+    # -- Timeout for each TCP check (seconds).
+    checkTimeout: 5
+    # -- Interval between checks (seconds).
+    checkInterval: 2
+  postgresql:
+    # -- PostgreSQL host. Leave empty to auto-resolve from the embedded postgresql dependency.
+    host: ""
+    # -- PostgreSQL port.
+    port: 5432
+    # -- PostgreSQL user.
+    user: "kube-rca"
+    # -- PostgreSQL database.
+    database: "kube-rca"
+    secret:
+      # -- Existing Secret name for PostgreSQL password.
+      existingSecret: "postgresql"
+      # -- Secret key for PostgreSQL password.
+      key: "password"
+    retry:
+      # -- Maximum number of DB connection attempts at startup.
+      maxAttempts: 10
+      # -- Initial backoff interval (seconds).
+      initialBackoffSeconds: 1
+      # -- Maximum backoff interval (seconds).
+      maxBackoffSeconds: 30
+  slack:
+    # -- Enable Slack notifications.
+    enabled: true
+    # -- Slack bot token (used when backend.slack.source=values).
+    token: ""
+    # -- Slack channel ID (used when backend.slack.source=values).
+    channelId: ""
+    secret:
+      # -- Existing Secret name for Slack credentials.
+      existingSecret: kube-rca-slack
+      # -- Secret key for Slack bot token.
+      tokenKey: kube-rca-slack-token
+      # -- Secret key for Slack channel ID.
+      channelIdKey: kube-rca-slack-channel-id
+  flapping:
+    # -- Enable alert flapping detection (FLAP_ENABLED).
+    enabled: true
+    # -- Time window (minutes) for detecting flapping cycles (FLAP_DETECTION_WINDOW_MINUTES).
+    detectionWindowMinutes: 30
+    # -- Number of firing→resolved cycles to trigger flapping detection (FLAP_CYCLE_THRESHOLD).
+    cycleThreshold: 3
+    # -- Time (minutes) after last resolved to clear flapping status (FLAP_CLEARANCE_WINDOW_MINUTES).
+    clearanceWindowMinutes: 30
+  analysis:
+    # -- Comma-separated severities that require manual analysis (MANUAL_ANALYZE_SEVERITIES).
+    # Default (empty): all severities are auto-analyzed.
+    # Example: "info" -> info requires manual trigger, warning and critical stay auto.
+    # Example: "warning,critical" -> warning and critical require manual trigger, info stays auto.
+    # Valid values: info, warning, critical (comma-separated)
+    manualAnalyzeSeverities: ""
+  auth:
+    # -- Enable backend auth.
+    enabled: true
+    # -- Allow user signup (ALLOW_SIGNUP).
+    allowSignup: false
+    admin:
+      # -- Admin login ID (default: kube-rca).
+      username: "kube-rca"
+      # -- Admin password (default: kube-rca).
+      password: "kube-rca"
+    jwt:
+      # -- JWT secret (auto-generated when empty and no existingSecret).
+      secret: ""
+      # -- Access token TTL (e.g. 15m).
+      accessTtl: "15m"
+      # -- Refresh token TTL (e.g. 168h).
+      refreshTtl: "168h"
+    cookie:
+      # -- Cookie secure flag (AUTH_COOKIE_SECURE).
+      secure: true
+      # -- Cookie SameSite (AUTH_COOKIE_SAMESITE).
+      sameSite: "Lax"
+      # -- Cookie domain (AUTH_COOKIE_DOMAIN).
+      domain: ""
+      # -- Cookie path (AUTH_COOKIE_PATH).
+      path: "/"
+    oidc:
+      # -- Enable OIDC authentication (OIDC_ENABLED).
+      enabled: false
+      # -- OIDC issuer URL (OIDC_ISSUER).
+      issuer: "https://accounts.google.com"
+      # -- OIDC redirect URI (OIDC_REDIRECT_URI). Must match the callback URL registered with the provider.
+      redirectUri: ""
+      # -- Allowed email domains for OIDC login (OIDC_ALLOWED_DOMAINS). Users with matching email domains are allowed.
+      allowedDomains: []
+      # - kkamji.net
+      # - example.com
+      # -- Allowed individual emails for OIDC login (OIDC_ALLOWED_EMAILS). Specific emails allowed regardless of domain.
+      allowedEmails: []
+      # - friend@gmail.com
+      secret:
+        # -- Existing Secret name for OIDC credentials. If empty, chart-managed Secret is used.
+        existingSecret: ""
+        keys:
+          # -- Secret key for OIDC Client ID.
+          clientId: "oidc-client-id"
+          # -- Secret key for OIDC Client Secret.
+          clientSecret: "oidc-client-secret"
+    cors:
+      # -- Allowed origins (CORS_ALLOWED_ORIGINS), comma-separated when rendered.
+      allowedOrigins: []
+    secret:
+      # -- Existing Secret name for auth credentials (ExternalSecret 연계 시 사용, default keys: admin-username/admin-password/kube-rca-jwt-secret).
+      existingSecret: ""
+      # -- Custom Secret name for chart-managed auth Secret.
+      name: ""
+      keys:
+        # -- Secret key for admin login ID.
+        adminUsername: admin-username
+        # -- Secret key for admin password.
+        adminPassword: admin-password
+        # -- Secret key for JWT secret.
+        jwtSecret: kube-rca-jwt-secret
+agent:
+  # -- Number of agent replicas. Use 2+ for concurrent analysis (Python GIL limits per-process parallelism).
+  replicaCount: 2
+  image:
+    # -- Agent image repository.
+    repository: "public.ecr.aws/r5b7j2e4/kube-rca-ecr/agent"
+    # -- Agent image tag.
+    tag: "agent-1.2.1"
+    # -- Agent image pull policy.
+    pullPolicy: IfNotPresent
+  service:
+    # -- Agent service type.
+    type: ClusterIP
+    # -- Agent service port.
+    port: 8000
+  # -- Agent container port.
+  containerPort: 8000
+  ingress:
+    # -- Enable agent ingress.
+    enabled: false
+    # -- IngressClass name for agent ingress.
+    ingressClassName: ""
+    # -- Annotations for agent ingress.
+    annotations: {}
+    # -- Hostnames for agent ingress.
+    hosts: []
+    # -- Paths for agent ingress.
+    paths:
+      - /
+    # -- PathType for agent ingress.
+    pathType: Prefix
+    # -- TLS configuration for agent ingress.
+    tls: []
+  # -- Agent resource requests/limits.
+  resources: {}
+  # -- Pod-level security context for agent pods.
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+  # -- Container-level security context for the agent container.
+  securityContext: {}
+  # -- Agent log level (LOG_LEVEL).
+  logLevel: "info"
+  # -- Uvicorn worker count (WEB_CONCURRENCY).
+  workers: 1
+  # -- AI provider for agent (AI_PROVIDER). Allowed: gemini, openai, anthropic.
+  aiProvider: "gemini"
+  k8s:
+    # -- Kubernetes API timeout in seconds.
+    apiTimeoutSeconds: 5
+    # -- Kubernetes event limit.
+    eventLimit: 25
+    # -- Kubernetes log tail lines.
+    logTailLines: 25
+  prompt:
+    # -- Prompt token budget (approx).
+    tokenBudget: 32000
+    # -- Max log lines included in prompt.
+    maxLogLines: 25
+    # -- Max events included in prompt.
+    maxEvents: 25
+    # -- Max session summaries included in prompt.
+    summaryMaxItems: 3
+  masking:
+    # -- Regex list (JSON array) for masking sensitive values before LLM requests and DB persistence.
+    regexList: []
+    # -- Enable built-in redaction rules (key denylist, value heuristics, K8s-specific patterns).
+    builtinRedaction: true
+    # -- Use deterministic hash replacement [HASH:xxx] instead of [MASKED] for correlation.
+    builtinRedactionHashMode: false
+  prometheus:
+    # -- Prometheus base URL (PROMETHEUS_URL). If empty, Prometheus queries are disabled.
+    url: ""
+    # -- Prometheus HTTP timeout in seconds.
+    httpTimeoutSeconds: 5
+  tempo:
+    # -- Tempo base URL (TEMPO_URL). If empty, Tempo trace queries are disabled.
+    url: ""
+    # -- Tempo HTTP timeout in seconds.
+    # Trace search can be slower than K8s/Prometheus queries under load.
+    httpTimeoutSeconds: 10
+    # -- Optional Tempo tenant header value (TEMPO_TENANT_ID / X-Scope-OrgID).
+    tenantId: ""
+    # -- Max traces fetched per alert analysis (TEMPO_TRACE_LIMIT).
+    traceLimit: 5
+    # -- Minutes before alert startsAt for Tempo query window (TEMPO_LOOKBACK_MINUTES).
+    lookbackMinutes: 15
+    # -- Minutes after alert startsAt for Tempo query window (TEMPO_FORWARD_MINUTES).
+    forwardMinutes: 5
+  loki:
+    # -- Loki base URL (LOKI_URL). If empty, Loki log queries are disabled.
+    url: ""
+    # -- Loki HTTP timeout in seconds.
+    httpTimeoutSeconds: 10
+    # -- Optional Loki tenant header value (LOKI_TENANT_ID / X-Scope-OrgID).
+    tenantId: ""
+  gemini:
+    # -- Gemini model ID for Strands Agents.
+    modelId: "gemini-3.1-flash-lite-preview"
+    # -- Gemini API key value. When set (and no existingSecret), chart creates the Secret.
+    apiKey: ""
+    secret:
+      # -- Create a Secret for the Gemini API key.
+      create: false
+      # -- Existing Secret name for the Gemini API key.
+      existingSecret: "kube-rca-ai"
+      # -- Secret key name for the Gemini API key.
+      key: "ai-studio-api-key"
+  openai:
+    # -- OpenAI model ID for Strands Agents.
+    modelId: "gpt-5-mini"
+    # -- OpenAI API key value. When set (and no existingSecret), chart creates the Secret.
+    apiKey: ""
+    secret:
+      # -- Create a Secret for the OpenAI API key.
+      create: false
+      # -- Existing Secret name for the OpenAI API key.
+      existingSecret: "kube-rca-ai"
+      # -- Secret key name for the OpenAI API key.
+      key: "openai-api-key"
+  anthropic:
+    # -- Anthropic model ID for Strands Agents.
+    modelId: "claude-haiku-4-5"
+    # -- Anthropic maximum output tokens.
+    maxTokens: 4096
+    # -- Anthropic API key value. When set (and no existingSecret), chart creates the Secret.
+    apiKey: ""
+    secret:
+      # -- Create a Secret for the Anthropic API key.
+      create: false
+      # -- Existing Secret name for the Anthropic API key.
+      existingSecret: "kube-rca-ai"
+      # -- Secret key name for the Anthropic API key.
+      key: "anthropic-api-key"
+  sessionDB:
+    # -- PostgreSQL host for Strands session persistence.
+    host: ""
+    # -- PostgreSQL port.
+    port: 5432
+    # -- PostgreSQL database name.
+    name: ""
+    # -- PostgreSQL user.
+    user: ""
+    secret:
+      # -- Existing Secret name for session DB password.
+      existingSecret: "postgresql"
+      # -- Secret key for session DB password.
+      key: "password"
+  cache:
+    # -- Max number of cached agents (AGENT_CACHE_SIZE).
+    size: 128
+    # -- Cache TTL in seconds (AGENT_CACHE_TTL_SECONDS, 0 = disable).
+    ttlSeconds: 0
+  retry:
+    # -- Max retry attempts for transient LLM API errors (5xx, 429).
+    maxAttempts: 5
+    # -- Minimum exponential backoff wait time in seconds.
+    minWait: 1.0
+    # -- Maximum exponential backoff wait time in seconds.
+    maxWait: 60.0
+  # -- Node labels for agent pods assignment.
+  nodeSelector: {}
+  # -- Tolerations for agent pods assignment.
+  tolerations: []
+  # -- Affinity for agent pods assignment.
+  affinity: {}
+frontend:
+  # -- Number of frontend replicas.
+  replicaCount: 1
+  image:
+    # -- Frontend image repository.
+    repository: "public.ecr.aws/r5b7j2e4/kube-rca-ecr/frontend"
+    # -- Frontend image tag.
+    tag: "frontend-0.4.1"
+    # -- Frontend image pull policy.
+    pullPolicy: IfNotPresent
+  service:
+    # -- Frontend service type.
+    type: ClusterIP
+    # -- Frontend service port.
+    port: 80
+  # -- Frontend container port.
+  containerPort: 80
+  ingress:
+    # -- Enable frontend ingress.
+    enabled: false
+    # -- IngressClass name for frontend ingress.
+    ingressClassName: ""
+    # -- Annotations for frontend ingress.
+    annotations: {}
+    # -- Hostnames for frontend ingress.
+    hosts: []
+    # -- Paths for frontend ingress.
+    paths:
+      - /
+    # -- PathType for frontend ingress.
+    pathType: Prefix
+    # -- TLS configuration for frontend ingress.
+    tls: []
+  # -- Frontend resource requests/limits.
+  resources: {}
+  # -- Pod-level security context for frontend pods.
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+  # -- Container-level security context for the frontend container.
+  securityContext: {}
+  # -- Node labels for frontend pods assignment.
+  nodeSelector: {}
+  # -- Tolerations for frontend pods assignment.
+  tolerations: []
+  # -- Affinity for frontend pods assignment.
+  affinity: {}
+openapi:
+  # -- Enable OpenAPI (Swagger UI) deployment.
+  enabled: false
+  # -- Number of OpenAPI replicas.
+  replicaCount: 1
+  image:
+    # -- OpenAPI UI image repository.
+    repository: "swaggerapi/swagger-ui"
+    # -- OpenAPI UI image tag.
+    tag: "v5.31.0"
+    # -- OpenAPI UI image pull policy.
+    pullPolicy: IfNotPresent
+  service:
+    # -- OpenAPI service type.
+    type: ClusterIP
+    # -- OpenAPI service port.
+    port: 8080
+  # -- OpenAPI container port.
+  containerPort: 8080
+  # -- Base URL for Swagger UI.
+  baseUrl: "/"
+  ingress:
+    # -- Enable OpenAPI ingress.
+    enabled: false
+    # -- IngressClass name for OpenAPI ingress.
+    ingressClassName: ""
+    # -- Annotations for OpenAPI ingress.
+    annotations: {}
+    # -- Hostnames for OpenAPI ingress.
+    hosts: []
+    # -- Paths for OpenAPI ingress.
+    paths:
+      - /
+    # -- PathType for OpenAPI ingress.
+    pathType: Prefix
+    # -- TLS configuration for OpenAPI ingress.
+    tls: []
+  specs:
+    backend:
+      # -- Display name for backend spec.
+      name: "backend"
+      # -- Backend OpenAPI path.
+      path: "/openapi.json"
+      service:
+        # -- Backend service name override (empty = chart default).
+        name: ""
+        # -- Backend service port.
+        port: 8080
+    agent:
+      # -- Display name for agent spec.
+      name: "agent"
+      # -- Agent OpenAPI path.
+      path: "/openapi.json"
+      service:
+        # -- Agent service name override (empty = chart default).
+        name: ""
+        # -- Agent service port.
+        port: 8000
+  # -- OpenAPI resource requests/limits.
+  resources: {}
+  # -- Pod-level security context for OpenAPI pods.
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+  # -- Container-level security context for the OpenAPI container.
+  securityContext: {}
+  # -- Node labels for OpenAPI pods assignment.
+  nodeSelector: {}
+  # -- Tolerations for OpenAPI pods assignment.
+  tolerations: []
+  # -- Affinity for OpenAPI pods assignment.
+  affinity: {}
