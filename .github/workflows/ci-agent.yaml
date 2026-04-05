@@ -86,5 +86,14 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add charts/kube-rca/kube-rca-values.yaml
           git diff --cached --quiet || git commit -m "chore(charts): bump agent image to ${{ steps.tag.outputs.image_tag }}"
-          git pull --rebase origin main
-          git push
+
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin main
+            if git push origin main; then
+              exit 0
+            fi
+            echo "Push failed (attempt $i/5). Retrying in 2s..."
+            sleep 2
+          done
+          echo "Failed to push after 5 attempts."
+          exit 1
