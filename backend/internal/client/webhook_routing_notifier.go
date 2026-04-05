@@ -1,0 +1,713 @@
+package client
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
+	"net/http"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/kube-rca/backend/internal/config"
+	"github.com/kube-rca/backend/internal/model"
+)
+
+type webhookConfigSource interface {
+	GetWebhookConfigs(ctx context.Context) ([]model.WebhookConfig, error)
+}
+
+type webhookRoutingNotifier struct {
+	cfgSource           webhookConfigSource
+	fallback            Notifier
+	fallbackThreadStore ThreadRefStore
+	frontendURL         string
+	httpClient          *http.Client
+
+	mu             sync.RWMutex
+	slackClients   map[int]*SlackClient
+	threadStore    sync.Map // alertKey → thread_ts
+	threadRefOwner sync.Map // thread_ts value → configID (which Slack client sent the original message)
+}
+
+var _ DeliveryAwareNotifier = (*webhookRoutingNotifier)(nil)
+
+type webhookEventEnvelope struct {
+	EventType string      `json:"event_type"`
+	SentAt    time.Time   `json:"sent_at"`
+	Data      interface{} `json:"data"`
+}
+
+// NewWebhookRoutingNotifier는 DB webhook_configs(type)을 기반으로 notifier를 라우팅한다.
+// DB 설정이 없으면 fallback notifier를 사용한다.
+func NewWebhookRoutingNotifier(
+	cfgSource webhookConfigSource,
+	fallback Notifier,
+	fallbackThreadStore ThreadRefStore,
+	frontendURL string,
+) DeliveryAwareNotifier {
+	return &webhookRoutingNotifier{
+		cfgSource:           cfgSource,
+		fallback:            fallback,
+		fallbackThreadStore: fallbackThreadStore,
+		frontendURL:         strings.TrimRight(frontendURL, "/"),
+		httpClient: &http.Client{
+			Timeout: 10 * time.Second,
+		},
+		slackClients: make(map[int]*SlackClient),
+	}
+}
+
+func (n *webhookRoutingNotifier) Notify(event NotifierEvent) error {
+	// thread 기반 이벤트(분석 결과, flapping 해제)는 thread를 소유한 Slack 클라이언트에만 전송.
+	switch e := event.(type) {
+	case AnalysisResultPostedEvent:
+		return n.notifyByThread(e.ThreadRef, event)
+	case *AnalysisResultPostedEvent:
+		return n.notifyByThread(e.ThreadRef, event)
+	case FlappingClearedEvent:
+		return n.notifyByThread(e.ThreadRef, event)
+	case *FlappingClearedEvent:
+		return n.notifyByThread(e.ThreadRef, event)
+	}
+
+	severity := extractEventSeverity(event)
+	targets, err := n.resolveNotifiers(severity)
+	if err != nil {
+		log.Printf("Failed to load webhook configs, falling back to default notifier: %v", err)
+		if n.fallback != nil {
+			return n.fallback.Notify(event)
+		}
+		return err
+	}
+
+	if len(targets) == 0 {
+		if n.fallback != nil {
+			return n.fallback.Notify(event)
+		}
+		return fmt.Errorf("no notifier target configured")
+	}
+
+	var errs []error
+	success := 0
+	for _, target := range targets {
+		if err := target.Notify(event); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		success++
+	}
+
+	if success > 0 {
+		return nil
+	}
+
+	if n.fallback != nil {
+		if err := n.fallback.Notify(event); err == nil {
+			return nil
+		} else {
+			errs = append(errs, fmt.Errorf("fallback notify failed: %w", err))
+		}
+	}
+
+	if len(errs) == 0 {
+		return fmt.Errorf("no notifier target configured")
+	}
+	return errors.Join(errs...)
+}
+
+// notifyByThread는 thread_ts를 소유한 Slack 클라이언트에만 이벤트를 전송한다.
+// HTTP/Teams 엔드포인트는 thread 개념이 없으므로 제외한다.
+func (n *webhookRoutingNotifier) notifyByThread(threadRef string, event NotifierEvent) error {
+	if threadRef == "" {
+		return nil
+	}
+
+	// threadRefOwner로 정확한 소유자를 먼저 확인한다.
+	// GetThreadRef 호출 시 기록되므로 재시작 없이 정상 처리된 경우 항상 사용 가능하다.
+	if ownerVal, ok := n.threadRefOwner.Load(threadRef); ok {
+		ownerID := ownerVal.(int)
+		var found bool
+		var sendErr error
+		n.forEachSlackClient(func(configID int, c *SlackClient) {
+			if found || configID != ownerID {
+				return
+			}
+			found = true
+			if err := c.Notify(event); err != nil {
+				sendErr = err
+			}
+		})
+		if found {
+			return sendErr
+		}
+		// ownerID 클라이언트가 없어진 경우(설정 삭제 등) → fallback으로 계속 진행
+	}
+
+	// fallback: threadMap에서 값으로 검색 (재시작 후 threadRefOwner가 비어있는 경우)
+	var found bool
+	var sendErr error
+	n.forEachSlackClient(func(_ int, c *SlackClient) {
+		if found {
+			return
+		}
+		if !c.HasThreadValue(threadRef) {
+			return
+		}
+		found = true
+		if err := c.Notify(event); err != nil {
+			sendErr = err
+		}
+	})
+
+	if found {
+		return sendErr
+	}
+
+	if slackFallback, ok := n.fallback.(*SlackClient); ok && slackFallback.HasThreadValue(threadRef) {
+		return slackFallback.Notify(event)
+	}
+
+	log.Printf(
+		"Skipping thread notification (event_type=%s, thread_ref=%s, lookup_source=none, skip_reason=no_thread_owner)",
+		event.EventType(),
+		threadRef,
+	)
+	return fmt.Errorf("no thread owner found for thread_ref=%s", threadRef)
+}
+
+func (n *webhookRoutingNotifier) NotifyRootWithReceipts(event NotifierEvent) ([]NotificationDeliveryReceipt, error) {
+	switch e := event.(type) {
+	case AlertStatusChangedEvent:
+		return n.notifyAlertRootWithReceipts(e)
+	case *AlertStatusChangedEvent:
+		return n.notifyAlertRootWithReceipts(*e)
+	default:
+		return nil, fmt.Errorf("unsupported root event: %T", event)
+	}
+}
+
+func (n *webhookRoutingNotifier) notifyAlertRootWithReceipts(event AlertStatusChangedEvent) ([]NotificationDeliveryReceipt, error) {
+	if event.Alert.Status != "firing" {
+		return nil, fmt.Errorf("root receipts are only supported for firing alerts")
+	}
+
+	severity := extractEventSeverity(event)
+	configs, err := n.loadWebhookConfigs()
+	if err != nil {
+		log.Printf("Failed to load webhook configs, falling back to default notifier: %v", err)
+		return n.notifyRootWithFallback(event)
+	}
+	if len(configs) == 0 {
+		return n.notifyRootWithFallback(event)
+	}
+
+	claimed := make(map[string]bool)
+	for _, cfg := range configs {
+		for _, s := range cfg.Severities {
+			claimed[s] = true
+		}
+	}
+
+	var (
+		receipts []NotificationDeliveryReceipt
+		errs     []error
+		success  int
+	)
+
+	for _, cfg := range configs {
+		var matches bool
+		if len(cfg.Severities) == 0 {
+			matches = !claimed[severity]
+		} else {
+			matches = severityMatches(cfg.Severities, severity)
+		}
+		if !matches {
+			continue
+		}
+
+		switch normalizeWebhookType(cfg.Type) {
+		case "slack":
+			slackNotifier, ok := n.slackClientForConfig(cfg)
+			if !ok {
+				continue
+			}
+			receipt, err := slackNotifier.SendAlertWithReceipt(event.Alert, event.Alert.Status, event.IncidentID, event.IsManual)
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			success++
+			if receipt != nil {
+				configID := cfg.ID
+				receipt.WebhookConfigID = &configID
+				receipts = append(receipts, *receipt)
+			}
+		case "http", "teams":
+			if strings.TrimSpace(cfg.URL) == "" {
+				continue
+			}
+			if err := (&webhookEndpointNotifier{cfg: cfg, httpClient: n.httpClient}).Notify(event); err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			success++
+		}
+	}
+
+	if success > 0 {
+		return receipts, nil
+	}
+	return n.notifyRootWithFallback(event)
+}
+
+func (n *webhookRoutingNotifier) notifyRootWithFallback(event AlertStatusChangedEvent) ([]NotificationDeliveryReceipt, error) {
+	if slackFallback, ok := n.fallback.(*SlackClient); ok {
+		receipt, err := slackFallback.SendAlertWithReceipt(event.Alert, event.Alert.Status, event.IncidentID, event.IsManual)
+		if err != nil {
+			return nil, err
+		}
+		if receipt == nil {
+			return nil, nil
+		}
+		return []NotificationDeliveryReceipt{*receipt}, nil
+	}
+	// NOTE: fallback Notifier does not return receipts, so deliveries will NOT
+	// be persisted to DB. Thread-based follow-ups (resolved, flapping) will fall
+	// back to legacy thread_ts lookup. This is acceptable only when the fallback
+	// is a single-channel SlackClient that stores thread_ts via StoreThreadRef.
+	if n.fallback != nil {
+		return nil, n.fallback.Notify(event)
+	}
+	return nil, fmt.Errorf("no notifier target configured")
+}
+
+func (n *webhookRoutingNotifier) NotifyThreadEvent(event NotifierEvent, deliveries []model.AlertNotificationDelivery) error {
+	if len(deliveries) == 0 {
+		return fmt.Errorf("no notification deliveries provided")
+	}
+
+	var errs []error
+	success := 0
+	for _, delivery := range deliveries {
+		if normalizeWebhookType(delivery.NotifierType) != "slack" {
+			continue
+		}
+		if strings.TrimSpace(delivery.ChannelID) == "" || strings.TrimSpace(delivery.ThreadTS) == "" {
+			n.logThreadDeliverySkip(event, delivery, "delivery", "missing_channel_or_thread")
+			continue
+		}
+
+		slackNotifier, lookupSource, ok := n.slackClientForDelivery(delivery)
+		if !ok {
+			n.logThreadDeliverySkip(event, delivery, lookupSource, "no_delivery_owner")
+			continue
+		}
+		if err := n.sendSlackThreadEvent(slackNotifier, event, delivery); err != nil {
+			errs = append(errs, fmt.Errorf("delivery route_key=%s: %w", delivery.RouteKey, err))
+			continue
+		}
+		success++
+	}
+
+	if success > 0 {
+		return nil
+	}
+	if len(errs) == 0 {
+		return fmt.Errorf("no valid thread delivery target")
+	}
+	return errors.Join(errs...)
+}
+
+func (n *webhookRoutingNotifier) ListSlackRoutes() ([]NotificationRoute, error) {
+	configs, err := n.loadWebhookConfigs()
+	if err != nil {
+		return nil, err
+	}
+
+	routes := make([]NotificationRoute, 0)
+	for _, cfg := range configs {
+		if normalizeWebhookType(cfg.Type) != "slack" {
+			continue
+		}
+		if _, ok := n.slackClientForConfig(cfg); !ok {
+			continue
+		}
+		configID := cfg.ID
+		routes = append(routes, NotificationRoute{
+			NotifierType:    "slack",
+			WebhookConfigID: &configID,
+			ChannelID:       strings.TrimSpace(cfg.Channel),
+		})
+	}
+
+	if len(routes) > 0 {
+		return routes, nil
+	}
+
+	if slackFallback, ok := n.fallback.(*SlackClient); ok && slackFallback.IsConfigured() {
+		return []NotificationRoute{
+			{
+				NotifierType: "slack",
+				ChannelID:    slackFallback.channelID,
+			},
+		}, nil
+	}
+
+	return nil, nil
+}
+
+// extractEventSeverity - 이벤트에서 severity를 추출한다.
+// severity가 없는 이벤트(FlappingCleared, AnalysisResult)는 "" 반환 → 모든 채널로 전송.
+func extractEventSeverity(event NotifierEvent) string {
+	switch e := event.(type) {
+	case AlertStatusChangedEvent:
+		return e.Alert.Labels["severity"]
+	case *AlertStatusChangedEvent:
+		return e.Alert.Labels["severity"]
+	case FlappingDetectedEvent:
+		return e.Alert.Labels["severity"]
+	case *FlappingDetectedEvent:
+		return e.Alert.Labels["severity"]
+	default:
+		return ""
+	}
+}
+
+// severityMatches - 명시적 severity 필터(비어있지 않은 배열)와 이벤트 severity가 매칭되는지 확인.
+// eventSeverity가 빈 문자열(FlappingCleared 등)이면 항상 true.
+// cfgSeverities가 비어있는 경우는 resolveNotifiers에서 별도 분기하므로 여기서는 비어있지 않음.
+func severityMatches(cfgSeverities []string, eventSeverity string) bool {
+	if eventSeverity == "" {
+		return true
+	}
+	for _, s := range cfgSeverities {
+		if s == eventSeverity {
+			return true
+		}
+	}
+	return false
+}
+
+// forEachSlackClient DB에 등록된 모든 유효한 Slack 클라이언트에 fn을 적용한다.
+// fn의 첫 번째 인자는 webhook_configs.id(configID)이다.
+func (n *webhookRoutingNotifier) forEachSlackClient(fn func(configID int, c *SlackClient)) {
+	if n.cfgSource == nil {
+		return
+	}
+	configs, err := n.cfgSource.GetWebhookConfigs(context.Background())
+	if err != nil {
+		return
+	}
+	for _, cfg := range configs {
+		if normalizeWebhookType(cfg.Type) != "slack" {
+			continue
+		}
+		client, ok := n.slackClientForConfig(cfg)
+		if !ok {
+			continue
+		}
+		fn(cfg.ID, client)
+	}
+}
+
+func (n *webhookRoutingNotifier) StoreThreadRef(alertKey, threadRef string) {
+	// 자체 threadStore에 저장
+	n.threadStore.Store(alertKey, threadRef)
+	// 소유자가 알려진 경우 해당 클라이언트에만 전파하여 오라우팅 방지
+	// 소유자 불명(재시작 후 등)이면 모든 클라이언트에 전파 (resolved 스레딩 복원용)
+	if ownerVal, ok := n.threadRefOwner.Load(threadRef); ok {
+		ownerID := ownerVal.(int)
+		n.forEachSlackClient(func(configID int, c *SlackClient) {
+			if configID == ownerID {
+				c.StoreThreadRef(alertKey, threadRef)
+			}
+		})
+	} else {
+		n.forEachSlackClient(func(_ int, c *SlackClient) {
+			c.StoreThreadRef(alertKey, threadRef)
+		})
+	}
+	// fallback store에도 전파
+	if n.fallbackThreadStore != nil {
+		n.fallbackThreadStore.StoreThreadRef(alertKey, threadRef)
+	}
+}
+
+func (n *webhookRoutingNotifier) GetThreadRef(alertKey string) (string, bool) {
+	// 각 Slack 클라이언트의 인메모리 threadMap 우선 확인
+	// 찾은 경우 threadRefOwner에 소유자 기록 (notifyByThread 정확한 라우팅에 사용)
+	var found string
+	var foundConfigID int
+	n.forEachSlackClient(func(configID int, c *SlackClient) {
+		if found != "" {
+			return
+		}
+		if ref, ok := c.GetThreadRef(alertKey); ok {
+			found = ref
+			foundConfigID = configID
+		}
+	})
+	if found != "" {
+		n.threadRefOwner.Store(found, foundConfigID)
+		return found, true
+	}
+	// 자체 threadStore 확인
+	if val, ok := n.threadStore.Load(alertKey); ok {
+		if ref, ok := val.(string); ok {
+			return ref, true
+		}
+	}
+	// fallback
+	if n.fallbackThreadStore != nil {
+		return n.fallbackThreadStore.GetThreadRef(alertKey)
+	}
+	return "", false
+}
+
+func (n *webhookRoutingNotifier) DeleteThreadRef(alertKey string) {
+	// threadRefOwner 정리
+	if val, ok := n.threadStore.Load(alertKey); ok {
+		if ref, ok := val.(string); ok {
+			n.threadRefOwner.Delete(ref)
+		}
+	}
+	n.threadStore.Delete(alertKey)
+	n.forEachSlackClient(func(_ int, c *SlackClient) {
+		c.DeleteThreadRef(alertKey)
+	})
+	if n.fallbackThreadStore != nil {
+		n.fallbackThreadStore.DeleteThreadRef(alertKey)
+	}
+}
+
+func (n *webhookRoutingNotifier) RequiresThreadRef() bool {
+	if n.cfgSource == nil {
+		return n.fallbackThreadStore != nil
+	}
+	var hasSlack bool
+	n.forEachSlackClient(func(_ int, _ *SlackClient) {
+		hasSlack = true
+	})
+	if hasSlack {
+		return true
+	}
+	return n.fallbackThreadStore != nil
+}
+
+func (n *webhookRoutingNotifier) resolveNotifiers(severity string) ([]Notifier, error) {
+	if n.cfgSource == nil {
+		return nil, nil
+	}
+
+	configs, err := n.loadWebhookConfigs()
+	if err != nil {
+		return nil, err
+	}
+	if len(configs) == 0 {
+		return nil, nil
+	}
+
+	// 어떤 웹훅이든 명시적으로 claim한 severity 집합 계산.
+	// severity가 없는 이벤트(FlappingCleared 등)는 이 로직을 건너뜀.
+	claimed := make(map[string]bool)
+	if severity != "" {
+		for _, cfg := range configs {
+			for _, s := range cfg.Severities {
+				claimed[s] = true
+			}
+		}
+	}
+
+	targets := make([]Notifier, 0, len(configs))
+	for _, cfg := range configs {
+		var matches bool
+		if len(cfg.Severities) == 0 {
+			// 빈 배열(catch-all): 아무도 claim하지 않은 severity만 수신.
+			// severity == ""인 이벤트(FlappingCleared, AnalysisResult)는 항상 수신.
+			matches = severity == "" || !claimed[severity]
+		} else {
+			matches = severityMatches(cfg.Severities, severity)
+		}
+		if !matches {
+			continue
+		}
+		switch normalizeWebhookType(cfg.Type) {
+		case "slack":
+			slackNotifier, ok := n.slackClientForConfig(cfg)
+			if !ok {
+				continue
+			}
+			targets = append(targets, slackNotifier)
+		case "http", "teams":
+			if strings.TrimSpace(cfg.URL) == "" {
+				continue
+			}
+			targets = append(targets, &webhookEndpointNotifier{
+				cfg:        cfg,
+				httpClient: n.httpClient,
+			})
+		default:
+			continue
+		}
+	}
+
+	return targets, nil
+}
+
+func (n *webhookRoutingNotifier) loadWebhookConfigs() ([]model.WebhookConfig, error) {
+	if n.cfgSource == nil {
+		return nil, nil
+	}
+	return n.cfgSource.GetWebhookConfigs(context.Background())
+}
+
+func (n *webhookRoutingNotifier) slackClientForDelivery(delivery model.AlertNotificationDelivery) (*SlackClient, string, bool) {
+	if delivery.WebhookConfigID != nil {
+		configs, err := n.loadWebhookConfigs()
+		if err != nil {
+			return nil, "webhook_config_lookup", false
+		}
+		for _, cfg := range configs {
+			if cfg.ID != *delivery.WebhookConfigID || normalizeWebhookType(cfg.Type) != "slack" {
+				continue
+			}
+			client, ok := n.slackClientForConfig(cfg)
+			return client, "webhook_config", ok
+		}
+		return nil, "webhook_config", false
+	}
+
+	if slackFallback, ok := n.fallback.(*SlackClient); ok && slackFallback.IsConfigured() {
+		return slackFallback, "fallback", true
+	}
+	return nil, "fallback", false
+}
+
+func (n *webhookRoutingNotifier) sendSlackThreadEvent(slackNotifier *SlackClient, event NotifierEvent, delivery model.AlertNotificationDelivery) error {
+	switch e := event.(type) {
+	case AnalysisResultPostedEvent:
+		return slackNotifier.SendToThreadInChannel(delivery.ChannelID, delivery.ThreadTS, e.Content)
+	case *AnalysisResultPostedEvent:
+		return slackNotifier.SendToThreadInChannel(delivery.ChannelID, delivery.ThreadTS, e.Content)
+	case AlertStatusChangedEvent:
+		return slackNotifier.SendAlertReply(e.Alert, e.Alert.Status, e.IncidentID, e.IsManual, delivery.ChannelID, delivery.ThreadTS)
+	case *AlertStatusChangedEvent:
+		return slackNotifier.SendAlertReply(e.Alert, e.Alert.Status, e.IncidentID, e.IsManual, delivery.ChannelID, delivery.ThreadTS)
+	case FlappingDetectedEvent:
+		return slackNotifier.SendFlappingDetectionInChannel(e.Alert, e.IncidentID, e.CycleCount, delivery.ChannelID, delivery.ThreadTS)
+	case *FlappingDetectedEvent:
+		return slackNotifier.SendFlappingDetectionInChannel(e.Alert, e.IncidentID, e.CycleCount, delivery.ChannelID, delivery.ThreadTS)
+	case FlappingClearedEvent:
+		return slackNotifier.SendFlappingClearedInChannel(delivery.ChannelID, delivery.ThreadTS)
+	case *FlappingClearedEvent:
+		return slackNotifier.SendFlappingClearedInChannel(delivery.ChannelID, delivery.ThreadTS)
+	default:
+		return fmt.Errorf("unsupported thread event: %T", event)
+	}
+}
+
+func (n *webhookRoutingNotifier) logThreadDeliverySkip(event NotifierEvent, delivery model.AlertNotificationDelivery, lookupSource, reason string) {
+	webhookConfigID := "fallback"
+	if delivery.WebhookConfigID != nil {
+		webhookConfigID = fmt.Sprintf("%d", *delivery.WebhookConfigID)
+	}
+	log.Printf(
+		"Skipping thread delivery (event_type=%s, alert_id=%s, fingerprint=%s, incident_id=%s, thread_ref=%s, webhook_config_id=%s, channel_id=%s, lookup_source=%s, skip_reason=%s)",
+		event.EventType(),
+		delivery.AlertID,
+		delivery.Fingerprint,
+		nullStringValue(delivery.IncidentID),
+		delivery.ThreadTS,
+		webhookConfigID,
+		delivery.ChannelID,
+		lookupSource,
+		reason,
+	)
+}
+
+func nullStringValue(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return *v
+}
+
+func (n *webhookRoutingNotifier) slackClientForConfig(cfg model.WebhookConfig) (*SlackClient, bool) {
+	token := strings.TrimSpace(cfg.Token)
+	channel := strings.TrimSpace(cfg.Channel)
+	if token == "" || channel == "" {
+		return nil, false
+	}
+
+	n.mu.RLock()
+	existing, ok := n.slackClients[cfg.ID]
+	n.mu.RUnlock()
+
+	if ok && existing.botToken == token && existing.channelID == channel {
+		return existing, true
+	}
+
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	if existing, ok := n.slackClients[cfg.ID]; ok {
+		if existing.botToken == token && existing.channelID == channel {
+			return existing, true
+		}
+	}
+
+	clientCfg := config.SlackConfig{
+		BotToken:    token,
+		ChannelID:   channel,
+		FrontendURL: n.frontendURL,
+	}
+	newClient := NewSlackClient(clientCfg)
+	n.slackClients[cfg.ID] = newClient
+	return newClient, true
+}
+
+func normalizeWebhookType(t string) string {
+	return strings.ToLower(strings.TrimSpace(t))
+}
+
+type webhookEndpointNotifier struct {
+	cfg        model.WebhookConfig
+	httpClient *http.Client
+}
+
+func (n *webhookEndpointNotifier) Notify(event NotifierEvent) error {
+	payload, err := json.Marshal(webhookEventEnvelope{
+		EventType: event.EventType(),
+		SentAt:    time.Now().UTC(),
+		Data:      event,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to marshal webhook payload: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", n.cfg.URL, bytes.NewBuffer(payload))
+	if err != nil {
+		return fmt.Errorf("failed to create webhook request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	if token := strings.TrimSpace(n.cfg.Token); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	resp, err := n.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send webhook request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("webhook returned status: %d", resp.StatusCode)
+	}
+
+	return nil
+}

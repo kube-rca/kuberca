@@ -1,0 +1,1481 @@
+definitions:
+  model.Alert:
+    properties:
+      annotations:
+        additionalProperties:
+          type: string
+        description: |-
+          - summary: 알림 요약
+          - description: 알림 상세 설명
+          - runbook_url: 대응 매뉴얼 URL
+        type: object
+      endsAt:
+        description: |-
+          EndsAt: 알림 종료 시각 (UTC)
+          resolved 상태일 때만 유효한 값 설정
+          firing 상태일 때는 "0001-01-01T00:00:00Z"
+        type: string
+      fingerprint:
+        description: |-
+          Fingerprint: 알림 고유 식별자 (Labels의 조합으로 생성되는 해시값)
+          thread_ts 매핑에 사용하여 같은 스레드로 메시지 전송이 가능하게함
+        type: string
+      generatorURL:
+        description: 'GeneratorURL: 알림을 생성한 Prometheus 쿼리 URL'
+        type: string
+      labels:
+        additionalProperties:
+          type: string
+        description: |-
+          - alertname: 알림 이름 (예: "PodCrashLooping", "HighMemoryUsage")
+          - severity: 심각도 (예: "critical", "warning", "info")
+          - namespace: 문제 발생 네임스페이스
+          - pod: 문제 발생 파드 이름
+        type: object
+      startsAt:
+        description: 'StartsAt: 알림 발생 시각 (UTC)'
+        type: string
+      status:
+        type: string
+    type: object
+  model.AlertAnalysisItem:
+    properties:
+      analysis_id:
+        type: integer
+      analysis_model:
+        type: string
+      created_at:
+        type: string
+      detail:
+        type: string
+      status:
+        type: string
+      summary:
+        type: string
+    type: object
+  model.AlertDetailResponse:
+    properties:
+      alarm_title:
+        type: string
+      alert_id:
+        type: string
+      analyses:
+        items:
+          $ref: '#/definitions/model.AlertAnalysisItem'
+        type: array
+      analysis_detail:
+        type: string
+      analysis_summary:
+        type: string
+      annotations:
+        type: object
+      fingerprint:
+        type: string
+      fired_at:
+        type: string
+      flap_cycle_count:
+        type: integer
+      flap_window_start:
+        type: string
+      incident_id:
+        type: string
+      is_analyzing:
+        type: boolean
+      is_flapping:
+        type: boolean
+      labels:
+        type: object
+      resolved_at:
+        type: string
+      severity:
+        type: string
+      status:
+        type: string
+      thread_ts:
+        type: string
+    type: object
+  model.AlertListResponse:
+    properties:
+      alarm_title:
+        type: string
+      alert_id:
+        type: string
+      analysis_summary:
+        type: string
+      fired_at:
+        type: string
+      incident_id:
+        description: null 가능 (아직 Incident에 연결되지 않은 경우)
+        type: string
+      labels:
+        type: object
+      namespace:
+        type: string
+      resolved_at:
+        type: string
+      severity:
+        type: string
+      status:
+        description: firing, resolved
+        type: string
+    type: object
+  model.AlertResolveResponse:
+    properties:
+      alert_id:
+        type: string
+      message:
+        type: string
+      status:
+        type: string
+    type: object
+  model.AlertUpdateResponse:
+    properties:
+      alert_id:
+        type: string
+      message:
+        type: string
+      status:
+        type: string
+    type: object
+  model.AlertWebhookResponse:
+    properties:
+      alertCount:
+        type: integer
+      slackFailed:
+        type: integer
+      slackSent:
+        type: integer
+      status:
+        type: string
+    type: object
+  model.AlertmanagerWebhook:
+    properties:
+      alerts:
+        description: 개별 알림 리스트
+        items:
+          $ref: '#/definitions/model.Alert'
+        type: array
+      commonAnnotations:
+        additionalProperties:
+          type: string
+        description: 그룹 내 모든 알림에 공통으로 존재하는 어노테이션
+        type: object
+      commonLabels:
+        additionalProperties:
+          type: string
+        description: 그룹 내 모든 알림에 공통으로 존재하는 라벨
+        type: object
+      externalURL:
+        type: string
+      groupKey:
+        description: 동일한 GroupKey를 가진 알림들은 함께 그룹핑됨
+        type: string
+      groupLabels:
+        additionalProperties:
+          type: string
+        description: route.group_by 설정에 따라 결정되는 그룹핑에 사용된 라벨
+        type: object
+      receiver:
+        type: string
+      status:
+        type: string
+      truncatedAlerts:
+        description: max_alerts 설정으로 인해 생략된 알림이 있을 경우 그 개수
+        type: integer
+      version:
+        type: string
+    type: object
+  model.AppSetting:
+    properties:
+      key:
+        type: string
+      updated_at:
+        type: string
+      value:
+        type: string
+    type: object
+  model.AppSettingListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/model.AppSetting'
+        type: array
+      status:
+        type: string
+    type: object
+  model.AppSettingResponse:
+    properties:
+      data:
+        $ref: '#/definitions/model.AppSetting'
+      status:
+        type: string
+    type: object
+  model.AuthConfigResponse:
+    properties:
+      allowSignup:
+        type: boolean
+      oidcEnabled:
+        type: boolean
+      oidcLoginUrl:
+        type: string
+      oidcProvider:
+        type: string
+    type: object
+  model.AuthLogoutResponse:
+    properties:
+      status:
+        type: string
+    type: object
+  model.AuthMeResponse:
+    properties:
+      authProvider:
+        type: string
+      displayName:
+        type: string
+      email:
+        type: string
+      loginId:
+        type: string
+      userId:
+        type: integer
+    type: object
+  model.AuthRequest:
+    properties:
+      id:
+        type: string
+      password:
+        type: string
+    type: object
+  model.AuthResponse:
+    properties:
+      accessToken:
+        type: string
+      expiresIn:
+        type: integer
+    type: object
+  model.BulkResolveAlertsRequest:
+    properties:
+      alert_ids:
+        items:
+          type: string
+        maxItems: 50
+        type: array
+    required:
+    - alert_ids
+    type: object
+  model.BulkResolveAlertsResponse:
+    properties:
+      failed:
+        type: integer
+      message:
+        type: string
+      resolved:
+        type: integer
+      status:
+        type: string
+    type: object
+  model.EmbeddingRequest:
+    properties:
+      incident_id:
+        type: string
+      incident_summary:
+        type: string
+    type: object
+  model.EmbeddingResponse:
+    properties:
+      embedding_id:
+        type: integer
+      model:
+        type: string
+      status:
+        type: string
+    type: object
+  model.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  model.IncidentDetailEnvelope:
+    properties:
+      data:
+        $ref: '#/definitions/model.IncidentDetailResponse'
+      status:
+        type: string
+    type: object
+  model.IncidentDetailResponse:
+    properties:
+      alerts:
+        description: 연결된 Alert 목록 (상세 조회 시 포함)
+        items:
+          $ref: '#/definitions/model.AlertListResponse'
+        type: array
+      analysis_detail:
+        type: string
+      analysis_summary:
+        type: string
+      created_by:
+        type: string
+      fired_at:
+        type: string
+      incident_id:
+        type: string
+      is_analyzing:
+        type: boolean
+      resolved_at:
+        type: string
+      resolved_by:
+        type: string
+      severity:
+        type: string
+      similar_incidents:
+        description: DB의 JSONB 컬럼을 그대로 바이트로 받아서 전달
+        type: object
+      status:
+        description: firing, resolved
+        type: string
+      title:
+        type: string
+    type: object
+  model.IncidentListResponse:
+    properties:
+      alert_count:
+        description: 연결된 Alert 개수
+        type: integer
+      fired_at:
+        type: string
+      incident_id:
+        type: string
+      resolved_at:
+        type: string
+      severity:
+        type: string
+      status:
+        description: firing, resolved
+        type: string
+      title:
+        type: string
+    type: object
+  model.IncidentUpdateResponse:
+    properties:
+      incident_id:
+        type: string
+      message:
+        type: string
+      status:
+        type: string
+    type: object
+  model.MockIncidentResponse:
+    properties:
+      incident_id:
+        type: string
+      message:
+        type: string
+      status:
+        type: string
+    type: object
+  model.PingResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  model.ResolveIncidentRequest:
+    properties:
+      resolved_by:
+        type: string
+    type: object
+  model.RootResponse:
+    properties:
+      message:
+        type: string
+      status:
+        type: string
+    type: object
+  model.StatusResponse:
+    properties:
+      status:
+        type: string
+    type: object
+  model.UpdateAlertIncidentRequest:
+    properties:
+      incident_id:
+        type: string
+    required:
+    - incident_id
+    type: object
+  model.UpdateIncidentRequest:
+    properties:
+      analysis_detail:
+        type: string
+      analysis_summary:
+        type: string
+      severity:
+        type: string
+      title:
+        type: string
+    type: object
+  model.VectorSearchRequest:
+    properties:
+      limit:
+        type: integer
+      query:
+        type: string
+    type: object
+  model.VectorSearchResponse:
+    properties:
+      model:
+        type: string
+      results:
+        items:
+          $ref: '#/definitions/model.VectorSearchResult'
+        type: array
+    type: object
+  model.VectorSearchResult:
+    properties:
+      incident_id:
+        type: string
+      incident_summary:
+        type: string
+      similarity:
+        type: number
+    type: object
+  model.WebhookConfig:
+    properties:
+      channel:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      severities:
+        description: 빈 배열 = 모든 severity 수신
+        items:
+          type: string
+        type: array
+      token:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+      url:
+        type: string
+    type: object
+  model.WebhookConfigListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/model.WebhookConfig'
+        type: array
+      status:
+        type: string
+    type: object
+  model.WebhookConfigMutationResponse:
+    properties:
+      id:
+        type: integer
+      message:
+        type: string
+      status:
+        type: string
+    type: object
+  model.WebhookConfigRequest:
+    properties:
+      channel:
+        type: string
+      name:
+        type: string
+      severities:
+        description: 빈 배열 = 모든 severity 수신
+        items:
+          type: string
+        type: array
+      token:
+        type: string
+      type:
+        type: string
+      url:
+        type: string
+    required:
+    - name
+    type: object
+  model.WebhookConfigResponse:
+    properties:
+      data:
+        $ref: '#/definitions/model.WebhookConfig'
+      status:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: Backend API for Kube-RCA services.
+  title: Kube-RCA Backend API
+  version: "1.0"
+paths:
+  /:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.RootResponse'
+      summary: Root endpoint
+      tags:
+      - health
+  /api/v1/alerts:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.AlertListResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List all alerts
+      tags:
+      - alerts
+  /api/v1/alerts/{id}:
+    get:
+      parameters:
+      - description: Alert ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AlertDetailResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get alert detail
+      tags:
+      - alerts
+  /api/v1/alerts/{id}/analyze:
+    post:
+      description: 수동으로 특정 Alert에 대한 AI 분석을 트리거합니다. 분석은 비동기로 실행됩니다.
+      parameters:
+      - description: Alert ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/model.AlertUpdateResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Trigger manual analysis for a specific alert
+      tags:
+      - alerts
+  /api/v1/alerts/{id}/incident:
+    put:
+      consumes:
+      - application/json
+      description: 사용자가 Alert을 다른 Incident에 연결할 때 사용
+      parameters:
+      - description: Alert ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update alert incident payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateAlertIncidentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AlertUpdateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update alert's incident ID
+      tags:
+      - alerts
+  /api/v1/alerts/{id}/resolve:
+    post:
+      parameters:
+      - description: Alert ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AlertResolveResponse'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Resolve alert manually (수동 알림 종료)
+      tags:
+      - alerts
+  /api/v1/alerts/bulk-resolve:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Bulk resolve payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.BulkResolveAlertsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.BulkResolveAlertsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Bulk resolve alerts (다건 수동 알림 종료)
+      tags:
+      - alerts
+  /api/v1/auth/config:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AuthConfigResponse'
+      summary: Get auth config
+      tags:
+      - auth
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Login ID and password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.AuthRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      summary: Login
+      tags:
+      - auth
+  /api/v1/auth/logout:
+    post:
+      description: Revokes refresh token (if present) and clears cookie.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AuthLogoutResponse'
+      summary: Logout
+      tags:
+      - auth
+  /api/v1/auth/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AuthMeResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - auth
+  /api/v1/auth/oidc/callback:
+    get:
+      description: Handles the OIDC provider callback, verifies state/nonce, exchanges
+        code for tokens.
+      parameters:
+      - description: Authorization code
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: State parameter
+        in: query
+        name: state
+        required: true
+        type: string
+      responses:
+        "302":
+          description: Redirect to frontend with error
+      summary: OIDC callback
+      tags:
+      - auth
+  /api/v1/auth/oidc/login:
+    get:
+      description: Generates state, nonce, PKCE and redirects to the OIDC provider.
+      responses:
+        "302":
+          description: Redirect to OIDC provider
+      summary: Initiate OIDC login
+      tags:
+      - auth
+  /api/v1/auth/refresh:
+    post:
+      description: Uses refresh token cookie (kube_rca_refresh).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AuthResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      summary: Refresh access token
+      tags:
+      - auth
+  /api/v1/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Sign up when ALLOW_SIGNUP is true.
+      parameters:
+      - description: Login ID and password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.AuthRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      summary: Register a new user
+      tags:
+      - auth
+  /api/v1/embeddings:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Incident embedding payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.EmbeddingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.EmbeddingResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create incident embedding
+      tags:
+      - embeddings
+  /api/v1/embeddings/search:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Vector search payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.VectorSearchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.VectorSearchResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Search similar incidents by vector similarity
+      tags:
+      - embeddings
+  /api/v1/incidents:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.IncidentListResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List incidents
+      tags:
+      - incidents
+  /api/v1/incidents/{id}:
+    get:
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.IncidentDetailEnvelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get incident detail with alerts
+      tags:
+      - incidents
+    patch:
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.IncidentUpdateResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Hide incident
+      tags:
+      - incidents
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Incident update payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateIncidentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.IncidentUpdateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update incident detail
+      tags:
+      - incidents
+  /api/v1/incidents/{id}/alerts:
+    get:
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.AlertListResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get alerts for incident
+      tags:
+      - incidents
+  /api/v1/incidents/{id}/analyze:
+    post:
+      description: 수동으로 Incident에 대한 AI 분석을 트리거합니다. 분석은 비동기로 실행됩니다.
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/model.IncidentUpdateResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Trigger manual analysis for an incident
+      tags:
+      - incidents
+  /api/v1/incidents/{id}/resolve:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Resolve incident payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.ResolveIncidentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.IncidentUpdateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Resolve incident (사용자가 장애 종료)
+      tags:
+      - incidents
+  /api/v1/incidents/{id}/unhide:
+    patch:
+      description: 숨김 처리된 Incident를 다시 활성화합니다.
+      parameters:
+      - description: Incident ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.IncidentUpdateResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Unhide incident (restore)
+      tags:
+      - incidents
+  /api/v1/incidents/hidden:
+    get:
+      description: 숨김 처리된(is_enabled=false) Incident 목록을 조회합니다.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.IncidentListResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List hidden incidents
+      tags:
+      - incidents
+  /api/v1/incidents/mock:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.MockIncidentResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create mock incident
+      tags:
+      - incidents
+  /api/v1/settings/app:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AppSettingListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List all app settings
+      tags:
+      - settings
+  /api/v1/settings/app/{key}:
+    get:
+      parameters:
+      - description: Setting key (flapping, slack, ai)
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AppSettingResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get an app setting by key (with ENV fallback)
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Setting key (flapping, slack, ai)
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AppSettingResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update an app setting
+      tags:
+      - settings
+  /api/v1/settings/webhooks:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.WebhookConfigListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List webhook configs
+      tags:
+      - settings
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Webhook config
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.WebhookConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.WebhookConfigMutationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a webhook config
+      tags:
+      - settings
+  /api/v1/settings/webhooks/{id}:
+    delete:
+      parameters:
+      - description: Webhook Config ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.WebhookConfigMutationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a webhook config
+      tags:
+      - settings
+    get:
+      parameters:
+      - description: Webhook Config ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.WebhookConfigResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a webhook config by ID
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Webhook Config ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Webhook config
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.WebhookConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.WebhookConfigMutationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a webhook config
+      tags:
+      - settings
+  /healthz:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.StatusResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/model.StatusResponse'
+      summary: Startup/health check (includes DB connectivity)
+      tags:
+      - health
+  /ping:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.PingResponse'
+      summary: Health check
+      tags:
+      - health
+  /readyz:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.StatusResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/model.StatusResponse'
+      summary: Readiness check (includes DB connectivity)
+      tags:
+      - health
+  /webhook/alertmanager:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Alertmanager webhook payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/model.AlertmanagerWebhook'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AlertWebhookResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      summary: Receive Alertmanager webhook
+      tags:
+      - webhook
+securityDefinitions:
+  BearerAuth:
+    description: 'JWT Bearer token. Format: Bearer {your_token}'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
