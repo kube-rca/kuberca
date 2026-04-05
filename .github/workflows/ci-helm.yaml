@@ -1,0 +1,17 @@
+name: CI Helm
+
+on:
+  pull_request:
+    paths: ['charts/**']
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Lint kube-rca chart
+        run: helm lint charts/kube-rca

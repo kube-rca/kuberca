@@ -1,0 +1,42 @@
+name: Publish Image
+
+on:
+  workflow_call:
+    inputs:
+      component:
+        required: true
+        type: string
+      tag:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ap-northeast-2
+          role-session-name: github-actions-${{ inputs.component }}
+      - name: Login to ECR Public
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
+        env:
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_REGION: us-east-1
+      - name: Build and push
+        run: |
+          IMAGE="${{ steps.ecr.outputs.registry }}/r5b7j2e4/kube-rca-ecr/${{ inputs.component }}:${{ inputs.component }}-${{ inputs.tag }}"
+          docker build -t "$IMAGE" ${{ inputs.component }}/
+          docker push "$IMAGE"
