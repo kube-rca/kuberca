@@ -2,5 +2,5 @@
   "backend": "0.5.1",
   "frontend": "0.4.1",
   "agent": "1.2.1",
-  "charts/kube-rca": "0.7.0"
+  "charts/kube-rca": "0.8.0"
 }
