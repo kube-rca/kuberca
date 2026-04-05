@@ -1,27 +1,16 @@
 {
   "include-v-in-tag": false,
-  "separate-pull-requests": true,
   "packages": {
-    "backend": {
-      "release-type": "go",
-      "component": "backend",
-      "extra-files": ["backend/VERSION"],
-      "changelog-path": "backend/CHANGELOG.md"
-    },
-    "frontend": {
-      "release-type": "node",
-      "component": "frontend",
-      "changelog-path": "frontend/CHANGELOG.md"
-    },
-    "agent": {
-      "release-type": "python",
-      "component": "agent",
-      "changelog-path": "agent/CHANGELOG.md"
-    },
-    "charts/kube-rca": {
-      "release-type": "helm",
-      "component": "helm-chart",
-      "changelog-path": "charts/kube-rca/CHANGELOG.md"
+    ".": {
+      "release-type": "simple",
+      "component": "kuberca",
+      "extra-files": [
+        "backend/VERSION",
+        "agent/pyproject.toml",
+        "frontend/package.json",
+        "charts/kube-rca/Chart.yaml"
+      ],
+      "changelog-path": "CHANGELOG.md"
     }
   }
 }

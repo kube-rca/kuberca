@@ -13,15 +13,8 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     outputs:
-      releases_created: ${{ steps.release.outputs.releases_created }}
-      backend--release_created: ${{ steps.release.outputs['backend--release_created'] }}
-      backend--tag_name: ${{ steps.release.outputs['backend--tag_name'] }}
-      frontend--release_created: ${{ steps.release.outputs['frontend--release_created'] }}
-      frontend--tag_name: ${{ steps.release.outputs['frontend--tag_name'] }}
-      agent--release_created: ${{ steps.release.outputs['agent--release_created'] }}
-      agent--tag_name: ${{ steps.release.outputs['agent--tag_name'] }}
-      helm-chart--release_created: ${{ steps.release.outputs['helm-chart--release_created'] }}
-      helm-chart--tag_name: ${{ steps.release.outputs['helm-chart--tag_name'] }}
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - id: release
         uses: googleapis/release-please-action@v4
@@ -29,42 +22,52 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  publish-backend:
+  publish-images:
     needs: release-please
-    if: ${{ needs.release-please.outputs['backend--release_created'] == 'true' }}
-    uses: ./.github/workflows/publish-image.yaml
-    with:
-      component: backend
-      tag: ${{ needs.release-please.outputs['backend--tag_name'] }}
-    secrets: inherit
-
-  publish-frontend:
-    needs: release-please
-    if: ${{ needs.release-please.outputs['frontend--release_created'] == 'true' }}
-    uses: ./.github/workflows/publish-image.yaml
-    with:
-      component: frontend
-      tag: ${{ needs.release-please.outputs['frontend--tag_name'] }}
-    secrets: inherit
-
-  publish-agent:
-    needs: release-please
-    if: ${{ needs.release-please.outputs['agent--release_created'] == 'true' }}
-    uses: ./.github/workflows/publish-image.yaml
-    with:
-      component: agent
-      tag: ${{ needs.release-please.outputs['agent--tag_name'] }}
-    secrets: inherit
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      matrix:
+        component: [backend, frontend, agent]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ap-northeast-2
+          role-session-name: github-actions-${{ matrix.component }}
+      - name: Login to ECR Public
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
+        env:
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_REGION: us-east-1
+      - name: Build and push
+        run: |
+          TAG="${{ needs.release-please.outputs.tag_name }}"
+          IMAGE="${{ steps.ecr.outputs.registry }}/r5b7j2e4/kube-rca-ecr/${{ matrix.component }}:${TAG}"
+          docker build -t "$IMAGE" ${{ matrix.component }}/
+          docker push "$IMAGE"
 
   publish-helm:
     needs: release-please
-    if: ${{ needs.release-please.outputs['helm-chart--release_created'] == 'true' }}
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
       - uses: azure/setup-helm@v4
       - name: Add Bitnami chart repo
         run: helm repo add bitnami https://charts.bitnami.com/bitnami --force-update
