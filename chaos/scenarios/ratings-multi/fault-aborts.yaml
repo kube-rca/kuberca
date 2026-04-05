@@ -1,0 +1,39 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: ratings-combined-faults
+spec:
+  hosts:
+  - ratings
+  http:
+  - match:
+    - sourceLabels:
+        app: load-generator
+    fault:
+      abort:
+        percentage:
+          value: 40
+        httpStatus: 404
+    route:
+    - destination:
+        host: ratings
+        port:
+          number: 9080
+  - match:
+    - sourceLabels:
+        app: reviews
+    fault:
+      abort:
+        percentage:
+          value: 40
+        httpStatus: 503
+    route:
+    - destination:
+        host: ratings
+        port:
+          number: 9080
+  - route:
+    - destination:
+        host: ratings
+        port:
+          number: 9080

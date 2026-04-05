@@ -1,0 +1,18 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: reviews-fault-delay
+spec:
+  hosts:
+  - reviews
+  http:
+  - fault:
+      abort:
+        percentage:
+          value: 40
+        httpStatus: 504
+    route:
+    - destination:
+        host: reviews
+        port:
+          number: 9080

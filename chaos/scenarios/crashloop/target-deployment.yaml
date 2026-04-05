@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chaos-crashloop-target
+  namespace: kube-rca
+  labels:
+    app: chaos-crashloop-target
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chaos-crashloop-target
+  template:
+    metadata:
+      labels:
+        app: chaos-crashloop-target
+    spec:
+      containers:
+      - name: app
+        image: busybox:1.36
+        command: ["sh", "-c", "exit 1"]

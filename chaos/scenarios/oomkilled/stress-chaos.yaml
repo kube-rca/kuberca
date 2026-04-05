@@ -1,0 +1,21 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: Schedule
+metadata:
+  name: details-oom-schedule
+  namespace: bookinfo
+spec:
+  schedule: "@every 1m"
+  type: "StressChaos"
+  historyLimit: 1
+  concurrencyPolicy: "Forbid"
+  stressChaos:
+    mode: one
+    selector:
+      labelSelectors:
+        app: details
+    stressors:
+      memory:
+        workers: 1
+        size: 256MiB
+        oomScoreAdj: -1000
+    duration: "40s"

@@ -1,0 +1,18 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: details-fault-abort
+spec:
+  hosts:
+  - details
+  http:
+  - fault:
+      abort:
+        percentage:
+          value: 40
+        httpStatus: 500
+    route:
+    - destination:
+        host: details
+        port:
+          number: 9080

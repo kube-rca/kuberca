@@ -1,0 +1,14 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: ratings-network-delay
+spec:
+  action: delay
+  mode: one
+  selector:
+    labelSelectors:
+      app: ratings
+  delay:
+    latency: "5s"
+    correlation: "100"
+    jitter: "50ms"
