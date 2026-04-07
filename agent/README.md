@@ -25,8 +25,10 @@ The KubeRCA Agent is a Python-based analysis service that performs Root Cause An
 
 - **AI-Powered RCA** - Uses Strands Agents with Gemini/OpenAI/Anthropic for intelligent analysis
 - **Portable Kubernetes Baseline** - Collects pod logs, events, workload, Service, and Endpoints evidence without requiring mesh/APM stacks
+- **Node-Level Alert Support** - Detects node-targeted alerts and pivots analysis toward node health, metrics, and cluster events
 - **Generic Manifest Read Tools** - Reads namespaced core/CRD manifests via `apiVersion` + `resource`
 - **Optional Observability Enrichers** - Uses Prometheus, Loki, and Tempo when configured, while degrading gracefully when they are unavailable
+- **Context-Aware Chat** - Supports multi-turn incident chat through the Agent `POST /chat` endpoint
 - **Session Persistence** - PostgreSQL-backed session history when `SESSION_DB_*` is configured
 - **Fallback Mode** - Returns basic summary when the provider API key is unavailable
 
@@ -36,7 +38,7 @@ The KubeRCA Agent is a Python-based analysis service that performs Root Cause An
 
 ```mermaid
 flowchart LR
-  BE[Backend] -->|POST /analyze| AG[Agent]
+  BE[Backend] -->|POST /analyze / summarize-incident / chat| AG[Agent]
   AG -->|Logs, Events| K8S[Kubernetes API]
   AG -->|PromQL Query| PR[Prometheus]
   AG -->|LLM Analysis| LLM[LLM Provider API]
@@ -48,10 +50,11 @@ flowchart LR
 
 1. Receive alert payload from Backend (triggered by Alertmanager webhook or manual resolve)
 2. Collect Kubernetes baseline context (logs, events, pod/workload status, Service, Endpoints)
-3. Optionally query Prometheus/Loki/Tempo when those backends are configured
-4. Build a capability-aware analysis prompt with collected context
-5. Send to Strands Agents (Gemini/OpenAI/Anthropic) for RCA
-6. Return structured analysis result
+3. If the alert targets a node, shift analysis toward node status, node metrics, and cluster-level events
+4. Optionally query Prometheus/Loki/Tempo when those backends are configured
+5. Build a capability-aware analysis prompt with collected context
+6. Send to Strands Agents (Gemini/OpenAI/Anthropic) for RCA
+7. Return structured analysis result
 
 > **Note:** Analysis is triggered both by Alertmanager webhook events and by manual alert resolve actions from the Frontend. Bulk resolve does not trigger Agent analysis.
 
@@ -85,7 +88,7 @@ flowchart LR
 
 ```bash
 # Run in repository root
-# (monorepo layout: cd agent/main)
+# (monorepo layout: cd agent)
 make install
 # or manually:
 uv venv
@@ -129,11 +132,12 @@ make format  # Auto-format code
 | GET | `/healthz` | Kubernetes health probe |
 | POST | `/analyze` | Analyze single alert |
 | POST | `/summarize-incident` | Summarize resolved incident |
+| POST | `/chat` | Context-aware incident Q&A |
 | GET | `/openapi.json` | OpenAPI specification |
 
 ### POST /analyze
 
-Analyzes a single alert with Kubernetes baseline context and optional observability enrichers.
+Analyzes a single alert with Kubernetes baseline context and optional observability enrichers. For node-targeted alerts, the service expands the evidence set with node health, node metrics, and cluster event data.
 
 **Request:**
 ```json
@@ -189,6 +193,10 @@ Analyzes a single alert with Kubernetes baseline context and optional observabil
 
 Summarizes a resolved incident with all associated alerts.
 
+### POST /chat
+
+Handles context-aware, multi-turn Q&A for incidents and alerts. When session persistence is configured, the Agent can reuse prior conversation summaries.
+
 ### Generic Manifest Read Tools
 
 The analysis engine can inspect namespaced Kubernetes manifests (core and CRD) with:
@@ -223,12 +231,12 @@ Notes:
 | `OPENAI_API_KEY` | OpenAI API key for Strands Agents | - |
 | `ANTHROPIC_API_KEY` | Anthropic API key for Strands Agents | - |
 | `GEMINI_MODEL_ID` | Gemini model ID | `gemini-3-flash-preview` |
-| `OPENAI_MODEL_ID` | OpenAI model ID | `gpt-4o` |
-| `ANTHROPIC_MODEL_ID` | Anthropic model ID | `claude-sonnet-4-20250514` |
+| `OPENAI_MODEL_ID` | OpenAI model ID override | `""` |
+| `ANTHROPIC_MODEL_ID` | Anthropic model ID override | `""` |
 | `ANTHROPIC_MAX_TOKENS` | Anthropic max output tokens | `4096` |
 | `PROMETHEUS_URL` | Prometheus base URL | - (disabled) |
 | `LOG_LEVEL` | Logging level | `info` |
-| `WEB_CONCURRENCY` | Uvicorn worker count | `1` |
+| `PORT` | API port | `8000` |
 
 ### Kubernetes Context
 
@@ -237,6 +245,8 @@ Notes:
 | `K8S_API_TIMEOUT_SECONDS` | K8s API timeout | `5` |
 | `K8S_EVENT_LIMIT` | Max events to fetch | `25` |
 | `K8S_LOG_TAIL_LINES` | Log lines to fetch | `25` |
+
+Node-targeted alerts may also use node health, node metrics, and cluster-wide events when the incoming alert labels identify a specific node.
 
 ### Prometheus
 
@@ -278,9 +288,28 @@ Notes:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `LLM_RETRY_MAX_ATTEMPTS` | Max retry attempts for transient LLM API errors (5xx, 429) | `5` |
+| `LLM_RETRY_MAX_ATTEMPTS` | Max retry attempts for transient LLM API errors (5xx, 429) | `10` |
 | `LLM_RETRY_MIN_WAIT` | Minimum backoff wait time in seconds | `1.0` |
-| `LLM_RETRY_MAX_WAIT` | Maximum backoff wait time in seconds | `60.0` |
+| `LLM_RETRY_MAX_WAIT` | Maximum backoff wait time in seconds | `30.0` |
+| `LLM_RETRY_TOTAL_TIMEOUT` | Total retry budget in seconds | `180.0` |
+
+### Session Storage And Cache
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SESSION_DB_HOST` | PostgreSQL host for session storage | - |
+| `SESSION_DB_PORT` | PostgreSQL port for session storage | `5432` |
+| `SESSION_DB_NAME` | PostgreSQL database for session storage | - |
+| `SESSION_DB_USER` | PostgreSQL user for session storage | - |
+| `SESSION_DB_PASSWORD` | PostgreSQL password for session storage | - |
+| `AGENT_CACHE_SIZE` | Max cached agent instances | `128` |
+| `AGENT_CACHE_TTL_SECONDS` | Cache TTL in seconds (`0` = disable) | `0` |
+
+### Concurrency
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MAX_CONCURRENT_ANALYSES` | Max simultaneous analyses | `5` |
 
 ### Session Storage (Required when LLM provider key is set)
 

@@ -26,13 +26,16 @@ The KubeRCA Frontend is a React-based web dashboard that provides a user interfa
 - **Incident Dashboard** - View and manage Kubernetes incidents
 - **RCA Viewer** - Display AI-generated root cause analysis
 - **Alert Management** - Browse, filter, and manually resolve alerts (single & bulk)
+- **Split Alert Analysis History** - View firing and resolved analyses separately in alert details
 - **Similar Incident Search** - Find related past incidents via vector similarity
 - **Muted Incidents** - Manage hidden/muted incidents
+- **Analysis Dashboard** - Explore incident/alert trends, severity distribution, and top namespaces
 - **Dark Mode** - Toggle between light and dark themes
 - **Authentication** - Login/signup with JWT tokens
 - **Operator Feedback** - Vote and comment on incident/alert analysis results
 - **In-App AI Chat** - Context-aware floating chat panel for incident queries
 - **Webhook Settings** - CRUD management for outbound webhook integrations
+- **App Settings UI** - Configure notification, flapping detection, AI provider, and analysis mode
 - **SSE Realtime Sync** - Server-Sent Events with polling fallback for live updates
 - **OIDC Login** - One-click Google authentication with email allowlist
 
@@ -40,13 +43,13 @@ The KubeRCA Frontend is a React-based web dashboard that provides a user interfa
 
 ## Screenshots
 
-The dashboard provides views for:
-- Incident list with filtering and pagination
-- Incident detail with RCA analysis results and feedback voting/commenting
-- Alert list and detail views
+The frontend currently provides views for:
+- Incident list, detail, and resolve workflows
+- Alert list, detail, manual resolve, and analysis history views
 - Hidden/muted incident management
-- Floating chat panel for AI-powered incident queries
-- Webhook settings management page
+- Analysis dashboard with trend and breakdown widgets
+- Settings pages for webhooks, notifications, flapping, AI provider, and analysis mode
+- Floating chat panel for context-aware incident queries
 
 ---
 
@@ -74,8 +77,8 @@ The dashboard provides views for:
 
 ```bash
 # Run in repository root
-# (monorepo layout: cd frontend/main)
-npm install
+# (monorepo layout: cd frontend)
+npm ci
 ```
 
 ### Run Development Server
@@ -102,43 +105,18 @@ npm run preview
 
 ## Project Structure
 
-```
+```text
 frontend/
 ├── src/
-│   ├── main.tsx              # React entrypoint
-│   ├── App.tsx               # Main app with routing
-│   ├── types.ts              # TypeScript type definitions
-│   ├── index.css             # Tailwind CSS entrypoint
-│   ├── components/           # React components
-│   │   ├── AlertTable.tsx         # Alerts list table
-│   │   ├── AlertDetailView.tsx    # Alert detail view
-│   │   ├── RCATable.tsx           # Incidents/RCA list table
-│   │   ├── RCADetailView.tsx      # Incident detail with RCA
-│   │   ├── ArchiveTable.tsx       # Hidden incidents table
-│   │   ├── ArchiveDetailView.tsx  # Hidden incident detail
-│   │   ├── UnifiedSearchPanel.tsx # Unified search panel
-│   │   ├── Header.tsx             # App header (theme, auth)
-│   │   ├── AuthPanel.tsx          # Login/signup panel
-│   │   ├── Pagination.tsx         # Pagination component
-│   │   └── TimeRangeSelector.tsx  # Time range filter
-│   ├── context/              # React Context providers
-│   │   ├── ThemeContext.ts        # Theme context definition
-│   │   ├── ThemeProvider.tsx      # Theme provider component
-│   │   └── SearchContext.tsx      # Search context
-│   ├── constants/            # Application constants
-│   │   └── index.ts
-│   └── utils/                # Utility functions
-│       ├── api.ts                 # Backend API client
-│       ├── auth.ts                # Authentication utilities
-│       ├── config.ts              # Configuration utilities
-│       ├── filterAlerts.ts        # Alert filtering logic
-│       └── searchLogic.ts         # Search scoring and sorting
-├── Dockerfile               # Production build (Nginx)
-├── package.json             # Dependencies and scripts
-├── tsconfig.json            # TypeScript configuration
-├── vite.config.ts           # Vite configuration
-├── tailwind.config.js       # Tailwind CSS configuration
-└── .eslintrc.cjs            # ESLint configuration
+│   ├── App.tsx            # Main app routes and dashboard orchestration
+│   ├── components/        # Incident, alert, analytics, settings, and chat UI
+│   ├── hooks/             # Realtime hooks such as SSE integration
+│   ├── context/           # Theme and shared UI state
+│   ├── utils/api.ts       # Backend API client and typed helpers
+│   └── types.ts           # Shared frontend data types
+├── public/                # Static assets
+├── Dockerfile             # Production build (Nginx)
+└── package.json           # Scripts and dependencies
 ```
 
 ---
@@ -194,6 +172,11 @@ The frontend communicates with the KubeRCA Backend API:
 | `/api/v1/incidents` | Incident list and details |
 | `/api/v1/alerts` | Alert list and details |
 | `/api/v1/embeddings/search` | Similar incident search |
+| `/api/v1/events` | SSE realtime updates |
+| `/api/v1/chat` | Context-aware chat |
+| `/api/v1/analytics/dashboard` | Analysis dashboard data |
+| `/api/v1/settings/webhooks*` | Webhook management |
+| `/api/v1/settings/app/:key` | Notification, flapping, AI provider, and analysis settings |
 
 ### API Client
 
@@ -201,6 +184,7 @@ Located at `src/utils/api.ts`, the API client handles:
 - Request/response formatting
 - Authentication token management
 - Error handling
+- SSE/auth-aware request flows for realtime and settings pages
 
 ---
 
