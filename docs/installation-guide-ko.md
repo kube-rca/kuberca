@@ -264,6 +264,6 @@ KubeRCA를 프로덕션 환경에 적용하려면:
 - Prometheus/Loki/Tempo 연동으로 풍부한 컨텍스트 수집
 - 리소스 요청/제한 조정
 
-전체 Helm values 옵션과 상세 설정은 [Helm Chart README](https://github.com/kube-rca/helm-charts/blob/main/charts/kube-rca/README.md)를 참고하세요.
+전체 Helm values 옵션과 상세 설정은 [Helm Chart README](https://github.com/kube-rca/kuberca/blob/main/charts/kube-rca/README.md)를 참고하세요.
 
 **프로덕션 적용 및 기술 지원이 필요하시면 [contact@cloudbro.ai](mailto:contact@cloudbro.ai)로 문의해 주세요.**

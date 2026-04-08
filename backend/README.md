@@ -394,9 +394,9 @@ curl http://localhost:8080/
 
 ## Related Components
 
-- [KubeRCA Agent](https://github.com/kube-rca/agent) - Python analysis service
-- [KubeRCA Frontend](https://github.com/kube-rca/frontend) - React web dashboard
-- [Helm Charts](https://github.com/kube-rca/helm-charts) - Kubernetes deployment
+- [KubeRCA Agent](https://github.com/kube-rca/kuberca/blob/main/agent/README.md) - Python analysis service
+- [KubeRCA Frontend](https://github.com/kube-rca/kuberca/blob/main/frontend/README.md) - React web dashboard
+- [Helm Chart](https://github.com/kube-rca/kuberca/blob/main/charts/kube-rca/README.md) - Kubernetes deployment
 
 ---
 

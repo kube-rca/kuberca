@@ -528,10 +528,10 @@ When `GEMINI_API_KEY` is not set, the agent returns a fallback summary:
 
 ## Related Components
 
-- [KubeRCA Backend](https://github.com/kube-rca/backend) - Go REST API server
-- [KubeRCA Frontend](https://github.com/kube-rca/frontend) - React web dashboard
-- [Helm Charts](https://github.com/kube-rca/helm-charts) - Kubernetes deployment
-- [Chaos Scenarios](https://github.com/kube-rca/chaos) - Failure injection tests
+- [KubeRCA Backend](https://github.com/kube-rca/kuberca/blob/main/backend/README.md) - Go REST API server
+- [KubeRCA Frontend](https://github.com/kube-rca/kuberca/blob/main/frontend/README.md) - React web dashboard
+- [Helm Chart](https://github.com/kube-rca/kuberca/blob/main/charts/kube-rca/README.md) - Kubernetes deployment
+- [Chaos Scenarios](https://github.com/kube-rca/kuberca/tree/main/chaos) - Failure injection tests
 
 ---
 
