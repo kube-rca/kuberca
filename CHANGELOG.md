@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/kube-rca/kuberca/compare/v1.0.0...v1.0.1) (2026-04-08)
+
+
+### Bug Fixes
+
+* **frontend:** bump vite to 7.3.2 for security patches ([e224e59](https://github.com/kube-rca/kuberca/commit/e224e593e92f4d2dd2141867f50ee1e16f2cd4a5))
+
 ## 1.0.0 (2026-04-05)
 
 
