@@ -56,6 +56,12 @@ class AnalysisService:
 
     def analyze(
         self, request: AlertAnalysisRequest
+    ) -> tuple[str, str, str, dict[str, object], list[dict[str, object]]]:
+        analysis, summary, detail, _, _, context, artifacts = self.analyze_with_i18n(request)
+        return analysis, summary, detail, context, artifacts
+
+    def analyze_with_i18n(
+        self, request: AlertAnalysisRequest
     ) -> tuple[
         str,
         str,
@@ -129,7 +135,9 @@ class AnalysisService:
             analysis = self._masker.mask_text(
                 _fallback_summary(request, k8s_context, "analysis engine not configured")
             )
-            summary, detail, summary_i18n, detail_i18n = _parse_alert_analysis_result(analysis)
+            analysis, summary, detail, summary_i18n, detail_i18n = _parse_alert_analysis_result(
+                analysis
+            )
             masked_context = build_masked_context(engine_issue="not_configured")
             return (
                 analysis,
@@ -186,7 +194,13 @@ class AnalysisService:
                         "analysis engine returned empty response",
                     )
                 )
-                summary, detail, summary_i18n, detail_i18n = _parse_alert_analysis_result(analysis)
+                (
+                    analysis,
+                    summary,
+                    detail,
+                    summary_i18n,
+                    detail_i18n,
+                ) = _parse_alert_analysis_result(analysis)
                 masked_context = build_masked_context(engine_issue="empty_response")
                 self._log_analysis_timing(
                     t_start,
@@ -205,13 +219,9 @@ class AnalysisService:
                     masked_context,
                     masked_artifacts,
                 )
-            (
-                analysis,
-                summary,
-                detail,
-                summary_i18n,
-                detail_i18n,
-            ) = _parse_alert_analysis_result(analysis)
+            analysis, summary, detail, summary_i18n, detail_i18n = (
+                _parse_alert_analysis_result(analysis)
+            )
             self._store_summary(summary_key, summary)
             masked_context = build_masked_context()
             self._log_analysis_timing(
@@ -243,7 +253,9 @@ class AnalysisService:
             analysis = self._masker.mask_text(
                 _fallback_summary(request, k8s_context, error_cat.user_message)
             )
-            summary, detail, summary_i18n, detail_i18n = _parse_alert_analysis_result(analysis)
+            analysis, summary, detail, summary_i18n, detail_i18n = _parse_alert_analysis_result(
+                analysis
+            )
             masked_context = build_masked_context(engine_issue=error_cat.name)
             self._log_analysis_timing(
                 t_start,
@@ -287,6 +299,12 @@ class AnalysisService:
         )
 
     def summarize_incident(
+        self, request: IncidentSummaryRequest
+    ) -> tuple[str, str, str]:
+        title, summary, detail, _, _ = self.summarize_incident_with_i18n(request)
+        return title, summary, detail
+
+    def summarize_incident_with_i18n(
         self, request: IncidentSummaryRequest
     ) -> tuple[str, str, str, dict[str, str], dict[str, str]]:
         """Synthesize final RCA summary for a resolved incident.

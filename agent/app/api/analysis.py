@@ -30,7 +30,7 @@ async def analyze_alert(
         context,
         artifacts,
     ) = await run_in_thread_limited(
-        service.analyze, request, request=http_request
+        service.analyze_with_i18n, request, request=http_request
     )
     analysis_quality = _extract_optional_str(context, "analysis_quality")
     missing_data = _extract_optional_str_list(context, "missing_data")
@@ -63,7 +63,7 @@ async def summarize_incident(
 ) -> IncidentSummaryResponse:
     """Generate final RCA summary for a resolved incident."""
     title, summary, detail, summary_i18n, detail_i18n = await run_in_thread_limited(
-        service.summarize_incident, request, request=http_request
+        service.summarize_incident_with_i18n, request, request=http_request
     )
     return IncidentSummaryResponse(
         status="ok",
