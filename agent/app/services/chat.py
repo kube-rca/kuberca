@@ -50,7 +50,8 @@ def _build_chat_prompt(request: ChatRequest, masker: Masker) -> str:
         "For questions like 'What metric triggered this alert?', "
         "check context/artifacts for Prometheus queries (query field). "
         f"Respond concisely in {response_language}. "
-        "Follow the selected UI language even if the user's question is in a different language.\n\n"
+        "Follow the selected UI language even if the user's question is "
+        "in a different language.\n\n"
     )
     ctx = request.context
     if ctx:

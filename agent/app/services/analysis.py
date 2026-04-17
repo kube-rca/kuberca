@@ -56,7 +56,15 @@ class AnalysisService:
 
     def analyze(
         self, request: AlertAnalysisRequest
-    ) -> tuple[str, str, str, dict[str, str], dict[str, str], dict[str, object], list[dict[str, object]]]:
+    ) -> tuple[
+        str,
+        str,
+        str,
+        dict[str, str],
+        dict[str, str],
+        dict[str, object],
+        list[dict[str, object]],
+    ]:
         t_start = time.perf_counter()
 
         target = resolve_alert_target(request.alert.labels)
@@ -123,7 +131,15 @@ class AnalysisService:
             )
             summary, detail, summary_i18n, detail_i18n = _parse_alert_analysis_result(analysis)
             masked_context = build_masked_context(engine_issue="not_configured")
-            return analysis, summary, detail, summary_i18n, detail_i18n, masked_context, masked_artifacts
+            return (
+                analysis,
+                summary,
+                detail,
+                summary_i18n,
+                detail_i18n,
+                masked_context,
+                masked_artifacts,
+            )
 
         summary_key = _resolve_alert_session_id(request)
         recent_summaries = self._load_recent_summaries(summary_key)
@@ -180,8 +196,22 @@ class AnalysisService:
                     t_prompt,
                     t_llm,
                 )
-                return analysis, summary, detail, summary_i18n, detail_i18n, masked_context, masked_artifacts
-            analysis, summary, detail, summary_i18n, detail_i18n = _parse_alert_analysis_result(analysis)
+                return (
+                    analysis,
+                    summary,
+                    detail,
+                    summary_i18n,
+                    detail_i18n,
+                    masked_context,
+                    masked_artifacts,
+                )
+            (
+                analysis,
+                summary,
+                detail,
+                summary_i18n,
+                detail_i18n,
+            ) = _parse_alert_analysis_result(analysis)
             self._store_summary(summary_key, summary)
             masked_context = build_masked_context()
             self._log_analysis_timing(
@@ -192,7 +222,15 @@ class AnalysisService:
                 t_prompt,
                 t_llm,
             )
-            return analysis, summary, detail, summary_i18n, detail_i18n, masked_context, masked_artifacts
+            return (
+                analysis,
+                summary,
+                detail,
+                summary_i18n,
+                detail_i18n,
+                masked_context,
+                masked_artifacts,
+            )
         except Exception as exc:  # noqa: BLE001
             t_llm = time.perf_counter()
             error_cat = _categorize_analysis_error(exc)
@@ -215,7 +253,15 @@ class AnalysisService:
                 t_prompt,
                 t_llm,
             )
-            return analysis, summary, detail, summary_i18n, detail_i18n, masked_context, masked_artifacts
+            return (
+                analysis,
+                summary,
+                detail,
+                summary_i18n,
+                detail_i18n,
+                masked_context,
+                masked_artifacts,
+            )
 
     def _log_analysis_timing(
         self,
@@ -504,8 +550,10 @@ def _build_prompt(
             '  "ko": {"summary": "...", "detail": "..."},\n'
             '  "en": {"summary": "...", "detail": "..."}\n'
             "}\n"
-            "`ko.summary` and `en.summary` should be 3-5 sentences including root cause, impact, and next action.\n"
-            "`ko.detail` and `en.detail` must be markdown strings using sections for 근본 원인, 확인 근거, 조치 사항, 누락된 데이터.\n"
+            "`ko.summary` and `en.summary` should be 3-5 sentences "
+            "including root cause, impact, and next action.\n"
+            "`ko.detail` and `en.detail` must be markdown strings using "
+            "sections for 근본 원인, 확인 근거, 조치 사항, 누락된 데이터.\n"
             "\n"
             "Analysis behavior:\n"
             "- ACTIVELY use tools to discover information. "
@@ -1315,7 +1363,10 @@ def _normalize_i18n_texts(
 
 
 def _compose_alert_analysis(summary: str, detail: str) -> str:
-    return f"### 1) 요약 (Summary)\n{summary.strip()}\n\n### 2) 상세 분석 (Detail)\n{detail.strip()}".strip()
+    return (
+        f"### 1) 요약 (Summary)\n{summary.strip()}\n\n"
+        f"### 2) 상세 분석 (Detail)\n{detail.strip()}"
+    ).strip()
 
 
 def _parse_alert_analysis_result(
@@ -1404,8 +1455,10 @@ def _build_incident_summary_prompt(request: IncidentSummaryRequest, masker: Mask
         "}\n"
         "Requirements:\n"
         "- `title` must be a concise incident title (max 100 chars).\n"
-        "- `ko.summary` and `en.summary` should be 1-2 sentences describing the root cause and resolution.\n"
-        "- `ko.detail` and `en.detail` must be markdown strings covering 근본 원인, 영향 범위, 해결 과정, 재발 방지 권고.\n\n"
+        "- `ko.summary` and `en.summary` should be 1-2 sentences "
+        "describing the root cause and resolution.\n"
+        "- `ko.detail` and `en.detail` must be markdown strings covering "
+        "근본 원인, 영향 범위, 해결 과정, 재발 방지 권고.\n\n"
         f"Incident data:\n{_to_pretty_json(incident_data)}\n"
     )
 

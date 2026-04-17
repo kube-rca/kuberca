@@ -21,7 +21,15 @@ async def analyze_alert(
     request: AlertAnalysisRequest,
     service: AnalysisService = Depends(get_analysis_service),  # noqa: B008
 ) -> AlertAnalysisResponse:
-    analysis, summary, detail, summary_i18n, detail_i18n, context, artifacts = await run_in_thread_limited(
+    (
+        analysis,
+        summary,
+        detail,
+        summary_i18n,
+        detail_i18n,
+        context,
+        artifacts,
+    ) = await run_in_thread_limited(
         service.analyze, request, request=http_request
     )
     analysis_quality = _extract_optional_str(context, "analysis_quality")
