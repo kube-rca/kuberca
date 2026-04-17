@@ -1,4 +1,5 @@
-import { LogOut, Sun, Moon } from 'lucide-react';
+import { LogOut, Sun, Moon, Globe } from 'lucide-react';
+import { languageLabels, useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 
 interface HeaderProps {
@@ -8,6 +9,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onLogout, connectionState }) => {
   const { theme, toggleTheme } = useTheme();
+  const { language, toggleLanguage, t } = useLanguage();
 
   return (
     <header className="fixed top-0 left-0 w-full h-14 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex items-center px-5 z-50 transition-colors duration-300">
@@ -43,7 +45,18 @@ export const Header: React.FC<HeaderProps> = ({ onLogout, connectionState }) => 
           className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors px-2 py-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800"
         >
           <LogOut className="w-3.5 h-3.5" />
-          Logout
+          {t('logout')}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => void toggleLanguage()}
+          className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors px-2 py-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800"
+          aria-label={`Toggle language (${languageLabels[language]})`}
+          title={languageLabels[language]}
+        >
+          <Globe className="w-3.5 h-3.5" />
+          {language.toUpperCase()}
         </button>
 
         <button

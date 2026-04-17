@@ -82,14 +82,16 @@ type AgentAnalysisRequest struct {
 
 // AgentAnalysisResponse 구조체 정의
 type AgentAnalysisResponse struct {
-	Status          string                       `json:"status"`
-	ThreadTS        string                       `json:"thread_ts"`
-	Analysis        string                       `json:"analysis"`
-	AnalysisSummary string                       `json:"analysis_summary"`
-	AnalysisDetail  string                       `json:"analysis_detail"`
-	AnalysisType    string                       `json:"analysis_type,omitempty"`
-	Context         json.RawMessage              `json:"context,omitempty"`
-	Artifacts       []AlertAnalysisArtifactInput `json:"artifacts,omitempty"`
+	Status              string                       `json:"status"`
+	ThreadTS            string                       `json:"thread_ts"`
+	Analysis            string                       `json:"analysis"`
+	AnalysisSummary     string                       `json:"analysis_summary"`
+	AnalysisDetail      string                       `json:"analysis_detail"`
+	AnalysisSummaryI18n model.LocalizedText          `json:"analysis_summary_i18n,omitempty"`
+	AnalysisDetailI18n  model.LocalizedText          `json:"analysis_detail_i18n,omitempty"`
+	AnalysisType        string                       `json:"analysis_type,omitempty"`
+	Context             json.RawMessage              `json:"context,omitempty"`
+	Artifacts           []AlertAnalysisArtifactInput `json:"artifacts,omitempty"`
 }
 
 // IncidentSummaryRequest - Incident 최종 분석 요청
@@ -123,16 +125,19 @@ type AlertAnalysisArtifactInput struct {
 
 // IncidentSummaryResponse - Incident 최종 분석 응답
 type IncidentSummaryResponse struct {
-	Status  string `json:"status"`
-	Title   string `json:"title"`
-	Summary string `json:"summary"`
-	Detail  string `json:"detail"`
+	Status      string              `json:"status"`
+	Title       string              `json:"title"`
+	Summary     string              `json:"summary"`
+	Detail      string              `json:"detail"`
+	SummaryI18n model.LocalizedText `json:"summary_i18n,omitempty"`
+	DetailI18n  model.LocalizedText `json:"detail_i18n,omitempty"`
 }
 
 // AgentChatRequest - Agent 채팅 요청
 type AgentChatRequest struct {
 	Message        string         `json:"message"`
 	ConversationID string         `json:"conversation_id,omitempty"`
+	Language       string         `json:"language,omitempty"`
 	Context        map[string]any `json:"context,omitempty"`
 	Metadata       map[string]any `json:"metadata,omitempty"`
 }

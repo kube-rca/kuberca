@@ -1,14 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Bell, Archive, BarChart3, Settings } from 'lucide-react';
-
-const navItems = [
-  { to: '/', label: 'Incidents', icon: LayoutDashboard, end: true },
-  { to: '/alerts', label: 'Alerts', icon: Bell },
-  { to: '/muted', label: 'Archived', icon: Archive },
-  { to: '/analysis', label: 'Analysis', icon: BarChart3 },
-];
-
-const settingsItem = { to: '/settings', label: 'Settings', icon: Settings, end: undefined as boolean | undefined };
+import { useLanguage } from '../context/LanguageContext';
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
@@ -25,6 +17,15 @@ const mobileNavLinkClass = ({ isActive }: { isActive: boolean }) =>
   }`;
 
 export const Sidebar: React.FC = () => {
+  const { t } = useLanguage();
+  const navItems = [
+    { to: '/', label: t('incidents'), icon: LayoutDashboard, end: true },
+    { to: '/alerts', label: t('alerts'), icon: Bell },
+    { to: '/muted', label: t('archived'), icon: Archive },
+    { to: '/analysis', label: t('analysis'), icon: BarChart3 },
+  ];
+  const settingsItem = { to: '/settings', label: t('settings'), icon: Settings, end: undefined as boolean | undefined };
+
   return (
     <>
       {/* Desktop sidebar */}

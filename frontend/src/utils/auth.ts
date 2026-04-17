@@ -7,6 +7,15 @@ export interface AuthResponse {
   expiresIn: number;
 }
 
+export interface CurrentUserResponse {
+  userId: number;
+  loginId: string;
+  email?: string;
+  displayName?: string;
+  authProvider: string;
+  preferredLanguage: 'ko' | 'en';
+}
+
 export interface AuthConfigResponse {
   allowSignup: boolean;
   oidcEnabled: boolean;
@@ -27,14 +36,14 @@ const parseAuthResponse = async (response: Response): Promise<AuthResponse> => {
   return response.json() as Promise<AuthResponse>;
 };
 
-export const login = async (id: string, password: string): Promise<AuthResponse> => {
+export const login = async (id: string, password: string, preferredLanguage: 'ko' | 'en'): Promise<AuthResponse> => {
   const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     credentials: 'include',
-    body: JSON.stringify({ id, password }),
+    body: JSON.stringify({ id, password, preferredLanguage }),
   });
 
   const data = await parseAuthResponse(response);
@@ -42,14 +51,14 @@ export const login = async (id: string, password: string): Promise<AuthResponse>
   return data;
 };
 
-export const register = async (id: string, password: string): Promise<AuthResponse> => {
+export const register = async (id: string, password: string, preferredLanguage: 'ko' | 'en'): Promise<AuthResponse> => {
   const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     credentials: 'include',
-    body: JSON.stringify({ id, password }),
+    body: JSON.stringify({ id, password, preferredLanguage }),
   });
 
   const data = await parseAuthResponse(response);
@@ -92,4 +101,30 @@ export const fetchAuthConfig = async (): Promise<AuthConfigResponse> => {
     return { allowSignup: false, oidcEnabled: false, oidcLoginUrl: '', oidcProvider: '' };
   }
   return response.json() as Promise<AuthConfigResponse>;
+};
+
+export const fetchCurrentUser = async (): Promise<CurrentUserResponse> => {
+  const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    credentials: 'include',
+  });
+  if (!response.ok) {
+    throw new Error('Failed to load current user.');
+  }
+  return response.json() as Promise<CurrentUserResponse>;
+};
+
+export const updatePreferredLanguage = async (preferredLanguage: 'ko' | 'en'): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/api/v1/auth/me/language`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+    credentials: 'include',
+    body: JSON.stringify({ preferredLanguage }),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to update language.');
+  }
 };

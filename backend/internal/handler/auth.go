@@ -45,7 +45,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	accessToken, refreshToken, expiresIn, err := h.svc.Register(c.Request.Context(), req.ID, req.Password)
+	accessToken, refreshToken, expiresIn, err := h.svc.Register(c.Request.Context(), req.ID, req.Password, req.PreferredLanguage)
 	if err != nil {
 		writeAuthError(c, err)
 		return
@@ -76,7 +76,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	accessToken, refreshToken, expiresIn, err := h.svc.Login(c.Request.Context(), req.ID, req.Password)
+	accessToken, refreshToken, expiresIn, err := h.svc.Login(c.Request.Context(), req.ID, req.Password, req.PreferredLanguage)
 	if err != nil {
 		writeAuthError(c, err)
 		return
@@ -160,20 +160,43 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	fullUser, err := h.svc.GetUserByID(c.Request.Context(), authUser.ID)
 	if err != nil {
 		c.JSON(http.StatusOK, model.AuthMeResponse{
-			UserID:       authUser.ID,
-			LoginID:      authUser.LoginID,
-			AuthProvider: "local",
+			UserID:            authUser.ID,
+			LoginID:           authUser.LoginID,
+			AuthProvider:      "local",
+			PreferredLanguage: authUser.PreferredLanguage,
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, model.AuthMeResponse{
-		UserID:       fullUser.ID,
-		LoginID:      fullUser.LoginID,
-		Email:        fullUser.Email,
-		DisplayName:  fullUser.DisplayName,
-		AuthProvider: fullUser.AuthProvider,
+		UserID:            fullUser.ID,
+		LoginID:           fullUser.LoginID,
+		Email:             fullUser.Email,
+		DisplayName:       fullUser.DisplayName,
+		AuthProvider:      fullUser.AuthProvider,
+		PreferredLanguage: fullUser.PreferredLanguage,
 	})
+}
+
+func (h *AuthHandler) UpdatePreferredLanguage(c *gin.Context) {
+	authUser := GetAuthUser(c)
+	if authUser == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req model.UpdatePreferredLanguageRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	if err := h.svc.UpdatePreferredLanguage(c.Request.Context(), authUser.ID, req.PreferredLanguage); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
 func (h *AuthHandler) setRefreshCookie(c *gin.Context, token string) {

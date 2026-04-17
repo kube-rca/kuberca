@@ -127,7 +127,7 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, alertID, threadTS, inc
 		detail = resp.Analysis
 	}
 
-	if err := s.db.UpdateAlertAnalysis(alertID, summary, detail); err != nil {
+	if err := s.db.UpdateAlertAnalysis(alertID, summary, detail, resp.AnalysisSummaryI18n, resp.AnalysisDetailI18n); err != nil {
 		log.Printf("Failed to save analysis to DB: %v", err)
 		// DB 저장 실패해도 Slack 전송은 계속 진행
 	} else {
@@ -140,6 +140,8 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, alertID, threadTS, inc
 		alert.Status,
 		summary,
 		detail,
+		resp.AnalysisSummaryI18n,
+		resp.AnalysisDetailI18n,
 		resp.Context,
 	)
 	if err != nil {

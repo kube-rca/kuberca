@@ -20,6 +20,7 @@ export interface AlertItem {
   namespace: string;
   labels: Record<string, string>;
   analysis_summary?: string;
+  analysis_summary_i18n?: Record<string, string>;
 }
 
 export interface RCADetail {
@@ -31,6 +32,8 @@ export interface RCADetail {
   resolved_at: string | null;
   analysis_summary: string;
   analysis_detail: string;
+  analysis_summary_i18n?: Record<string, string>;
+  analysis_detail_i18n?: Record<string, string>;
   is_analyzing?: boolean;
   is_hidden?: boolean;
   similar_incidents?: SimilarIncident[]; // 필요 시 구체화
@@ -43,6 +46,8 @@ export interface AlertAnalysisItem {
   status: string;        // "firing" | "resolved"
   summary: string;
   detail: string;
+  summary_i18n?: Record<string, string>;
+  detail_i18n?: Record<string, string>;
   analysis_model: string;
   created_at: string;
 }

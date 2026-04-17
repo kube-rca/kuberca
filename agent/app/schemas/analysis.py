@@ -33,6 +33,8 @@ class AlertAnalysisResponse(BaseModel):
     analysis: str
     analysis_summary: str | None = None
     analysis_detail: str | None = None
+    analysis_summary_i18n: dict[str, str] | None = None
+    analysis_detail_i18n: dict[str, str] | None = None
     analysis_type: str | None = None
     analysis_quality: str | None = None
     missing_data: list[str] | None = None
@@ -67,3 +69,5 @@ class IncidentSummaryResponse(BaseModel):
     title: str
     summary: str
     detail: str
+    summary_i18n: dict[str, str] | None = None
+    detail_i18n: dict[str, str] | None = None

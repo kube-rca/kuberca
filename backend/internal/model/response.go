@@ -22,11 +22,12 @@ type AuthLogoutResponse struct {
 }
 
 type AuthMeResponse struct {
-	UserID       int64   `json:"userId"`
-	LoginID      string  `json:"loginId"`
-	Email        *string `json:"email,omitempty"`
-	DisplayName  *string `json:"displayName,omitempty"`
-	AuthProvider string  `json:"authProvider"`
+	UserID            int64   `json:"userId"`
+	LoginID           string  `json:"loginId"`
+	Email             *string `json:"email,omitempty"`
+	DisplayName       *string `json:"displayName,omitempty"`
+	AuthProvider      string  `json:"authProvider"`
+	PreferredLanguage string  `json:"preferredLanguage"`
 }
 
 type AlertWebhookResponse struct {

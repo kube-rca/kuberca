@@ -191,7 +191,7 @@ func (s *RcaService) requestIncidentSummary(incidentID string) {
 	}
 
 	// DB에 분석 결과 저장 (title 포함)
-	if err := s.repo.UpdateIncidentAnalysis(incidentID, resp.Title, resp.Summary, resp.Detail); err != nil {
+	if err := s.repo.UpdateIncidentAnalysis(incidentID, resp.Title, resp.Summary, resp.Detail, resp.SummaryI18n, resp.DetailI18n); err != nil {
 		log.Printf("Failed to save incident analysis: %v", err)
 		return
 	}
@@ -260,6 +260,8 @@ func (s *RcaService) GetAlertDetail(id string) (*model.AlertDetailResponse, erro
 			Status:        a.Status,
 			Summary:       a.Summary,
 			Detail:        a.Detail,
+			SummaryI18n:   a.SummaryI18n,
+			DetailI18n:    a.DetailI18n,
 			AnalysisModel: a.AnalysisModel,
 			CreatedAt:     a.CreatedAt,
 		})

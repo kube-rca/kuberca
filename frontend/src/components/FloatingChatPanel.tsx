@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useLanguage } from '../context/LanguageContext';
 import { chatWithAgent, ChatRequest, fetchAlertDetail } from '../utils/api';
 
 type ChatMessage = {
@@ -61,6 +62,7 @@ const makeMessage = (role: 'user' | 'assistant', content: string): ChatMessage =
 
 const FloatingChatPanel = ({ onDockedChange }: FloatingChatPanelProps) => {
   const location = useLocation();
+  const { language, t } = useLanguage();
   const routeContext = useMemo(() => parseRouteContext(location.pathname), [location.pathname]);
 
   const [isOpen, setIsOpen] = useState(false);
@@ -72,10 +74,14 @@ const FloatingChatPanel = ({ onDockedChange }: FloatingChatPanelProps) => {
   const [manualIncidentId, setManualIncidentId] = useState('');
   const [manualAlertId, setManualAlertId] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([
-    makeMessage('assistant', 'If you enter a question, it will analyze the Incident/Alert context together and answer.'),
+    makeMessage('assistant', t('chatIntro')),
   ]);
 
   const listRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setMessages([makeMessage('assistant', t('chatIntro'))]);
+  }, [language]);
 
   useEffect(() => {
     onDockedChange?.(isDocked);
@@ -161,6 +167,7 @@ const FloatingChatPanel = ({ onDockedChange }: FloatingChatPanelProps) => {
     const request: ChatRequest = {
       message,
       conversation_id: conversationId,
+      language,
       page: routeContext.page,
       auto: false,
       incident_id: incidentId,
@@ -192,27 +199,27 @@ const FloatingChatPanel = ({ onDockedChange }: FloatingChatPanelProps) => {
         <section className={panelClass}>
           <header className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
             <div>
-              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Agent Chat</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Page: {routeContext.page}</p>
+              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{t('agentChat')}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{t('page')}: {routeContext.page}</p>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowContextInputs((prev) => !prev)}
                 className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
               >
-                Context
+                {t('context')}
               </button>
               <button
                 onClick={() => setIsDocked((prev) => !prev)}
                 className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
               >
-                {isDocked ? 'Collapse' : 'Expand'}
+                {isDocked ? t('collapse') : t('expand')}
               </button>
               <button
                 onClick={() => setIsOpen(false)}
                 className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
               >
-                Close
+                {t('close')}
               </button>
             </div>
           </header>
@@ -222,17 +229,17 @@ const FloatingChatPanel = ({ onDockedChange }: FloatingChatPanelProps) => {
               <input
                 value={manualIncidentId}
                 onChange={(e) => setManualIncidentId(e.target.value)}
-                placeholder="incident_id (optional)"
+                placeholder={t('incidentOptional')}
                 className="w-full px-3 py-2 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100"
               />
               <input
                 value={manualAlertId}
                 onChange={(e) => setManualAlertId(e.target.value)}
-                placeholder="alert_id (optional)"
+                placeholder={t('alertOptional')}
                 className="w-full px-3 py-2 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100"
               />
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                The ID is automatically filled in on the details page, and you can manually enter it on the dashboard to increase accuracy.
+                {t('contextHint')}
               </p>
             </div>
           )}
@@ -252,7 +259,7 @@ const FloatingChatPanel = ({ onDockedChange }: FloatingChatPanelProps) => {
             ))}
             {sending && (
               <div className="mr-auto max-w-[92%] px-3 py-2 rounded-xl text-sm bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                Generating answer...
+                {t('generating')}
               </div>
             )}
           </div>
@@ -285,7 +292,7 @@ const FloatingChatPanel = ({ onDockedChange }: FloatingChatPanelProps) => {
         onClick={() => setIsOpen((prev) => !prev)}
         className="fixed bottom-5 right-4 sm:right-6 z-50 h-14 px-5 rounded-full shadow-xl bg-cyan-600 hover:bg-cyan-700 text-white font-semibold text-sm"
       >
-        {isOpen ? 'Close Chat' : 'AI Chat'}
+        {isOpen ? t('closeChat') : t('aiChat')}
       </button>
     </>
   );

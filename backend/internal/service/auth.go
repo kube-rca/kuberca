@@ -53,7 +53,8 @@ type AuthService struct {
 }
 
 type authClaims struct {
-	LoginID string `json:"loginId"`
+	LoginID           string `json:"loginId"`
+	PreferredLanguage string `json:"preferredLanguage"`
 	jwt.RegisteredClaims
 }
 
@@ -139,7 +140,7 @@ func (s *AuthService) EnsureAdmin(ctx context.Context, loginID, password string)
 		return err
 	}
 
-	_, err = s.repo.CreateUser(ctx, loginID, string(hash))
+	_, err = s.repo.CreateUser(ctx, loginID, string(hash), "ko")
 	return err
 }
 
@@ -155,7 +156,7 @@ func (s *AuthService) CookieConfig() CookieConfig {
 	return s.cookieCfg
 }
 
-func (s *AuthService) Register(ctx context.Context, loginID, password string) (string, string, int64, error) {
+func (s *AuthService) Register(ctx context.Context, loginID, password, preferredLanguage string) (string, string, int64, error) {
 	if !s.allowSignup {
 		return "", "", 0, ErrForbidden
 	}
@@ -169,7 +170,7 @@ func (s *AuthService) Register(ctx context.Context, loginID, password string) (s
 		return "", "", 0, err
 	}
 
-	user, err := s.repo.CreateUser(ctx, loginID, string(hash))
+	user, err := s.repo.CreateUser(ctx, loginID, string(hash), normalizePreferredLanguage(preferredLanguage))
 	if err != nil {
 		if isUniqueViolation(err) {
 			return "", "", 0, ErrConflict
@@ -180,7 +181,7 @@ func (s *AuthService) Register(ctx context.Context, loginID, password string) (s
 	return s.IssueTokens(ctx, user)
 }
 
-func (s *AuthService) Login(ctx context.Context, loginID, password string) (string, string, int64, error) {
+func (s *AuthService) Login(ctx context.Context, loginID, password, preferredLanguage string) (string, string, int64, error) {
 	if err := validateCredentials(loginID, password); err != nil {
 		return "", "", 0, err
 	}
@@ -195,6 +196,14 @@ func (s *AuthService) Login(ctx context.Context, loginID, password string) (stri
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
 		return "", "", 0, ErrUnauthorized
+	}
+
+	language := normalizePreferredLanguage(preferredLanguage)
+	if user.PreferredLanguage != language {
+		if err := s.repo.UpdateUserPreferredLanguage(ctx, user.ID, language); err != nil {
+			return "", "", 0, err
+		}
+		user.PreferredLanguage = language
 	}
 
 	return s.IssueTokens(ctx, user)
@@ -267,8 +276,9 @@ func (s *AuthService) ParseAccessToken(tokenStr string) (*model.AuthUser, error)
 	}
 
 	return &model.AuthUser{
-		ID:      userID,
-		LoginID: claims.LoginID,
+		ID:                userID,
+		LoginID:           claims.LoginID,
+		PreferredLanguage: normalizePreferredLanguage(claims.PreferredLanguage),
 	}, nil
 }
 
@@ -293,7 +303,8 @@ func (s *AuthService) IssueTokens(ctx context.Context, user *model.User) (string
 func (s *AuthService) generateAccessToken(user *model.User) (string, int64, error) {
 	now := time.Now()
 	claims := authClaims{
-		LoginID: user.LoginID,
+		LoginID:           user.LoginID,
+		PreferredLanguage: normalizePreferredLanguage(user.PreferredLanguage),
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   fmt.Sprintf("%d", user.ID),
 			IssuedAt:  jwt.NewNumericDate(now),
@@ -309,6 +320,10 @@ func (s *AuthService) generateAccessToken(user *model.User) (string, int64, erro
 	return signed, int64(s.accessTTL.Seconds()), nil
 }
 
+func (s *AuthService) UpdatePreferredLanguage(ctx context.Context, userID int64, preferredLanguage string) error {
+	return s.repo.UpdateUserPreferredLanguage(ctx, userID, normalizePreferredLanguage(preferredLanguage))
+}
+
 func validateCredentials(loginID, password string) error {
 	loginID = strings.TrimSpace(loginID)
 	password = strings.TrimSpace(password)
@@ -320,6 +335,15 @@ func validateCredentials(loginID, password string) error {
 		return ErrInvalidInput
 	}
 	return nil
+}
+
+func normalizePreferredLanguage(language string) string {
+	switch strings.ToLower(strings.TrimSpace(language)) {
+	case "en":
+		return "en"
+	default:
+		return "ko"
+	}
 }
 
 func parseBool(value string, fallback bool) (bool, error) {

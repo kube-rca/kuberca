@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Sun, Moon } from 'lucide-react';
 import { login, register } from '../utils/auth';
+import { languageLabels, useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 
 interface AuthPanelProps {
@@ -94,6 +95,7 @@ const providerConfig: Record<string, { label: string; icon: React.ReactNode }> =
 
 const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, oidcProvider, onAuthenticated }: AuthPanelProps) => {
   const { theme, toggleTheme } = useTheme();
+  const { language, setLanguage, t } = useLanguage();
   const [mode, setMode] = useState<Mode>('login');
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
@@ -110,9 +112,9 @@ const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, oidcProvider, onAut
 
     try {
       if (mode === 'login') {
-        await login(loginId, password);
+        await login(loginId, password, language);
       } else {
-        await register(loginId, password);
+        await register(loginId, password, language);
       }
       onAuthenticated();
     } catch (err) {
@@ -138,8 +140,24 @@ const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, oidcProvider, onAut
           <h1 className="text-2xl font-semibold font-mono tracking-wider text-slate-900 dark:text-slate-100">Kube-RCA</h1>
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-          {mode === 'login' ? 'Log in with your ID and password.' : 'Create a new account.'}
+          {mode === 'login' ? t('loginDescription') : t('signupDescription')}
         </p>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" htmlFor="preferred-language">
+            Language
+          </label>
+          <select
+            id="preferred-language"
+            value={language}
+            onChange={(event) => void setLanguage(event.target.value as 'ko' | 'en')}
+            className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500 dark:focus:ring-cyan-400"
+          >
+            {Object.entries(languageLabels).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+        </div>
 
         {oidcError && (
           <div className="mb-4 rounded-md border border-rose-300 dark:border-rose-700 bg-rose-50 dark:bg-rose-900/30 px-4 py-3 text-sm text-rose-700 dark:text-rose-300 flex items-start gap-2">
@@ -154,7 +172,11 @@ const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, oidcProvider, onAut
           <>
             <button
               type="button"
-              onClick={() => { window.location.href = oidcLoginUrl; }}
+              onClick={() => {
+                const url = new URL(oidcLoginUrl, window.location.origin);
+                url.searchParams.set('preferred_language', language);
+                window.location.href = url.toString();
+              }}
               className="w-full flex items-center justify-center gap-2 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
             >
               {provider.icon}
@@ -175,7 +197,7 @@ const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, oidcProvider, onAut
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" htmlFor="login-id">
-              ID
+              {t('id')}
             </label>
             <input
               id="login-id"
@@ -183,13 +205,13 @@ const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, oidcProvider, onAut
               value={loginId}
               onChange={(event) => setLoginId(event.target.value)}
               className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 dark:focus:ring-cyan-400"
-              placeholder="Username"
+              placeholder={t('username')}
               required
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" htmlFor="password">
-              Password
+              {t('password')}
             </label>
             <input
               id="password"
@@ -197,7 +219,7 @@ const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, oidcProvider, onAut
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 dark:focus:ring-cyan-400"
-              placeholder="Password"
+              placeholder={t('password')}
               required
             />
           </div>
@@ -213,19 +235,19 @@ const AuthPanel = ({ allowSignup, oidcEnabled, oidcLoginUrl, oidcProvider, onAut
             disabled={submitting}
             className="w-full rounded-md bg-cyan-600 hover:bg-cyan-700 dark:bg-cyan-500 dark:hover:bg-cyan-400 py-2 text-sm font-semibold text-white disabled:opacity-60"
           >
-            {submitting ? 'Processing...' : mode === 'login' ? 'Login' : 'Sign up'}
+            {submitting ? t('processing') : mode === 'login' ? t('login') : t('signUp')}
           </button>
         </form>
 
         {allowSignup && (
           <div className="mt-4 text-center text-sm text-slate-500 dark:text-slate-400">
-            {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}{' '}
+            {mode === 'login' ? t('noAccount') : t('alreadyAccount')}{' '}
             <button
               type="button"
               className="font-semibold text-slate-800 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white"
               onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
             >
-              {mode === 'login' ? 'Sign up' : 'Login'}
+              {mode === 'login' ? t('signUp') : t('login')}
             </button>
           </div>
         )}

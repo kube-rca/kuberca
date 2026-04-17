@@ -3,8 +3,9 @@ package model
 import "time"
 
 type AuthRequest struct {
-	ID       string `json:"id"`
-	Password string `json:"password"`
+	ID                string `json:"id"`
+	Password          string `json:"password"`
+	PreferredLanguage string `json:"preferredLanguage,omitempty"`
 }
 
 type AuthResponse struct {
@@ -20,21 +21,27 @@ type AuthConfigResponse struct {
 }
 
 type AuthUser struct {
-	ID      int64
-	LoginID string
+	ID                int64
+	LoginID           string
+	PreferredLanguage string
 }
 
 type User struct {
-	ID           int64
-	LoginID      string
-	PasswordHash string
-	AuthProvider string
-	OIDCSub      *string
-	Email        *string
-	DisplayName  *string
-	PictureURL   *string
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID                int64
+	LoginID           string
+	PasswordHash      string
+	AuthProvider      string
+	OIDCSub           *string
+	Email             *string
+	DisplayName       *string
+	PictureURL        *string
+	PreferredLanguage string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+type UpdatePreferredLanguageRequest struct {
+	PreferredLanguage string `json:"preferredLanguage"`
 }
 
 type RefreshToken struct {

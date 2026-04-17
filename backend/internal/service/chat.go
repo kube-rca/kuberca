@@ -27,6 +27,7 @@ func NewChatService(repo *db.Postgres, agentClient *client.AgentClient) *ChatSer
 
 func (s *ChatService) Chat(ctx context.Context, req model.ChatRequest) (*model.ChatResponse, error) {
 	req.Message = strings.TrimSpace(req.Message)
+	req.Language = normalizePreferredLanguage(req.Language)
 	req.Page = strings.TrimSpace(req.Page)
 	req.IncidentID = strings.TrimSpace(req.IncidentID)
 	req.AlertID = strings.TrimSpace(req.AlertID)
@@ -45,13 +46,15 @@ func (s *ChatService) Chat(ctx context.Context, req model.ChatRequest) (*model.C
 	if req.Page != "" {
 		agentContext["page"] = req.Page
 	}
+	agentContext["language"] = req.Language
 
 	if req.IncidentID != "" {
 		incident, err := s.repo.GetIncidentDetailInsensitive(req.IncidentID)
 		if err != nil {
 			return nil, fmt.Errorf("%w: failed to load incident_id=%s", ErrInvalidChatRequest, req.IncidentID)
 		}
-		summary := strValue(incident.AnalysisSummary)
+		summary := localizedValue(incident.AnalysisSummaryI18n, strValue(incident.AnalysisSummary), req.Language)
+		detail := localizedValue(incident.AnalysisDetailI18n, strValue(incident.AnalysisDetail), req.Language)
 		contextUsed.Incident = &model.IncidentChatContext{
 			IncidentID: incident.IncidentID,
 			Title:      incident.Title,
@@ -65,7 +68,7 @@ func (s *ChatService) Chat(ctx context.Context, req model.ChatRequest) (*model.C
 			"severity":         incident.Severity,
 			"status":           incident.Status,
 			"analysis_summary": summary,
-			"analysis_detail":  strValue(incident.AnalysisDetail),
+			"analysis_detail":  detail,
 		}
 	}
 
@@ -74,7 +77,8 @@ func (s *ChatService) Chat(ctx context.Context, req model.ChatRequest) (*model.C
 		if err != nil {
 			return nil, fmt.Errorf("%w: failed to load alert_id=%s", ErrInvalidChatRequest, req.AlertID)
 		}
-		summary := strValue(alert.AnalysisSummary)
+		summary := localizedValue(alert.AnalysisSummaryI18n, strValue(alert.AnalysisSummary), req.Language)
+		detail := localizedValue(alert.AnalysisDetailI18n, strValue(alert.AnalysisDetail), req.Language)
 		incidentID := strValue(alert.IncidentID)
 		contextUsed.Alert = &model.AlertChatContext{
 			AlertID:    alert.AlertID,
@@ -91,7 +95,7 @@ func (s *ChatService) Chat(ctx context.Context, req model.ChatRequest) (*model.C
 			"severity":         alert.Severity,
 			"status":           alert.Status,
 			"analysis_summary": summary,
-			"analysis_detail":  strValue(alert.AnalysisDetail),
+			"analysis_detail":  detail,
 			"labels":           alert.Labels,
 			"annotations":      alert.Annotations,
 		}
@@ -114,9 +118,11 @@ func (s *ChatService) Chat(ctx context.Context, req model.ChatRequest) (*model.C
 	agentResp, err := s.agentClient.RequestChat(ctx, client.AgentChatRequest{
 		Message:        userMessage,
 		ConversationID: req.ConversationID,
+		Language:       req.Language,
 		Context:        agentContext,
 		Metadata: map[string]any{
-			"source": "frontend-chat",
+			"source":   "frontend-chat",
+			"language": req.Language,
 		},
 	})
 	if err != nil {
@@ -140,6 +146,17 @@ func (s *ChatService) Chat(ctx context.Context, req model.ChatRequest) (*model.C
 }
 
 func (s *ChatService) defaultAutoMessage(req model.ChatRequest) string {
+	if req.Language == "en" {
+		switch {
+		case req.IncidentID != "":
+			return "Summarize this incident's current status, likely cause, and next actions."
+		case req.AlertID != "":
+			return "Explain this alert's current status, likely cause, and what should be checked next."
+		default:
+			return "Summarize the key situation based on the current context."
+		}
+	}
+
 	switch {
 	case req.IncidentID != "":
 		return "이 incident의 현재 상태, 원인 추정, 다음 액션을 요약해줘."
@@ -172,4 +189,17 @@ func strValue[T ~string | *string](value T) string {
 	default:
 		return ""
 	}
+}
+
+func localizedValue(values model.LocalizedText, fallback, language string) string {
+	language = normalizePreferredLanguage(language)
+	if values != nil {
+		if value := strings.TrimSpace(values[language]); value != "" {
+			return value
+		}
+		if value := strings.TrimSpace(values["ko"]); value != "" {
+			return value
+		}
+	}
+	return strings.TrimSpace(fallback)
 }

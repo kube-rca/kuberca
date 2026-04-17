@@ -21,7 +21,7 @@ async def analyze_alert(
     request: AlertAnalysisRequest,
     service: AnalysisService = Depends(get_analysis_service),  # noqa: B008
 ) -> AlertAnalysisResponse:
-    analysis, summary, detail, context, artifacts = await run_in_thread_limited(
+    analysis, summary, detail, summary_i18n, detail_i18n, context, artifacts = await run_in_thread_limited(
         service.analyze, request, request=http_request
     )
     analysis_quality = _extract_optional_str(context, "analysis_quality")
@@ -35,6 +35,8 @@ async def analyze_alert(
         analysis=analysis,
         analysis_summary=summary,
         analysis_detail=detail,
+        analysis_summary_i18n=summary_i18n,
+        analysis_detail_i18n=detail_i18n,
         analysis_type=analysis_type,
         analysis_quality=analysis_quality,
         missing_data=missing_data,
@@ -52,10 +54,17 @@ async def summarize_incident(
     service: AnalysisService = Depends(get_analysis_service),  # noqa: B008
 ) -> IncidentSummaryResponse:
     """Generate final RCA summary for a resolved incident."""
-    title, summary, detail = await run_in_thread_limited(
+    title, summary, detail, summary_i18n, detail_i18n = await run_in_thread_limited(
         service.summarize_incident, request, request=http_request
     )
-    return IncidentSummaryResponse(status="ok", title=title, summary=summary, detail=detail)
+    return IncidentSummaryResponse(
+        status="ok",
+        title=title,
+        summary=summary,
+        detail=detail,
+        summary_i18n=summary_i18n,
+        detail_i18n=detail_i18n,
+    )
 
 
 def _extract_optional_str(context: dict[str, object] | None, key: str) -> str | None:

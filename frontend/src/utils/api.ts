@@ -225,6 +225,8 @@ export interface AlertDetail {
   resolved_at: string | null;
   analysis_summary: string;
   analysis_detail: string;
+  analysis_summary_i18n?: Record<string, string>;
+  analysis_detail_i18n?: Record<string, string>;
   fingerprint: string;
   thread_ts: string;
   labels: Record<string, string>;
@@ -444,6 +446,7 @@ export const deleteFeedbackComment = async (
 export interface ChatRequest {
   message: string;
   conversation_id: string;
+  language: 'ko' | 'en';
   page: string;
   auto: boolean;
   incident_id: string;

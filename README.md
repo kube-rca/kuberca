@@ -278,6 +278,10 @@ The project examples use Gemini for the quickest path, but OpenAI and Anthropic 
 
 Yes. Local auth works without OIDC. Google OIDC is optional and can be enabled later when you want centralized login.
 
+### Which Languages Are Supported?
+
+Currently, KubeRCA supports Korean and English.
+
 ## Contributing
 
 Issues and pull requests are welcome. If you change behavior across backend, agent, frontend, or Helm values, keep the documentation in `docs/` and component READMEs aligned with the implementation.

@@ -30,6 +30,8 @@ import { usePolling } from './hooks/usePolling';
 import { useSSE, SSEEvent } from './hooks/useSSE';
 import { exportRows, ExportColumn, ExportFormat, ExportSummary } from './utils/export';
 import { searchIncidents, searchAlerts } from './utils/searchLogic';
+import { useLanguage } from './context/LanguageContext';
+import { syncLanguageFromServer } from './context/LanguageProvider';
 
 type RawRCAItem = RCAItem & {
   created_at?: string;
@@ -89,6 +91,7 @@ const AlertDetailRoute = () => {
 
 // --- Main App ---
 function App() {
+  const { setLanguage } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -257,6 +260,21 @@ function App() {
     }
     loadData(false);
   }, [isAuthenticated, loadData]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+    let cancelled = false;
+    void syncLanguageFromServer().then((language) => {
+      if (!cancelled) {
+        void setLanguage(language);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, setLanguage]);
 
   // SSE: real-time event notifications from backend
   const handleSSEEvent = useCallback((event: SSEEvent) => {

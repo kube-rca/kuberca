@@ -23,6 +23,8 @@ func (db *Postgres) EnsureAlertSchema() error {
 			resolved_at TIMESTAMPTZ,
 			analysis_summary TEXT NOT NULL DEFAULT '',
 			analysis_detail TEXT NOT NULL DEFAULT '',
+			analysis_summary_i18n JSONB NOT NULL DEFAULT '{}',
+			analysis_detail_i18n JSONB NOT NULL DEFAULT '{}',
 			fingerprint TEXT NOT NULL DEFAULT '',
 			thread_ts TEXT NOT NULL DEFAULT '',
 			labels JSONB NOT NULL DEFAULT '{}',
@@ -36,6 +38,8 @@ func (db *Postgres) EnsureAlertSchema() error {
 		`ALTER TABLE alerts ADD COLUMN IF NOT EXISTS flap_cycle_count INT NOT NULL DEFAULT 0`,
 		`ALTER TABLE alerts ADD COLUMN IF NOT EXISTS flap_window_start TIMESTAMPTZ`,
 		`ALTER TABLE alerts ADD COLUMN IF NOT EXISTS last_flap_notification_at TIMESTAMPTZ`,
+		`ALTER TABLE alerts ADD COLUMN IF NOT EXISTS analysis_summary_i18n JSONB NOT NULL DEFAULT '{}'`,
+		`ALTER TABLE alerts ADD COLUMN IF NOT EXISTS analysis_detail_i18n JSONB NOT NULL DEFAULT '{}'`,
 		`
 		CREATE TABLE IF NOT EXISTS alert_state_transitions (
 			transition_id SERIAL PRIMARY KEY,
@@ -156,7 +160,7 @@ func (db *Postgres) GetLatestAlertByFingerprint(fingerprint string) (*model.Aler
 	query := `
 		SELECT
 			alert_id, incident_id, alarm_title, severity, status,
-			fired_at, resolved_at, analysis_summary, analysis_detail,
+			fired_at, resolved_at, analysis_summary, analysis_detail, analysis_summary_i18n, analysis_detail_i18n,
 			fingerprint, thread_ts, labels, annotations,
 			is_flapping, flap_cycle_count, flap_window_start
 		FROM alerts
@@ -166,6 +170,7 @@ func (db *Postgres) GetLatestAlertByFingerprint(fingerprint string) (*model.Aler
 	`
 
 	var a model.AlertDetailResponse
+	var summaryI18n, detailI18n []byte
 	err := db.Pool.QueryRow(context.Background(), query, fingerprint).Scan(
 		&a.AlertID,
 		&a.IncidentID,
@@ -176,6 +181,8 @@ func (db *Postgres) GetLatestAlertByFingerprint(fingerprint string) (*model.Aler
 		&a.ResolvedAt,
 		&a.AnalysisSummary,
 		&a.AnalysisDetail,
+		&summaryI18n,
+		&detailI18n,
 		&a.Fingerprint,
 		&a.ThreadTS,
 		&a.Labels,
@@ -187,13 +194,15 @@ func (db *Postgres) GetLatestAlertByFingerprint(fingerprint string) (*model.Aler
 	if err != nil {
 		return nil, err
 	}
+	a.AnalysisSummaryI18n = toLocalizedText(summaryI18n, strPtrValue(a.AnalysisSummary))
+	a.AnalysisDetailI18n = toLocalizedText(detailI18n, strPtrValue(a.AnalysisDetail))
 	return &a, nil
 }
 
 // GetAlertList - Alert 목록 조회
 func (db *Postgres) GetAlertList() ([]model.AlertListResponse, error) {
 	query := `
-		SELECT alert_id, incident_id, alarm_title, labels->>'namespace' as namespace, severity, status, fired_at, resolved_at, analysis_summary, labels
+		SELECT alert_id, incident_id, alarm_title, labels->>'namespace' as namespace, severity, status, fired_at, resolved_at, analysis_summary, analysis_summary_i18n, labels
 		FROM alerts
 		WHERE is_enabled = TRUE
 		ORDER BY fired_at DESC`
@@ -207,9 +216,11 @@ func (db *Postgres) GetAlertList() ([]model.AlertListResponse, error) {
 	var list []model.AlertListResponse
 	for rows.Next() {
 		var a model.AlertListResponse
-		if err := rows.Scan(&a.AlertID, &a.IncidentID, &a.AlarmTitle, &a.Namespace, &a.Severity, &a.Status, &a.FiredAt, &a.ResolvedAt, &a.AnalysisSummary, &a.Labels); err != nil {
+		var summaryI18n []byte
+		if err := rows.Scan(&a.AlertID, &a.IncidentID, &a.AlarmTitle, &a.Namespace, &a.Severity, &a.Status, &a.FiredAt, &a.ResolvedAt, &a.AnalysisSummary, &summaryI18n, &a.Labels); err != nil {
 			return nil, err
 		}
+		a.AnalysisSummaryI18n = toLocalizedText(summaryI18n, strPtrValue(a.AnalysisSummary))
 		list = append(list, a)
 	}
 
@@ -222,7 +233,7 @@ func (db *Postgres) GetAlertList() ([]model.AlertListResponse, error) {
 // GetAlertsByIncidentID - 특정 Incident에 속한 Alert 목록 조회
 func (db *Postgres) GetAlertsByIncidentID(incidentID string) ([]model.AlertListResponse, error) {
 	query := `
-		SELECT alert_id, incident_id, alarm_title, severity, status, fired_at, resolved_at, analysis_summary
+		SELECT alert_id, incident_id, alarm_title, severity, status, fired_at, resolved_at, analysis_summary, analysis_summary_i18n
 		FROM alerts
 		WHERE incident_id = $1 AND is_enabled = TRUE
 		ORDER BY fired_at DESC`
@@ -236,9 +247,11 @@ func (db *Postgres) GetAlertsByIncidentID(incidentID string) ([]model.AlertListR
 	var list []model.AlertListResponse
 	for rows.Next() {
 		var a model.AlertListResponse
-		if err := rows.Scan(&a.AlertID, &a.IncidentID, &a.AlarmTitle, &a.Severity, &a.Status, &a.FiredAt, &a.ResolvedAt, &a.AnalysisSummary); err != nil {
+		var summaryI18n []byte
+		if err := rows.Scan(&a.AlertID, &a.IncidentID, &a.AlarmTitle, &a.Severity, &a.Status, &a.FiredAt, &a.ResolvedAt, &a.AnalysisSummary, &summaryI18n); err != nil {
 			return nil, err
 		}
+		a.AnalysisSummaryI18n = toLocalizedText(summaryI18n, strPtrValue(a.AnalysisSummary))
 		list = append(list, a)
 	}
 
@@ -253,7 +266,7 @@ func (db *Postgres) GetAlertsWithAnalysisByIncidentID(incidentID string) ([]mode
 	query := `
 		SELECT
 			alert_id, incident_id, alarm_title, severity, status,
-			fired_at, resolved_at, analysis_summary, analysis_detail,
+			fired_at, resolved_at, analysis_summary, analysis_detail, analysis_summary_i18n, analysis_detail_i18n,
 			fingerprint, thread_ts, labels, annotations,
 			is_flapping, flap_cycle_count, flap_window_start
 		FROM alerts
@@ -269,14 +282,17 @@ func (db *Postgres) GetAlertsWithAnalysisByIncidentID(incidentID string) ([]mode
 	var list []model.AlertDetailResponse
 	for rows.Next() {
 		var a model.AlertDetailResponse
+		var summaryI18n, detailI18n []byte
 		if err := rows.Scan(
 			&a.AlertID, &a.IncidentID, &a.AlarmTitle, &a.Severity, &a.Status,
-			&a.FiredAt, &a.ResolvedAt, &a.AnalysisSummary, &a.AnalysisDetail,
+			&a.FiredAt, &a.ResolvedAt, &a.AnalysisSummary, &a.AnalysisDetail, &summaryI18n, &detailI18n,
 			&a.Fingerprint, &a.ThreadTS, &a.Labels, &a.Annotations,
 			&a.IsFlapping, &a.FlapCycleCount, &a.FlapWindowStart,
 		); err != nil {
 			return nil, err
 		}
+		a.AnalysisSummaryI18n = toLocalizedText(summaryI18n, strPtrValue(a.AnalysisSummary))
+		a.AnalysisDetailI18n = toLocalizedText(detailI18n, strPtrValue(a.AnalysisDetail))
 		list = append(list, a)
 	}
 
@@ -291,7 +307,7 @@ func (db *Postgres) GetAlertDetail(alertID string) (*model.AlertDetailResponse, 
 	query := `
 		SELECT
 			alert_id, incident_id, alarm_title, severity, status,
-			fired_at, resolved_at, analysis_summary, analysis_detail,
+			fired_at, resolved_at, analysis_summary, analysis_detail, analysis_summary_i18n, analysis_detail_i18n,
 			fingerprint, thread_ts, labels, annotations,
 			is_flapping, flap_cycle_count, flap_window_start
 		FROM alerts
@@ -299,6 +315,7 @@ func (db *Postgres) GetAlertDetail(alertID string) (*model.AlertDetailResponse, 
 	`
 
 	var a model.AlertDetailResponse
+	var summaryI18n, detailI18n []byte
 	err := db.Pool.QueryRow(context.Background(), query, alertID).Scan(
 		&a.AlertID,
 		&a.IncidentID,
@@ -309,6 +326,8 @@ func (db *Postgres) GetAlertDetail(alertID string) (*model.AlertDetailResponse, 
 		&a.ResolvedAt,
 		&a.AnalysisSummary,
 		&a.AnalysisDetail,
+		&summaryI18n,
+		&detailI18n,
 		&a.Fingerprint,
 		&a.ThreadTS,
 		&a.Labels,
@@ -321,6 +340,8 @@ func (db *Postgres) GetAlertDetail(alertID string) (*model.AlertDetailResponse, 
 	if err != nil {
 		return nil, err
 	}
+	a.AnalysisSummaryI18n = toLocalizedText(summaryI18n, strPtrValue(a.AnalysisSummary))
+	a.AnalysisDetailI18n = toLocalizedText(detailI18n, strPtrValue(a.AnalysisDetail))
 	return &a, nil
 }
 
@@ -329,7 +350,7 @@ func (db *Postgres) GetAlertDetailInsensitive(alertID string) (*model.AlertDetai
 	query := `
 		SELECT
 			alert_id, incident_id, alarm_title, severity, status,
-			fired_at, resolved_at, analysis_summary, analysis_detail,
+			fired_at, resolved_at, analysis_summary, analysis_detail, analysis_summary_i18n, analysis_detail_i18n,
 			fingerprint, thread_ts, labels, annotations,
 			is_flapping, flap_cycle_count, flap_window_start
 		FROM alerts
@@ -338,6 +359,7 @@ func (db *Postgres) GetAlertDetailInsensitive(alertID string) (*model.AlertDetai
 	`
 
 	var a model.AlertDetailResponse
+	var summaryI18n, detailI18n []byte
 	err := db.Pool.QueryRow(context.Background(), query, alertID).Scan(
 		&a.AlertID,
 		&a.IncidentID,
@@ -348,6 +370,8 @@ func (db *Postgres) GetAlertDetailInsensitive(alertID string) (*model.AlertDetai
 		&a.ResolvedAt,
 		&a.AnalysisSummary,
 		&a.AnalysisDetail,
+		&summaryI18n,
+		&detailI18n,
 		&a.Fingerprint,
 		&a.ThreadTS,
 		&a.Labels,
@@ -359,6 +383,8 @@ func (db *Postgres) GetAlertDetailInsensitive(alertID string) (*model.AlertDetai
 	if err != nil {
 		return nil, err
 	}
+	a.AnalysisSummaryI18n = toLocalizedText(summaryI18n, strPtrValue(a.AnalysisSummary))
+	a.AnalysisDetailI18n = toLocalizedText(detailI18n, strPtrValue(a.AnalysisDetail))
 	return &a, nil
 }
 
@@ -402,13 +428,17 @@ func (db *Postgres) UpdateAlertResolved(fingerprint string, resolvedAt time.Time
 }
 
 // UpdateAlertAnalysis - Alert 분석 결과 저장
-func (db *Postgres) UpdateAlertAnalysis(alertID, summary, detail string) error {
+func (db *Postgres) UpdateAlertAnalysis(alertID, summary, detail string, summaryI18n, detailI18n model.LocalizedText) error {
 	query := `
 		UPDATE alerts
-		SET analysis_summary = $2, analysis_detail = $3, updated_at = NOW()
+		SET analysis_summary = $2,
+		    analysis_detail = $3,
+		    analysis_summary_i18n = $4::jsonb,
+		    analysis_detail_i18n = $5::jsonb,
+		    updated_at = NOW()
 		WHERE alert_id = $1
 	`
-	_, err := db.Pool.Exec(context.Background(), query, alertID, summary, detail)
+	_, err := db.Pool.Exec(context.Background(), query, alertID, summary, detail, localizedJSON(summaryI18n, summary), localizedJSON(detailI18n, detail))
 	return err
 }
 

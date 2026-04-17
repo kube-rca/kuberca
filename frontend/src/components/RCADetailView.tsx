@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { RCADetail, AlertItem } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 import FeedbackSection from './FeedbackSection';
 import { FileText, Search, Link2, Sparkles } from 'lucide-react';
 import {
@@ -33,6 +34,7 @@ const severityStyles: Record<string, string> = {
 };
 
 const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => {
+  const { language } = useLanguage();
   const [data, setData] = useState<RCADetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -272,6 +274,8 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
 
   const isResolved = !!data.resolved_at;
   const isHidden = data.is_hidden ?? false; 
+  const localizedSummary = data.analysis_summary_i18n?.[language] || data.analysis_summary;
+  const localizedDetail = data.analysis_detail_i18n?.[language] || data.analysis_detail;
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 max-w-7xl mx-auto transition-colors duration-300">
@@ -473,7 +477,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                     ),
                   }}
                 >
-                  {data.analysis_summary || "*No summary information available.*"}
+                  {localizedSummary || "*No summary information available.*"}
                 </ReactMarkdown>
               </div>
             </div>
@@ -516,7 +520,7 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
                       a: ({ node: _node, ...props }) => <a className="text-blue-400 hover:text-blue-300 hover:underline transition-colors" target="_blank" rel="noopener noreferrer" {...props} />,
                     }}
                   >
-                    {data.analysis_detail || "*No detailed analysis content available.*"}
+                    {localizedDetail || "*No detailed analysis content available.*"}
                   </ReactMarkdown>
                 </div>
               </div>

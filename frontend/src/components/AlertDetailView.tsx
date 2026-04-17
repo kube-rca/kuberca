@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../context/LanguageContext';
 import { fetchAlertDetail, fetchRCAs, updateAlertIncident, triggerAlertAnalysis, resolveAlert } from '../utils/api';
 import { RCAItem, AlertAnalysisItem } from '../types';
 import FeedbackSection from './FeedbackSection';
@@ -16,6 +17,8 @@ export interface AlertDetail {
   resolved_at: string | null;
   analysis_summary: string;
   analysis_detail: string;
+  analysis_summary_i18n?: Record<string, string>;
+  analysis_detail_i18n?: Record<string, string>;
   fingerprint: string;
   thread_ts: string;
   labels: Record<string, string>;
@@ -37,6 +40,7 @@ const severityStyles: Record<string, string> = {
 };
 
 const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) => {
+  const { language } = useLanguage();
   const [data, setData] = useState<AlertDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -238,6 +242,8 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
   if (error || !data) return <div className="p-12 text-center text-rose-500 bg-rose-50 dark:bg-rose-900/20 rounded-lg m-4">{error}</div>;
 
   const isResolved = data.status === 'resolved';
+  const localizedSummary = data.analysis_summary_i18n?.[language] || data.analysis_summary;
+  const localizedDetail = data.analysis_detail_i18n?.[language] || data.analysis_detail;
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 max-w-7xl mx-auto transition-colors duration-300">
@@ -539,10 +545,10 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
                 );
               })}
             </div>
-          ) : data.analysis_summary || data.analysis_detail ? (
+          ) : localizedSummary || localizedDetail ? (
             /* Fallback: 기존 단일 분석 렌더링 (analyses 미지원 구 데이터) */
             <div className="space-y-4">
-              {data.analysis_summary && (
+              {localizedSummary && (
                 <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-lg p-5 transition-colors">
                   <div className="prose prose-sm prose-slate dark:prose-invert max-w-none text-slate-800 dark:text-slate-200 leading-relaxed">
                     <ReactMarkdown
@@ -555,12 +561,12 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
                         ),
                       }}
                     >
-                      {data.analysis_summary}
+                      {localizedSummary}
                     </ReactMarkdown>
                   </div>
                 </div>
               )}
-              {data.analysis_detail && (
+              {localizedDetail && (
                 <div className="bg-slate-900 border border-slate-700 rounded-lg overflow-hidden shadow-sm">
                   <div className="p-6 overflow-x-auto">
                     <div className="prose prose-sm prose-invert max-w-none font-mono leading-relaxed">
@@ -579,7 +585,7 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
                           a: ({ node: _node, ...props }) => <a className="text-blue-400 hover:text-blue-300 hover:underline transition-colors" target="_blank" rel="noopener noreferrer" {...props} />,
                         }}
                       >
-                        {data.analysis_detail}
+                        {localizedDetail}
                       </ReactMarkdown>
                     </div>
                   </div>

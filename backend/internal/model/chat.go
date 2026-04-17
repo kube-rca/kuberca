@@ -3,6 +3,7 @@ package model
 type ChatRequest struct {
 	Message         string `json:"message"`
 	ConversationID  string `json:"conversation_id"`
+	Language        string `json:"language,omitempty"`
 	Page            string `json:"page"`
 	Auto            bool   `json:"auto"`
 	IncidentID      string `json:"incident_id"`

@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,6 +29,8 @@ func (db *Postgres) EnsureIncidentSchema() error {
 			resolved_at TIMESTAMPTZ,
 			analysis_summary TEXT NOT NULL DEFAULT '',
 			analysis_detail TEXT NOT NULL DEFAULT '',
+			analysis_summary_i18n JSONB NOT NULL DEFAULT '{}',
+			analysis_detail_i18n JSONB NOT NULL DEFAULT '{}',
 			similar_incidents JSONB NOT NULL DEFAULT '[]',
 			created_by TEXT NOT NULL DEFAULT 'system',
 			resolved_by TEXT,
@@ -39,6 +42,8 @@ func (db *Postgres) EnsureIncidentSchema() error {
 		`CREATE INDEX IF NOT EXISTS incidents_status_idx ON incidents(status)`,
 		`CREATE INDEX IF NOT EXISTS incidents_fired_at_idx ON incidents(fired_at DESC)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS incidents_firing_uniq ON incidents(status) WHERE status = 'firing' AND is_enabled = TRUE`,
+		`ALTER TABLE incidents ADD COLUMN IF NOT EXISTS analysis_summary_i18n JSONB NOT NULL DEFAULT '{}'`,
+		`ALTER TABLE incidents ADD COLUMN IF NOT EXISTS analysis_detail_i18n JSONB NOT NULL DEFAULT '{}'`,
 	}
 
 	for _, query := range queries {
@@ -130,13 +135,14 @@ func (db *Postgres) GetIncidentDetail(id string) (*model.IncidentDetailResponse,
 	query := `
 		SELECT
 			incident_id, title, severity, status,
-			fired_at, resolved_at, analysis_summary, analysis_detail, similar_incidents,
+			fired_at, resolved_at, analysis_summary, analysis_detail, analysis_summary_i18n, analysis_detail_i18n, similar_incidents,
 			created_by, resolved_by
 		FROM incidents
 		WHERE incident_id = $1
 	`
 
 	var i model.IncidentDetailResponse
+	var summaryI18n, detailI18n []byte
 	err := db.Pool.QueryRow(context.Background(), query, id).Scan(
 		&i.IncidentID,
 		&i.Title,
@@ -146,6 +152,8 @@ func (db *Postgres) GetIncidentDetail(id string) (*model.IncidentDetailResponse,
 		&i.ResolvedAt,
 		&i.AnalysisSummary,
 		&i.AnalysisDetail,
+		&summaryI18n,
+		&detailI18n,
 		&i.SimilarIncidents,
 		&i.CreatedBy,
 		&i.ResolvedBy,
@@ -154,6 +162,8 @@ func (db *Postgres) GetIncidentDetail(id string) (*model.IncidentDetailResponse,
 	if err != nil {
 		return nil, err
 	}
+	i.AnalysisSummaryI18n = toLocalizedText(summaryI18n, strPtrValue(i.AnalysisSummary))
+	i.AnalysisDetailI18n = toLocalizedText(detailI18n, strPtrValue(i.AnalysisDetail))
 
 	return &i, nil
 }
@@ -163,7 +173,7 @@ func (db *Postgres) GetIncidentDetailInsensitive(id string) (*model.IncidentDeta
 	query := `
 		SELECT
 			incident_id, title, severity, status,
-			fired_at, resolved_at, analysis_summary, analysis_detail, similar_incidents,
+			fired_at, resolved_at, analysis_summary, analysis_detail, analysis_summary_i18n, analysis_detail_i18n, similar_incidents,
 			created_by, resolved_by
 		FROM incidents
 		WHERE lower(incident_id) = lower($1)
@@ -171,6 +181,7 @@ func (db *Postgres) GetIncidentDetailInsensitive(id string) (*model.IncidentDeta
 	`
 
 	var i model.IncidentDetailResponse
+	var summaryI18n, detailI18n []byte
 	err := db.Pool.QueryRow(context.Background(), query, id).Scan(
 		&i.IncidentID,
 		&i.Title,
@@ -180,6 +191,8 @@ func (db *Postgres) GetIncidentDetailInsensitive(id string) (*model.IncidentDeta
 		&i.ResolvedAt,
 		&i.AnalysisSummary,
 		&i.AnalysisDetail,
+		&summaryI18n,
+		&detailI18n,
 		&i.SimilarIncidents,
 		&i.CreatedBy,
 		&i.ResolvedBy,
@@ -187,6 +200,8 @@ func (db *Postgres) GetIncidentDetailInsensitive(id string) (*model.IncidentDeta
 	if err != nil {
 		return nil, err
 	}
+	i.AnalysisSummaryI18n = toLocalizedText(summaryI18n, strPtrValue(i.AnalysisSummary))
+	i.AnalysisDetailI18n = toLocalizedText(detailI18n, strPtrValue(i.AnalysisDetail))
 	return &i, nil
 }
 
@@ -199,6 +214,8 @@ func (db *Postgres) UpdateIncident(id string, req model.UpdateIncidentRequest) e
 			severity = $2,
 			analysis_summary = $3,
 			analysis_detail = $4,
+			analysis_summary_i18n = $6::jsonb,
+			analysis_detail_i18n = $7::jsonb,
 			updated_at = NOW()
 		WHERE incident_id = $5
 	`
@@ -209,6 +226,8 @@ func (db *Postgres) UpdateIncident(id string, req model.UpdateIncidentRequest) e
 		req.AnalysisSummary,
 		req.AnalysisDetail,
 		id,
+		localizedJSON(model.LocalizedText{"ko": req.AnalysisSummary}, req.AnalysisSummary),
+		localizedJSON(model.LocalizedText{"ko": req.AnalysisDetail}, req.AnalysisDetail),
 	)
 	if err != nil {
 		return err
@@ -376,14 +395,26 @@ func (db *Postgres) UpdateIncidentSeverity(incidentID, severity string) error {
 }
 
 // UpdateIncidentAnalysis - Incident 분석 결과 저장 (title 포함)
-func (db *Postgres) UpdateIncidentAnalysis(incidentID, title, summary, detail string) error {
+func (db *Postgres) UpdateIncidentAnalysis(incidentID, title, summary, detail string, summaryI18n, detailI18n model.LocalizedText) error {
 	query := `
 		UPDATE incidents
-		SET title = $2, analysis_summary = $3, analysis_detail = $4, updated_at = NOW()
+		SET title = $2,
+		    analysis_summary = $3,
+		    analysis_detail = $4,
+		    analysis_summary_i18n = $5::jsonb,
+		    analysis_detail_i18n = $6::jsonb,
+		    updated_at = NOW()
 		WHERE incident_id = $1
 	`
-	_, err := db.Pool.Exec(context.Background(), query, incidentID, title, summary, detail)
+	_, err := db.Pool.Exec(context.Background(), query, incidentID, title, summary, detail, localizedJSON(summaryI18n, summary), localizedJSON(detailI18n, detail))
 	return err
+}
+
+func strPtrValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return strings.TrimSpace(*value)
 }
 
 // CreateMockIncident - Mock 데이터 생성 (테스트용)

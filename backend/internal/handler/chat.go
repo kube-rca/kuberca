@@ -24,6 +24,10 @@ func (h *ChatHandler) Chat(c *gin.Context) {
 		return
 	}
 
+	if authUser := GetAuthUser(c); authUser != nil && req.Language == "" {
+		req.Language = authUser.PreferredLanguage
+	}
+
 	resp, err := h.svc.Chat(c.Request.Context(), req)
 	if err != nil {
 		if errors.Is(err, service.ErrInvalidChatRequest) {

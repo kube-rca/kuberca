@@ -35,6 +35,7 @@ func (db *Postgres) EnsureAuthSchema(ctx context.Context) error {
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT`,
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT`,
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS picture_url TEXT`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_language TEXT NOT NULL DEFAULT 'ko'`,
 		`ALTER TABLE users ALTER COLUMN password_hash SET DEFAULT ''`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS users_oidc_provider_sub_idx ON users(auth_provider, oidc_sub) WHERE oidc_sub IS NOT NULL`,
 		`CREATE INDEX IF NOT EXISTS users_email_idx ON users(email) WHERE email IS NOT NULL`,
@@ -48,14 +49,14 @@ func (db *Postgres) EnsureAuthSchema(ctx context.Context) error {
 	return nil
 }
 
-func (db *Postgres) CreateUser(ctx context.Context, loginID, passwordHash string) (*model.User, error) {
+func (db *Postgres) CreateUser(ctx context.Context, loginID, passwordHash, preferredLanguage string) (*model.User, error) {
 	query := `
-		INSERT INTO users (login_id, password_hash, created_at, updated_at)
-		VALUES ($1, $2, NOW(), NOW())
-		RETURNING id, login_id, password_hash, auth_provider, oidc_sub, email, display_name, picture_url, created_at, updated_at
+		INSERT INTO users (login_id, password_hash, preferred_language, created_at, updated_at)
+		VALUES ($1, $2, $3, NOW(), NOW())
+		RETURNING id, login_id, password_hash, auth_provider, oidc_sub, email, display_name, picture_url, preferred_language, created_at, updated_at
 	`
 	var user model.User
-	err := db.Pool.QueryRow(ctx, query, loginID, passwordHash).Scan(
+	err := db.Pool.QueryRow(ctx, query, loginID, passwordHash, preferredLanguage).Scan(
 		&user.ID,
 		&user.LoginID,
 		&user.PasswordHash,
@@ -64,6 +65,7 @@ func (db *Postgres) CreateUser(ctx context.Context, loginID, passwordHash string
 		&user.Email,
 		&user.DisplayName,
 		&user.PictureURL,
+		&user.PreferredLanguage,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -75,7 +77,7 @@ func (db *Postgres) CreateUser(ctx context.Context, loginID, passwordHash string
 
 func (db *Postgres) GetUserByLoginID(ctx context.Context, loginID string) (*model.User, error) {
 	query := `
-		SELECT id, login_id, password_hash, auth_provider, oidc_sub, email, display_name, picture_url, created_at, updated_at
+		SELECT id, login_id, password_hash, auth_provider, oidc_sub, email, display_name, picture_url, preferred_language, created_at, updated_at
 		FROM users
 		WHERE login_id = $1
 	`
@@ -89,6 +91,7 @@ func (db *Postgres) GetUserByLoginID(ctx context.Context, loginID string) (*mode
 		&user.Email,
 		&user.DisplayName,
 		&user.PictureURL,
+		&user.PreferredLanguage,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -100,7 +103,7 @@ func (db *Postgres) GetUserByLoginID(ctx context.Context, loginID string) (*mode
 
 func (db *Postgres) GetUserByID(ctx context.Context, userID int64) (*model.User, error) {
 	query := `
-		SELECT id, login_id, password_hash, auth_provider, oidc_sub, email, display_name, picture_url, created_at, updated_at
+		SELECT id, login_id, password_hash, auth_provider, oidc_sub, email, display_name, picture_url, preferred_language, created_at, updated_at
 		FROM users
 		WHERE id = $1
 	`
@@ -114,6 +117,7 @@ func (db *Postgres) GetUserByID(ctx context.Context, userID int64) (*model.User,
 		&user.Email,
 		&user.DisplayName,
 		&user.PictureURL,
+		&user.PreferredLanguage,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -192,7 +196,7 @@ func (db *Postgres) RotateRefreshToken(ctx context.Context, oldTokenID int64, us
 
 func (db *Postgres) GetUserByOIDCSub(ctx context.Context, provider, sub string) (*model.User, error) {
 	query := `
-		SELECT id, login_id, password_hash, auth_provider, oidc_sub, email, display_name, picture_url, created_at, updated_at
+		SELECT id, login_id, password_hash, auth_provider, oidc_sub, email, display_name, picture_url, preferred_language, created_at, updated_at
 		FROM users
 		WHERE auth_provider = $1 AND oidc_sub = $2
 	`
@@ -206,6 +210,7 @@ func (db *Postgres) GetUserByOIDCSub(ctx context.Context, provider, sub string) 
 		&user.Email,
 		&user.DisplayName,
 		&user.PictureURL,
+		&user.PreferredLanguage,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -217,7 +222,7 @@ func (db *Postgres) GetUserByOIDCSub(ctx context.Context, provider, sub string) 
 
 func (db *Postgres) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
 	query := `
-		SELECT id, login_id, password_hash, auth_provider, oidc_sub, email, display_name, picture_url, created_at, updated_at
+		SELECT id, login_id, password_hash, auth_provider, oidc_sub, email, display_name, picture_url, preferred_language, created_at, updated_at
 		FROM users
 		WHERE email = $1
 	`
@@ -231,6 +236,7 @@ func (db *Postgres) GetUserByEmail(ctx context.Context, email string) (*model.Us
 		&user.Email,
 		&user.DisplayName,
 		&user.PictureURL,
+		&user.PreferredLanguage,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -240,14 +246,14 @@ func (db *Postgres) GetUserByEmail(ctx context.Context, email string) (*model.Us
 	return &user, nil
 }
 
-func (db *Postgres) CreateOIDCUser(ctx context.Context, loginID, provider, sub, email, displayName, pictureURL string) (*model.User, error) {
+func (db *Postgres) CreateOIDCUser(ctx context.Context, loginID, provider, sub, email, displayName, pictureURL, preferredLanguage string) (*model.User, error) {
 	query := `
-		INSERT INTO users (login_id, password_hash, auth_provider, oidc_sub, email, display_name, picture_url, created_at, updated_at)
-		VALUES ($1, '', $2, $3, $4, $5, $6, NOW(), NOW())
-		RETURNING id, login_id, password_hash, auth_provider, oidc_sub, email, display_name, picture_url, created_at, updated_at
+		INSERT INTO users (login_id, password_hash, auth_provider, oidc_sub, email, display_name, picture_url, preferred_language, created_at, updated_at)
+		VALUES ($1, '', $2, $3, $4, $5, $6, $7, NOW(), NOW())
+		RETURNING id, login_id, password_hash, auth_provider, oidc_sub, email, display_name, picture_url, preferred_language, created_at, updated_at
 	`
 	var user model.User
-	err := db.Pool.QueryRow(ctx, query, loginID, provider, sub, email, displayName, pictureURL).Scan(
+	err := db.Pool.QueryRow(ctx, query, loginID, provider, sub, email, displayName, pictureURL, preferredLanguage).Scan(
 		&user.ID,
 		&user.LoginID,
 		&user.PasswordHash,
@@ -256,6 +262,7 @@ func (db *Postgres) CreateOIDCUser(ctx context.Context, loginID, provider, sub, 
 		&user.Email,
 		&user.DisplayName,
 		&user.PictureURL,
+		&user.PreferredLanguage,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -263,6 +270,16 @@ func (db *Postgres) CreateOIDCUser(ctx context.Context, loginID, provider, sub, 
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (db *Postgres) UpdateUserPreferredLanguage(ctx context.Context, userID int64, preferredLanguage string) error {
+	query := `
+		UPDATE users
+		SET preferred_language = $2, updated_at = NOW()
+		WHERE id = $1
+	`
+	_, err := db.Pool.Exec(ctx, query, userID, preferredLanguage)
+	return err
 }
 
 func IsNoRows(err error) bool {

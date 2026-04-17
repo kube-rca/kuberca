@@ -56,7 +56,7 @@ class AnalysisService:
 
     def analyze(
         self, request: AlertAnalysisRequest
-    ) -> tuple[str, str, str, dict[str, object], list[dict[str, object]]]:
+    ) -> tuple[str, str, str, dict[str, str], dict[str, str], dict[str, object], list[dict[str, object]]]:
         t_start = time.perf_counter()
 
         target = resolve_alert_target(request.alert.labels)
@@ -121,9 +121,9 @@ class AnalysisService:
             analysis = self._masker.mask_text(
                 _fallback_summary(request, k8s_context, "analysis engine not configured")
             )
-            summary, detail = _split_alert_analysis(analysis)
+            summary, detail, summary_i18n, detail_i18n = _parse_alert_analysis_result(analysis)
             masked_context = build_masked_context(engine_issue="not_configured")
-            return analysis, summary, detail, masked_context, masked_artifacts
+            return analysis, summary, detail, summary_i18n, detail_i18n, masked_context, masked_artifacts
 
         summary_key = _resolve_alert_session_id(request)
         recent_summaries = self._load_recent_summaries(summary_key)
@@ -170,7 +170,7 @@ class AnalysisService:
                         "analysis engine returned empty response",
                     )
                 )
-                summary, detail = _split_alert_analysis(analysis)
+                summary, detail, summary_i18n, detail_i18n = _parse_alert_analysis_result(analysis)
                 masked_context = build_masked_context(engine_issue="empty_response")
                 self._log_analysis_timing(
                     t_start,
@@ -180,8 +180,8 @@ class AnalysisService:
                     t_prompt,
                     t_llm,
                 )
-                return analysis, summary, detail, masked_context, masked_artifacts
-            summary, detail = _split_alert_analysis(analysis)
+                return analysis, summary, detail, summary_i18n, detail_i18n, masked_context, masked_artifacts
+            analysis, summary, detail, summary_i18n, detail_i18n = _parse_alert_analysis_result(analysis)
             self._store_summary(summary_key, summary)
             masked_context = build_masked_context()
             self._log_analysis_timing(
@@ -192,7 +192,7 @@ class AnalysisService:
                 t_prompt,
                 t_llm,
             )
-            return analysis, summary, detail, masked_context, masked_artifacts
+            return analysis, summary, detail, summary_i18n, detail_i18n, masked_context, masked_artifacts
         except Exception as exc:  # noqa: BLE001
             t_llm = time.perf_counter()
             error_cat = _categorize_analysis_error(exc)
@@ -205,7 +205,7 @@ class AnalysisService:
             analysis = self._masker.mask_text(
                 _fallback_summary(request, k8s_context, error_cat.user_message)
             )
-            summary, detail = _split_alert_analysis(analysis)
+            summary, detail, summary_i18n, detail_i18n = _parse_alert_analysis_result(analysis)
             masked_context = build_masked_context(engine_issue=error_cat.name)
             self._log_analysis_timing(
                 t_start,
@@ -215,7 +215,7 @@ class AnalysisService:
                 t_prompt,
                 t_llm,
             )
-            return analysis, summary, detail, masked_context, masked_artifacts
+            return analysis, summary, detail, summary_i18n, detail_i18n, masked_context, masked_artifacts
 
     def _log_analysis_timing(
         self,
@@ -240,7 +240,9 @@ class AnalysisService:
             total_ms,
         )
 
-    def summarize_incident(self, request: IncidentSummaryRequest) -> tuple[str, str, str]:
+    def summarize_incident(
+        self, request: IncidentSummaryRequest
+    ) -> tuple[str, str, str, dict[str, str], dict[str, str]]:
         """Synthesize final RCA summary for a resolved incident.
 
         Returns:
@@ -248,7 +250,7 @@ class AnalysisService:
         """
         if self._analysis_engine is None:
             return self._mask_incident_result(
-                _fallback_incident_summary(request, "analysis engine not configured")
+                _fallback_incident_summary_result(request, "analysis engine not configured")
             )
 
         prompt = _build_incident_summary_prompt(request, self._masker)
@@ -258,19 +260,25 @@ class AnalysisService:
             if not isinstance(result, str):
                 result = ""
             masked_result = self._masker.mask_text(result)
-            return self._mask_incident_result(_parse_incident_summary(masked_result, request.title))
+            return self._mask_incident_result(
+                _parse_incident_summary_result(masked_result, request.title)
+            )
         except Exception as exc:  # noqa: BLE001
             self._logger.exception("Incident summary analysis failed")
             return self._mask_incident_result(
-                _fallback_incident_summary(request, f"analysis failed: {exc}")
+                _fallback_incident_summary_result(request, f"analysis failed: {exc}")
             )
 
-    def _mask_incident_result(self, result: tuple[str, str, str]) -> tuple[str, str, str]:
-        title, summary, detail = result
+    def _mask_incident_result(
+        self, result: tuple[str, str, str, dict[str, str], dict[str, str]]
+    ) -> tuple[str, str, str, dict[str, str], dict[str, str]]:
+        title, summary, detail, summary_i18n, detail_i18n = result
         return (
             self._masker.mask_text(title),
             self._masker.mask_text(summary),
             self._masker.mask_text(detail),
+            {key: self._masker.mask_text(value) for key, value in summary_i18n.items()},
+            {key: self._masker.mask_text(value) for key, value in detail_i18n.items()},
         )
 
     def _load_recent_summaries(self, session_id: str) -> list[str]:
@@ -463,15 +471,18 @@ def _build_prompt(
             "You are kube-rca-agent. This is a RESOLVED alert.\n"
             "Your goal is NOT to repeat the root cause analysis from the firing phase.\n"
             "Focus on recovery confirmation and post-incident insights.\n\n"
-            "Return your response in Korean with the following structure:\n"
-            "1) 요약 (Summary): Recovery confirmation + key metric changes.\n"
-            "2) 상세 분석 (Detail):\n"
-            "   #### 복구 확인 (Recovery Confirmation)\n"
-            "   #### 장애 영향 (Impact Assessment) - 장애 지속 시간, 영향 범위\n"
-            "   #### 이전 분석 대비 변화 (Delta Analysis)\n"
-            "   #### 재발 방지 권고 (Prevention Recommendations)\n"
+            "Return ONLY valid JSON with this exact shape:\n"
+            "{\n"
+            '  "ko": {"summary": "...", "detail": "..."},\n'
+            '  "en": {"summary": "...", "detail": "..."}\n'
+            "}\n"
+            "The `ko.detail` and `en.detail` values must be markdown strings.\n"
+            "Resolved alert detail structure:\n"
+            "- #### 복구 확인 (Recovery Confirmation)\n"
+            "- #### 장애 영향 (Impact Assessment)\n"
+            "- #### 이전 분석 대비 변화 (Delta Analysis)\n"
+            "- #### 재발 방지 권고 (Prevention Recommendations)\n"
             "Formatting rules:\n"
-            "- Use markdown headers: '### 1) 요약 (Summary)' and '### 2) 상세 분석 (Detail)'.\n"
             "- Use '####' for subsections.\n"
             "- Leave one blank line between sections/subsections.\n"
             "- Use '-' for unordered lists (do not use '*').\n"
@@ -488,10 +499,13 @@ def _build_prompt(
         prompt = (
             "You are kube-rca-agent. Analyze the alert using the provided Kubernetes context.\n"
             "Your audience is a human operator reading this on Slack.\n"
-            "Return your response in Korean with the following structure:\n"
-            "1) 요약 (Summary): 3-5 sentences. Include root cause + impact + next action.\n"
-            "2) 상세 분석 (Detail): Use sections for "
-            "근본 원인, 확인 근거, 조치 사항, 누락된 데이터.\n"
+            "Return ONLY valid JSON with this exact shape:\n"
+            "{\n"
+            '  "ko": {"summary": "...", "detail": "..."},\n'
+            '  "en": {"summary": "...", "detail": "..."}\n'
+            "}\n"
+            "`ko.summary` and `en.summary` should be 3-5 sentences including root cause, impact, and next action.\n"
+            "`ko.detail` and `en.detail` must be markdown strings using sections for 근본 원인, 확인 근거, 조치 사항, 누락된 데이터.\n"
             "\n"
             "Analysis behavior:\n"
             "- ACTIVELY use tools to discover information. "
@@ -512,7 +526,6 @@ def _build_prompt(
             "without direct evidence.\n"
             "\n"
             "Formatting rules:\n"
-            "- Use markdown headers: '### 1) 요약 (Summary)' and '### 2) 상세 분석 (Detail)'.\n"
             "- Each subsection MUST start with a bold '####' markdown header exactly as shown:\n"
             "  #### **근본 원인**\n"
             "  #### **확인 근거**\n"
@@ -1180,9 +1193,9 @@ def _to_pretty_json(payload: dict[str, Any]) -> str:
     return json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True)
 
 
-def _fallback_incident_summary(
+def _fallback_incident_summary_result(
     request: IncidentSummaryRequest, reason: str
-) -> tuple[str, str, str]:
+) -> tuple[str, str, str, dict[str, str], dict[str, str]]:
     """Generate fallback summary when analysis engine is unavailable."""
     alert_names = [a.alert_name for a in request.alerts]
     title = request.title  # Keep original title
@@ -1197,7 +1210,10 @@ def _fallback_incident_summary(
         "",
         f"분석 엔진 오류: {reason}",
     ]
-    return title, summary, "\n".join(detail_lines)
+    detail = "\n".join(detail_lines)
+    summary_i18n = {"ko": summary, "en": summary}
+    detail_i18n = {"ko": detail, "en": detail}
+    return title, summary, detail, summary_i18n, detail_i18n
 
 
 _TITLE_MAX_LEN = 100
@@ -1274,6 +1290,80 @@ def _parse_incident_summary(result: str, original_title: str) -> tuple[str, str,
     return title, summary, detail
 
 
+def _parse_bilingual_payload(result: str) -> dict[str, Any] | None:
+    stripped = result.strip()
+    if stripped.startswith("```"):
+        lines = stripped.splitlines()
+        if len(lines) >= 3:
+            stripped = "\n".join(lines[1:-1]).strip()
+    if not stripped.startswith("{"):
+        return None
+    try:
+        payload = json.loads(stripped)
+    except json.JSONDecodeError:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _normalize_i18n_texts(
+    ko_value: str,
+    en_value: str,
+) -> tuple[dict[str, str], str, str]:
+    ko_text = ko_value.strip() or en_value.strip()
+    en_text = en_value.strip() or ko_text
+    return {"ko": ko_text, "en": en_text}, ko_text, en_text
+
+
+def _compose_alert_analysis(summary: str, detail: str) -> str:
+    return f"### 1) 요약 (Summary)\n{summary.strip()}\n\n### 2) 상세 분석 (Detail)\n{detail.strip()}".strip()
+
+
+def _parse_alert_analysis_result(
+    result: str,
+) -> tuple[str, str, str, dict[str, str], dict[str, str]]:
+    payload = _parse_bilingual_payload(result)
+    if payload is not None:
+        ko = payload.get("ko") if isinstance(payload.get("ko"), dict) else {}
+        en = payload.get("en") if isinstance(payload.get("en"), dict) else {}
+        ko_summary = str(ko.get("summary", "")).strip()
+        ko_detail = str(ko.get("detail", "")).strip()
+        en_summary = str(en.get("summary", "")).strip()
+        en_detail = str(en.get("detail", "")).strip()
+        summary_i18n, ko_summary, _ = _normalize_i18n_texts(ko_summary, en_summary)
+        detail_i18n, ko_detail, _ = _normalize_i18n_texts(ko_detail, en_detail)
+        analysis = _compose_alert_analysis(ko_summary, ko_detail)
+        return analysis, ko_summary, ko_detail, summary_i18n, detail_i18n
+
+    summary, detail = _split_alert_analysis(result)
+    summary_i18n = {"ko": summary, "en": summary}
+    detail_i18n = {"ko": detail, "en": detail}
+    return result, summary, detail, summary_i18n, detail_i18n
+
+
+def _parse_incident_summary_result(
+    result: str, original_title: str
+) -> tuple[str, str, str, dict[str, str], dict[str, str]]:
+    payload = _parse_bilingual_payload(result)
+    if payload is not None:
+        title = str(payload.get("title", "")).strip() or original_title
+        ko = payload.get("ko") if isinstance(payload.get("ko"), dict) else {}
+        en = payload.get("en") if isinstance(payload.get("en"), dict) else {}
+        summary_i18n, ko_summary, _ = _normalize_i18n_texts(
+            str(ko.get("summary", "")).strip(),
+            str(en.get("summary", "")).strip(),
+        )
+        detail_i18n, ko_detail, _ = _normalize_i18n_texts(
+            str(ko.get("detail", "")).strip(),
+            str(en.get("detail", "")).strip(),
+        )
+        return title, ko_summary, ko_detail, summary_i18n, detail_i18n
+
+    title, summary, detail = _parse_incident_summary(result, original_title)
+    summary_i18n = {"ko": summary, "en": summary}
+    detail_i18n = {"ko": detail, "en": detail}
+    return title, summary, detail, summary_i18n, detail_i18n
+
+
 def _build_incident_summary_prompt(request: IncidentSummaryRequest, masker: Masker) -> str:
     alerts_info = []
     for alert in request.alerts:
@@ -1306,20 +1396,16 @@ def _build_incident_summary_prompt(request: IncidentSummaryRequest, masker: Mask
         "comprehensive incident summary. Every distinct alert type "
         "(e.g. 5xx errors AND 4xx errors) must be addressed in the summary "
         "and detail sections.\n\n"
-        "IMPORTANT: Use EXACTLY this format with colon separators:\n"
-        "**제목 (Title)**: A concise incident title (max 100 chars) that includes:\n"
-        "  - The specific service/pod/namespace affected\n"
-        "  - The root cause or error type\n"
-        "  - Examples:\n"
-        "    - '[payment-service] OOMKilled로 인한 Pod 재시작'\n"
-        "    - '[nginx/prod] ImagePullBackOff - 잘못된 이미지 태그'\n"
-        "    - '[redis-cluster] 메모리 부족으로 인한 연결 실패'\n"
-        "**요약 (Summary)**: 1-2 sentences describing the root cause and resolution\n"
-        "**상세 분석 (Detail)**:\n"
-        "  - 근본 원인 (Root Cause)\n"
-        "  - 영향 범위 (Impact)\n"
-        "  - 해결 과정 (Resolution)\n"
-        "  - 재발 방지 권고 (Prevention Recommendations)\n\n"
+        "Return ONLY valid JSON with this exact shape:\n"
+        "{\n"
+        '  "title": "...",\n'
+        '  "ko": {"summary": "...", "detail": "..."},\n'
+        '  "en": {"summary": "...", "detail": "..."}\n'
+        "}\n"
+        "Requirements:\n"
+        "- `title` must be a concise incident title (max 100 chars).\n"
+        "- `ko.summary` and `en.summary` should be 1-2 sentences describing the root cause and resolution.\n"
+        "- `ko.detail` and `en.detail` must be markdown strings covering 근본 원인, 영향 범위, 해결 과정, 재발 방지 권고.\n\n"
         f"Incident data:\n{_to_pretty_json(incident_data)}\n"
     )
 

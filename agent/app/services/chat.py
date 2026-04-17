@@ -40,6 +40,8 @@ def _to_pretty_json(payload: dict[str, Any]) -> str:
 def _build_chat_prompt(request: ChatRequest, masker: Masker) -> str:
     """Build prompt for chat Q&A about an incident."""
     user_msg = masker.mask_text(request.message).strip() or "Tell me about this incident."
+    language = "en" if (request.language or "").strip().lower() == "en" else "ko"
+    response_language = "English" if language == "en" else "Korean"
     base = (
         "You are kube-rca-agent. A user is asking a question about an incident. "
         "Answer based on the incident/alert context provided and any prior analysis. "
@@ -47,7 +49,8 @@ def _build_chat_prompt(request: ChatRequest, masker: Masker) -> str:
         "use them if needed to look up metrics, logs, or traces. "
         "For questions like 'What metric triggered this alert?', "
         "check context/artifacts for Prometheus queries (query field). "
-        "Respond concisely in English unless the user asks in another language.\n\n"
+        f"Respond concisely in {response_language}. "
+        "Follow the selected UI language even if the user's question is in a different language.\n\n"
     )
     ctx = request.context
     if ctx:

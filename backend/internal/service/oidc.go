@@ -123,7 +123,7 @@ type oidcClaims struct {
 	Sub           string `json:"sub"`
 }
 
-func (s *OIDCService) HandleCallback(ctx context.Context, code, codeVerifier, expectedNonce string) (*model.User, error) {
+func (s *OIDCService) HandleCallback(ctx context.Context, code, codeVerifier, expectedNonce, preferredLanguage string) (*model.User, error) {
 	opts := []oauth2.AuthCodeOption{}
 	if codeVerifier != "" {
 		opts = append(opts, oauth2.SetAuthURLParam("code_verifier", codeVerifier))
@@ -161,7 +161,7 @@ func (s *OIDCService) HandleCallback(ctx context.Context, code, codeVerifier, ex
 		return nil, ErrOIDCNotAllowed
 	}
 
-	user, err := s.findOrCreateUser(ctx, claims)
+	user, err := s.findOrCreateUser(ctx, claims, normalizePreferredLanguage(preferredLanguage))
 	if err != nil {
 		return nil, err
 	}
@@ -203,9 +203,15 @@ func (s *OIDCService) checkAllowlist(email string) bool {
 	return false
 }
 
-func (s *OIDCService) findOrCreateUser(ctx context.Context, claims oidcClaims) (*model.User, error) {
+func (s *OIDCService) findOrCreateUser(ctx context.Context, claims oidcClaims, preferredLanguage string) (*model.User, error) {
 	user, err := s.repo.GetUserByOIDCSub(ctx, "oidc", claims.Sub)
 	if err == nil {
+		if user.PreferredLanguage != preferredLanguage {
+			if updateErr := s.repo.UpdateUserPreferredLanguage(ctx, user.ID, preferredLanguage); updateErr != nil {
+				return nil, updateErr
+			}
+			user.PreferredLanguage = preferredLanguage
+		}
 		return user, nil
 	}
 	if !db.IsNoRows(err) {
@@ -220,7 +226,7 @@ func (s *OIDCService) findOrCreateUser(ctx context.Context, claims oidcClaims) (
 	if pictureURL != "" && !strings.HasPrefix(pictureURL, "https://") {
 		pictureURL = ""
 	}
-	user, err = s.repo.CreateOIDCUser(ctx, loginID, "oidc", claims.Sub, claims.Email, claims.Name, pictureURL)
+	user, err = s.repo.CreateOIDCUser(ctx, loginID, "oidc", claims.Sub, claims.Email, claims.Name, pictureURL, preferredLanguage)
 	if err != nil {
 		if isUniqueViolation(err) {
 			user, err = s.repo.GetUserByOIDCSub(ctx, "oidc", claims.Sub)

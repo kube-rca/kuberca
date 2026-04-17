@@ -171,6 +171,7 @@ func main() {
 		auth.POST("/logout", authHandler.Logout)
 		auth.GET("/config", authHandler.Config)
 		auth.GET("/me", handler.AuthMiddleware(authService), authHandler.Me)
+		auth.PATCH("/me/language", handler.AuthMiddleware(authService), authHandler.UpdatePreferredLanguage)
 		if oidcHandler != nil {
 			auth.GET("/oidc/login", oidcHandler.Login)
 			auth.GET("/oidc/callback", oidcHandler.Callback)

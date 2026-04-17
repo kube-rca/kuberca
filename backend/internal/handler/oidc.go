@@ -16,6 +16,7 @@ const (
 	oidcStateCookie    = "kube_rca_oidc_state"
 	oidcNonceCookie    = "kube_rca_oidc_nonce"
 	oidcVerifierCookie = "kube_rca_oidc_verifier"
+	oidcLanguageCookie = "kube_rca_oidc_language"
 	oidcCookieMaxAge   = 600 // 10 minutes
 )
 
@@ -58,6 +59,7 @@ func (h *OIDCHandler) Login(c *gin.Context) {
 	c.SetCookie(oidcStateCookie, state, oidcCookieMaxAge, cookieCfg.Path, cookieCfg.Domain, cookieCfg.Secure, true)
 	c.SetCookie(oidcNonceCookie, nonce, oidcCookieMaxAge, cookieCfg.Path, cookieCfg.Domain, cookieCfg.Secure, true)
 	c.SetCookie(oidcVerifierCookie, codeVerifier, oidcCookieMaxAge, cookieCfg.Path, cookieCfg.Domain, cookieCfg.Secure, true)
+	c.SetCookie(oidcLanguageCookie, c.DefaultQuery("preferred_language", "ko"), oidcCookieMaxAge, cookieCfg.Path, cookieCfg.Domain, cookieCfg.Secure, true)
 
 	authURL := h.svc.AuthURLWithPKCE(state, nonce, codeChallenge)
 	c.Redirect(http.StatusFound, authURL)
@@ -97,10 +99,11 @@ func (h *OIDCHandler) Callback(c *gin.Context) {
 	}
 
 	savedVerifier, _ := c.Cookie(oidcVerifierCookie)
+	savedLanguage, _ := c.Cookie(oidcLanguageCookie)
 
 	h.clearOIDCCookies(c)
 
-	user, err := h.svc.HandleCallback(c.Request.Context(), code, savedVerifier, savedNonce)
+	user, err := h.svc.HandleCallback(c.Request.Context(), code, savedVerifier, savedNonce, savedLanguage)
 	if err != nil {
 		log.Printf("OIDC callback error: %v", err)
 		if errors.Is(err, service.ErrOIDCNotAllowed) {
@@ -131,6 +134,7 @@ func (h *OIDCHandler) clearOIDCCookies(c *gin.Context) {
 	c.SetCookie(oidcStateCookie, "", -1, cookieCfg.Path, cookieCfg.Domain, cookieCfg.Secure, true)
 	c.SetCookie(oidcNonceCookie, "", -1, cookieCfg.Path, cookieCfg.Domain, cookieCfg.Secure, true)
 	c.SetCookie(oidcVerifierCookie, "", -1, cookieCfg.Path, cookieCfg.Domain, cookieCfg.Secure, true)
+	c.SetCookie(oidcLanguageCookie, "", -1, cookieCfg.Path, cookieCfg.Domain, cookieCfg.Secure, true)
 }
 
 func randomString(n int) (string, error) {

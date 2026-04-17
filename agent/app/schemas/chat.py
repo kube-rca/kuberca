@@ -8,6 +8,7 @@ class ChatRequest(BaseModel):
 
     message: str
     conversation_id: str | None = None
+    language: str | None = None
     context: dict[str, object] | None = None
     metadata: dict[str, object] | None = None
 
