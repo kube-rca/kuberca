@@ -1,7 +1,7 @@
 backend:
   image:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr/backend
-    tag: backend-15ce6ef
+    tag: backend-d7521b6
   auth:
     secret:
       existingSecret: kube-rca-auth
@@ -43,7 +43,7 @@ backend:
 frontend:
   image:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr/frontend
-    tag: frontend-e224e59
+    tag: frontend-d7521b6
   ingress:
     enabled: true
     ingressClassName: nginx
