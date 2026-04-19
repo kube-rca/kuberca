@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.1.0](https://github.com/kube-rca/kuberca/compare/v1.0.0...v1.1.0) (2026-04-19)
+
+
+### Features
+
+* add ENG ver. ([d7521b6](https://github.com/kube-rca/kuberca/commit/d7521b600d121352a404466b6ab2c499f1e51cd8))
+* **chaos:** harden teardown to prevent residual pod-netns state ([#9](https://github.com/kube-rca/kuberca/issues/9)) ([75d4a59](https://github.com/kube-rca/kuberca/commit/75d4a59fd2148e82e4c0a911332ae26f02de684b))
+
+
+### Bug Fixes
+
+* **agent:** reduce incident summary prompt size and raise anthropic max tokens ([#8](https://github.com/kube-rca/kuberca/issues/8)) ([39025a3](https://github.com/kube-rca/kuberca/commit/39025a3a9e6ec50b9e6f3f2659cb9a7cc65815d7))
+* **frontend:** bump vite to 7.3.2 for security patches ([e224e59](https://github.com/kube-rca/kuberca/commit/e224e593e92f4d2dd2141867f50ee1e16f2cd4a5))
+* lint error ([9977099](https://github.com/kube-rca/kuberca/commit/997709930432dc6758aac0e9bec4d20caf4ca629))
+* test error ([fdcd0ce](https://github.com/kube-rca/kuberca/commit/fdcd0ce19aacbb121fee4e52a30ec4eb44c7e537))
+
 ## 1.0.0 (2026-04-05)
 
 
