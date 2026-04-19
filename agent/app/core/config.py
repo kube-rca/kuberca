@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 
 DEFAULT_GEMINI_MODEL_ID = "gemini-3-flash-preview"
-DEFAULT_ANTHROPIC_MAX_TOKENS = 4096
+DEFAULT_ANTHROPIC_MAX_TOKENS = 8192
 DEFAULT_AI_PROVIDER = "gemini"
 
 

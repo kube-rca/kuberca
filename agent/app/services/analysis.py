@@ -317,7 +317,11 @@ class AnalysisService:
                 _fallback_incident_summary_result(request, "analysis engine not configured")
             )
 
-        prompt = _build_incident_summary_prompt(request, self._masker)
+        prompt = _build_incident_summary_prompt(
+            request,
+            self._masker,
+            self._prompt_token_budget,
+        )
         try:
             session_id = _resolve_summary_session_id(request)
             result = self._analysis_engine.analyze(prompt, session_id)
@@ -1284,6 +1288,12 @@ def _fallback_incident_summary_result(
 
 _TITLE_MAX_LEN = 100
 _SUMMARY_MAX_LEN = 300
+_INCIDENT_SUMMARY_MAX_SUMMARY_HIGHLIGHTS = 2
+_INCIDENT_SUMMARY_MAX_DETAIL_EXCERPTS = 2
+_INCIDENT_SUMMARY_MAX_SAMPLE_FINGERPRINTS = 3
+_INCIDENT_SUMMARY_MAX_ARTIFACT_TYPES = 4
+_INCIDENT_SUMMARY_SUMMARY_CHAR_LIMIT = 240
+_INCIDENT_SUMMARY_DETAIL_CHAR_LIMIT = 320
 
 
 _BOLD_VALUE_RE = re.compile(r"^(?:\d+\.\s*)?\*{1,2}[^*]+\*{1,2}\s*(.*)", re.DOTALL)
@@ -1433,38 +1443,203 @@ def _parse_incident_summary_result(
     return title, summary, detail, summary_i18n, detail_i18n
 
 
-def _build_incident_summary_prompt(request: IncidentSummaryRequest, masker: Masker) -> str:
-    alerts_info = []
-    for alert in request.alerts:
-        alert_data = {
-            "fingerprint": alert.fingerprint,
-            "alert_name": alert.alert_name,
-            "severity": alert.severity,
-            "status": alert.status,
-            "analysis_summary": alert.analysis_summary or "N/A",
-            "analysis_detail": alert.analysis_detail or "N/A",
-            "artifacts": [artifact.model_dump() for artifact in alert.artifacts or []],
-        }
-        alerts_info.append(alert_data)
+def _truncate_text(value: str | None, limit: int) -> str:
+    if not value:
+        return ""
+    normalized = " ".join(value.split())
+    if len(normalized) <= limit:
+        return normalized
+    return normalized[: limit - 1].rstrip() + "…"
 
-    incident_data = {
+
+def _append_unique_excerpt(
+    values: list[str],
+    candidate: str | None,
+    *,
+    max_items: int,
+    max_chars: int,
+) -> None:
+    excerpt = _truncate_text(candidate, max_chars)
+    if not excerpt or excerpt in values or len(values) >= max_items:
+        return
+    values.append(excerpt)
+
+
+def _extract_detail_excerpt(detail: str | None) -> str:
+    if not detail:
+        return ""
+    excerpt = _extract_first_paragraph(detail)
+    if not excerpt:
+        excerpt = detail
+    return _truncate_text(excerpt, _INCIDENT_SUMMARY_DETAIL_CHAR_LIMIT)
+
+
+def _build_incident_alert_groups(request: IncidentSummaryRequest) -> list[dict[str, object]]:
+    groups: dict[tuple[str, str], dict[str, object]] = {}
+
+    for alert in request.alerts:
+        key = (alert.alert_name, alert.severity)
+        group = groups.setdefault(
+            key,
+            {
+                "alert_name": alert.alert_name,
+                "severity": alert.severity,
+                "occurrences": 0,
+                "statuses": [],
+                "sample_fingerprints": [],
+                "analysis_summaries": [],
+                "detail_excerpts": [],
+                "artifact_types": [],
+            },
+        )
+
+        group["occurrences"] = int(group["occurrences"]) + 1
+
+        statuses = cast(list[str], group["statuses"])
+        if alert.status and alert.status not in statuses:
+            statuses.append(alert.status)
+
+        sample_fingerprints = cast(list[str], group["sample_fingerprints"])
+        if (
+            alert.fingerprint
+            and alert.fingerprint not in sample_fingerprints
+            and len(sample_fingerprints) < _INCIDENT_SUMMARY_MAX_SAMPLE_FINGERPRINTS
+        ):
+            sample_fingerprints.append(alert.fingerprint)
+
+        _append_unique_excerpt(
+            cast(list[str], group["analysis_summaries"]),
+            alert.analysis_summary,
+            max_items=_INCIDENT_SUMMARY_MAX_SUMMARY_HIGHLIGHTS,
+            max_chars=_INCIDENT_SUMMARY_SUMMARY_CHAR_LIMIT,
+        )
+        _append_unique_excerpt(
+            cast(list[str], group["detail_excerpts"]),
+            _extract_detail_excerpt(alert.analysis_detail),
+            max_items=_INCIDENT_SUMMARY_MAX_DETAIL_EXCERPTS,
+            max_chars=_INCIDENT_SUMMARY_DETAIL_CHAR_LIMIT,
+        )
+
+        artifact_types = cast(list[str], group["artifact_types"])
+        for artifact in alert.artifacts or []:
+            artifact_type = _truncate_text(artifact.type, 64)
+            if (
+                artifact_type
+                and artifact_type not in artifact_types
+                and len(artifact_types) < _INCIDENT_SUMMARY_MAX_ARTIFACT_TYPES
+            ):
+                artifact_types.append(artifact_type)
+
+    return list(groups.values())
+
+
+def _build_incident_summary_payload(request: IncidentSummaryRequest) -> dict[str, object]:
+    alert_groups = _build_incident_alert_groups(request)
+    return {
         "incident_id": request.incident_id,
         "title": request.title,
         "severity": request.severity,
         "fired_at": request.fired_at,
         "resolved_at": request.resolved_at,
         "alert_count": len(request.alerts),
-        "alerts": alerts_info,
+        "distinct_alert_types": len(alert_groups),
+        "alert_groups": alert_groups,
     }
+
+
+def _reduce_incident_summary_payload(
+    payload: dict[str, object],
+    *,
+    include_summaries: bool,
+    include_details: bool,
+    include_fingerprints: bool,
+) -> dict[str, object]:
+    reduced = dict(payload)
+    reduced_groups: list[dict[str, object]] = []
+
+    for raw_group in payload.get("alert_groups", []):
+        if not isinstance(raw_group, dict):
+            continue
+        group = {
+            "alert_name": raw_group.get("alert_name"),
+            "severity": raw_group.get("severity"),
+            "occurrences": raw_group.get("occurrences"),
+            "statuses": raw_group.get("statuses"),
+            "artifact_types": raw_group.get("artifact_types"),
+        }
+        if include_fingerprints and raw_group.get("sample_fingerprints"):
+            group["sample_fingerprints"] = raw_group.get("sample_fingerprints")
+        if include_summaries and raw_group.get("analysis_summaries"):
+            group["analysis_summaries"] = raw_group.get("analysis_summaries")
+        if include_details and raw_group.get("detail_excerpts"):
+            group["detail_excerpts"] = raw_group.get("detail_excerpts")
+        reduced_groups.append(group)
+
+    reduced["alert_groups"] = reduced_groups
+    return reduced
+
+
+def _apply_incident_summary_budget(
+    prompt_prefix: str,
+    incident_data: dict[str, object],
+    prompt_token_budget: int,
+) -> str:
+    budget_chars = _prompt_budget_to_chars(prompt_token_budget)
+
+    def render(payload: dict[str, object]) -> str:
+        return prompt_prefix + f"Incident data:\n{_to_pretty_json(cast(dict[str, Any], payload))}\n"
+
+    full_prompt = render(incident_data)
+    if budget_chars <= 0 or len(full_prompt) <= budget_chars:
+        return full_prompt
+
+    reduced_variants = [
+        _reduce_incident_summary_payload(
+            incident_data,
+            include_summaries=True,
+            include_details=False,
+            include_fingerprints=True,
+        ),
+        _reduce_incident_summary_payload(
+            incident_data,
+            include_summaries=True,
+            include_details=False,
+            include_fingerprints=False,
+        ),
+        _reduce_incident_summary_payload(
+            incident_data,
+            include_summaries=False,
+            include_details=False,
+            include_fingerprints=False,
+        ),
+    ]
+
+    for candidate_payload in reduced_variants:
+        candidate_prompt = render(candidate_payload)
+        if len(candidate_prompt) <= budget_chars:
+            return candidate_prompt
+
+    return render(reduced_variants[-1])
+
+
+def _build_incident_summary_prompt(
+    request: IncidentSummaryRequest,
+    masker: Masker,
+    prompt_token_budget: int,
+) -> str:
+    incident_data = _build_incident_summary_payload(request)
     incident_data = cast(dict[str, Any], masker.mask_object(incident_data))
 
-    return (
+    prompt_prefix = (
         "You are kube-rca-agent. An incident has been resolved and you need to "
         "provide a final RCA summary.\n"
         "Analyze ALL alerts and their individual analyses to synthesize a "
         "comprehensive incident summary. Every distinct alert type "
         "(e.g. 5xx errors AND 4xx errors) must be addressed in the summary "
-        "and detail sections.\n\n"
+        "and detail sections.\n"
+        "Repeated alerts are already grouped in `alert_groups`; use `occurrences` "
+        "to understand repetition, and treat `analysis_summaries` / "
+        "`detail_excerpts` as representative excerpts from per-alert RCA.\n\n"
         "Return ONLY valid JSON with this exact shape:\n"
         "{\n"
         '  "title": "...",\n'
@@ -1477,8 +1652,8 @@ def _build_incident_summary_prompt(request: IncidentSummaryRequest, masker: Mask
         "describing the root cause and resolution.\n"
         "- `ko.detail` and `en.detail` must be markdown strings covering "
         "근본 원인, 영향 범위, 해결 과정, 재발 방지 권고.\n\n"
-        f"Incident data:\n{_to_pretty_json(incident_data)}\n"
     )
+    return _apply_incident_summary_budget(prompt_prefix, incident_data, prompt_token_budget)
 
 
 def _split_alert_analysis(result: str) -> tuple[str, str]:
