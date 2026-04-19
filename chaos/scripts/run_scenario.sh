@@ -45,6 +45,10 @@ log_ok() { printf "[OK] %s\n" "$*"; }
 log_warn() { printf "[WARN] %s\n" "$*" >&2; }
 log_error() { printf "[ERROR] %s\n" "$*" >&2; }
 
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=./lib_chaos.sh
+. "${SCRIPT_DIR}/lib_chaos.sh"
+
 is_valid_percentage() {
   local value=$1
   [[ "$value" =~ ^(100([.]0+)?|[0-9]{1,2}([.][0-9]+)?)$ ]]
@@ -170,6 +174,11 @@ REASON_MODE="waiting"
 USE_FAULT_PERCENTAGE="false"
 TMP_MANIFEST=""
 ORIG_CHAOS_MANIFEST=""
+# NEEDS_POD_RESTART=true for scenarios whose chaos leaves pod-netns state
+# (tc qdisc / iptables / BPF maps) that kubectl delete does not revert.
+# Such pods must be rollout-restarted during cleanup to guarantee a clean
+# baseline. Istio-only scenarios default to false; opt-in with FORCE_RESTART=true.
+NEEDS_POD_RESTART="false"
 
 case "$SCENARIO" in
   oomkilled)
@@ -180,6 +189,7 @@ case "$SCENARIO" in
     EXPECTED_REASON="OOMKilled"
     REASON_MODE="oom"
     DEFAULT_NAMESPACE="bookinfo"
+    NEEDS_POD_RESTART="true"
     ;;
   crashloop)
     TARGET_MANIFEST="${SCENARIOS_DIR}/crashloop/target-deployment.yaml"
@@ -197,6 +207,7 @@ case "$SCENARIO" in
   networkdelay)
     CHAOS_MANIFEST="${SCENARIOS_DIR}/networkdelay/network-delay.yaml"
     LABEL_SELECTOR="app=ratings"
+    NEEDS_POD_RESTART="true"
     ;;
   404)
     CHAOS_MANIFEST="${SCENARIOS_DIR}/404/fault-abort.yaml"
@@ -241,6 +252,21 @@ fi
 
 ensure_non_conflicting_ratings_faults
 
+# Residual-chaos preflight. A prior run that failed to teardown can leave
+# pod-scoped chaos state (podnetworkchaos etc.) behind; starting a new run
+# on top compounds the problem and was the root of the 2026-04-19 RCA.
+# Override with FORCE=true if intentional (e.g. reproducing a bug).
+residual=$(find_residual_chaos_objects "$NAMESPACE")
+if [ -n "$residual" ]; then
+  log_warn "Residual chaos objects detected in ${NAMESPACE}:"
+  printf '%s\n' "$residual" | sed 's|^|  |' >&2
+  if [ "${FORCE:-false}" != "true" ]; then
+    log_error "Refusing to start. Run 'make verify-clean' / 'make clean-all', or set FORCE=true to override."
+    exit 1
+  fi
+  log_warn "FORCE=true — proceeding despite residual state"
+fi
+
 if [ -n "$TARGET_MANIFEST" ]; then
   require_file "$TARGET_MANIFEST"
 fi
@@ -266,6 +292,8 @@ fi
 cleanup() {
   trap '' INT TERM
   log_info "Cleaning up..."
+
+  # 1. Delete chaos + target manifests (same as before).
   local cleanup_manifest="${ORIG_CHAOS_MANIFEST:-$CHAOS_MANIFEST}"
   if [ -n "$cleanup_manifest" ]; then
     kubectl_local -n "$NAMESPACE" delete -f "$cleanup_manifest" --ignore-not-found=true || true
@@ -273,6 +301,43 @@ cleanup() {
   if [ -n "$TARGET_MANIFEST" ]; then
     kubectl_local -n "$NAMESPACE" delete -f "$TARGET_MANIFEST" --ignore-not-found=true || true
   fi
+
+  # 2. Wait for Chaos Mesh pod-scoped CRDs to finalize. Chaos Mesh removes
+  # podnetworkchaos / podiochaos / podhttpchaos asynchronously via finalizer.
+  # If we restart before finalizer runs, the rules stay in pod netns.
+  if [ "$NEEDS_POD_RESTART" = "true" ]; then
+    for kind in "${CHAOS_POD_KINDS[@]}"; do
+      if ! wait_for_chaos_finalizer "$NAMESPACE" "$kind" 30; then
+        log_warn "${kind} still present in ${NAMESPACE} after 30s; restarting anyway"
+      fi
+    done
+  fi
+
+  # 3. Rollout restart affected workloads. Required for Chaos Mesh scenarios,
+  # opt-in for Istio-only scenarios via FORCE_RESTART=true.
+  if [ "$NEEDS_POD_RESTART" = "true" ] || [ "${FORCE_RESTART:-false}" = "true" ]; then
+    if [ -n "$LABEL_SELECTOR" ]; then
+      log_info "Rolling restart deployments matching: ${LABEL_SELECTOR}"
+      if ! restart_workload "$NAMESPACE" "$LABEL_SELECTOR" "${RESTART_TIMEOUT:-120s}"; then
+        log_warn "rollout restart had failures; inspect: kubectl -n ${NAMESPACE} get pod -l '${LABEL_SELECTOR}'"
+      fi
+    fi
+  fi
+
+  # 4. Post-cleanup verification. Report-only — do not fail cleanup if residue
+  # remains because we are likely exiting on user signal.
+  local remaining
+  remaining=$(find_residual_chaos_objects "$NAMESPACE")
+  if [ -n "$remaining" ]; then
+    log_warn "Residual chaos objects remain in ${NAMESPACE}:"
+    printf '%s\n' "$remaining" | sed 's|^|  |' >&2
+    log_warn "Run 'make clean-all NAMESPACES=${NAMESPACE}' for forced cleanup"
+  fi
+  if [ -n "$LABEL_SELECTOR" ]; then
+    verify_workload_healthy "$NAMESPACE" "$LABEL_SELECTOR" || \
+      log_warn "Workload readiness check failed; manual inspection recommended"
+  fi
+
   if [ -n "$TMP_MANIFEST" ] && [ -f "$TMP_MANIFEST" ]; then
     rm -f "$TMP_MANIFEST"
   fi
