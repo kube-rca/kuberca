@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Go-1.24-00ADD8?style=flat-square&logo=go" alt="Go">
+  <img src="https://img.shields.io/badge/Go-1.25-00ADD8?style=flat-square&logo=go" alt="Go">
   <img src="https://img.shields.io/badge/Gin-Framework-00ADD8?style=flat-square" alt="Gin">
   <img src="https://img.shields.io/badge/PostgreSQL-pgvector-336791?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL">
   <img src="https://img.shields.io/badge/JWT-Auth-000000?style=flat-square&logo=jsonwebtokens" alt="JWT">
@@ -51,7 +51,7 @@ flowchart LR
 
 | Category | Technology |
 |----------|------------|
-| **Language** | Go 1.24 |
+| **Language** | Go 1.25 |
 | **Framework** | Gin |
 | **Database** | PostgreSQL + pgvector |
 | **Auth** | JWT (golang-jwt/jwt/v5) |
@@ -65,7 +65,7 @@ flowchart LR
 
 ### Prerequisites
 
-- Go 1.24+
+- Go 1.25+
 - PostgreSQL with pgvector extension
 - (Optional) Slack Bot Token for notifications
 
