@@ -75,6 +75,7 @@ helm upgrade --install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/chart
 git clone https://github.com/kube-rca/kuberca.git
 cd kuberca
 
+helm dependency build charts/kube-rca
 helm upgrade --install kube-rca ./charts/kube-rca \
   -n kube-rca --create-namespace \
   -f my-values.yaml
@@ -247,6 +248,7 @@ backend:
 Then install/upgrade:
 
 ```bash
+helm dependency build charts/kube-rca
 helm upgrade --install kube-rca ./charts/kube-rca \
   -n kube-rca \
   -f my-values.yaml

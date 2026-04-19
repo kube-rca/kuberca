@@ -253,6 +253,7 @@ npm ci
 npm run dev
 
 # Helm
+helm dependency build charts/kube-rca
 helm lint charts/kube-rca
 ```
 
