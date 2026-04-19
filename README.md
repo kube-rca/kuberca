@@ -253,6 +253,8 @@ npm ci
 npm run dev
 
 # Helm
+helm repo add bitnami https://charts.bitnami.com/bitnami --force-update
+helm dependency build charts/kube-rca
 helm lint charts/kube-rca
 ```
 

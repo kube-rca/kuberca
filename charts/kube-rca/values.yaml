@@ -375,7 +375,7 @@ agent:
     # -- Anthropic model ID for Strands Agents.
     modelId: "claude-haiku-4-5"
     # -- Anthropic maximum output tokens.
-    maxTokens: 4096
+    maxTokens: 8192
     # -- Anthropic API key value. When set (and no existingSecret), chart creates the Secret.
     apiKey: ""
     secret:

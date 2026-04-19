@@ -233,7 +233,7 @@ Notes:
 | `GEMINI_MODEL_ID` | Gemini model ID | `gemini-3-flash-preview` |
 | `OPENAI_MODEL_ID` | OpenAI model ID override | `""` |
 | `ANTHROPIC_MODEL_ID` | Anthropic model ID override | `""` |
-| `ANTHROPIC_MAX_TOKENS` | Anthropic max output tokens | `4096` |
+| `ANTHROPIC_MAX_TOKENS` | Anthropic max output tokens | `8192` |
 | `PROMETHEUS_URL` | Prometheus base URL | - (disabled) |
 | `LOG_LEVEL` | Logging level | `info` |
 | `PORT` | API port | `8000` |

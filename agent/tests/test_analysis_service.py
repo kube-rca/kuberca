@@ -903,6 +903,103 @@ def test_summarize_incident_masks_prompt_and_response() -> None:
     assert "[MASKED]" in rendered
 
 
+def test_summarize_incident_groups_repeated_alerts_in_prompt() -> None:
+    context = K8sContext(
+        namespace="default",
+        pod_name="demo-pod",
+        workload=None,
+        pod_status=None,
+        events=[],
+        previous_logs=[],
+        warnings=[],
+    )
+    engine = CapturingAnalysisEngine(
+        "제목: grouped incident\n요약: grouped summary\n상세 분석: grouped detail\n"
+    )
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=engine,
+    )
+    long_detail = (
+        "Root cause paragraph explaining repeated 5xx failures and upstream timeout propagation. "
+        * 20
+    )
+    request = IncidentSummaryRequest(
+        incident_id="INC-2",
+        title="반복 알림 인시던트",
+        severity="critical",
+        fired_at="2026-01-01T00:00:00Z",
+        resolved_at="2026-01-01T00:10:00Z",
+        alerts=[
+            AlertSummaryInput(
+                fingerprint=f"fp-{idx}",
+                alert_name="IstioHigh5xxErrorRateCritical",
+                severity="critical",
+                status="resolved",
+                analysis_summary="Service mesh saw repeated 5xx responses.",
+                analysis_detail=long_detail,
+            )
+            for idx in range(3)
+        ],
+    )
+
+    service.summarize_incident(request)
+
+    prompt_payload = json.loads(engine.last_prompt.split("Incident data:\n", 1)[1])
+    assert prompt_payload["alert_count"] == 3
+    assert prompt_payload["distinct_alert_types"] == 1
+    assert len(prompt_payload["alert_groups"]) == 1
+    group = prompt_payload["alert_groups"][0]
+    assert group["occurrences"] == 3
+    assert group["alert_name"] == "IstioHigh5xxErrorRateCritical"
+    assert "analysis_detail" not in engine.last_prompt
+    assert long_detail not in engine.last_prompt
+
+
+def test_summarize_incident_omits_detail_excerpts_when_budget_is_small() -> None:
+    context = K8sContext(
+        namespace="default",
+        pod_name="demo-pod",
+        workload=None,
+        pod_status=None,
+        events=[],
+        previous_logs=[],
+        warnings=[],
+    )
+    engine = CapturingAnalysisEngine(
+        "제목: compact incident\n요약: compact summary\n상세 분석: compact detail\n"
+    )
+    service = AnalysisService(
+        FakeKubernetesClient(context),
+        analysis_engine=engine,
+        prompt_token_budget=450,
+    )
+    request = IncidentSummaryRequest(
+        incident_id="INC-3",
+        title="큰 인시던트",
+        severity="critical",
+        fired_at="2026-01-01T00:00:00Z",
+        resolved_at="2026-01-01T00:10:00Z",
+        alerts=[
+            AlertSummaryInput(
+                fingerprint=f"fp-{idx}",
+                alert_name=f"Alert-{idx}",
+                severity="critical",
+                status="resolved",
+                analysis_summary="Summary " + ("x" * 200),
+                analysis_detail="Detail " + ("y" * 600),
+            )
+            for idx in range(6)
+        ],
+    )
+
+    service.summarize_incident(request)
+
+    prompt_payload = json.loads(engine.last_prompt.split("Incident data:\n", 1)[1])
+    assert prompt_payload["alert_count"] == 6
+    assert all("detail_excerpts" not in group for group in prompt_payload["alert_groups"])
+
+
 # ---------------------------------------------------------------------------
 # _parse_incident_summary / _extract_first_paragraph unit tests
 # ---------------------------------------------------------------------------
