@@ -1,10 +1,13 @@
-.PHONY: help incident oomkilled crashloop imagepull networkdelay 404 500 503 504 ratings-multi
+.PHONY: help incident oomkilled crashloop imagepull networkdelay 404 500 503 504 ratings-multi verify-clean clean-all lint
 
 NAMESPACE ?= bookinfo
+NAMESPACES ?= bookinfo kube-rca
 KUBE_CONTEXT ?=
 WAIT_SECONDS ?= 120
 POLL_INTERVAL_SECONDS ?= 3
 FAULT_PERCENTAGE ?= 40
+RESTART_TIMEOUT ?= 120s
+SKIP_RESTART ?= false
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make <target>\n\nTargets:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-16s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -75,3 +78,18 @@ ratings-multi: ## Run combined ratings faults (404 from load-generator, 503 from
 	POLL_INTERVAL_SECONDS="$(POLL_INTERVAL_SECONDS)" \
 	FAULT_PERCENTAGE="$(FAULT_PERCENTAGE)" \
 	./scripts/run-504.sh
+
+verify-clean: ## Read-only check for residual chaos state (exit 1 if found)
+	@NAMESPACES="$(NAMESPACES)" \
+	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
+	./scripts/verify_clean.sh
+
+clean-all: ## Force-remove residual chaos state and restart known workloads
+	@NAMESPACES="$(NAMESPACES)" \
+	KUBE_CONTEXT="$(KUBE_CONTEXT)" \
+	RESTART_TIMEOUT="$(RESTART_TIMEOUT)" \
+	SKIP_RESTART="$(SKIP_RESTART)" \
+	./scripts/clean_all.sh
+
+lint: ## Run shellcheck on all scripts/*.sh
+	@shellcheck -x scripts/*.sh
