@@ -57,9 +57,64 @@ make incident   # alias for oomkilled
 ## Environment
 
 - `NAMESPACE`: target namespace (default: `bookinfo`)
+- `NAMESPACES`: space-separated namespace list for `verify-clean` / `clean-all` (default: `"bookinfo kube-rca"`)
 - `KUBE_CONTEXT`: kubectl context (optional)
 - `WAIT_SECONDS`: wait timeout (default: `120`)
 - `POLL_INTERVAL_SECONDS`: polling interval (default: `3`)
 - `FAULT_PERCENTAGE`: fault injection percentage for 4xx/5xx (default: `40`)
+- `FORCE=true`: bypass the residual-chaos preflight (use only when intentionally stacking experiments)
+- `FORCE_RESTART=true`: rollout-restart target workloads on cleanup even for Istio-only scenarios
+- `RESTART_TIMEOUT`: `kubectl rollout status` timeout (default: `120s`)
+- `SKIP_RESTART=true`: on `clean-all`, skip the workload rollout restart (teardown only)
 
 Each scenario runs until you press Enter (or Ctrl+C), then cleans up.
+
+## Teardown guarantees
+
+Cleanup runs on normal exit **and** on Ctrl+C (via `trap cleanup EXIT`). It:
+
+1. `kubectl delete` the scenario's chaos manifest and any helper Deployment.
+2. (Chaos Mesh scenarios only) Wait up to 30s for `podnetworkchaos` / `podiochaos` / `podhttpchaos` finalizers to revert pod-netns rules.
+3. (Chaos Mesh scenarios, or any scenario with `FORCE_RESTART=true`) `kubectl rollout restart` every Deployment matching the scenario's label selector and wait for `rollout status`.
+4. Report any residual chaos objects that remain (e.g. stuck finalizer) and any pods that are still unhealthy.
+
+Scenarios that require pod restart on teardown (they inject pod-scoped state that `kubectl delete` does not revert):
+
+- `oomkilled` → `app=details`
+- `networkdelay` → `app=ratings`
+
+Scenarios that do **not** restart by default (pure Istio VirtualService fault injection):
+
+- `404`, `500`, `503`, `504`, `ratings-multi`
+
+## Pre-demo checklist
+
+Run before every demo to catch residual state from aborted runs:
+
+```bash
+cd chaos
+make verify-clean
+# Exit 0 → safe to start
+# Exit 1 → residue listed on stderr; run 'make clean-all' then re-verify
+```
+
+## Recovery
+
+If a scenario was aborted without running its cleanup (crashed terminal, missed Ctrl+C, manual CRD delete outside the script), the cluster can end up with orphaned chaos objects that keep injecting failures. Recover with:
+
+```bash
+cd chaos
+make clean-all                 # deletes residual CRDs + fault VS, restarts bookinfo workloads
+make verify-clean              # confirm exit 0
+
+# Scoped recovery (one namespace, no workload restart)
+NAMESPACES=bookinfo SKIP_RESTART=true make clean-all
+```
+
+See `presentation/docs/rca/2026-04-19-bookinfo-productpage-5xx.md` for a concrete incident where `clean-all`-equivalent action was required.
+
+## Lint
+
+```bash
+make lint   # shellcheck -x scripts/*.sh
+```
