@@ -16,9 +16,11 @@ jobs:
   test:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
         with:
           go-version-file: backend/go.mod
       - name: Format check
@@ -33,24 +35,49 @@ jobs:
       - name: Vet
         working-directory: backend
         run: go vet ./...
-      - name: Test
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@971e284b6050e8a5849b72094c50ab08da042db8 # v6.1.1
+        with:
+          version: v1.62.2
+          working-directory: backend
+          args: --timeout=5m
+      - name: Install gosec
+        run: go install github.com/securego/gosec/v2/cmd/gosec@v2.21.4
+      - name: gosec
         working-directory: backend
-        run: go test ./...
+        run: gosec -severity medium -confidence medium -exclude-dir=docs ./...
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      - name: govulncheck
+        working-directory: backend
+        run: govulncheck ./...
+      - name: Test (race + coverage)
+        working-directory: backend
+        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@0f8570b1a125f4937846a11fcfa3bcd548bd8c97 # v4.6.0
+        with:
+          files: backend/coverage.out
+          flags: backend
+          # Token is optional for public repos; pass via repo secret if available.
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
   build-and-push:
     if: github.ref_name == 'main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@5579c002bb4778aa43395ef1df492868a9a1c83f # v4.0.2
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ap-northeast-2
           role-session-name: github-actions-backend
       - name: Login to ECR Public
         id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@4625ce35226a7557230889aae2f52eb50ec3dcda # v2.0.1
         with:
           registry-type: public
         env:
@@ -67,7 +94,7 @@ jobs:
           docker push \
             "${{ steps.ecr.outputs.registry }}/r5b7j2e4/kube-rca-ecr/backend:${{ steps.tag.outputs.image_tag }}"
       - name: Update helm values (backend image tag)
-        uses: mikefarah/yq@v4.50.1
+        uses: mikefarah/yq@b534aa9ee5d38001fba3cd8fe254a037e4847b37 # v4.45.4
         with:
           cmd: yq -i '.backend.image.tag = "${{ steps.tag.outputs.image_tag }}"' charts/kube-rca/kube-rca-values.yaml
       - name: Commit and push helm values
