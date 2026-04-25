@@ -222,6 +222,18 @@ spec:
               value: {{ default 1 $pgRetry.initialBackoffSeconds | quote }}
             - name: PG_RETRY_MAX_BACKOFF_SECONDS
               value: {{ default 30 $pgRetry.maxBackoffSeconds | quote }}
+            {{- $webhookSecret := default (dict) .Values.backend.webhookSecret }}
+            {{- if $webhookSecret.existingSecret }}
+            - name: WEBHOOK_HMAC_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $webhookSecret.existingSecret | quote }}
+                  key: {{ default "hmac-secret" $webhookSecret.key | quote }}
+            {{- end }}
+            - name: WEBHOOK_HMAC_HEADER
+              value: {{ default "X-Webhook-Signature" $webhookSecret.headerName | quote }}
+            - name: WEBHOOK_RATE_LIMIT
+              value: {{ default 100 $webhookSecret.rateLimitPerMinute | quote }}
           startupProbe:
             httpGet:
               path: /healthz
