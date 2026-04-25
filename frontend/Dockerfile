@@ -38,3 +38,10 @@ EXPOSE 80
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]
 
+LABEL org.opencontainers.image.source="https://github.com/kube-rca/kuberca"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
+LABEL org.opencontainers.image.description="KubeRCA Frontend"
+LABEL org.opencontainers.image.documentation="https://github.com/kube-rca/kuberca/tree/main/frontend"
+LABEL org.opencontainers.image.vendor="KubeRCA"
+LABEL org.opencontainers.image.title="KubeRCA frontend"
+

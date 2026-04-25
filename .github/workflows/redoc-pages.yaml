@@ -1,0 +1,83 @@
+name: redoc-pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/docs/swagger.yaml"
+      - ".github/workflows/redoc-pages.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: redoc-pages
+  cancel-in-progress: false
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Redocly CLI
+        run: npm install -g @redocly/cli@1.34.0
+
+      - name: Build static ReDoc HTML
+        run: |
+          mkdir -p site/api
+          redocly build-docs backend/docs/swagger.yaml \
+            --output site/api/index.html \
+            --title "KubeRCA Backend API"
+
+      - name: Add api/ index redirect
+        run: |
+          cat > site/index.html <<'EOF'
+          <!doctype html>
+          <html>
+            <head>
+              <meta charset="utf-8" />
+              <meta http-equiv="refresh" content="0; url=./api/" />
+              <title>KubeRCA API Reference</title>
+            </head>
+            <body>
+              <p>Redirecting to <a href="./api/">/api/</a> ...</p>
+            </body>
+          </html>
+          EOF
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          publish_branch: gh-pages
+          keep_files: true
+          commit_message: "docs(api): publish ReDoc HTML for ${{ github.sha }}"
+
+      - name: Comment published URL on workflow run
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          OWNER="${REPO%%/*}"
+          REPONAME="${REPO##*/}"
+          PUBLISHED_URL="https://${OWNER}.github.io/${REPONAME}/api/"
+          echo "Published API reference: ${PUBLISHED_URL}"
+          echo "## ReDoc API reference published" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- URL: ${PUBLISHED_URL}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Workflow run: ${SERVER_URL}/${REPO}/actions/runs/${RUN_ID}" >> "$GITHUB_STEP_SUMMARY"
