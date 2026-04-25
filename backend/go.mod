@@ -15,6 +15,7 @@ require (
 	github.com/swaggo/swag v1.16.6
 	golang.org/x/crypto v0.46.0
 	golang.org/x/oauth2 v0.35.0
+	golang.org/x/time v0.15.0
 	google.golang.org/genai v1.40.0
 )
 
