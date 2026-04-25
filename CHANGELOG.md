@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### BREAKING
+
+- Relicensed from MIT to Apache License 2.0. Existing forks must update their LICENSE references. Contributor consent for this change tracked in `.github/RELICENSE_CONSENT.md`. (#<TBD-PR-number>)
+
 ## 1.0.0 (2026-04-05)
 
 
