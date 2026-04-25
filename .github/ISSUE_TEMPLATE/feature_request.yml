@@ -1,0 +1,57 @@
+name: Feature request
+description: Suggest a new feature, enhancement, or improvement.
+title: "[feat] "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Larger proposals (cross-component changes, new dependencies, breaking
+        changes) are best discussed in
+        [GitHub Discussions](https://github.com/kube-rca/kuberca/discussions)
+        first.
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Component scope
+      multiple: true
+      options:
+        - backend
+        - agent
+        - frontend
+        - helm-chart
+        - chaos
+        - docs
+        - ci
+        - cross-cutting
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What operational pain or gap motivates this request?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How would you like KubeRCA to behave?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other approaches did you weigh, and why did you discard them?
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Links to related issues, prior art, or example configurations.

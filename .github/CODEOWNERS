@@ -1,0 +1,25 @@
+# CODEOWNERS — automatic reviewer assignment.
+# Order matters: the LAST matching pattern wins.
+# See https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default — project lead reviews anything not otherwise claimed.
+*                       @KKamJi98
+
+# Component areas
+/backend/               @KKamJi98
+/agent/                 @KKamJi98
+/frontend/              @KKamJi98
+/charts/                @KKamJi98
+/chaos/                 @KKamJi98
+/docs/                  @KKamJi98
+
+# Repo-level governance & meta
+/.github/               @KKamJi98
+/LICENSE                @KKamJi98
+/NOTICE                 @KKamJi98
+/SECURITY.md            @KKamJi98
+/CODE_OF_CONDUCT.md     @KKamJi98
+/GOVERNANCE.md          @KKamJi98
+/MAINTAINERS.md         @KKamJi98
+/ROADMAP.md             @KKamJi98
+/CONTRIBUTING.md        @KKamJi98

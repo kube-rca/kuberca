@@ -1,0 +1,111 @@
+name: Bug report
+description: Report a bug, regression, or unexpected behavior in KubeRCA.
+title: "[bug] "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report. The information below
+        helps us reproduce and prioritize the issue. For security issues
+        please use the [private vulnerability reporting](https://github.com/kube-rca/kuberca/security/advisories/new) channel
+        instead.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      options:
+        - backend
+        - agent
+        - frontend
+        - helm-chart
+        - chaos
+        - docs
+        - ci
+        - other
+    validations:
+      required: true
+
+  - type: input
+    id: kuberca-version
+    attributes:
+      label: KubeRCA version / tag
+      description: e.g. backend-1.0.0, agent-1.2.0, helm-chart-0.7.0
+      placeholder: backend-1.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: k8s-version
+    attributes:
+      label: Kubernetes version
+      placeholder: v1.30.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment method
+      options:
+        - Helm CLI
+        - ArgoCD
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: ai-provider
+    attributes:
+      label: AI provider
+      options:
+        - gemini
+        - openai
+        - anthropic
+        - not applicable
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: A minimal sequence of actions that reliably triggers the bug.
+      placeholder: |
+        1. Deploy chart with values: ...
+        2. Send Alertmanager webhook: ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Pod logs, stack traces, or error messages. Please redact secrets.
+      render: shell
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Confirmation
+      options:
+        - label: I have searched existing issues and this is not a duplicate.
+          required: true
+        - label: I have redacted any secrets, tokens, or PII from the logs above.
+          required: true
