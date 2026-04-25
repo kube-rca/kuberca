@@ -9,11 +9,66 @@
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=flat-square" alt="License"></a>
+  <a href="https://github.com/kube-rca/kuberca/releases"><img src="https://img.shields.io/github/v/release/kube-rca/kuberca?style=flat-square&include_prereleases&sort=semver" alt="Latest release"></a>
+  <a href="https://github.com/kube-rca/kuberca/stargazers"><img src="https://img.shields.io/github/stars/kube-rca/kuberca?style=flat-square" alt="Stars"></a>
+  <a href="https://github.com/kube-rca/kuberca/actions/workflows/ci-backend.yaml"><img src="https://img.shields.io/github/actions/workflow/status/kube-rca/kuberca/ci-backend.yaml?style=flat-square&label=ci-backend" alt="CI"></a>
   <img src="https://img.shields.io/badge/Go-1.25-00ADD8?style=flat-square&logo=go" alt="Go">
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React">
   <img src="https://img.shields.io/badge/Helm-3-0F1689?style=flat-square&logo=helm" alt="Helm">
+</p>
+
+<p align="center">
+  <em>Turn Kubernetes alerts into actionable root-cause analysis — in seconds, not hours.</em>
+</p>
+
+> ⭐ <strong>If KubeRCA is useful to you, please consider giving the repo a star.</strong> It helps the project reach more operators and brings in more contributors.
+
+---
+
+## See It In Action
+
+A few screens from a running KubeRCA install. The dashboards correlate alerts to incidents, and every incident gets an LLM-generated RCA summary that lands in Slack and the UI together.
+
+### Incident Dashboard
+
+Centralized view of all incidents — search, filter by severity / status, and export to CSV.
+
+<p align="center">
+  <img src="docs/img/screenshot-incident-dashboard.png" alt="KubeRCA Incident Dashboard" width="900"/>
+</p>
+
+### Alert Dashboard
+
+Every Alertmanager alert is correlated to its parent incident, with namespace and severity context attached.
+
+<p align="center">
+  <img src="docs/img/screenshot-alert-dashboard.png" alt="KubeRCA Alert Dashboard" width="900"/>
+</p>
+
+### Slack — AI Analysis in Thread
+
+Each firing alert posts to Slack, and the LLM-generated RCA summary (root cause, impact, recommended action) is added in the same thread automatically.
+
+<p align="center">
+  <img src="docs/img/screenshot-slack-thread.png" alt="KubeRCA Slack Integration with AI Analysis" width="900"/>
+</p>
+
+### Incident Detail — Full RCA Report
+
+Each incident exposes a structured analysis: root cause, impact scope, mitigation steps taken, preventive recommendations, and related alerts pulled from the embedding-based similar-incident search.
+
+<p align="center">
+  <img src="docs/img/screenshot-incident-detail.png" alt="KubeRCA Incident detail with full RCA report" width="900"/>
+</p>
+
+### Alert Detail — Per-Alert AI Analysis
+
+Each alert tracks its own analysis lifecycle (firing → resolved), with the LLM's summary, evidence, recommended remediation, and operator feedback in one place.
+
+<p align="center">
+  <img src="docs/img/screenshot-alert-analysis.png" alt="KubeRCA Alert detail with per-alert AI analysis" width="900"/>
 </p>
 
 ---
@@ -186,7 +241,12 @@ route:
 - Try manual alert resolve for a case where Alertmanager resolution may be delayed.
 - Open the chat panel or feedback flow to see how operators can refine or discuss the analysis.
 
-Need step-by-step setup? See the full [Helm Chart README](charts/kube-rca/README.md) and the [Installation Guide (Korean)](docs/installation-guide-ko.md), which also includes a first scenario walkthrough.
+Need step-by-step setup? See the full [Helm Chart README](charts/kube-rca/README.md) and the installation guide:
+
+- 한국어 — [설치 가이드](docs/installation-guide-ko.md)
+- English — [Installation Guide](docs/installation-guide-en.md)
+
+Both walk through the first scenario end-to-end.
 
 ## Integrations And Deployment Model
 
@@ -286,8 +346,17 @@ Currently, KubeRCA supports Korean and English.
 
 ## Contributing
 
-Issues and pull requests are welcome. If you change behavior across backend, agent, frontend, or Helm values, keep the documentation in `docs/` and component READMEs aligned with the implementation.
+Issues, pull requests, and design feedback are all welcome. Before opening a PR, please read:
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) — development setup per component, Conventional Commits, DCO sign-off, PR workflow.
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — community expectations.
+- [GOVERNANCE.md](GOVERNANCE.md) — roles, decision making, and how Maintainers are added.
+- [SECURITY.md](SECURITY.md) — how to report vulnerabilities privately.
+
+If you change behavior across backend, agent, frontend, or Helm values, keep the documentation in `docs/` and component READMEs aligned with the implementation.
+
+> ⭐ Liked what you saw? A star on the repo is the simplest way to help the project grow.
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+This project is licensed under the **Apache License, Version 2.0**. See [LICENSE](LICENSE) and [NOTICE](NOTICE) for details.
