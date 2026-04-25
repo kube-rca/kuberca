@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussion / Q&A
+    url: https://github.com/kube-rca/kuberca/discussions
+    about: Ask questions, share ideas, and discuss with the community.
+  - name: Security vulnerability
+    url: https://github.com/kube-rca/kuberca/security/advisories/new
+    about: Report security vulnerabilities privately.
