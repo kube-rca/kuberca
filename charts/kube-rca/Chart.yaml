@@ -8,3 +8,21 @@ dependencies:
   - name: postgresql
     version: 18.1.13
     repository: https://charts.bitnami.com/bitnami
+annotations:
+  artifacthub.io/category: monitoring-logging
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/links: |
+    - name: source
+      url: https://github.com/kube-rca/kuberca
+    - name: documentation
+      url: https://github.com/kube-rca/kuberca/tree/main/docs
+    - name: issues
+      url: https://github.com/kube-rca/kuberca/issues
+  artifacthub.io/maintainers: |
+    - name: kkamji98
+      email: ethan.kim@bunjang.co.kr
+  artifacthub.io/changes: |
+    - kind: added
+      description: values.schema.json for IDE/install validation
+    - kind: added
+      description: Artifact Hub annotations

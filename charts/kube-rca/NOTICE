@@ -1,0 +1,10 @@
+KubeRCA Helm Chart
+Copyright 2026 KubeRCA contributors.
+
+This chart is licensed under the Apache License, Version 2.0.
+See https://www.apache.org/licenses/LICENSE-2.0 for the full license text.
+
+This chart packages and deploys the KubeRCA project components:
+  - Backend (Go)
+  - Agent (Python / FastAPI)
+  - Frontend (React / TypeScript)
