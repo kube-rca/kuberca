@@ -17,7 +17,7 @@ jobs:
       tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - id: release
-        uses: googleapis/release-please-action@v4
+        uses: googleapis/release-please-action@d1a8f221d7723166f48a584aebba00ef3f6febec # v4.1.4
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
@@ -28,34 +28,107 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
+      id-token: write       # AWS OIDC + cosign keyless + provenance
+      attestations: write   # actions/attest-build-provenance
+      packages: write       # ghcr.io push
     strategy:
       matrix:
         component: [backend, frontend, agent]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ needs.release-please.outputs.tag_name }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
+
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@5579c002bb4778aa43395ef1df492868a9a1c83f # v4.0.2
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ap-northeast-2
           role-session-name: github-actions-${{ matrix.component }}
+
       - name: Login to ECR Public
         id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@4625ce35226a7557230889aae2f52eb50ec3dcda # v2.0.1
         with:
           registry-type: public
         env:
           AWS_DEFAULT_REGION: us-east-1
           AWS_REGION: us-east-1
-      - name: Build and push
+
+      - name: Login to ghcr.io (mirror)
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image references
+        id: refs
         run: |
           TAG="${{ needs.release-please.outputs.tag_name }}"
-          IMAGE="${{ steps.ecr.outputs.registry }}/r5b7j2e4/kube-rca-ecr/${{ matrix.component }}:${TAG}"
-          docker build -t "$IMAGE" ${{ matrix.component }}/
-          docker push "$IMAGE"
+          ECR_IMAGE="${{ steps.ecr.outputs.registry }}/r5b7j2e4/kube-rca-ecr/${{ matrix.component }}:${TAG}"
+          GHCR_IMAGE="ghcr.io/kube-rca/${{ matrix.component }}:${TAG}"
+          {
+            echo "ecr_image=${ECR_IMAGE}"
+            echo "ghcr_image=${GHCR_IMAGE}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 # v6.9.0
+        with:
+          context: ${{ matrix.component }}
+          push: true
+          provenance: true
+          sbom: true
+          tags: |
+            ${{ steps.refs.outputs.ecr_image }}
+            ${{ steps.refs.outputs.ghcr_image }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@1aa8e0f2454b781fbf0fbf306a4c9533a0c57409 # v3.7.0
+
+      - name: Cosign sign (keyless OIDC)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign sign --yes "${{ steps.refs.outputs.ecr_image }}@${{ steps.build.outputs.digest }}"
+          cosign sign --yes "${{ steps.refs.outputs.ghcr_image }}@${{ steps.build.outputs.digest }}"
+
+      - name: Generate SBOM (SPDX JSON)
+        uses: anchore/sbom-action@fc46e51fd3cb168ffb36c6d1915723c47db58abb # v0.17.7
+        with:
+          image: ${{ steps.refs.outputs.ecr_image }}
+          format: spdx-json
+          artifact-name: ${{ matrix.component }}-sbom.spdx.json
+          output-file: ${{ matrix.component }}-sbom.spdx.json
+
+      - name: Attest build provenance (ECR)
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-name: ${{ steps.refs.outputs.ecr_image }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest build provenance (ghcr)
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-name: ${{ steps.refs.outputs.ghcr_image }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
+        with:
+          image-ref: ${{ steps.refs.outputs.ecr_image }}
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: "os,library"
+          format: "table"
 
   publish-helm:
     needs: release-please
@@ -65,14 +138,14 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ needs.release-please.outputs.tag_name }}
-      - uses: azure/setup-helm@v4
+      - uses: azure/setup-helm@fe7b79cd5ee1e45176fcad797de68ecaf3ca4814 # v4.2.0
       - name: Add Bitnami chart repo
         run: helm repo add bitnami https://charts.bitnami.com/bitnami --force-update
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@5579c002bb4778aa43395ef1df492868a9a1c83f # v4.0.2
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ap-northeast-2
