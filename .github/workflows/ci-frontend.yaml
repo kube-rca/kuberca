@@ -16,35 +16,58 @@ jobs:
   test:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version-file: frontend/package.json
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
       - name: Install
         working-directory: frontend
         run: npm ci
       - name: Lint
         working-directory: frontend
         run: npm run lint
+      - name: Type check (tsc --noEmit)
+        working-directory: frontend
+        run: npx --no-install tsc --noEmit
+      - name: Test (vitest, gated)
+        # The vitest harness lands as part of W3. Until then this step is a no-op.
+        if: ${{ hashFiles('frontend/vitest.config.ts', 'frontend/vitest.config.js', 'frontend/vitest.config.mjs') != '' }}
+        working-directory: frontend
+        run: npm run test -- --coverage
       - name: Build
         working-directory: frontend
         run: npm run build
+      - name: a11y scan (axe)
+        # Best-effort — the production UI may have pre-existing warnings.
+        # Soft-fail keeps the signal visible without blocking PRs until W3 cleanup.
+        working-directory: frontend
+        continue-on-error: true
+        run: |
+          npx --yes serve -s dist -l 4173 &
+          SERVER_PID=$!
+          sleep 3
+          npx --yes @axe-core/cli http://localhost:4173 --exit || true
+          kill $SERVER_PID || true
 
   build-and-push:
     if: github.ref_name == 'main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@5579c002bb4778aa43395ef1df492868a9a1c83f # v4.0.2
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ap-northeast-2
           role-session-name: github-actions-frontend
       - name: Login to ECR Public
         id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@4625ce35226a7557230889aae2f52eb50ec3dcda # v2.0.1
         with:
           registry-type: public
         env:
@@ -61,7 +84,7 @@ jobs:
           docker push \
             "${{ steps.ecr.outputs.registry }}/r5b7j2e4/kube-rca-ecr/frontend:${{ steps.tag.outputs.image_tag }}"
       - name: Update helm values (frontend image tag)
-        uses: mikefarah/yq@v4.50.1
+        uses: mikefarah/yq@b534aa9ee5d38001fba3cd8fe254a037e4847b37 # v4.45.4
         with:
           cmd: yq -i '.frontend.image.tag = "${{ steps.tag.outputs.image_tag }}"' charts/kube-rca/kube-rca-values.yaml
       - name: Commit and push helm values
