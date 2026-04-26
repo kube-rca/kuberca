@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/kube-rca/backend/internal/db"
+	"github.com/kube-rca/backend/internal/logutil"
 	"github.com/kube-rca/backend/internal/model"
 	"github.com/kube-rca/backend/internal/sse"
 )
@@ -134,7 +135,7 @@ func (s *RcaService) requestIncidentSummary(incidentID string) {
 	if startedAt, ok := s.beginIncidentSummary(incidentID); !ok {
 		log.Printf(
 			"Skipping duplicate incident summary request (incident_id=%s, in_flight_ms=%d)",
-			incidentID,
+			logutil.Sanitize(incidentID),
 			time.Since(startedAt).Milliseconds(),
 		)
 		return
@@ -196,7 +197,7 @@ func (s *RcaService) requestIncidentSummary(incidentID string) {
 		return
 	}
 
-	log.Printf("Incident summary saved (incident_id=%s)", incidentID)
+	log.Printf("Incident summary saved (incident_id=%s)", logutil.Sanitize(incidentID))
 
 	// SSE broadcast: incident updated (summary saved)
 	if s.sseHub != nil {
@@ -210,15 +211,15 @@ func (s *RcaService) requestIncidentSummary(incidentID string) {
 	if s.embeddingService != nil && resp.Summary != "" {
 		embeddingID, model, err := s.embeddingService.CreateEmbedding(context.Background(), incidentID, resp.Summary)
 		if err != nil {
-			log.Printf("Failed to create embedding for incident %s: %v", incidentID, err)
+			log.Printf("Failed to create embedding for incident %s: %v", logutil.Sanitize(incidentID), err)
 		} else {
-			log.Printf("Embedding created (incident_id=%s, embedding_id=%d, model=%s)", incidentID, embeddingID, model)
+			log.Printf("Embedding created (incident_id=%s, embedding_id=%d, model=%s)", logutil.Sanitize(incidentID), embeddingID, logutil.Sanitize(model))
 		}
 	}
 
 	log.Printf(
 		"Incident summary finished (incident_id=%s, elapsed_ms=%d)",
-		incidentID,
+		logutil.Sanitize(incidentID),
 		time.Since(requestStartedAt).Milliseconds(),
 	)
 }
@@ -248,7 +249,7 @@ func (s *RcaService) GetAlertDetail(id string) (*model.AlertDetailResponse, erro
 	// alert_analyses 테이블에서 status별 최신 분석 조회
 	analyses, err := s.repo.GetLatestAnalysesByAlertID(id)
 	if err != nil {
-		log.Printf("Failed to load alert analyses (alert_id=%s): %v", id, err)
+		log.Printf("Failed to load alert analyses (alert_id=%s): %v", logutil.Sanitize(id), err)
 		detail.Analyses = []model.AlertAnalysisItem{}
 		return detail, nil
 	}
@@ -336,7 +337,7 @@ func (s *RcaService) TriggerAlertAnalysis(alertID string) error {
 
 	// 4. 비동기 분석 요청 (수동 트리거이므로 thread 체크 스킵)
 	go s.agentService.RequestAnalysis(alert, alertID, threadTS, incidentID, true)
-	log.Printf("Manual analysis triggered (alert_id=%s, incident_id=%s)", alertID, incidentID)
+	log.Printf("Manual analysis triggered (alert_id=%s, incident_id=%s)", logutil.Sanitize(alertID), logutil.Sanitize(incidentID))
 
 	return nil
 }
@@ -348,7 +349,7 @@ func (s *RcaService) TriggerIncidentAnalysis(incidentID string) error {
 		return fmt.Errorf("incident not found: %w", err)
 	}
 	go s.requestIncidentSummary(incidentID)
-	log.Printf("Manual incident analysis triggered (incident_id=%s)", incidentID)
+	log.Printf("Manual incident analysis triggered (incident_id=%s)", logutil.Sanitize(incidentID))
 	return nil
 }
 
@@ -360,7 +361,7 @@ func (s *RcaService) beginIncidentSummary(incidentID string) (time.Time, bool) {
 		if time.Since(startedAt) < inFlightStaleTTL {
 			return startedAt, false
 		}
-		log.Printf("Evicting stale in-flight incident summary entry (incident_id=%s, age_ms=%d)", incidentID, time.Since(startedAt).Milliseconds())
+		log.Printf("Evicting stale in-flight incident summary entry (incident_id=%s, age_ms=%d)", logutil.Sanitize(incidentID), time.Since(startedAt).Milliseconds())
 	}
 
 	startedAt := time.Now()

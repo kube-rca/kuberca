@@ -14,6 +14,7 @@ import (
 
 	"github.com/kube-rca/backend/internal/client"
 	"github.com/kube-rca/backend/internal/db"
+	"github.com/kube-rca/backend/internal/logutil"
 	"github.com/kube-rca/backend/internal/model"
 	"github.com/kube-rca/backend/internal/sse"
 )
@@ -47,11 +48,11 @@ func NewAgentService(agentClient *client.AgentClient, notifier client.Notifier, 
 func (s *AgentService) RequestAnalysis(alert model.Alert, alertID, threadTS, incidentID string, skipThreadCheck bool) {
 	threadTS = s.analysisThreadContext(alertID, alert.Fingerprint, threadTS)
 	if !skipThreadCheck && threadTS == "" && s.requiresThreadRef() {
-		log.Printf("No thread_ref for alert (alert_id=%s, fingerprint=%s), skipping agent request", alertID, alert.Fingerprint)
+		log.Printf("No thread_ref for alert (alert_id=%s, fingerprint=%s), skipping agent request", logutil.Sanitize(alertID), logutil.Sanitize(alert.Fingerprint))
 		return
 	}
 	if threadTS == "" {
-		log.Printf("No thread_ref for alert (alert_id=%s, fingerprint=%s), sending analysis without thread", alertID, alert.Fingerprint)
+		log.Printf("No thread_ref for alert (alert_id=%s, fingerprint=%s), sending analysis without thread", logutil.Sanitize(alertID), logutil.Sanitize(alert.Fingerprint))
 	}
 
 	key := s.analysisKey(alertID, alert.Fingerprint)
@@ -61,23 +62,23 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, alertID, threadTS, inc
 			if alert.Status == "resolved" {
 				log.Printf(
 					"Resolved analysis waiting for in-flight firing analysis (key=%s, in_flight_ms=%d)",
-					key, time.Since(startedAt).Milliseconds(),
+					logutil.Sanitize(key), time.Since(startedAt).Milliseconds(),
 				)
 				if completed := s.waitForAnalysisCompletion(key, 3*time.Minute); !completed {
-					log.Printf("Resolved analysis wait timed out (key=%s), skipping", key)
+					log.Printf("Resolved analysis wait timed out (key=%s), skipping", logutil.Sanitize(key))
 					return
 				}
 				// Firing 완료 → resolved 분석 시작
 				if _, ok := s.beginAnalysis(key); !ok {
-					log.Printf("Skipping resolved analysis — still blocked after wait (key=%s)", key)
+					log.Printf("Skipping resolved analysis — still blocked after wait (key=%s)", logutil.Sanitize(key))
 					return
 				}
 			} else {
 				log.Printf(
 					"Skipping duplicate alert analysis request (alert_id=%s, fingerprint=%s, incident_id=%s, in_flight_ms=%d)",
-					alertID,
-					alert.Fingerprint,
-					incidentID,
+					logutil.Sanitize(alertID),
+					logutil.Sanitize(alert.Fingerprint),
+					logutil.Sanitize(incidentID),
 					time.Since(startedAt).Milliseconds(),
 				)
 				return
@@ -95,7 +96,7 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, alertID, threadTS, inc
 	}
 
 	requestStartedAt := time.Now()
-	log.Printf("Requesting agent analysis (alert_id=%s, fingerprint=%s, status=%s, thread_ref=%s)", alertID, alert.Fingerprint, alert.Status, threadTS)
+	log.Printf("Requesting agent analysis (alert_id=%s, fingerprint=%s, status=%s, thread_ref=%s)", logutil.Sanitize(alertID), logutil.Sanitize(alert.Fingerprint), logutil.Sanitize(alert.Status), logutil.Sanitize(threadTS))
 
 	// Resolved alert 분기: 이전 firing 분석 컨텍스트 조회
 	analysisType := alert.Status
@@ -131,7 +132,7 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, alertID, threadTS, inc
 		log.Printf("Failed to save analysis to DB: %v", err)
 		// DB 저장 실패해도 Slack 전송은 계속 진행
 	} else {
-		log.Printf("Saved analysis to DB (alert_id=%s)", alertID)
+		log.Printf("Saved analysis to DB (alert_id=%s)", logutil.Sanitize(alertID))
 	}
 
 	analysisID, err := s.db.InsertAlertAnalysis(
@@ -162,18 +163,18 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, alertID, threadTS, inc
 
 	deliveries, err := s.db.GetAlertNotificationDeliveries(alertID)
 	if err != nil {
-		log.Printf("Failed to load alert notification deliveries (alert_id=%s): %v", alertID, err)
+		log.Printf("Failed to load alert notification deliveries (alert_id=%s): %v", logutil.Sanitize(alertID), err)
 	} else if notifier, ok := s.notifier.(client.DeliveryAwareNotifier); ok {
 		if len(deliveries) == 0 {
 			deliveries, err = s.recoverLegacyDeliveries(alertID, alert.Fingerprint, incidentID, alert.Status, threadTS)
 			if err != nil {
-				log.Printf("Failed to recover legacy deliveries (alert_id=%s): %v", alertID, err)
+				log.Printf("Failed to recover legacy deliveries (alert_id=%s): %v", logutil.Sanitize(alertID), err)
 				deliveries = nil
 			}
 		}
 		if len(deliveries) == 0 {
 			if threadTS != "" {
-				log.Printf("Attempting direct thread notification without persisted delivery (alert_id=%s, thread_ref=%s)", alertID, threadTS)
+				log.Printf("Attempting direct thread notification without persisted delivery (alert_id=%s, thread_ref=%s)", logutil.Sanitize(alertID), logutil.Sanitize(threadTS))
 				if err := s.notifier.Notify(client.AnalysisResultPostedEvent{
 					ThreadRef: threadTS,
 					Content:   resp.Analysis,
@@ -181,11 +182,11 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, alertID, threadTS, inc
 					log.Printf("Failed direct analysis notification fallback: %v", err)
 				}
 			} else {
-				log.Printf("Skipping analysis notification (alert_id=%s, skip_reason=no_active_delivery)", alertID)
+				log.Printf("Skipping analysis notification (alert_id=%s, skip_reason=no_active_delivery)", logutil.Sanitize(alertID))
 			}
 			goto analysisDone
 		}
-		log.Printf("Sending analysis notification (alert_id=%s, delivery_count=%d)", alertID, len(deliveries))
+		log.Printf("Sending analysis notification (alert_id=%s, delivery_count=%d)", logutil.Sanitize(alertID), len(deliveries))
 		if err := notifier.NotifyThreadEvent(client.AnalysisResultPostedEvent{
 			ThreadRef: threadTS,
 			Content:   resp.Analysis,
@@ -195,15 +196,15 @@ func (s *AgentService) RequestAnalysis(alert model.Alert, alertID, threadTS, inc
 			log.Printf("Failed to touch alert notification deliveries: %v", touchErr)
 		}
 	} else {
-		log.Printf("Skipping analysis notification (alert_id=%s, skip_reason=notifier_not_delivery_aware)", alertID)
+		log.Printf("Skipping analysis notification (alert_id=%s, skip_reason=notifier_not_delivery_aware)", logutil.Sanitize(alertID))
 	}
 analysisDone:
 
 	log.Printf(
 		"Agent analysis finished (alert_id=%s, fingerprint=%s, incident_id=%s, elapsed_ms=%d)",
-		alertID,
-		alert.Fingerprint,
-		incidentID,
+		logutil.Sanitize(alertID),
+		logutil.Sanitize(alert.Fingerprint),
+		logutil.Sanitize(incidentID),
 		time.Since(requestStartedAt).Milliseconds(),
 	)
 }
@@ -227,7 +228,7 @@ func (s *AgentService) beginAnalysis(key string) (time.Time, bool) {
 		if time.Since(startedAt) < inFlightStaleTTL {
 			return startedAt, false
 		}
-		log.Printf("Evicting stale in-flight analysis entry (key=%s, age_ms=%d)", key, time.Since(startedAt).Milliseconds())
+		log.Printf("Evicting stale in-flight analysis entry (key=%s, age_ms=%d)", logutil.Sanitize(key), time.Since(startedAt).Milliseconds())
 	}
 
 	startedAt := time.Now()
@@ -274,17 +275,17 @@ func (s *AgentService) loadPreviousFiringAnalysis(fingerprint, incidentID string
 
 	analysis, err := s.db.GetLatestFiringAnalysisByFingerprint(fingerprint)
 	if err != nil {
-		log.Printf("Failed to load previous firing analysis (fingerprint=%s): %v", fingerprint, err)
+		log.Printf("Failed to load previous firing analysis (fingerprint=%s): %v", logutil.Sanitize(fingerprint), err)
 		return nil
 	}
 	if analysis == nil {
-		log.Printf("No previous firing analysis found (fingerprint=%s, incident_id=%s)", fingerprint, incidentID)
+		log.Printf("No previous firing analysis found (fingerprint=%s, incident_id=%s)", logutil.Sanitize(fingerprint), logutil.Sanitize(incidentID))
 		return nil
 	}
 
 	log.Printf(
 		"Loaded previous firing analysis (fingerprint=%s, analysis_id=%d, created_at=%s)",
-		fingerprint,
+		logutil.Sanitize(fingerprint),
 		analysis.AnalysisID,
 		analysis.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	)
@@ -399,7 +400,7 @@ func (s *AgentService) RequestIncidentSummary(incident *model.IncidentDetailResp
 		Alerts:     alertInputs,
 	}
 
-	log.Printf("Requesting incident summary (incident_id=%s, alert_count=%d)", incident.IncidentID, len(alerts))
+	log.Printf("Requesting incident summary (incident_id=%s, alert_count=%d)", logutil.Sanitize(incident.IncidentID), len(alerts))
 
 	resp, err := s.agentClient.RequestIncidentSummary(req)
 	if err != nil {
@@ -407,6 +408,6 @@ func (s *AgentService) RequestIncidentSummary(incident *model.IncidentDetailResp
 		return nil, err
 	}
 
-	log.Printf("Received incident summary (incident_id=%s)", incident.IncidentID)
+	log.Printf("Received incident summary (incident_id=%s)", logutil.Sanitize(incident.IncidentID))
 	return resp, nil
 }
