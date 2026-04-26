@@ -6,6 +6,33 @@
 
 - Relicensed from MIT to Apache License 2.0. Existing forks must update their LICENSE references. Contributor consent for this change tracked in `.github/RELICENSE_CONSENT.md`. (#<TBD-PR-number>)
 
+## [1.1.0](https://github.com/kube-rca/kuberca/compare/v1.0.0...v1.1.0) (2026-04-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* **license:** KubeRCA is now distributed under Apache License 2.0. Existing forks must update their LICENSE references when picking up changes from main after this commit lands. Contributor consent for the relicense is tracked in .github/RELICENSE_CONSENT.md.
+
+### Features
+
+* add ENG ver. ([d7521b6](https://github.com/kube-rca/kuberca/commit/d7521b600d121352a404466b6ab2c499f1e51cd8))
+* **chaos:** harden teardown to prevent residual pod-netns state ([#9](https://github.com/kube-rca/kuberca/issues/9)) ([75d4a59](https://github.com/kube-rca/kuberca/commit/75d4a59fd2148e82e4c0a911332ae26f02de684b))
+
+
+### Bug Fixes
+
+* **agent:** reduce incident summary prompt size and raise anthropic max tokens ([#8](https://github.com/kube-rca/kuberca/issues/8)) ([39025a3](https://github.com/kube-rca/kuberca/commit/39025a3a9e6ec50b9e6f3f2659cb9a7cc65815d7))
+* **deps:** patch security vulnerability alerts ([#10](https://github.com/kube-rca/kuberca/issues/10)) ([990c93a](https://github.com/kube-rca/kuberca/commit/990c93a56d1c5b3c75c7067c19ec09f7cb8c40a3))
+* **frontend:** bump vite to 7.3.2 for security patches ([e224e59](https://github.com/kube-rca/kuberca/commit/e224e593e92f4d2dd2141867f50ee1e16f2cd4a5))
+* lint error ([9977099](https://github.com/kube-rca/kuberca/commit/997709930432dc6758aac0e9bec4d20caf4ca629))
+* test error ([fdcd0ce](https://github.com/kube-rca/kuberca/commit/fdcd0ce19aacbb121fee4e52a30ec4eb44c7e537))
+
+
+### Miscellaneous Chores
+
+* **license:** relicense to Apache-2.0 ([383d239](https://github.com/kube-rca/kuberca/commit/383d2398628d7cbcf1fafdd21b011c0a5f956dd8))
+* pin next release to 1.1.0 ([bf23eaa](https://github.com/kube-rca/kuberca/commit/bf23eaa65017520575b7f7ee2162da7afcec0ea9))
+
 ## 1.0.0 (2026-04-05)
 
 
