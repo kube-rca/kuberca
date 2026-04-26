@@ -251,6 +251,19 @@ backend:
         adminPassword: admin-password
         # -- Secret key for JWT secret.
         jwtSecret: kube-rca-jwt-secret
+  # -- HMAC signature validation for the public /webhook/alertmanager endpoint.
+  # When `existingSecret` is empty the backend runs in opt-in mode (logs a startup warning,
+  # accepts unsigned requests). Set `existingSecret` to enforce HMAC-SHA256 verification.
+  # See docs/SECURITY-WEBHOOK.md for the on-the-wire protocol.
+  webhookSecret:
+    # -- Existing Secret name carrying the HMAC shared secret. Empty = opt-in (no verification).
+    existingSecret: ""
+    # -- Secret key holding the raw shared secret (e.g. from `openssl rand -hex 32`).
+    key: "hmac-secret"
+    # -- HTTP header name carrying the hex-encoded HMAC-SHA256 digest.
+    headerName: "X-Webhook-Signature"
+    # -- Per-IP rate limit for /webhook/alertmanager (requests per minute, 0 disables).
+    rateLimitPerMinute: 100
 agent:
   # -- Number of agent replicas. Use 2+ for concurrent analysis (Python GIL limits per-process parallelism).
   replicaCount: 2

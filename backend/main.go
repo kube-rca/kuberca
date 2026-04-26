@@ -10,6 +10,7 @@ import (
 	"github.com/kube-rca/backend/internal/config"
 	"github.com/kube-rca/backend/internal/db"
 	"github.com/kube-rca/backend/internal/handler"
+	"github.com/kube-rca/backend/internal/middleware"
 	"github.com/kube-rca/backend/internal/service"
 	"github.com/kube-rca/backend/internal/sse"
 )
@@ -233,7 +234,28 @@ func main() {
 
 	// Alertmanager 웹훅 엔드포인트
 	// - POST /webhook/alertmanager: Alertmanager에서 알림 수신
-	router.POST("/webhook/alertmanager", alertHandler.Webhook)
+	//
+	// 보안: HMAC-SHA256 서명 검증과 IP 기반 rate limit을 기본 적용한다.
+	// `WEBHOOK_HMAC_SECRET`이 비어있으면 opt-in 모드로 통과시키되 기동 시 1회 경고를 출력한다.
+	if cfg.Webhook.HMACSecret == "" {
+		log.Println("WARNING: WEBHOOK_HMAC_SECRET is not set; /webhook/alertmanager runs in opt-in mode (signature is not validated). " +
+			"Set the secret to enforce HMAC-SHA256 verification. See docs/SECURITY-WEBHOOK.md.")
+	}
+	webhookChain := []gin.HandlerFunc{
+		middleware.HMACMiddleware(middleware.HMACConfig{
+			Secret:     cfg.Webhook.HMACSecret,
+			HeaderName: cfg.Webhook.HMACHeader,
+		}),
+	}
+	if cfg.Webhook.RateLimitPerMinute > 0 {
+		webhookChain = append(webhookChain,
+			middleware.RateLimitMiddleware(middleware.RateLimitConfig{
+				RequestsPerMinute: cfg.Webhook.RateLimitPerMinute,
+			}),
+		)
+	}
+	webhookChain = append(webhookChain, alertHandler.Webhook)
+	router.POST("/webhook/alertmanager", webhookChain...)
 
 	// 8080 서버 실행
 	log.Println("Starting kube-rca-backend on :8080")

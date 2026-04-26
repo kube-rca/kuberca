@@ -214,7 +214,6 @@ func (n *webhookRoutingNotifier) notifyAlertRootWithReceipts(event AlertStatusCh
 
 	var (
 		receipts []NotificationDeliveryReceipt
-		errs     []error
 		success  int
 	)
 
@@ -237,7 +236,7 @@ func (n *webhookRoutingNotifier) notifyAlertRootWithReceipts(event AlertStatusCh
 			}
 			receipt, err := slackNotifier.SendAlertWithReceipt(event.Alert, event.Alert.Status, event.IncidentID, event.IsManual)
 			if err != nil {
-				errs = append(errs, err)
+				log.Printf("webhook routing: slack delivery failed for config %d: %v", cfg.ID, err)
 				continue
 			}
 			success++
@@ -251,7 +250,7 @@ func (n *webhookRoutingNotifier) notifyAlertRootWithReceipts(event AlertStatusCh
 				continue
 			}
 			if err := (&webhookEndpointNotifier{cfg: cfg, httpClient: n.httpClient}).Notify(event); err != nil {
-				errs = append(errs, err)
+				log.Printf("webhook routing: http/teams delivery failed for config %d (type=%s): %v", cfg.ID, cfg.Type, err)
 				continue
 			}
 			success++

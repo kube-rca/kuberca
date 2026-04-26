@@ -1,0 +1,142 @@
+# Dependabot keeps each component's dependency graph fresh.
+# Updates are grouped by ecosystem so we get one PR per group per week
+# instead of dozens of single-package PRs.
+#
+# Ecosystems covered:
+#   - gomod (backend)
+#   - pip   (agent — Dependabot reads pyproject.toml; uv resolves the same lock)
+#   - npm   (frontend)
+#   - github-actions (root .github/workflows)
+#   - docker (each component's Dockerfile)
+version: 2
+
+updates:
+  # ──────────────── Go (backend) ────────────────
+  - package-ecosystem: "gomod"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(backend/deps)"
+    labels:
+      - "dependencies"
+      - "go"
+      - "backend"
+    groups:
+      go-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ──────────────── Python (agent) ────────────────
+  - package-ecosystem: "pip"
+    directory: "/agent"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(agent/deps)"
+    labels:
+      - "dependencies"
+      - "python"
+      - "agent"
+    groups:
+      python-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ──────────────── Node (frontend) ────────────────
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(frontend/deps)"
+    labels:
+      - "dependencies"
+      - "javascript"
+      - "frontend"
+    groups:
+      js-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ──────────────── GitHub Actions ────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(ci/deps)"
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "ci"
+    groups:
+      actions-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ──────────────── Docker (per-component) ────────────────
+  - package-ecosystem: "docker"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(backend/docker)"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "backend"
+
+  - package-ecosystem: "docker"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(frontend/docker)"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "frontend"
+
+  - package-ecosystem: "docker"
+    directory: "/agent"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(agent/docker)"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "agent"

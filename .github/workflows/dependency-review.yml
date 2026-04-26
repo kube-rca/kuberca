@@ -1,0 +1,51 @@
+name: Dependency Review
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write   # required for the action to leave inline comments
+
+jobs:
+  review:
+    name: Review dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Dependency review
+        uses: actions/dependency-review-action@3b139cfc5fae8b618d3eae3675e383bb1769c019 # v4.5.0
+        with:
+          fail-on-severity: high
+          # Allow Apache-2.0 and other OSI-approved licences; explicit list keeps drift visible.
+          allow-licenses: >-
+            Apache-2.0,
+            MIT,
+            BSD-2-Clause,
+            BSD-3-Clause,
+            ISC,
+            MPL-2.0,
+            CC0-1.0,
+            CC-BY-4.0,
+            Unlicense,
+            0BSD
+          # golang.org/x/* publish a compound license expression
+          # `BSD-3-Clause AND LicenseRef-scancode-google-patent-license-golang`.
+          # The Google patent grant addendum is not in the SPDX list, so the
+          # action cannot match it against allow-licenses even though the base
+          # BSD-3-Clause is permissive. Allow-list these by package URL.
+          allow-dependencies-licenses: >-
+            pkg:golang/golang.org/x/time,
+            pkg:golang/golang.org/x/crypto,
+            pkg:golang/golang.org/x/net,
+            pkg:golang/golang.org/x/sys,
+            pkg:golang/golang.org/x/text,
+            pkg:golang/golang.org/x/sync,
+            pkg:golang/golang.org/x/term,
+            pkg:golang/golang.org/x/exp,
+            pkg:golang/golang.org/x/mod,
+            pkg:golang/golang.org/x/tools
+          comment-summary-in-pr: on-failure

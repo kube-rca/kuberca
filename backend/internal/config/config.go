@@ -17,6 +17,24 @@ type Config struct {
 	Flapping  FlappingConfig
 	AI        AIConfig
 	Analysis  AnalysisConfig
+	Webhook   WebhookConfig
+}
+
+// WebhookConfig controls inbound /webhook/alertmanager hardening.
+//
+// HMACSecret is the shared secret used to validate the X-Webhook-Signature
+// header (HMAC-SHA256, hex-encoded). When empty the middleware logs a single
+// startup warning and forwards requests unchanged (opt-in mode) so existing
+// operators can roll the secret out without an availability hit.
+//
+// HMACHeader optionally overrides the signature header name.
+//
+// RateLimitPerMinute caps the number of requests per remote IP per minute.
+// Default 100. Set <= 0 to disable rate limiting.
+type WebhookConfig struct {
+	HMACSecret         string
+	HMACHeader         string
+	RateLimitPerMinute int
 }
 
 type SlackConfig struct {
@@ -158,6 +176,11 @@ func Load() Config {
 		},
 		Analysis: AnalysisConfig{
 			ManualAnalyzeSeverities: os.Getenv("MANUAL_ANALYZE_SEVERITIES"), // empty = all auto (default)
+		},
+		Webhook: WebhookConfig{
+			HMACSecret:         os.Getenv("WEBHOOK_HMAC_SECRET"),
+			HMACHeader:         getenv("WEBHOOK_HMAC_HEADER", "X-Webhook-Signature"),
+			RateLimitPerMinute: getenvInt("WEBHOOK_RATE_LIMIT", 100),
 		},
 	}
 }

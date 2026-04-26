@@ -71,6 +71,7 @@ func NewPostgresPool(ctx context.Context, cfg config.PostgresConfig) (*pgxpool.P
 			if backoff > maxBackoff {
 				backoff = maxBackoff
 			}
+			// #nosec G404 -- retry-backoff jitter; not security-sensitive
 			jitter := time.Duration(float64(backoff) * (0.75 + rand.Float64()*0.5))
 			log.Printf("postgres connection attempt %d/%d failed: %v — retrying in %s", attempt+1, maxAttempts, err, jitter)
 			select {

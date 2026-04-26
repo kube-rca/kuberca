@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -300,6 +301,7 @@ func (m *notifierMock) RequiresThreadRef() bool {
 // ============================================================================
 
 type analyzerMock struct {
+	mu    sync.Mutex
 	calls []analyzerCall
 }
 
@@ -311,6 +313,11 @@ type analyzerCall struct {
 }
 
 func (m *analyzerMock) RequestAnalysis(alert model.Alert, alertID, threadTS, incidentID string, skipThreadCheck bool) {
+	// AlertService.ProcessWebhook dispatches RequestAnalysis on a goroutine,
+	// so concurrent ProcessWebhook calls within a single test exercise this
+	// mock from multiple goroutines. Guard the append with a mutex.
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.calls = append(m.calls, analyzerCall{
 		Fingerprint: alert.Fingerprint,
 		AlertID:     alertID,

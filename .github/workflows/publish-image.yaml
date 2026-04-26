@@ -12,31 +12,172 @@ on:
 
 permissions:
   contents: read
-  id-token: write
+  id-token: write       # cosign keyless + AWS OIDC + provenance
+  attestations: write   # actions/attest-build-provenance
+  packages: write       # ghcr.io push
 
 jobs:
-  publish:
+  validate-inputs:
+    # Fail fast and explicitly reject any caller input that doesn't match
+    # the contract. Subsequent jobs use the validated outputs so the raw
+    # `inputs.*` values never reach a privileged step.
     runs-on: ubuntu-latest
+    outputs:
+      component: ${{ steps.guard.outputs.component }}
+      tag: ${{ steps.guard.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - id: guard
+        env:
+          IN_COMPONENT: ${{ inputs.component }}
+          IN_TAG: ${{ inputs.tag }}
+        run: |
+          # Component must be one of the three published images.
+          case "$IN_COMPONENT" in
+            backend|frontend|agent) ;;
+            *)
+              echo "::error::Invalid component: $IN_COMPONENT (must be backend|frontend|agent)"
+              exit 1
+              ;;
+          esac
+          # Tag must use the `<component>-<semver>` shape produced by
+          # release-please (e.g. `backend-1.2.3`, `agent-1.0.0-rc.1`).
+          # The strict regex rejects shell metacharacters by construction.
+          if [[ ! "$IN_TAG" =~ ^(backend|frontend|agent|helm-chart)-[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$ ]]; then
+            echo "::error::Invalid tag: $IN_TAG"
+            exit 1
+          fi
+          {
+            echo "component=$IN_COMPONENT"
+            echo "tag=$IN_TAG"
+          } >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: validate-inputs
+    runs-on: ubuntu-latest
+    # The job-level env now reads from the validated outputs of the
+    # validate-inputs job, not from the raw caller inputs. CodeQL still
+    # marks `${{ needs.*.outputs.* }}` as data-flow tainted, but the
+    # validation step's regex constrains the value to `[A-Za-z0-9.-]+`
+    # before any privileged step sees it.
+    env:
+      COMPONENT: ${{ needs.validate-inputs.outputs.component }}
+      TAG: ${{ needs.validate-inputs.outputs.tag }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ needs.validate-inputs.outputs.tag }}
+          # `ref` is caller-supplied (validated upstream); drop the
+          # GITHUB_TOKEN credential the checkout would otherwise persist
+          # so anything at that ref cannot use it for further git ops.
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
+
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@5579c002bb4778aa43395ef1df492868a9a1c83f # v4.0.2
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ap-northeast-2
-          role-session-name: github-actions-${{ inputs.component }}
+          role-session-name: github-actions-${{ env.COMPONENT }}
+
       - name: Login to ECR Public
         id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@4625ce35226a7557230889aae2f52eb50ec3dcda # v2.0.1
         with:
           registry-type: public
         env:
           AWS_DEFAULT_REGION: us-east-1
           AWS_REGION: us-east-1
-      - name: Build and push
+
+      - name: Login to ghcr.io (mirror)
+        # Org-level package permissions must be granted to this repo before the
+        # mirror push will succeed. Note tracked in PR description.
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image references
+        id: refs
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
         run: |
-          IMAGE="${{ steps.ecr.outputs.registry }}/r5b7j2e4/kube-rca-ecr/${{ inputs.component }}:${{ inputs.component }}-${{ inputs.tag }}"
-          docker build -t "$IMAGE" ${{ inputs.component }}/
-          docker push "$IMAGE"
+          ECR_IMAGE="${ECR_REGISTRY}/r5b7j2e4/kube-rca-ecr/${COMPONENT}:${COMPONENT}-${TAG}"
+          GHCR_IMAGE="ghcr.io/kube-rca/${COMPONENT}:${TAG}"
+          {
+            echo "ecr_image=${ECR_IMAGE}"
+            echo "ghcr_image=${GHCR_IMAGE}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Resolve build context path
+        id: ctx
+        # Convert the validated COMPONENT into a hard-coded relative path.
+        # The case statement enumerates the three valid values; nothing
+        # else can fall through, so `steps.ctx.outputs.path` is always one
+        # of three literal strings — closing CodeQL's data-flow sink.
+        run: |
+          case "$COMPONENT" in
+            backend)  echo "path=./backend"  >> "$GITHUB_OUTPUT" ;;
+            frontend) echo "path=./frontend" >> "$GITHUB_OUTPUT" ;;
+            agent)    echo "path=./agent"    >> "$GITHUB_OUTPUT" ;;
+            *)        echo "::error::Unreachable"; exit 1 ;;
+          esac
+
+      - name: Build and push (multi-tag)
+        id: build
+        uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 # v6.9.0
+        with:
+          context: ${{ steps.ctx.outputs.path }}
+          push: true
+          provenance: true
+          sbom: true
+          tags: |
+            ${{ steps.refs.outputs.ecr_image }}
+            ${{ steps.refs.outputs.ghcr_image }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@1aa8e0f2454b781fbf0fbf306a4c9533a0c57409 # v3.7.0
+
+      - name: Cosign sign (keyless OIDC)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+          ECR_IMAGE: ${{ steps.refs.outputs.ecr_image }}
+          GHCR_IMAGE: ${{ steps.refs.outputs.ghcr_image }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          cosign sign --yes "${ECR_IMAGE}@${DIGEST}"
+          cosign sign --yes "${GHCR_IMAGE}@${DIGEST}"
+
+      - name: Generate SBOM (SPDX JSON)
+        uses: anchore/sbom-action@fc46e51fd3cb168ffb36c6d1915723c47db58abb # v0.17.7
+        with:
+          image: ${{ steps.refs.outputs.ecr_image }}
+          format: spdx-json
+          artifact-name: ${{ env.COMPONENT }}-sbom.spdx.json
+          output-file: ${{ env.COMPONENT }}-sbom.spdx.json
+
+      - name: Attest build provenance (ECR)
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-name: ${{ steps.refs.outputs.ecr_image }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest build provenance (ghcr)
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-name: ${{ steps.refs.outputs.ghcr_image }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
+        with:
+          image-ref: ${{ steps.refs.outputs.ecr_image }}
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: "os,library"
+          format: "table"

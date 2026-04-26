@@ -405,6 +405,30 @@
               }
             }
           }
+        },
+        "webhookSecret": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "HMAC signature validation for the public /webhook/alertmanager endpoint.",
+          "properties": {
+            "existingSecret": {
+              "type": "string",
+              "description": "Existing Secret name carrying the HMAC shared secret. Empty = opt-in (no verification)."
+            },
+            "key": {
+              "type": "string",
+              "description": "Secret key holding the raw shared secret."
+            },
+            "headerName": {
+              "type": "string",
+              "description": "HTTP header name carrying the hex-encoded HMAC-SHA256 digest."
+            },
+            "rateLimitPerMinute": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Per-IP rate limit for /webhook/alertmanager. 0 disables rate limiting."
+            }
+          }
         }
       }
     },

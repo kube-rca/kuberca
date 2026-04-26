@@ -11,11 +11,41 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: azure/setup-helm@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - uses: azure/setup-helm@fe7b79cd5ee1e45176fcad797de68ecaf3ca4814 # v4.2.0
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: "3.12"
       - name: Add Bitnami chart repo
         run: helm repo add bitnami https://charts.bitnami.com/bitnami --force-update
       - name: Build chart dependencies
         run: helm dependency build charts/kube-rca
       - name: Lint kube-rca chart
         run: helm lint charts/kube-rca
+      - name: chart-testing (ct lint)
+        uses: helm/chart-testing-action@e6669bcd63d7cb57cb4380c33043eebe5d111992 # v2.6.1
+      - name: Run ct lint
+        run: |
+          ct lint --target-branch=main --chart-dirs=charts --validate-maintainers=false || true
+        # ct lint enforces stricter rules (semver bump on changes, README sync, etc.).
+        # Soft-fail until W3 establishes the maintainers metadata; the helm lint above
+        # remains the blocking gate.
+      - name: Install kubeconform
+        run: |
+          KCV=v0.6.7
+          curl -sSL "https://github.com/yannh/kubeconform/releases/download/${KCV}/kubeconform-linux-amd64.tar.gz" \
+            | tar xz -C /usr/local/bin kubeconform
+          kubeconform -v
+      - name: kubeconform (template + validate)
+        run: |
+          helm template kube-rca charts/kube-rca \
+            --set backend.webhookSecret.existingSecret=test-secret \
+            --set agent.aiProvider=gemini \
+            --set agent.gemini.apiKey=dummy \
+            > /tmp/manifests.yaml
+          kubeconform -strict -summary -ignore-missing-schemas \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            /tmp/manifests.yaml
