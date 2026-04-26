@@ -12,6 +12,7 @@ from app.clients.llm_providers.base import (
     StrandsModel,
 )
 from app.core.config import DEFAULT_ANTHROPIC_MAX_TOKENS, Settings
+from app.core.log_sanitize import sanitize_log
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +129,9 @@ def get_provider_config(settings: Settings) -> ModelConfig | None:
         api_key = settings.anthropic_api_key
         model_id = settings.anthropic_model_id or DEFAULT_MODEL_IDS[LLMProvider.ANTHROPIC]
     else:
-        logger.warning("Unknown AI provider '%s', falling back to gemini", provider_str)
+        logger.warning(
+            "Unknown AI provider '%s', falling back to gemini", sanitize_log(provider_str)
+        )
         api_key = settings.gemini_api_key
         provider_str = "gemini"
         model_id = settings.gemini_model_id or DEFAULT_MODEL_IDS[LLMProvider.GEMINI]
@@ -136,23 +139,19 @@ def get_provider_config(settings: Settings) -> ModelConfig | None:
     if not api_key:
         logger.warning(
             "No API key configured for provider '%s'. Analysis engine will be disabled.",
-            provider_str,
+            sanitize_log(provider_str),
         )
         return None
 
     try:
         provider = LLMProvider.from_string(provider_str)
     except ValueError:
-        logger.error("Invalid provider: %s", provider_str)
+        logger.error("Invalid provider: %s", sanitize_log(provider_str))
         return None
 
     return ModelConfig(
         provider=provider,
         model_id=model_id,
         api_key=api_key,
-        max_tokens=(
-            settings.anthropic_max_tokens
-            if provider == LLMProvider.ANTHROPIC
-            else None
-        ),
+        max_tokens=(settings.anthropic_max_tokens if provider == LLMProvider.ANTHROPIC else None),
     )
