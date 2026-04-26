@@ -42,7 +42,11 @@ jobs:
           working-directory: backend
           args: --timeout=5m
       - name: Install gosec
-        run: go install github.com/securego/gosec/v2/cmd/gosec@v2.21.4
+        # v2.25.0 brings in golang.org/x/tools that compiles cleanly under
+        # Go 1.25 (older versions hit an integer-overflow array length in
+        # tokeninternal). Pin to the published release rather than @latest
+        # so the build is reproducible.
+        run: go install github.com/securego/gosec/v2/cmd/gosec@v2.25.0
       - name: gosec
         working-directory: backend
         run: gosec -severity medium -confidence medium -exclude-dir=docs ./...
