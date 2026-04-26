@@ -694,7 +694,9 @@ func (s *AlertService) resolveAlertInternal(alertID string, triggerAnalysis bool
 func (s *AlertService) BulkResolveAlerts(alertIDs []string) (resolved, failed int) {
 	for _, id := range alertIDs {
 		if err := s.resolveAlertInternal(id, false); err != nil {
-			log.Printf("Failed to resolve alert %s: %v", logutil.Sanitize(id), err)
+			// err.Error() may interpolate the alert ID into its message; sanitise
+			// the whole rendered string so the inner taint cannot forge log lines.
+			log.Printf("Failed to resolve alert %s: %s", logutil.Sanitize(id), logutil.Sanitize(err.Error()))
 			failed++
 			continue
 		}
