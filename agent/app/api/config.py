@@ -12,6 +12,7 @@ from app.core.dependencies import (
     get_chat_service,
     get_settings,
 )
+from app.core.log_sanitize import sanitize_log
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +30,8 @@ async def update_ai_config(request: AIConfigUpdateRequest):
 
     logger.info(
         "Updating AI config: provider=%s, model_id=%s",
-        request.provider,
-        request.model_id,
+        sanitize_log(request.provider),
+        sanitize_log(request.model_id),
     )
 
     # 1. 환경변수 덮어쓰기 (다음 Settings 로드 시 반영)

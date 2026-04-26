@@ -46,6 +46,7 @@ from app.clients.prometheus import PrometheusClient
 from app.clients.session_repository import PostgresSessionRepository
 from app.clients.tempo import TempoClient, build_traceql_query
 from app.core.config import Settings
+from app.core.log_sanitize import sanitize_log
 from app.core.masking import Masker, RegexMasker
 
 logger = logging.getLogger(__name__)
@@ -686,7 +687,7 @@ class StrandsAnalysisEngine:
                 "llm_retry_max_attempts=%d, llm_retry_total_timeout=%.1f, "
                 "llm_retry_max_wait=%.1f",
                 model_config.provider.value,
-                model_config.model_id,
+                sanitize_log(model_config.model_id),
                 self._retry_max_attempts,
                 self._retry_total_timeout,
                 self._retry_max_wait,
@@ -707,7 +708,7 @@ class StrandsAnalysisEngine:
             logger.warning(
                 "chat_session_recovery_started "
                 "session_id=%s error_type=%s expected_manager=%s found_manager=%s",
-                session_id,
+                sanitize_log(session_id),
                 type(exc).__name__,
                 expected_manager,
                 found_manager or "unknown",
@@ -720,7 +721,7 @@ class StrandsAnalysisEngine:
                 logger.exception(
                     "chat_session_recovery_failed "
                     "session_id=%s expected_manager=%s found_manager=%s",
-                    session_id,
+                    sanitize_log(session_id),
                     expected_manager,
                     found_manager or "unknown",
                 )
@@ -729,7 +730,7 @@ class StrandsAnalysisEngine:
             logger.info(
                 "chat_session_recovery_succeeded "
                 "session_id=%s expected_manager=%s found_manager=%s",
-                session_id,
+                sanitize_log(session_id),
                 expected_manager,
                 found_manager or "unknown",
             )
@@ -740,7 +741,7 @@ class StrandsAnalysisEngine:
         logger.warning(
             "gemini_turn_order_recovery session_id=%s — "
             "sanitization in _invoke_with_retry failed, resetting session",
-            session_id,
+            sanitize_log(session_id),
         )
         self._reset_session_state(session_id)
         try:
@@ -748,10 +749,13 @@ class StrandsAnalysisEngine:
         except Exception:
             logger.exception(
                 "gemini_turn_order_recovery_failed session_id=%s",
-                session_id,
+                sanitize_log(session_id),
             )
             raise
-        logger.info("gemini_turn_order_recovery_succeeded session_id=%s", session_id)
+        logger.info(
+            "gemini_turn_order_recovery_succeeded session_id=%s",
+            sanitize_log(session_id),
+        )
         return result
 
     def _analyze_once(self, prompt: str, session_id: str) -> str:
@@ -768,7 +772,7 @@ class StrandsAnalysisEngine:
         logger.info(
             "strands_analyze_once_timing session_id=%s "
             "cache_ms=%.1f lock_ms=%.1f invoke_ms=%.1f total_ms=%.1f",
-            session_id,
+            sanitize_log(session_id),
             (t_cache - t0) * 1000,
             (t_lock - t_cache) * 1000,
             (t_invoke - t_lock) * 1000,
@@ -782,7 +786,7 @@ class StrandsAnalysisEngine:
         except Exception:  # noqa: BLE001
             logger.warning(
                 "Failed to read stored conversation manager state for session=%s",
-                session_id,
+                sanitize_log(session_id),
             )
             return None
 
