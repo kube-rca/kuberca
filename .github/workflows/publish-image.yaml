@@ -173,7 +173,7 @@ jobs:
           push-to-registry: true
 
       - name: Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
           image-ref: ${{ steps.refs.outputs.ecr_image }}
           severity: CRITICAL,HIGH
