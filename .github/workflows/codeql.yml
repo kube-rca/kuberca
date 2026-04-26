@@ -14,6 +14,7 @@ permissions:
   contents: read
   security-events: write
   actions: read
+  packages: read   # required to fetch internal / private CodeQL packs
 
 jobs:
   analyze:
@@ -24,6 +25,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # `actions` scans the workflow files themselves for supply-chain
+          # smells (e.g. unsafe ${{ }} interpolation in shell, untrusted
+          # checkouts). Cheap and high-signal for a hardening initiative.
+          - language: actions
+            build-mode: none
           - language: go
             build-mode: autobuild
           - language: python
