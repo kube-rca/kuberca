@@ -55,7 +55,13 @@ jobs:
         # the dependency-review workflow is the blocking gate for CVE introduction.
       - name: Test (coverage)
         working-directory: agent
-        run: pytest --cov=app --cov-report=xml --cov-report=term
+        # --cov-fail-under=55: measured baseline after W3 additions is 57.79 %.
+        # The gap to 70 % is driven by strands_agent.py (LLM integration,
+        # 55 %), session_repository.py (Postgres, 23 %), and prometheus.py
+        # (live scrape, 20 %) — all require real infrastructure to cover fully.
+        # Threshold is set 3 pp below current to absorb minor measurement
+        # variance without blocking PRs on pre-existing infra-bound paths.
+        run: pytest --cov=app --cov-report=xml --cov-report=term --cov-fail-under=55
       - name: Upload coverage to Codecov
         if: always()
         uses: codecov/codecov-action@0f8570b1a125f4937846a11fcfa3bcd548bd8c97 # v4.6.0

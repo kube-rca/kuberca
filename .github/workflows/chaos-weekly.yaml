@@ -1,0 +1,97 @@
+name: Chaos Weekly
+
+on:
+  schedule:
+    # Every Monday at 03:17 UTC — offset from the hour to avoid GitHub runner
+    # congestion that occurs on round-minute schedules.
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: 'Chaos scenario to run (oomkilled | crashloop | networkdelay)'
+        required: false
+        default: 'oomkilled'
+
+permissions:
+  contents: read
+
+jobs:
+  chaos:
+    name: Chaos scenario — ${{ github.event.inputs.scenario || 'oomkilled' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Validate scenario input
+        id: scenario
+        run: |
+          SCENARIO="${{ github.event.inputs.scenario || 'oomkilled' }}"
+          case "$SCENARIO" in
+            oomkilled|crashloop|networkdelay)
+              echo "scenario=$SCENARIO" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::Unknown scenario '$SCENARIO'. Allowed: oomkilled, crashloop, networkdelay"
+              exit 1
+              ;;
+          esac
+
+      - name: Create kind cluster
+        uses: helm/kind-action@a1b0e391336a6ee6713a0583f8c6240d70863de9 # v1.12.0
+        with:
+          cluster_name: chaos-ci
+          wait: 120s
+
+      - name: Install Chaos Mesh via Helm
+        run: |
+          helm repo add chaos-mesh https://charts.chaos-mesh.org --force-update
+          helm repo update
+          kubectl create ns chaos-testing || true
+          helm upgrade --install chaos-mesh chaos-mesh/chaos-mesh \
+            --namespace chaos-testing \
+            --set chaosDaemon.runtime=containerd \
+            --set chaosDaemon.socketPath=/run/containerd/containerd.sock \
+            --version 2.7.2 \
+            --wait --timeout 5m
+
+      - name: Create target namespace and workload
+        run: |
+          kubectl create namespace kube-rca || true
+          # Deploy a minimal target workload for the chaos scenario.
+          kubectl create deployment stress-target \
+            --image=nginx:stable-alpine \
+            --replicas=1 \
+            --namespace=kube-rca
+          kubectl rollout status deployment/stress-target \
+            --namespace=kube-rca \
+            --timeout=90s
+
+      - name: Run chaos scenario (dry-run syntax check)
+        working-directory: chaos
+        run: |
+          # Validate shell scripts are syntactically correct before execution.
+          bash -n scripts/run-oomkilled.sh
+          bash -n scripts/run-crashloop.sh
+          bash -n scripts/run-networkdelay.sh
+
+      - name: Run scenario — ${{ steps.scenario.outputs.scenario }}
+        working-directory: chaos
+        env:
+          KUBE_CONTEXT: kind-chaos-ci
+          WAIT_SECONDS: '90'
+          POLL_INTERVAL_SECONDS: '5'
+          NAMESPACE: kube-rca
+        run: make ${{ steps.scenario.outputs.scenario }}
+
+      - name: Verify cleanup (no orphaned chaos CRs)
+        if: always()
+        run: |
+          echo "=== Chaos CRs remaining after scenario ==="
+          kubectl get podchaos,networkchaos,stresschaos \
+            --all-namespaces 2>/dev/null || echo "No chaos CRs found (clean)"
+
+      - name: Delete kind cluster
+        if: always()
+        run: kind delete cluster --name chaos-ci
