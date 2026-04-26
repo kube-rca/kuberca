@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "lucide-react": "^0.575.0",
@@ -33,6 +35,12 @@
     "postcss": "8.5.12",
     "tailwindcss": "^3.4.0",
     "typescript": "^5.2.2",
-    "vite": "^7.3.2"
+    "vite": "^7.3.2",
+    "vitest": "^2.0.0",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/jest-dom": "^6.4.0",
+    "@testing-library/user-event": "^14.5.0",
+    "@vitest/coverage-v8": "^2.0.0",
+    "jsdom": "^25.0.0"
   }
 }
