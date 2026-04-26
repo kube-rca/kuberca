@@ -129,7 +129,7 @@ class LokiClient:
 
         request = urllib.request.Request(url, headers=headers)
         try:
-            with urllib.request.urlopen(request, timeout=self._timeout_seconds) as response:
+            with urllib.request.urlopen(request, timeout=self._timeout_seconds) as response:  # noqa: S310  # nosec B310
                 payload = response.read()
         except urllib.error.HTTPError as exc:
             body = exc.read().decode("utf-8", errors="replace")
@@ -176,6 +176,6 @@ def _normalize_base_url(raw: str) -> str:
     if "://" not in value:
         value = f"http://{value}"
     parsed = urllib.parse.urlparse(value)
-    if not parsed.scheme or not parsed.netloc:
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
         return ""
     return value.rstrip("/")

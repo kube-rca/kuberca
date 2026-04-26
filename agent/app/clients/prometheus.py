@@ -51,7 +51,7 @@ class PrometheusClient:
         url = f"{endpoint.base_url}/api/v1/label/__name__/values"
 
         try:
-            with urllib.request.urlopen(url, timeout=self._timeout_seconds) as response:
+            with urllib.request.urlopen(url, timeout=self._timeout_seconds) as response:  # noqa: S310  # nosec B310
                 payload = response.read()
         except Exception as exc:  # noqa: BLE001
             self._logger.warning("Failed to list Prometheus metrics: %s", exc)
@@ -98,7 +98,7 @@ class PrometheusClient:
         url = f"{endpoint.base_url}/api/v1/query?{urllib.parse.urlencode(params)}"
 
         try:
-            with urllib.request.urlopen(url, timeout=self._timeout_seconds) as response:
+            with urllib.request.urlopen(url, timeout=self._timeout_seconds) as response:  # noqa: S310  # nosec B310
                 payload = response.read()
         except Exception as exc:  # noqa: BLE001
             self._logger.warning("Failed to query Prometheus: %s", exc)
@@ -153,7 +153,7 @@ class PrometheusClient:
         url = f"{endpoint.base_url}/api/v1/query_range?{urllib.parse.urlencode(params)}"
 
         try:
-            with urllib.request.urlopen(url, timeout=self._timeout_seconds) as response:
+            with urllib.request.urlopen(url, timeout=self._timeout_seconds) as response:  # noqa: S310  # nosec B310
                 payload = response.read()
         except Exception as exc:  # noqa: BLE001
             self._logger.warning("Failed to query_range Prometheus: %s", exc)
@@ -190,6 +190,6 @@ def _normalize_base_url(raw: str) -> str:
     if "://" not in value:
         value = f"http://{value}"
     parsed = urllib.parse.urlparse(value)
-    if not parsed.scheme or not parsed.netloc:
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
         return ""
     return value.rstrip("/")
