@@ -24,6 +24,7 @@ import (
 	"github.com/kube-rca/backend/internal/client"
 	"github.com/kube-rca/backend/internal/config"
 	"github.com/kube-rca/backend/internal/db"
+	"github.com/kube-rca/backend/internal/logutil"
 	"github.com/kube-rca/backend/internal/model"
 	"github.com/kube-rca/backend/internal/sse"
 )
@@ -95,7 +96,7 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 	for _, alert := range webhook.Alerts {
 		// 0. severity 필터링 (info, none 등은 DB 저장도 하지 않음)
 		if !s.shouldProcess(alert) {
-			log.Printf("Skipping alert with severity=%s (fingerprint=%s)", alert.Labels["severity"], alert.Fingerprint)
+			log.Printf("Skipping alert with severity=%s (fingerprint=%s)", logutil.Sanitize(alert.Labels["severity"]), logutil.Sanitize(alert.Fingerprint))
 			continue
 		}
 
@@ -126,7 +127,7 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 		if alert.Status == "resolved" {
 			// 이미 resolved된 알림인지 확인 (중복 웹훅 방지)
 			if alreadyResolved, _ := s.db.IsAlertAlreadyResolved(alert.Fingerprint, alert.EndsAt); alreadyResolved {
-				log.Printf("Skipping duplicate resolved alert (fingerprint=%s)", alert.Fingerprint)
+				log.Printf("Skipping duplicate resolved alert (fingerprint=%s)", logutil.Sanitize(alert.Fingerprint))
 				continue
 			}
 			if err := s.db.UpdateAlertResolved(alert.Fingerprint, alert.EndsAt); err != nil {
@@ -164,7 +165,7 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 					}
 				}
 				if len(deliveries) == 0 {
-					log.Printf("Skipping flapping notification (alert_id=%s, fingerprint=%s, skip_reason=no_active_delivery)", alertID, alert.Fingerprint)
+					log.Printf("Skipping flapping notification (alert_id=%s, fingerprint=%s, skip_reason=no_active_delivery)", logutil.Sanitize(alertID), logutil.Sanitize(alert.Fingerprint))
 					goto flappingDone
 				}
 				err = s.notifyThreadEvent(client.FlappingDetectedEvent{
@@ -177,7 +178,7 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 		flappingDone:
 		} else if isFlapping {
 			// 이미 Flapping 중 - 알림 스킵
-			log.Printf("Skipping notification for flapping alert (fingerprint=%s)", alert.Fingerprint)
+			log.Printf("Skipping notification for flapping alert (fingerprint=%s)", logutil.Sanitize(alert.Fingerprint))
 			sent++
 			goto skipSlack
 		} else if alert.Status == "firing" {
@@ -210,7 +211,7 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 					}
 				}
 				if len(deliveries) == 0 {
-					log.Printf("Skipping resolved notification (alert_id=%s, fingerprint=%s, skip_reason=no_active_delivery)", alertID, alert.Fingerprint)
+					log.Printf("Skipping resolved notification (alert_id=%s, fingerprint=%s, skip_reason=no_active_delivery)", logutil.Sanitize(alertID), logutil.Sanitize(alert.Fingerprint))
 					goto resolvedDone
 				}
 				err = s.notifyThreadEvent(client.AlertStatusChangedEvent{
@@ -236,7 +237,7 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 		}
 
 		if notificationSent {
-			log.Printf("Sent alert notification (fingerprint=%s, alert_id=%s, status=%s, incident_id=%s, flapping=%v)", alert.Fingerprint, alertID, alert.Status, incidentID, isFlapping)
+			log.Printf("Sent alert notification (fingerprint=%s, alert_id=%s, status=%s, incident_id=%s, flapping=%v)", logutil.Sanitize(alert.Fingerprint), logutil.Sanitize(alertID), logutil.Sanitize(alert.Status), logutil.Sanitize(incidentID), isFlapping)
 			sent++
 		}
 
@@ -247,9 +248,9 @@ func (s *AlertService) ProcessWebhook(webhook model.AlertmanagerWebhook) (sent, 
 			threadTS := s.analysisThreadContext(alertID, alert.Fingerprint)
 			go s.agentService.RequestAnalysis(alert, alertID, threadTS, incidentID, false)
 		} else if isFlapping {
-			log.Printf("Skipping Agent analysis for flapping alert (fingerprint=%s)", alert.Fingerprint)
+			log.Printf("Skipping Agent analysis for flapping alert (fingerprint=%s)", logutil.Sanitize(alert.Fingerprint))
 		} else {
-			log.Printf("Skipping auto-analysis for alert (fingerprint=%s, severity=%s)", alert.Fingerprint, severity)
+			log.Printf("Skipping auto-analysis for alert (fingerprint=%s, severity=%s)", logutil.Sanitize(alert.Fingerprint), logutil.Sanitize(severity))
 		}
 	}
 	return sent, failed
@@ -264,7 +265,7 @@ func (s *AlertService) getOrCreateIncident(alert model.Alert) (string, error) {
 	}
 
 	if created {
-		log.Printf("Created new incident: %s (triggered by alert: %s)", incidentID, alert.Fingerprint)
+		log.Printf("Created new incident: %s (triggered by alert: %s)", logutil.Sanitize(incidentID), logutil.Sanitize(alert.Fingerprint))
 		if s.sseHub != nil {
 			s.sseHub.Broadcast(sse.Event{
 				Type: sse.EventIncidentCreated,
@@ -360,7 +361,7 @@ func (s *AlertService) detectFlapping(alert model.Alert) (bool, bool) {
 		if err := s.db.MarkAlertAsFlapping(alert.Fingerprint, true, cycleCount, windowStart); err != nil {
 			log.Printf("Failed to mark alert as flapping: %v", err)
 		}
-		log.Printf("Flapping detected for alert %s (cycles=%d, threshold=%d)", alert.Fingerprint, cycleCount, threshold)
+		log.Printf("Flapping detected for alert %s (cycles=%d, threshold=%d)", logutil.Sanitize(alert.Fingerprint), cycleCount, threshold)
 		return true, true
 	} else if isNowFlapping {
 		// 이미 Flapping 중, cycle count 업데이트
@@ -393,19 +394,19 @@ func (s *AlertService) scheduleFlappingClearanceCheck(fingerprint string, resolv
 
 	// Alert가 다시 firing되었거나 resolved 시각이 변경되었으면 clearance 취소
 	if alert.Status == "firing" || (alert.ResolvedAt != nil && alert.ResolvedAt.Before(resolvedAt)) {
-		log.Printf("Alert re-fired, not clearing flapping status (fingerprint=%s)", fingerprint)
+		log.Printf("Alert re-fired, not clearing flapping status (fingerprint=%s)", logutil.Sanitize(fingerprint))
 		return
 	}
 
 	// resolvedAt 이후 새로운 전환이 있었는지 확인
 	hasNewTransitions, err := s.db.HasTransitionsSince(fingerprint, resolvedAt)
 	if err != nil || hasNewTransitions {
-		log.Printf("New transitions detected, not clearing flapping status (fingerprint=%s)", fingerprint)
+		log.Printf("New transitions detected, not clearing flapping status (fingerprint=%s)", logutil.Sanitize(fingerprint))
 		return
 	}
 
 	// Flapping 해제
-	log.Printf("Clearing flapping status after %d min stability (fingerprint=%s)", clearanceMinutes, fingerprint)
+	log.Printf("Clearing flapping status after %d min stability (fingerprint=%s)", clearanceMinutes, logutil.Sanitize(fingerprint))
 	if err := s.db.MarkAlertAsFlapping(fingerprint, false, 0, time.Time{}); err != nil {
 		log.Printf("Failed to clear flapping status: %v", err)
 		return
@@ -425,7 +426,7 @@ func (s *AlertService) scheduleFlappingClearanceCheck(fingerprint string, resolv
 		}
 	}
 	if len(deliveries) == 0 {
-		log.Printf("Skipping flapping cleared notification (alert_id=%s, fingerprint=%s, skip_reason=no_active_delivery)", alert.AlertID, fingerprint)
+		log.Printf("Skipping flapping cleared notification (alert_id=%s, fingerprint=%s, skip_reason=no_active_delivery)", logutil.Sanitize(alert.AlertID), logutil.Sanitize(fingerprint))
 		return
 	}
 	if err := s.notifyThreadEvent(client.FlappingClearedEvent{Fingerprint: fingerprint}, deliveries); err != nil {
@@ -670,7 +671,7 @@ func (s *AlertService) resolveAlertInternal(alertID string, triggerAnalysis bool
 			}
 		}
 		if len(deliveries) == 0 {
-			log.Printf("Skipping manual resolve notification (alert_id=%s, fingerprint=%s, skip_reason=no_active_delivery)", alertID, alert.Fingerprint)
+			log.Printf("Skipping manual resolve notification (alert_id=%s, fingerprint=%s, skip_reason=no_active_delivery)", logutil.Sanitize(alertID), logutil.Sanitize(alert.Fingerprint))
 		} else if err := s.notifyThreadEvent(client.AlertStatusChangedEvent{
 			Alert:      modelAlert,
 			IncidentID: incidentID,
@@ -693,7 +694,7 @@ func (s *AlertService) resolveAlertInternal(alertID string, triggerAnalysis bool
 func (s *AlertService) BulkResolveAlerts(alertIDs []string) (resolved, failed int) {
 	for _, id := range alertIDs {
 		if err := s.resolveAlertInternal(id, false); err != nil {
-			log.Printf("Failed to resolve alert %s: %v", id, err)
+			log.Printf("Failed to resolve alert %s: %v", logutil.Sanitize(id), err)
 			failed++
 			continue
 		}
