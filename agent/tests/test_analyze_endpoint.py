@@ -26,7 +26,7 @@ class _FakeAnalysisService:
     """Happy-path stub: returns canned strings, never calls LLM or K8s."""
 
     def analyze_with_i18n(
-        self, request: Any, **_kwargs: Any
+        self, _request: Any, **_kwargs: Any
     ) -> tuple[str, str, str, dict, dict, dict, list]:
         return (
             "RCA analysis text",
@@ -39,7 +39,7 @@ class _FakeAnalysisService:
         )
 
     def summarize_incident_with_i18n(
-        self, request: Any, **_kwargs: Any
+        self, _request: Any, **_kwargs: Any
     ) -> tuple[str, str, str, dict, dict]:
         return (
             "Incident title",
