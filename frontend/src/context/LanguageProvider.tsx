@@ -1,17 +1,16 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { fetchCurrentUser, updatePreferredLanguage } from '../utils/auth';
+import { updatePreferredLanguage } from '../utils/auth';
 import { Language, LanguageContext, getDictionaryValue } from './LanguageContext';
-
-const STORAGE_KEY = 'preferred_language';
+import { languageStorageKey } from './languageStorage';
 
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   const [language, setLanguageState] = useState<Language>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(languageStorageKey);
     return stored === 'en' ? 'en' : 'ko';
   });
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, language);
+    localStorage.setItem(languageStorageKey, language);
   }, [language]);
 
   const setLanguage = async (nextLanguage: Language) => {
@@ -44,16 +43,4 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </LanguageContext.Provider>
   );
-};
-
-export const languageStorageKey = STORAGE_KEY;
-export const loadStoredLanguage = (): Language =>
-  localStorage.getItem(STORAGE_KEY) === 'en' ? 'en' : 'ko';
-export const syncLanguageFromServer = async (): Promise<Language> => {
-  try {
-    const user = await fetchCurrentUser();
-    return user.preferredLanguage === 'en' ? 'en' : 'ko';
-  } catch {
-    return loadStoredLanguage();
-  }
 };

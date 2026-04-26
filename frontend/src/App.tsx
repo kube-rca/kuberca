@@ -31,7 +31,7 @@ import { useSSE, SSEEvent } from './hooks/useSSE';
 import { exportRows, ExportColumn, ExportFormat, ExportSummary } from './utils/export';
 import { searchIncidents, searchAlerts } from './utils/searchLogic';
 import { useLanguage } from './context/LanguageContext';
-import { syncLanguageFromServer } from './context/LanguageProvider';
+import { syncLanguageFromServer } from './context/languageStorage';
 
 type RawRCAItem = RCAItem & {
   created_at?: string;
