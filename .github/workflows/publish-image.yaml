@@ -17,22 +17,58 @@ permissions:
   packages: write       # ghcr.io push
 
 jobs:
-  publish:
+  validate-inputs:
+    # Fail fast and explicitly reject any caller input that doesn't match
+    # the contract. Subsequent jobs use the validated outputs so the raw
+    # `inputs.*` values never reach a privileged step.
     runs-on: ubuntu-latest
-    # Surface caller-controlled inputs through env so they never reach a
-    # shell `run:` block as raw `${{ ... }}` interpolation. CodeQL flags
-    # the latter as a code-injection vector even when the caller is
-    # trusted; binding to env first is the standard mitigation.
+    outputs:
+      component: ${{ steps.guard.outputs.component }}
+      tag: ${{ steps.guard.outputs.tag }}
+    steps:
+      - id: guard
+        env:
+          IN_COMPONENT: ${{ inputs.component }}
+          IN_TAG: ${{ inputs.tag }}
+        run: |
+          # Component must be one of the three published images.
+          case "$IN_COMPONENT" in
+            backend|frontend|agent) ;;
+            *)
+              echo "::error::Invalid component: $IN_COMPONENT (must be backend|frontend|agent)"
+              exit 1
+              ;;
+          esac
+          # Tag must use the `<component>-<semver>` shape produced by
+          # release-please (e.g. `backend-1.2.3`, `agent-1.0.0-rc.1`).
+          # The strict regex rejects shell metacharacters by construction.
+          if [[ ! "$IN_TAG" =~ ^(backend|frontend|agent|helm-chart)-[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$ ]]; then
+            echo "::error::Invalid tag: $IN_TAG"
+            exit 1
+          fi
+          {
+            echo "component=$IN_COMPONENT"
+            echo "tag=$IN_TAG"
+          } >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: validate-inputs
+    runs-on: ubuntu-latest
+    # The job-level env now reads from the validated outputs of the
+    # validate-inputs job, not from the raw caller inputs. CodeQL still
+    # marks `${{ needs.*.outputs.* }}` as data-flow tainted, but the
+    # validation step's regex constrains the value to `[A-Za-z0-9.-]+`
+    # before any privileged step sees it.
     env:
-      COMPONENT: ${{ inputs.component }}
-      TAG: ${{ inputs.tag }}
+      COMPONENT: ${{ needs.validate-inputs.outputs.component }}
+      TAG: ${{ needs.validate-inputs.outputs.tag }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          ref: ${{ inputs.tag }}
-          # `ref` is caller-supplied; drop the GITHUB_TOKEN credential the
-          # checkout would otherwise persist so any code at that ref cannot
-          # use it for further git operations.
+          ref: ${{ needs.validate-inputs.outputs.tag }}
+          # `ref` is caller-supplied (validated upstream); drop the
+          # GITHUB_TOKEN credential the checkout would otherwise persist
+          # so anything at that ref cannot use it for further git ops.
           persist-credentials: false
 
       - name: Set up Docker Buildx
@@ -75,11 +111,25 @@ jobs:
             echo "ghcr_image=${GHCR_IMAGE}"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Resolve build context path
+        id: ctx
+        # Convert the validated COMPONENT into a hard-coded relative path.
+        # The case statement enumerates the three valid values; nothing
+        # else can fall through, so `steps.ctx.outputs.path` is always one
+        # of three literal strings — closing CodeQL's data-flow sink.
+        run: |
+          case "$COMPONENT" in
+            backend)  echo "path=./backend"  >> "$GITHUB_OUTPUT" ;;
+            frontend) echo "path=./frontend" >> "$GITHUB_OUTPUT" ;;
+            agent)    echo "path=./agent"    >> "$GITHUB_OUTPUT" ;;
+            *)        echo "::error::Unreachable"; exit 1 ;;
+          esac
+
       - name: Build and push (multi-tag)
         id: build
         uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 # v6.9.0
         with:
-          context: ${{ env.COMPONENT }}
+          context: ${{ steps.ctx.outputs.path }}
           push: true
           provenance: true
           sbom: true
