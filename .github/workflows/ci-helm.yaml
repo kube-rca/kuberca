@@ -25,7 +25,7 @@ jobs:
       - name: Lint kube-rca chart
         run: helm lint charts/kube-rca
       - name: chart-testing (ct lint)
-        uses: helm/chart-testing-action@e6669bcd63d7cb57cb4380c33043eebe5d111992 # v2.6.1
+        uses: helm/chart-testing-action@6ec842c01de15ebb84c8627d2744a0c2f2755c9f # v2.8.0
       - name: Run ct lint
         run: |
           ct lint --target-branch=main --chart-dirs=charts --validate-maintainers=false || true
