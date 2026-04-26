@@ -151,7 +151,7 @@ jobs:
           cosign sign --yes "${GHCR_IMAGE}@${DIGEST}"
 
       - name: Generate SBOM (SPDX JSON)
-        uses: anchore/sbom-action@fc46e51fd3cb168ffb36c6d1915723c47db58abb # v0.17.7
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
         with:
           image: ${{ steps.refs.outputs.ecr_image }}
           format: spdx-json
@@ -173,7 +173,7 @@ jobs:
           push-to-registry: true
 
       - name: Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ steps.refs.outputs.ecr_image }}
           severity: CRITICAL,HIGH

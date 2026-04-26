@@ -107,7 +107,7 @@ jobs:
           docker push \
             "${{ steps.ecr.outputs.registry }}/r5b7j2e4/kube-rca-ecr/backend:${{ steps.tag.outputs.image_tag }}"
       - name: Update helm values (backend image tag)
-        uses: mikefarah/yq@b534aa9ee5d38001fba3cd8fe254a037e4847b37 # v4.45.4
+        uses: mikefarah/yq@751d8ad57b84f1794661bc70c0afb92a22ad7b3c # v4.53.2
         with:
           cmd: yq -i '.backend.image.tag = "${{ steps.tag.outputs.image_tag }}"' charts/kube-rca/kube-rca-values.yaml
       - name: Commit and push helm values
