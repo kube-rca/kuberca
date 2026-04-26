@@ -6,6 +6,37 @@
 
 - Relicensed from MIT to Apache License 2.0. Existing forks must update their LICENSE references. Contributor consent for this change tracked in `.github/RELICENSE_CONSENT.md`. (#<TBD-PR-number>)
 
+## [1.2.0](https://github.com/kube-rca/kuberca/compare/v1.1.0...v1.2.0) (2026-04-26)
+
+
+### Features
+
+* **log:** add Sanitize helper to strip control characters ([e2ba3a1](https://github.com/kube-rca/kuberca/commit/e2ba3a1768a61b3cfc5ace771da5611f560fac3b))
+* **log:** add sanitize_log helper to strip control characters ([08c9eaf](https://github.com/kube-rca/kuberca/commit/08c9eaf36438cc9f6b9239c93eaffeb5b94146a6))
+
+
+### Bug Fixes
+
+* **agent:** sanitize user-controlled values in logger calls (CodeQL py/log-injection) ([5f2b01b](https://github.com/kube-rca/kuberca/commit/5f2b01b48ec2a88376d74e8c18a685f1554cf094))
+* **agent:** validate http/https scheme + silence bandit B310 ([#41](https://github.com/kube-rca/kuberca/issues/41)) ([0254bbc](https://github.com/kube-rca/kuberca/commit/0254bbcdfddd5b88161443b9a0f1ab288863e1d3))
+* **api:** sanitize user-controlled values in logger calls ([b3f0f41](https://github.com/kube-rca/kuberca/commit/b3f0f416b9e7dc208dc0b3a4dc36b12095ac906b))
+* **backend:** close residual go/log-injection (CodeQL barrier model + coverage) ([f92a41d](https://github.com/kube-rca/kuberca/commit/f92a41dfaf84b388dda22c4c999ad587fd6cec43))
+* **backend:** sanitize remaining log-injection sites in handler and client ([c1586b3](https://github.com/kube-rca/kuberca/commit/c1586b304fbd33fd79ba028f3d70259f3ca78fd8))
+* **backend:** sanitize user-controlled values in log calls (50 CodeQL findings) ([e7dc25a](https://github.com/kube-rca/kuberca/commit/e7dc25a4c2a122e767fae308612f45d433c644b3))
+* **ci:** allow golang.org/x/arch license (compound BSD-3-Clause + Google patent) ([#39](https://github.com/kube-rca/kuberca/issues/39)) ([ca55a39](https://github.com/kube-rca/kuberca/commit/ca55a3975825d28f95ea25d23449133f2f0a86f0))
+* **ci:** bump trivy-action to v0.36.0 (setup-trivy v0.2.1 missing) ([6cec18a](https://github.com/kube-rca/kuberca/commit/6cec18a14a9bfaf8528fa91b1821538e9d8a3cfc))
+* **ci:** bump trivy-action to v0.36.0 to fix missing setup-trivy tag ([5e65568](https://github.com/kube-rca/kuberca/commit/5e65568b29bb36e22e62bbac3aea156f069d1b4f))
+* **deps:** bump postcss to &gt;=8.5.10 (CVE) ([70b794d](https://github.com/kube-rca/kuberca/commit/70b794da894fa27c15c1ad38cc04e2f87f575276))
+* **deps:** bump postcss to &gt;=8.5.10 (CVE) ([12e90b9](https://github.com/kube-rca/kuberca/commit/12e90b9a35b5e274894aec421ee54da01b1c563c))
+* **deps:** bump python-dotenv to &gt;=1.2.2 (CVE) ([b0f2392](https://github.com/kube-rca/kuberca/commit/b0f2392307419b259ce9401fbf135b8957a6c10f))
+* **deps:** bump python-dotenv to &gt;=1.2.2 (CVE) ([d3b2a85](https://github.com/kube-rca/kuberca/commit/d3b2a8577a61aad84ffae79c60fc49f1fa314f65))
+* **logutil:** drop early returns so Sanitize is recognized as a barrier ([a007ac7](https://github.com/kube-rca/kuberca/commit/a007ac7bbb2fcf6718f2e422dee5d4ab74965f28))
+* **logutil:** drop early returns so Sanitize is recognized as a barrier ([f0c6c74](https://github.com/kube-rca/kuberca/commit/f0c6c744e0e51dd1f836c2a109214ef15a20a57c))
+* **security:** close residual 3 log-injection alerts ([19d35b1](https://github.com/kube-rca/kuberca/commit/19d35b1e7da168e6326a3ba139d7c69d7e2ab468))
+* **security:** close residual 3 log-injection alerts ([5486c09](https://github.com/kube-rca/kuberca/commit/5486c09740abf0c615bc37a6efbccf407b6fc910))
+* **service:** sanitize user-controlled inputs in log calls ([d6831f1](https://github.com/kube-rca/kuberca/commit/d6831f183fa7c4a94e18e1be668ea8e0e7cc5d6c))
+* **test:** bump vitest to v4 for vite 7 compatibility, add coverage gitignore ([2a87300](https://github.com/kube-rca/kuberca/commit/2a87300646c02fd8b78e647da0e83ac6610db453))
+
 ## [1.1.0](https://github.com/kube-rca/kuberca/compare/v1.0.0...v1.1.0) (2026-04-26)
 
 
