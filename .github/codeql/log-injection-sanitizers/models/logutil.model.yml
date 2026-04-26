@@ -1,0 +1,24 @@
+# Data extension: declare in-tree log-injection sanitisers.
+#
+# `internal/logutil.Sanitize` strips CR / LF / NUL from user-controlled
+# strings before they reach `log.Printf` / `log.Println` / similar
+# line-oriented loggers. CodeQL's go/log-injection query (CWE-117) does
+# not recognise the helper out of the box, so without this barrier model
+# every wrapped call site shows up as an open alert despite being safe.
+#
+# Schema for `barrierModel` (9 columns):
+#   [package, type, subtypes, name, signature, ext, output, kind, provenance]
+#
+# References:
+#   - https://github.blog/changelog/2026-04-21-codeql-now-supports-sanitizers-and-validators-in-models-as-data/
+#   - https://codeql.github.com/docs/codeql-language-guides/customizing-library-models-for-go/
+
+extensions:
+  - addsTo:
+      pack: codeql/go-all
+      extensible: barrierModel
+    data:
+      # logutil.Sanitize: package-level function, returns a sanitised string.
+      # The first argument's CR / LF / NUL are stripped before return, so the
+      # ReturnValue is treated as a barrier for log-injection sinks.
+      - ["github.com/kube-rca/backend/internal/logutil", "", false, "Sanitize", "", "", "ReturnValue", "log-injection", "manual"]

@@ -1,0 +1,24 @@
+# CodeQL configuration for kube-rca/kuberca.
+#
+# This config layers our custom data-extension model packs on top of the
+# default CodeQL query suites. The packs declare project-specific sanitisers
+# that the upstream queries do not know about (e.g. internal/logutil.Sanitize),
+# which keeps go/log-injection alert noise low without disabling the rule.
+#
+# The init action picks this file up via `config-file:` in
+# .github/workflows/codeql.yml.
+
+name: kuberca-codeql-config
+
+# Run the default + security-extended suites. The workflow also passes
+# `queries: security-extended` for backwards-compat with older CodeQL CLI
+# versions; either path produces the same query set.
+queries:
+  - uses: security-extended
+
+# Inject project-local model packs. Each pack lives under .github/codeql/
+# and contributes one or more YAML data extensions (see
+# https://codeql.github.com/docs/codeql-language-guides/customizing-library-models-for-go/).
+packs:
+  go:
+    - ./.github/codeql/log-injection-sanitizers

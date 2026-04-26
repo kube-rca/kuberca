@@ -10,6 +10,7 @@ package handler
 import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
+	"github.com/kube-rca/backend/internal/logutil"
 	"github.com/kube-rca/backend/internal/model"
 	"github.com/kube-rca/backend/internal/service"
 	"log"
@@ -50,14 +51,14 @@ func (h *AlertHandler) Webhook(c *gin.Context) {
 
 	// 2. Raw payload 로깅 (디버깅용)
 	rawPayload, _ := json.MarshalIndent(webhook, "", "  ")
-	log.Printf("Raw webhook payload:\n%s", string(rawPayload))
+	log.Printf("Raw webhook payload:\n%s", logutil.Sanitize(string(rawPayload)))
 
 	// 3. 웹훅 메타데이터 로깅
 	// status: firing(발생) 또는 resolved(해결)
 	// alertCount: 웹훅에 포함된 알림 개수
 	// receiver: Alertmanager에서 설정한 receiver 이름
 	log.Printf("Received alert webhook: status=%s, alertCount=%d, receiver=%s",
-		webhook.Status, len(webhook.Alerts), webhook.Receiver)
+		logutil.Sanitize(webhook.Status), len(webhook.Alerts), logutil.Sanitize(webhook.Receiver))
 
 	// 4. 서비스 레이어에서 Slack 전송 처리
 	// 비즈니스 로직(필터링)은 service 레이어에 위임
