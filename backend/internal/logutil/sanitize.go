@@ -15,6 +15,25 @@ package logutil
 
 import "strings"
 
+// logInjectionReplacer strips the control characters CodeQL's go/log-injection
+// query (and CWE-117 in general) cares about: CR, LF, and NUL. CR and LF are
+// replaced with a single space so the surrounding log message remains visually
+// delimited; NUL is removed entirely because it has no useful display form.
+//
+// We intentionally use strings.NewReplacer here (instead of a hand-rolled scan
+// or repeated strings.ReplaceAll calls) because CodeQL's Go data-flow library
+// recognizes Replacer.Replace and Replacer.WriteString as built-in log-injection
+// barriers when all CR / LF code points are covered, so call sites wrapped with
+// Sanitize get treated as sanitised by the bundled go/log-injection query
+// without needing a custom model-as-data extension. See:
+//   - https://codeql.github.com/codeql-query-help/go/go-log-injection/
+//   - github/codeql-go#731 (string replacement sanitizers for log-injection)
+var logInjectionReplacer = strings.NewReplacer(
+	"\n", " ",
+	"\r", " ",
+	"\x00", "",
+)
+
 // Sanitize returns s with line-terminating and NUL control characters
 // stripped (CR, LF) or removed (NUL) so it cannot forge new log entries
 // when written through log.Printf or similar line-oriented loggers.
@@ -29,8 +48,5 @@ func Sanitize(s string) string {
 	if !strings.ContainsAny(s, "\n\r\x00") {
 		return s
 	}
-	s = strings.ReplaceAll(s, "\n", " ")
-	s = strings.ReplaceAll(s, "\r", " ")
-	s = strings.ReplaceAll(s, "\x00", "")
-	return s
+	return logInjectionReplacer.Replace(s)
 }
