@@ -41,12 +41,16 @@ var logInjectionReplacer = strings.NewReplacer(
 // CR and LF are replaced with a single space rather than removed so that
 // the surrounding log message remains visually delimited; NUL is removed
 // entirely because it has no useful display form.
+//
+// The implementation always invokes logInjectionReplacer.Replace, even
+// when the input contains no control characters. The replacer's fast
+// path is already a no-op for clean strings, and skipping it with an
+// `if !ContainsAny … return s` early-return creates a dataflow path
+// where the caller-tainted value flows back to the return value
+// unchanged. CodeQL's go/log-injection analysis is path-insensitive at
+// the function summary level — any return-of-input path makes the
+// entire function appear to propagate taint, which prevents the rule
+// from recognising Sanitize as a barrier.
 func Sanitize(s string) string {
-	if s == "" {
-		return s
-	}
-	if !strings.ContainsAny(s, "\n\r\x00") {
-		return s
-	}
 	return logInjectionReplacer.Replace(s)
 }
