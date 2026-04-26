@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/kube-rca/backend/internal/config"
+	"github.com/kube-rca/backend/internal/logutil"
 	"github.com/kube-rca/backend/internal/model"
 )
 
@@ -617,14 +618,14 @@ func (n *webhookRoutingNotifier) logThreadDeliverySkip(event NotifierEvent, deli
 	log.Printf(
 		"Skipping thread delivery (event_type=%s, alert_id=%s, fingerprint=%s, incident_id=%s, thread_ref=%s, webhook_config_id=%s, channel_id=%s, lookup_source=%s, skip_reason=%s)",
 		event.EventType(),
-		delivery.AlertID,
-		delivery.Fingerprint,
-		nullStringValue(delivery.IncidentID),
-		delivery.ThreadTS,
+		logutil.Sanitize(delivery.AlertID),
+		logutil.Sanitize(delivery.Fingerprint),
+		logutil.Sanitize(nullStringValue(delivery.IncidentID)),
+		logutil.Sanitize(delivery.ThreadTS),
 		webhookConfigID,
-		delivery.ChannelID,
-		lookupSource,
-		reason,
+		logutil.Sanitize(delivery.ChannelID),
+		logutil.Sanitize(lookupSource),
+		logutil.Sanitize(reason),
 	)
 }
 
