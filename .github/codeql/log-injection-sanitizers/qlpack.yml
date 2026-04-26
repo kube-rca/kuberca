@@ -1,0 +1,18 @@
+# CodeQL model pack: project-local sanitiser barriers.
+#
+# Declares barriers for queries shipped with `codeql/go-all` so the bundled
+# go/log-injection (CWE-117) data-flow analysis recognises in-tree helpers
+# such as `internal/logutil.Sanitize` as cleansing user-controlled values
+# before they reach `log.Printf` and friends.
+#
+# This pack is referenced from `.github/codeql/codeql-config.yml`.
+# See: https://codeql.github.com/docs/codeql-language-guides/customizing-library-models-for-go/
+name: kube-rca/log-injection-sanitizers
+version: 0.0.1
+library: true
+
+extensionTargets:
+  codeql/go-all: '*'
+
+dataExtensions:
+  - models/**/*.yml

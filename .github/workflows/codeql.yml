@@ -54,6 +54,10 @@ jobs:
           build-mode: ${{ matrix.build-mode }}
           # Default + security-extended pack for higher recall on the security tier.
           queries: security-extended
+          # Layer in project-local data-extension packs (e.g. logutil.Sanitize
+          # as a go/log-injection barrier). Harmless on non-Go matrix entries —
+          # the Go-only pack simply doesn't apply when the target language differs.
+          config-file: ./.github/codeql/codeql-config.yml
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@b2f9ef845756500b97acbdaf5c1dd4e9c1d15734 # v3.35.2
