@@ -225,6 +225,7 @@ func (c *AgentClient) RequestAnalysis(alert model.Alert, threadTS, incidentID, a
 			if backoff > c.retryMaxBackoff {
 				backoff = c.retryMaxBackoff
 			}
+			// #nosec G404 -- retry-backoff jitter; not security-sensitive
 			jitter := time.Duration(float64(backoff) * (0.75 + rand.Float64()*0.5))
 			log.Printf("Agent analysis attempt %d/%d failed: %v — retrying in %s",
 				attempt+1, c.retryMaxAttempts, err, jitter)
