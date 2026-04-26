@@ -38,14 +38,15 @@ jobs:
           # action cannot match it against allow-licenses even though the base
           # BSD-3-Clause is permissive. Allow-list these by package URL.
           allow-dependencies-licenses: >-
-            pkg:golang/golang.org/x/time,
+            pkg:golang/golang.org/x/arch,
             pkg:golang/golang.org/x/crypto,
-            pkg:golang/golang.org/x/net,
-            pkg:golang/golang.org/x/sys,
-            pkg:golang/golang.org/x/text,
-            pkg:golang/golang.org/x/sync,
-            pkg:golang/golang.org/x/term,
             pkg:golang/golang.org/x/exp,
             pkg:golang/golang.org/x/mod,
+            pkg:golang/golang.org/x/net,
+            pkg:golang/golang.org/x/sync,
+            pkg:golang/golang.org/x/sys,
+            pkg:golang/golang.org/x/term,
+            pkg:golang/golang.org/x/text,
+            pkg:golang/golang.org/x/time,
             pkg:golang/golang.org/x/tools
           comment-summary-in-pr: on-failure
