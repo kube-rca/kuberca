@@ -107,8 +107,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
   const moreMenuRef = useRef<HTMLDivElement | null>(null);
   const editingMoreMenuRef = useRef<HTMLDivElement | null>(null);
 
-  const loadFeedback = async () => {
-    setLoading(true);
+  const loadFeedback = useCallback(async () => {
     try {
       const summary = await fetchFeedbackSummary(targetType, targetId);
       setSelectedVote(summary.my_vote ?? null);
@@ -120,12 +119,14 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ targetType, targetId 
     } finally {
       setLoading(false);
     }
-  };
+  }, [targetType, targetId]);
 
   useEffect(() => {
-    loadFeedback();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetType, targetId]);
+    void (async () => {
+      setLoading(true);
+      await loadFeedback();
+    })();
+  }, [loadFeedback]);
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {

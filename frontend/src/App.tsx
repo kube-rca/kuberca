@@ -193,18 +193,20 @@ function App() {
     return () => { active = false; };
   }, []);
 
-  // Cleanup
+  // Cleanup: filter out newly muted/unmuted incidents from local state
   useEffect(() => {
-    if (location.state) {
-      const state = location.state as { newlyMutedId?: string; newlyUnmutedId?: string };
+    if (!location.state) return;
+    const state = location.state as { newlyMutedId?: string; newlyUnmutedId?: string };
+    void (async () => {
+      await Promise.resolve();
       if (state.newlyMutedId) {
         setAllRCAs((prev) => prev.filter((item) => item.incident_id !== state.newlyMutedId));
       }
       if (state.newlyUnmutedId) {
         setMutedIncidents((prev) => prev.filter((item) => item.incident_id !== state.newlyUnmutedId));
       }
-    }
-  }, [location]);  
+    })();
+  }, [location]);
 
   // Data loading function (background=true skips loading indicators)
   const loadData = useCallback(async (isBackground = false) => {
@@ -252,13 +254,16 @@ function App() {
 
   // Initial data load
   useEffect(() => {
-    if (!isAuthenticated) {
-      setAllRCAs([]);
-      setAllAlerts([]);
-      setMutedIncidents([]);
-      return;
-    }
-    loadData(false);
+    void (async () => {
+      if (!isAuthenticated) {
+        await Promise.resolve();
+        setAllRCAs([]);
+        setAllAlerts([]);
+        setMutedIncidents([]);
+        return;
+      }
+      await loadData(false);
+    })();
   }, [isAuthenticated, loadData]);
 
   useEffect(() => {
@@ -374,9 +379,12 @@ function App() {
 
   // 페이지네이션 초기화
   useEffect(() => {
-    setCurrentPage(1);
-    setAlertCurrentPage(1);
-    setMuteCurrentPage(1);
+    void (async () => {
+      await Promise.resolve();
+      setCurrentPage(1);
+      setAlertCurrentPage(1);
+      setMuteCurrentPage(1);
+    })();
   }, [filters]);
 
   // 라벨/네임스페이스 추출 (App.tsx에 남겨둠 - 검색패널 Props용)

@@ -7,11 +7,31 @@ interface UnifiedSearchPanelProps {
   availableNamespaces: string[];
 }
 
+const SearchIcon = () => (
+  <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  </svg>
+);
+
+const FilterIcon = () => (
+  <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+  </svg>
+);
+
+const TIME_OPTIONS = [
+  { label: 'Last 1h', value: '1h' },
+  { label: 'Last 6h', value: '6h' },
+  { label: 'Last 24h', value: '24h' },
+  { label: 'Last 7d', value: '7d' },
+  { label: 'Last 30d', value: '30d' },
+];
+
 const UnifiedSearchPanel: React.FC<UnifiedSearchPanelProps> = ({ availableLabels, availableNamespaces }) => {
   const { scope, setScope, filters, updateFilter, resetFilters } = useSearch();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
-  
+
   // [추가] 네비게이션 훅 사용
   const navigate = useNavigate();
   const location = useLocation();
@@ -49,26 +69,6 @@ const UnifiedSearchPanel: React.FC<UnifiedSearchPanelProps> = ({ availableLabels
     }
     // 필터 상태는 Context에 저장되어 있으므로 페이지가 이동해도 유지됩니다.
   };
-
-  const SearchIcon = () => (
-    <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-    </svg>
-  );
-
-  const FilterIcon = () => (
-    <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-    </svg>
-  );
-
-  const TIME_OPTIONS = [
-    { label: 'Last 1h', value: '1h' },
-    { label: 'Last 6h', value: '6h' },
-    { label: 'Last 24h', value: '24h' },
-    { label: 'Last 7d', value: '7d' },
-    { label: 'Last 30d', value: '30d' },
-  ];
 
   return (
     <div className="w-full mb-6 relative" ref={panelRef}>

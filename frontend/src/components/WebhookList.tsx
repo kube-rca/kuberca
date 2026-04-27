@@ -50,19 +50,23 @@ const WebhookList: React.FC = () => {
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const load = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await fetchWebhookList();
-      setConfigs(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load the list.');
-    } finally {
-      setLoading(false);
-    }
+    setError(null);
+    const data = await fetchWebhookList();
+    setConfigs(data);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    void (async () => {
+      setLoading(true);
+      try {
+        await load();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to load the list.');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   const handleDelete = async (e: React.MouseEvent, id: number) => {
     e.stopPropagation();

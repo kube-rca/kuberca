@@ -80,8 +80,11 @@ const FloatingChatPanel = ({ onDockedChange }: FloatingChatPanelProps) => {
   const listRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    setMessages([makeMessage('assistant', t('chatIntro'))]);
     // `t` is derived from `language` via context; depending on it would create a stale-closure loop.
+    void (async () => {
+      await Promise.resolve();
+      setMessages([makeMessage('assistant', t('chatIntro'))]);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language]);
 

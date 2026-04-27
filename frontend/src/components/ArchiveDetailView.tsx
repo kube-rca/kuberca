@@ -33,7 +33,6 @@ const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onB
 
   const loadDetail = useCallback(async () => {
     try {
-      setLoading(true);
       const detailData = await fetchRCADetail(incidentId);
       setData(detailData);
 
@@ -58,7 +57,10 @@ const ArchivedDetailView: React.FC<ArchivedDetailViewProps> = ({ incidentId, onB
   }, [incidentId]);
 
   useEffect(() => {
-    loadDetail();
+    void (async () => {
+      setLoading(true);
+      await loadDetail();
+    })();
   }, [loadDetail]);
 
   const handleUnhide = async () => {

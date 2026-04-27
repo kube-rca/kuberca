@@ -36,6 +36,8 @@ export function usePolling(options: UsePollingOptions): UsePollingReturn {
   const intervalIdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorCountRef = useRef(0);
   const mountedRef = useRef(true);
+  // Forward-reference to scheduleNext to avoid "accessed before declared" violations
+  const scheduleNextRef = useRef<() => void>(() => undefined);
 
   useEffect(() => {
     callbackRef.current = callback;
@@ -77,10 +79,15 @@ export function usePolling(options: UsePollingOptions): UsePollingReturn {
       if (!mountedRef.current) return;
       await executeCallback();
       if (mountedRef.current) {
-        scheduleNext();
+        scheduleNextRef.current();
       }
     }, nextInterval);
   }, [clearTimer, getBackoffInterval, executeCallback]);
+
+  // Keep scheduleNextRef in sync with the latest scheduleNext closure
+  useEffect(() => {
+    scheduleNextRef.current = scheduleNext;
+  }, [scheduleNext]);
 
   const refresh = useCallback(() => {
     errorCountRef.current = 0;
@@ -96,21 +103,29 @@ export function usePolling(options: UsePollingOptions): UsePollingReturn {
   useEffect(() => {
     if (!enabled) {
       clearTimer();
-      setStatus('disabled');
-      return;
+      // Defer setState past the synchronous effect body
+      const t = setTimeout(() => { setStatus('disabled'); }, 0);
+      return () => {
+        clearTimeout(t);
+        clearTimer();
+      };
     }
 
     if (sseConnected) {
       clearTimer();
-      setStatus('paused');
-      return;
+      const t = setTimeout(() => { setStatus('paused'); }, 0);
+      return () => {
+        clearTimeout(t);
+        clearTimer();
+      };
     }
 
     // Start polling
-    setStatus('active');
+    const t = setTimeout(() => { setStatus('active'); }, 0);
     scheduleNext();
 
     return () => {
+      clearTimeout(t);
       clearTimer();
     };
   }, [enabled, sseConnected, clearTimer, scheduleNext]);
