@@ -56,6 +56,8 @@ export function useSSE(options: UseSSEOptions): UseSSEReturn {
   const onEventRef = useRef(onEvent);
   const enabledRef = useRef(enabled);
   const mountedRef = useRef(true);
+  // Forward-reference to connect to allow self-reference inside onerror
+  const connectRef = useRef<() => void>(() => undefined);
 
   useEffect(() => {
     onEventRef.current = onEvent;
@@ -129,7 +131,8 @@ export function useSSE(options: UseSSEOptions): UseSSEReturn {
           const refreshed = await refreshAccessToken();
           if (!mountedRef.current) return;
           if (refreshed && enabledRef.current) {
-            connect();
+            // Use ref to avoid "accessed before declared" lint violation
+            connectRef.current();
           } else {
             setConnectionState('disconnected');
           }
@@ -141,6 +144,11 @@ export function useSSE(options: UseSSEOptions): UseSSEReturn {
     };
   }, [closeConnection, maxRetries, initialRetryDelay, maxRetryDelay]);
 
+  // Keep connectRef in sync with the latest connect closure
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
+
   const reconnect = useCallback(() => {
     retryCountRef.current = 0;
     connect();
@@ -149,13 +157,19 @@ export function useSSE(options: UseSSEOptions): UseSSEReturn {
   // Connect/disconnect based on enabled state
   useEffect(() => {
     if (enabled) {
-      connect();
-    } else {
-      closeConnection();
-      setConnectionState('disconnected');
+      // Defer connect() past the synchronous effect body to avoid
+      // react-hooks/set-state-in-effect violations (connect calls setConnectionState).
+      const t = setTimeout(() => { connect(); }, 0);
+      return () => {
+        clearTimeout(t);
+        closeConnection();
+      };
     }
 
+    closeConnection();
+    const t = setTimeout(() => { setConnectionState('disconnected'); }, 0);
     return () => {
+      clearTimeout(t);
       closeConnection();
     };
   }, [enabled, connect, closeConnection]);

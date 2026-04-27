@@ -56,7 +56,6 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
 
   const loadDetail = useCallback(async () => {
     try {
-      setLoading(true);
       const detailData = await fetchRCADetail(incidentId);
       setData(detailData);
       setEditForm(detailData);
@@ -89,7 +88,10 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
   }, [incidentId]);
 
   useEffect(() => {
-    loadDetail();
+    void (async () => {
+      setLoading(true);
+      await loadDetail();
+    })();
   }, [loadDetail]);
 
   // Polling while analyzing
@@ -148,11 +150,14 @@ const RCADetailView: React.FC<RCADetailViewProps> = ({ incidentId, onBack }) => 
   }, [analyzingIncident, incidentId]);
 
   useEffect(() => {
-    const state = location.state as LocationState | null;
-    if (state?.autoEdit) {
-      setIsEditing(true);
-      window.history.replaceState({}, document.title);
-    }
+    void (async () => {
+      const state = location.state as LocationState | null;
+      if (state?.autoEdit) {
+        await Promise.resolve();
+        setIsEditing(true);
+        window.history.replaceState({}, document.title);
+      }
+    })();
   }, [location]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {

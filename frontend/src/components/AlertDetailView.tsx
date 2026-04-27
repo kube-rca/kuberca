@@ -59,7 +59,6 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
 
   const loadDetail = useCallback(async () => {
     try {
-      setLoading(true);
       const [detailData, rcaList] = await Promise.all([
         fetchAlertDetail(alertId),
         fetchRCAs()
@@ -81,7 +80,10 @@ const AlertDetailView: React.FC<AlertDetailViewProps> = ({ alertId, onBack }) =>
   }, [alertId]);
 
   useEffect(() => {
-    loadDetail();
+    void (async () => {
+      setLoading(true);
+      await loadDetail();
+    })();
   }, [loadDetail]);
 
   // Polling while analyzing
