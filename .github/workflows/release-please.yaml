@@ -13,7 +13,6 @@ jobs:
     permissions:
       contents: write        # release-please creates tags/releases
       pull-requests: write   # release-please opens release PRs
-      id-token: write
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
