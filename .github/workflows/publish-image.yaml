@@ -12,9 +12,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write       # cosign keyless + AWS OIDC + provenance
-  attestations: write   # actions/attest-build-provenance
-  packages: write       # ghcr.io push
 
 jobs:
   validate-inputs:
@@ -22,6 +19,8 @@ jobs:
     # the contract. Subsequent jobs use the validated outputs so the raw
     # `inputs.*` values never reach a privileged step.
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       component: ${{ steps.guard.outputs.component }}
       tag: ${{ steps.guard.outputs.tag }}
@@ -54,6 +53,11 @@ jobs:
   publish:
     needs: validate-inputs
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write       # cosign keyless + AWS OIDC + provenance
+      attestations: write   # actions/attest-build-provenance
+      packages: write       # ghcr.io push
     # The job-level env now reads from the validated outputs of the
     # validate-inputs job, not from the raw caller inputs. CodeQL still
     # marks `${{ needs.*.outputs.* }}` as data-flow tainted, but the

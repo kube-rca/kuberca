@@ -9,8 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  id-token: write
+  contents: read
 
 jobs:
   test:
@@ -57,6 +56,9 @@ jobs:
   build-and-push:
     if: github.ref_name == 'main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # commit helm-values bump back to main
+      id-token: write   # AWS OIDC for ECR Public push
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Configure AWS credentials (OIDC)
