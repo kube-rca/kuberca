@@ -680,6 +680,9 @@ class StrandsAnalysisEngine:
         self._retry_max_wait = settings.llm_retry_max_wait
         self._retry_total_timeout = settings.llm_retry_total_timeout
 
+        # Conversation manager sliding window (configurable via AGENT_SESSION_WINDOW_SIZE)
+        self._session_window_size = max(1, settings.agent_session_window_size)
+
         # Log provider info
         if model_config:
             logger.info(
@@ -873,7 +876,9 @@ class StrandsAnalysisEngine:
             session_id=session_id,
             session_repository=self._session_repo,
         )
-        conversation_manager = SafeSlidingWindowConversationManager(window_size=40)
+        conversation_manager = SafeSlidingWindowConversationManager(
+            window_size=self._session_window_size,
+        )
         return Agent(
             model=model,
             tools=self._tools,

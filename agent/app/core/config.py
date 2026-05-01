@@ -128,6 +128,8 @@ class Settings:
     llm_retry_total_timeout: float = 180.0
     # Concurrency
     max_concurrent_analyses: int = 5
+    # Conversation manager sliding window
+    agent_session_window_size: int = 40
 
     @property
     def session_store_dsn(self) -> str:
@@ -200,4 +202,6 @@ def load_settings() -> Settings:
         llm_retry_total_timeout=_get_float_env("LLM_RETRY_TOTAL_TIMEOUT", 180.0),
         # Concurrency
         max_concurrent_analyses=_get_int_env("MAX_CONCURRENT_ANALYSES", 5),
+        # Conversation manager sliding window
+        agent_session_window_size=max(1, _get_int_env("AGENT_SESSION_WINDOW_SIZE", 40)),
     )
