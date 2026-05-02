@@ -362,7 +362,7 @@ agent:
     tenantId: ""
   gemini:
     # -- Gemini model ID for Strands Agents.
-    modelId: "gemini-3.1-flash-lite-preview"
+    modelId: "gemini-3-flash-preview"
     # -- Gemini API key value. When set (and no existingSecret), chart creates the Secret.
     apiKey: ""
     secret:
@@ -419,11 +419,18 @@ agent:
     ttlSeconds: 0
   retry:
     # -- Max retry attempts for transient LLM API errors (5xx, 429).
-    maxAttempts: 5
+    maxAttempts: 10
     # -- Minimum exponential backoff wait time in seconds.
     minWait: 1.0
     # -- Maximum exponential backoff wait time in seconds.
-    maxWait: 60.0
+    maxWait: 30.0
+    # -- Total timeout in seconds before giving up retries (LLM_RETRY_TOTAL_TIMEOUT).
+    totalTimeout: 180.0
+  session:
+    # -- Sliding window size for the conversation manager (AGENT_SESSION_WINDOW_SIZE).
+    #    Controls how many recent messages are kept in the LLM context per session.
+    #    Trade-off: larger window improves continuity but increases prompt token cost.
+    windowSize: 40
   # -- Node labels for agent pods assignment.
   nodeSelector: {}
   # -- Tolerations for agent pods assignment.
