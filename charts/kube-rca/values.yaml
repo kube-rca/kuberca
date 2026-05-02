@@ -386,7 +386,7 @@ agent:
       key: "openai-api-key"
   anthropic:
     # -- Anthropic model ID for Strands Agents.
-    modelId: "claude-haiku-4-5"
+    modelId: "claude-sonnet-4-6"
     # -- Anthropic maximum output tokens.
     maxTokens: 8192
     # -- Anthropic API key value. When set (and no existingSecret), chart creates the Secret.
