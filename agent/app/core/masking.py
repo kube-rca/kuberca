@@ -12,42 +12,48 @@ MASK_TOKEN = "[MASKED]"  # nosec B105 - placeholder token for masked output, not
 # ---------------------------------------------------------------------------
 # Key denylist / allowlist for dict-key-based masking
 # ---------------------------------------------------------------------------
-_KEY_DENYLIST = frozenset([
-    "password",
-    "token",
-    "secret",
-    "key",
-    "credential",
-    "authorization",
-    "api_key",
-    "apikey",
-    "private_key",
-    "access_key",
-    "client_secret",
-])
+_KEY_DENYLIST = frozenset(
+    [
+        "password",
+        "token",
+        "secret",
+        "key",
+        "credential",
+        "authorization",
+        "api_key",
+        "apikey",
+        "private_key",
+        "access_key",
+        "client_secret",
+    ]
+)
 
-_KEY_ALLOWLIST = frozenset([
-    "secret_name",
-    "token_budget",
-    "service_account_token",
-    "secret_ref",
-    "secret_key_ref",
-    "key_ref",
-])
+_KEY_ALLOWLIST = frozenset(
+    [
+        "secret_name",
+        "token_budget",
+        "service_account_token",
+        "secret_ref",
+        "secret_key_ref",
+        "key_ref",
+    ]
+)
 
 # ---------------------------------------------------------------------------
 # Value heuristic allowlist — fields whose values look like base64/tokens
 # but are not sensitive (e.g. K8s metadata fields)
 # ---------------------------------------------------------------------------
-_VALUE_HEURISTIC_SKIP_KEYS = frozenset([
-    "image",
-    "imageid",
-    "containerid",
-    "resourceversion",
-    "uid",
-    "selflink",
-    "generation",
-])
+_VALUE_HEURISTIC_SKIP_KEYS = frozenset(
+    [
+        "image",
+        "imageid",
+        "containerid",
+        "resourceversion",
+        "uid",
+        "selflink",
+        "generation",
+    ]
+)
 
 # ---------------------------------------------------------------------------
 # K8s annotation prefixes that are safe to keep unmasked
@@ -182,9 +188,7 @@ class BuiltinRedactor:
 
         # Apply regex-based patterns
         for pattern in _VALUE_PATTERNS:
-            result = pattern.sub(
-                lambda m: _mask_replacement(self.hash_mode, m.group(0)), result
-            )
+            result = pattern.sub(lambda m: _mask_replacement(self.hash_mode, m.group(0)), result)
 
         # Long base64 — only mask if it's valid base64
         def _base64_replacer(m: re.Match[str]) -> str:
