@@ -425,7 +425,7 @@ agent:
     # -- Maximum exponential backoff wait time in seconds.
     maxWait: 30.0
     # -- Total timeout in seconds before giving up retries (LLM_RETRY_TOTAL_TIMEOUT).
-    totalTimeout: 180.0
+    totalTimeout: 300.0
   session:
     # -- Sliding window size for the conversation manager (AGENT_SESSION_WINDOW_SIZE).
     #    Controls how many recent messages are kept in the LLM context per session.
