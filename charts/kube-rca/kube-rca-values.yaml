@@ -85,6 +85,8 @@ agent:
   loki:
     url: http://loki-gateway.monitoring.svc.cluster.local:80
     tenantId: "kube-rca"
+  istio:
+    enabled: true
   prompt:
     tokenBudget: 32000
     maxLogLines: 25

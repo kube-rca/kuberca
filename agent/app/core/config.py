@@ -130,6 +130,10 @@ class Settings:
     max_concurrent_analyses: int = 5
     # Conversation manager sliding window
     agent_session_window_size: int = 40
+    # Istio mesh CRD tools (Helm-controlled). Default off; enable in clusters
+    # where Istio is installed so the agent can list VirtualService /
+    # DestinationRule / ServiceEntry resources.
+    agent_istio_enabled: bool = False
 
     @property
     def session_store_dsn(self) -> str:
@@ -204,4 +208,6 @@ def load_settings() -> Settings:
         max_concurrent_analyses=_get_int_env("MAX_CONCURRENT_ANALYSES", 5),
         # Conversation manager sliding window
         agent_session_window_size=max(1, _get_int_env("AGENT_SESSION_WINDOW_SIZE", 40)),
+        # Istio mesh CRD tools (Helm-controlled)
+        agent_istio_enabled=os.getenv("AGENT_ISTIO_ENABLED", "false").lower() == "true",
     )

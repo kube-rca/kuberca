@@ -147,6 +147,9 @@ spec:
             {{- $session := default (dict) .Values.agent.session }}
             - name: AGENT_SESSION_WINDOW_SIZE
               value: {{ default 40 $session.windowSize | quote }}
+            {{- $istio := default (dict) .Values.agent.istio }}
+            - name: AGENT_ISTIO_ENABLED
+              value: {{ default false $istio.enabled | quote }}
             {{- $sessionDB := default (dict) .Values.agent.sessionDB }}
             {{- $sessionDBHost := default "" $sessionDB.host }}
             {{- if $sessionDBHost }}

@@ -666,7 +666,12 @@ class StrandsAnalysisEngine:
         self._model_config = model_config
         self._masker = masker or RegexMasker()
         self._tools = _build_tools(
-            k8s_client, prometheus_client, tempo_client, loki_client, self._masker
+            k8s_client,
+            prometheus_client,
+            tempo_client,
+            loki_client,
+            self._masker,
+            istio_enabled=settings.agent_istio_enabled,
         )
         self._cache_lock = Lock()
         self._agent_cache: OrderedDict[str, _AgentCacheEntry] = OrderedDict()
@@ -911,6 +916,11 @@ def _build_tools(
     tempo_client: TempoClient | None,
     loki_client: LokiClient | None,
     masker: Masker,
+    *,
+    # Istio CRDs piggyback on k8s_client (no separate endpoint), so we gate
+    # via a Helm-driven boolean instead of a client-null check like the
+    # other enrichers (Prometheus / Tempo / Loki).
+    istio_enabled: bool = False,
 ) -> list[object]:
     def _mask(data: Any) -> Any:
         return masker.mask_object(data)
@@ -1281,10 +1291,15 @@ def _build_tools(
         get_node_metrics,
         get_manifest,
         list_manifests,
-        list_virtual_services,
-        list_destination_rules,
-        list_service_entries,
     ]
+    if istio_enabled:
+        tools.extend(
+            [
+                list_virtual_services,
+                list_destination_rules,
+                list_service_entries,
+            ]
+        )
     if prometheus_client is not None:
         tools.extend(
             [

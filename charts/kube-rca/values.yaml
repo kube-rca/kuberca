@@ -360,6 +360,11 @@ agent:
     httpTimeoutSeconds: 10
     # -- Optional Loki tenant header value (LOKI_TENANT_ID / X-Scope-OrgID).
     tenantId: ""
+  istio:
+    # -- Enable Istio mesh CRD tools (VirtualService / DestinationRule / ServiceEntry).
+    # Set true only when Istio is installed in the cluster; otherwise the agent
+    # registers no Istio tools so the LLM never sees an unavailable capability.
+    enabled: false
   gemini:
     # -- Gemini model ID for Strands Agents.
     modelId: "gemini-3-flash-preview"
