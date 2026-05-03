@@ -38,12 +38,9 @@ jobs:
         continue-on-error: true
       - name: Security scan (bandit)
         working-directory: agent
-        # Soft-fail on PRs to avoid blocking on pre-existing findings while the
-        # agent codebase is annotated. The CodeQL py-extended pack is the
-        # blocking SAST gate; bandit is informational here.
-        # TODO(governance): triage bandit findings, add `# nosec BXXX` with
-        # justification at known-safe sites, then drop continue-on-error.
-        continue-on-error: true
+        # Blocking gate: high-severity + high-confidence findings only (-ll -ii).
+        # Pre-existing low-severity findings (B105 placeholder, B112 fault-tolerant
+        # loop) are annotated with `# nosec BXXX` + justification at the call site.
         run: |
           uvx --from bandit bandit -r app -ll -ii
       - name: Vulnerability scan (pip-audit)
