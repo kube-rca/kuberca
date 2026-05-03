@@ -806,7 +806,7 @@ class KubernetesClient:
         for item in data.get("items", []):
             try:
                 summaries.append(self._to_event_summary_v1_raw(item))
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001  # nosec B112 - drop malformed items; outer except already logs API errors
                 continue
         return summaries, None
 

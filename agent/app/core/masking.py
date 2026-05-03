@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from re import Pattern
 from typing import Any, Protocol, runtime_checkable
 
-MASK_TOKEN = "[MASKED]"
+MASK_TOKEN = "[MASKED]"  # nosec B105 - placeholder token for masked output, not a credential
 
 # ---------------------------------------------------------------------------
 # Key denylist / allowlist for dict-key-based masking
