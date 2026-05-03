@@ -917,6 +917,9 @@ def _build_tools(
     loki_client: LokiClient | None,
     masker: Masker,
     *,
+    # Istio CRDs piggyback on k8s_client (no separate endpoint), so we gate
+    # via a Helm-driven boolean instead of a client-null check like the
+    # other enrichers (Prometheus / Tempo / Loki).
     istio_enabled: bool = False,
 ) -> list[object]:
     def _mask(data: Any) -> Any:
