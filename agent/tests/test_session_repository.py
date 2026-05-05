@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import threading
+import time
+from collections.abc import Generator
 
 import psycopg
 import pytest
@@ -15,17 +17,33 @@ from app.clients.session_repository import PostgresSessionRepository
 # ---------------------------------------------------------------------------
 
 _PG_IMAGE = "pgvector/pgvector:pg16"
+_CONNECT_RETRIES = 10
+_CONNECT_INTERVAL = 0.5
+
+
+def _wait_and_connect(url: str) -> psycopg.Connection:  # type: ignore[type-arg]
+    """Retry psycopg.connect until the container is fully ready."""
+    last_exc: Exception = RuntimeError("unreachable")
+    for _ in range(_CONNECT_RETRIES):
+        try:
+            return psycopg.connect(url, connect_timeout=5)
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+            time.sleep(_CONNECT_INTERVAL)
+    raise last_exc
 
 
 @pytest.fixture(scope="session")
-def pg_dsn() -> str:  # type: ignore[return]
+def pg_dsn() -> Generator[str, None, None]:
     """Start a PostgreSQL container once per test session and yield a psycopg DSN."""
     with PostgresContainer(image=_PG_IMAGE, driver=None) as pg:
         # get_connection_url with driver=None gives a plain postgresql:// URL.
         # psycopg.connect accepts postgresql:// URIs directly.
         url = pg.get_connection_url()
         # Ensure pgvector extension exists (used by the broader app stack, not repo itself).
-        with psycopg.connect(url) as conn:
+        # Retry loop guards against the container being ready per testcontainers'
+        # psql wait strategy but PostgreSQL not yet accepting TCP connections.
+        with _wait_and_connect(url) as conn:
             conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
             conn.commit()
         # Bootstrap the schema once; individual tests call _clean() for isolation.

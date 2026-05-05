@@ -82,11 +82,6 @@ def _make_event(
     )
 
 
-def _make_item_list(items: list[Any], list_class: Any) -> Any:
-    obj = list_class(items=items)
-    return obj
-
-
 def _client(
     core_api: Any = None,
     apps_api: Any = None,
@@ -323,8 +318,10 @@ def test_get_node_status_returns_dict() -> None:
     assert result is not None
     assert result["name"] == "node-1"
     assert result["unschedulable"] is False
-    assert len(result["conditions"]) == 1
-    assert result["conditions"][0]["type"] == "Ready"  # type: ignore[index]
+    conditions = result["conditions"]
+    assert isinstance(conditions, list)
+    assert len(conditions) == 1
+    assert conditions[0]["type"] == "Ready"  # type: ignore[index]
 
 
 def test_get_node_status_api_error_returns_none() -> None:

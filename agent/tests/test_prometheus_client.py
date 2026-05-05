@@ -23,7 +23,7 @@ class _FakePrometheusResponse:
     def __enter__(self) -> _FakePrometheusResponse:
         return self
 
-    def __exit__(self, exc_type, exc, tb) -> None:  # type: ignore[no-untyped-def]
+    def __exit__(self, _exc_type, _exc, _tb) -> None:  # type: ignore[no-untyped-def]
         return None
 
 
@@ -131,7 +131,7 @@ def test_list_metrics_invalid_regex(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_list_metrics_http_error(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PROMETHEUS_URL", _METRICS_URL)
 
-    def fake_urlopen(request, timeout=0):  # type: ignore[no-untyped-def]
+    def fake_urlopen(request, timeout=0):  # type: ignore[no-untyped-def]  # noqa: ARG001
         raise urllib.error.HTTPError(
             url=str(request.full_url),
             code=503,
@@ -201,7 +201,7 @@ def test_query_with_time_param(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_query_http_error(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PROMETHEUS_URL", _METRICS_URL)
 
-    def fake_urlopen(request, timeout=0):  # type: ignore[no-untyped-def]
+    def fake_urlopen(request, timeout=0):  # type: ignore[no-untyped-def]  # noqa: ARG001
         raise urllib.error.HTTPError(
             url=str(request.full_url),
             code=429,
@@ -234,7 +234,7 @@ def test_query_json_decode_error(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_query_connection_error(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PROMETHEUS_URL", _METRICS_URL)
 
-    def fake_urlopen(request, timeout=0):  # type: ignore[no-untyped-def]
+    def fake_urlopen(_request, timeout=0):  # type: ignore[no-untyped-def]  # noqa: ARG001
         raise ConnectionError("connection refused")
 
     monkeypatch.setattr(prometheus_module.urllib.request, "urlopen", fake_urlopen)
@@ -294,7 +294,7 @@ def test_query_range_default_step(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_query_range_http_error(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PROMETHEUS_URL", _METRICS_URL)
 
-    def fake_urlopen(request, timeout=0):  # type: ignore[no-untyped-def]
+    def fake_urlopen(request, timeout=0):  # type: ignore[no-untyped-def]  # noqa: ARG001
         raise urllib.error.HTTPError(
             url=str(request.full_url),
             code=500,
