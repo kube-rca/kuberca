@@ -92,12 +92,14 @@ agent:
     maxLogLines: 25
     maxEvents: 25
     summaryMaxItems: 3
+  masking:
+    builtinRedactionHashMode: true
   gemini:
     modelId: "gemini-3-flash-preview"
   anthropic:
     modelId: "claude-sonnet-4-6"
   openai:
-    modelId: "gpt-5-mini"
+    modelId: "gpt-5.4-mini"
   sessionDB:
     host: kube-rca-postgresql.kube-rca.svc.cluster.local
     port: 5432
