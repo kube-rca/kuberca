@@ -1,6 +1,6 @@
 # kube-rca
 
-![Version: 1.0.0](https://img.shields.io/badge/Version-1.0.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.1.0](https://img.shields.io/badge/AppVersion-0.1.0-informational?style=flat-square)
+![Version: 1.3.0](https://img.shields.io/badge/Version-1.3.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.3.0](https://img.shields.io/badge/AppVersion-1.3.0-informational?style=flat-square)
 
 Deploy kube-rca backend and frontend
 
@@ -324,7 +324,7 @@ backend:
 | agent.aiProvider | string | `"gemini"` | AI provider for agent (AI_PROVIDER). Allowed: gemini, openai, anthropic. |
 | agent.anthropic.apiKey | string | `""` | Anthropic API key value. When set (and no existingSecret), chart creates the Secret. |
 | agent.anthropic.maxTokens | int | `8192` | Anthropic maximum output tokens. |
-| agent.anthropic.modelId | string | `"claude-haiku-4-5"` | Anthropic model ID for Strands Agents. |
+| agent.anthropic.modelId | string | `"claude-sonnet-4-6"` | Anthropic model ID for Strands Agents. |
 | agent.anthropic.secret.create | bool | `false` | Create a Secret for the Anthropic API key. |
 | agent.anthropic.secret.existingSecret | string | `"kube-rca-ai"` | Existing Secret name for the Anthropic API key. |
 | agent.anthropic.secret.key | string | `"anthropic-api-key"` | Secret key name for the Anthropic API key. |
@@ -332,13 +332,13 @@ backend:
 | agent.cache.ttlSeconds | int | `0` | Cache TTL in seconds (AGENT_CACHE_TTL_SECONDS, 0 = disable). |
 | agent.containerPort | int | `8000` | Agent container port. |
 | agent.gemini.apiKey | string | `""` | Gemini API key value. When set (and no existingSecret), chart creates the Secret. |
-| agent.gemini.modelId | string | `"gemini-3.1-flash-lite-preview"` | Gemini model ID for Strands Agents. |
+| agent.gemini.modelId | string | `"gemini-3-flash-preview"` | Gemini model ID for Strands Agents. |
 | agent.gemini.secret.create | bool | `false` | Create a Secret for the Gemini API key. |
 | agent.gemini.secret.existingSecret | string | `"kube-rca-ai"` | Existing Secret name for the Gemini API key. |
 | agent.gemini.secret.key | string | `"ai-studio-api-key"` | Secret key name for the Gemini API key. |
 | agent.image.pullPolicy | string | `"IfNotPresent"` | Agent image pull policy. |
 | agent.image.repository | string | `"public.ecr.aws/r5b7j2e4/kube-rca-ecr/agent"` | Agent image repository. |
-| agent.image.tag | string | `"agent-1.2.1"` | Agent image tag. |
+| agent.image.tag | string | `"1.3.0"` | Agent image tag. Synced by release-please from manifest version. |
 | agent.ingress.annotations | object | `{}` | Annotations for agent ingress. |
 | agent.ingress.enabled | bool | `false` | Enable agent ingress. |
 | agent.ingress.hosts | list | `[]` | Hostnames for agent ingress. |
@@ -346,6 +346,7 @@ backend:
 | agent.ingress.pathType | string | `"Prefix"` | PathType for agent ingress. |
 | agent.ingress.paths | list | `["/"]` | Paths for agent ingress. |
 | agent.ingress.tls | list | `[]` | TLS configuration for agent ingress. |
+| agent.istio.enabled | bool | `false` | Enable Istio mesh CRD tools (VirtualService / DestinationRule / ServiceEntry). Set true only when Istio is installed in the cluster; otherwise the agent registers no Istio tools so the LLM never sees an unavailable capability. |
 | agent.k8s.apiTimeoutSeconds | int | `5` | Kubernetes API timeout in seconds. |
 | agent.k8s.eventLimit | int | `25` | Kubernetes event limit. |
 | agent.k8s.logTailLines | int | `25` | Kubernetes log tail lines. |
@@ -371,12 +372,14 @@ backend:
 | agent.prompt.tokenBudget | int | `32000` | Prompt token budget (approx). |
 | agent.replicaCount | int | `2` | Number of agent replicas. Use 2+ for concurrent analysis (Python GIL limits per-process parallelism). |
 | agent.resources | object | `{}` | Agent resource requests/limits. |
-| agent.retry.maxAttempts | int | `5` | Max retry attempts for transient LLM API errors (5xx, 429). |
-| agent.retry.maxWait | float | `60` | Maximum exponential backoff wait time in seconds. |
+| agent.retry.maxAttempts | int | `10` | Max retry attempts for transient LLM API errors (5xx, 429). |
+| agent.retry.maxWait | float | `30` | Maximum exponential backoff wait time in seconds. |
 | agent.retry.minWait | float | `1` | Minimum exponential backoff wait time in seconds. |
+| agent.retry.totalTimeout | float | `300` | Total timeout in seconds before giving up retries (LLM_RETRY_TOTAL_TIMEOUT). |
 | agent.securityContext | object | `{}` | Container-level security context for the agent container. |
 | agent.service.port | int | `8000` | Agent service port. |
 | agent.service.type | string | `"ClusterIP"` | Agent service type. |
+| agent.session.windowSize | int | `40` | Sliding window size for the conversation manager (AGENT_SESSION_WINDOW_SIZE).    Controls how many recent messages are kept in the LLM context per session.    Trade-off: larger window improves continuity but increases prompt token cost. |
 | agent.sessionDB.host | string | `""` | PostgreSQL host for Strands session persistence. |
 | agent.sessionDB.name | string | `""` | PostgreSQL database name. |
 | agent.sessionDB.port | int | `5432` | PostgreSQL port. |
@@ -430,7 +433,7 @@ backend:
 | backend.flapping.enabled | bool | `true` | Enable alert flapping detection (FLAP_ENABLED). |
 | backend.image.pullPolicy | string | `"IfNotPresent"` | Backend image pull policy. |
 | backend.image.repository | string | `"public.ecr.aws/r5b7j2e4/kube-rca-ecr/backend"` | Backend image repository. |
-| backend.image.tag | string | `"backend-0.5.1"` | Backend image tag. |
+| backend.image.tag | string | `"1.3.0"` | Backend image tag. Synced by release-please from manifest version. |
 | backend.ingress.annotations | object | `{}` | Annotations for backend ingress. |
 | backend.ingress.enabled | bool | `false` | Enable backend ingress. |
 | backend.ingress.hosts | list | `[]` | Hostnames for backend ingress. |
@@ -464,11 +467,16 @@ backend:
 | backend.waitForDb.checkInterval | int | `2` | Interval between checks (seconds). |
 | backend.waitForDb.checkTimeout | int | `5` | Timeout for each TCP check (seconds). |
 | backend.waitForDb.enabled | bool | `true` | Enable init container to wait for DB before backend starts. |
+| backend.webhookSecret | object | `{"existingSecret":"","headerName":"X-Webhook-Signature","key":"hmac-secret","rateLimitPerMinute":100}` | HMAC signature validation for the public /webhook/alertmanager endpoint. When `existingSecret` is empty the backend runs in opt-in mode (logs a startup warning, accepts unsigned requests). Set `existingSecret` to enforce HMAC-SHA256 verification. See docs/SECURITY-WEBHOOK.md for the on-the-wire protocol. |
+| backend.webhookSecret.existingSecret | string | `""` | Existing Secret name carrying the HMAC shared secret. Empty = opt-in (no verification). |
+| backend.webhookSecret.headerName | string | `"X-Webhook-Signature"` | HTTP header name carrying the hex-encoded HMAC-SHA256 digest. |
+| backend.webhookSecret.key | string | `"hmac-secret"` | Secret key holding the raw shared secret (e.g. from `openssl rand -hex 32`). |
+| backend.webhookSecret.rateLimitPerMinute | int | `100` | Per-IP rate limit for /webhook/alertmanager (requests per minute, 0 disables). |
 | frontend.affinity | object | `{}` | Affinity for frontend pods assignment. |
 | frontend.containerPort | int | `80` | Frontend container port. |
 | frontend.image.pullPolicy | string | `"IfNotPresent"` | Frontend image pull policy. |
 | frontend.image.repository | string | `"public.ecr.aws/r5b7j2e4/kube-rca-ecr/frontend"` | Frontend image repository. |
-| frontend.image.tag | string | `"frontend-0.4.1"` | Frontend image tag. |
+| frontend.image.tag | string | `"1.3.0"` | Frontend image tag. Synced by release-please from manifest version. |
 | frontend.ingress.annotations | object | `{}` | Annotations for frontend ingress. |
 | frontend.ingress.enabled | bool | `false` | Enable frontend ingress. |
 | frontend.ingress.hosts | list | `[]` | Hostnames for frontend ingress. |
