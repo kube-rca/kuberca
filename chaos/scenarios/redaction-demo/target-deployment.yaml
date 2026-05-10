@@ -21,8 +21,10 @@ metadata:
     app: chaos-redaction-demo-target
 data:
   # Position #1: ConfigMap data key contains denylist substring "token".
-  api.token: |
-    eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vIiwicm9sZSI6ImFkbWluIn0.fake-demo-signature-redaction-correlation
+  # Inline string (no `|` block scalar) so the value has no trailing
+  # newline — same input as the other positions, hashes to the same
+  # [HASH:xxxxxxxx].
+  api.token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vIiwicm9sZSI6ImFkbWluIn0.fake-demo-signature-redaction-correlation"
   # Control value — should remain unmasked in agent output (proves masking
   # is selective, not blanket).
   region: ap-northeast-2
@@ -61,18 +63,13 @@ spec:
             - configMapRef:
                 name: chaos-redaction-demo-config
           command: ["sh", "-c"]
-          # Position #4: args[0] embeds the raw JWT directly so the K8s
-          # API spec exposes the literal token (would be hidden if we only
-          # referenced $DEMO_API_TOKEN — env expansion happens at runtime
-          # inside the container, not in the spec).
-          # Position #5: the runtime echo prints the env-expanded JWT to
-          # stdout, where get_pod_logs picks it up.
+          # Position #4: args[0] embeds the raw JWT directly with no
+          # surrounding text. JWT regex matches the token substring and
+          # hashes exactly the raw JWT — same input as positions #1-3.
+          # Position #5: echo prints the same raw JWT to stdout, which
+          # get_pod_logs streams as a single log line.
           args:
-            - >-
-              echo "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vIiwicm9sZSI6ImFkbWluIn0.fake-demo-signature-redaction-correlation";
-              echo "Boot with token: $DEMO_API_TOKEN";
-              sleep 3;
-              exit 1
+            - 'echo eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vIiwicm9sZSI6ImFkbWluIn0.fake-demo-signature-redaction-correlation; sleep 3; exit 1'
           resources:
             requests:
               cpu: "10m"
