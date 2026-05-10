@@ -1,13 +1,17 @@
 {
-  "include-v-in-tag": true,
+  "include-v-in-tag": false,
   "packages": {
     ".": {
       "release-type": "simple",
       "extra-files": [
-        "backend/VERSION",
-        "agent/pyproject.toml",
-        "frontend/package.json",
-        "charts/kube-rca/Chart.yaml"
+        { "type": "generic", "path": "backend/VERSION" },
+        { "type": "toml",    "path": "agent/pyproject.toml",      "jsonpath": "$.project.version" },
+        { "type": "json",    "path": "frontend/package.json",     "jsonpath": "$.version" },
+        { "type": "yaml",    "path": "charts/kube-rca/Chart.yaml", "jsonpath": "$.version" },
+        { "type": "yaml",    "path": "charts/kube-rca/Chart.yaml", "jsonpath": "$.appVersion" },
+        { "type": "yaml",    "path": "charts/kube-rca/values.yaml", "jsonpath": "$.backend.image.tag" },
+        { "type": "yaml",    "path": "charts/kube-rca/values.yaml", "jsonpath": "$.agent.image.tag" },
+        { "type": "yaml",    "path": "charts/kube-rca/values.yaml", "jsonpath": "$.frontend.image.tag" }
       ],
       "changelog-path": "CHANGELOG.md"
     }
