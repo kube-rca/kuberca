@@ -210,8 +210,12 @@ def build_traceql_query(service_name: str | None, namespace: str | None) -> str:
         escaped = service_name.replace('"', '\\"')
         return f'{{ resource.service.name = "{escaped}" }}'
     if namespace:
-        escaped = namespace.replace('"', '\\"').replace(".", "\\.")
-        return f'{{ resource.service.name =~ ".*\\.{escaped}" }}'
+        # TraceQL string literals only accept \" \\ \n \t escapes; `\.` is an
+        # invalid char escape and Tempo rejects the query with HTTP 400
+        # ("invalid char escape" at the backslash position). Use a regex char
+        # class `[.]` to match a literal dot without any backslash.
+        escaped = namespace.replace('"', '\\"').replace(".", "[.]")
+        return f'{{ resource.service.name =~ ".*[.]{escaped}" }}'
     return "{}"
 
 

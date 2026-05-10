@@ -65,8 +65,26 @@ def test_build_traceql_query_service_only() -> None:
 
 
 def test_build_traceql_query_namespace_only() -> None:
+    # Use a regex char class `[.]` for the literal dot. TraceQL string literals
+    # only accept \" \\ \n \t escapes; `\.` triggers a parse error
+    # ("invalid char escape" at col 28) and Tempo returns HTTP 400.
     query = build_traceql_query(service_name=None, namespace="bookinfo")
-    assert query == '{ resource.service.name =~ ".*\\.bookinfo" }'
+    assert query == '{ resource.service.name =~ ".*[.]bookinfo" }'
+
+
+def test_build_traceql_query_namespace_with_dot() -> None:
+    # Namespaces may contain dots in some setups; every dot must remain literal
+    # via char class, never as `\.` (which TraceQL rejects).
+    query = build_traceql_query(service_name=None, namespace="team.bookinfo")
+    assert query == '{ resource.service.name =~ ".*[.]team[.]bookinfo" }'
+
+
+def test_build_traceql_query_namespace_only_avoids_invalid_traceql_escape() -> None:
+    # Regression guard: the bytes `\.` MUST NOT appear in the namespace-only
+    # fallback output. Previous implementation produced `.*\.<ns>` which Tempo
+    # rejected with HTTP 400 "invalid char escape" (alert_analyses 422-426).
+    query = build_traceql_query(service_name=None, namespace="bookinfo")
+    assert "\\." not in query, f"output contains invalid TraceQL escape: {query!r}"
 
 
 def test_build_traceql_query_empty() -> None:
