@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { LogOut, Sun, Moon, Globe } from 'lucide-react';
 import { languageLabels, useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
@@ -13,13 +14,17 @@ export const Header: React.FC<HeaderProps> = ({ onLogout, connectionState }) => 
 
   return (
     <header className="fixed top-0 left-0 w-full h-14 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex items-center px-5 z-50 transition-colors duration-300">
-      {/* Logo */}
-      <div className="flex items-center gap-2.5">
+      {/* Logo - clicking returns to home (Incident Dashboard) */}
+      <Link
+        to="/"
+        aria-label="Kube-RCA home"
+        className="flex items-center gap-2.5 rounded-md px-1 -mx-1 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-opacity"
+      >
         <img src="/logo.png" alt="Kube-RCA" className="w-7 h-7" />
         <span className="text-base font-semibold font-mono tracking-wider text-slate-900 dark:text-slate-100">
           Kube-RCA
         </span>
-      </div>
+      </Link>
 
       {/* Right controls */}
       <div className="ml-auto flex items-center gap-3">
