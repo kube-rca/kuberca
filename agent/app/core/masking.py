@@ -221,29 +221,54 @@ class BuiltinRedactor:
         return out
 
     def _redact_command_args(self, items: list[Any]) -> list[Any]:
-        """Redact sensitive flags like --password=xxx in command/args lists."""
+        """Redact sensitive flags and embedded secrets in command/args lists.
+
+        Two-pass redaction:
+          1. CLI-flag pattern (``--password=xxx``, ``--token=xxx``).
+          2. Value heuristics (JWT/Bearer/long base64) for secrets embedded
+             in shell scripts or arbitrary args strings, e.g.
+             ``sh -c 'echo eyJ...'``.
+        """
         out: list[Any] = []
         for item in items:
             if isinstance(item, str):
+                # 1. CLI-flag pattern.
                 redacted = _SENSITIVE_ARG_RE.sub(
                     lambda m: f"{m.group(1)}={_mask_replacement(self.hash_mode, m.group(3))}",
                     item,
                 )
+                # 2. Value heuristics — catch JWTs, Bearer tokens, base64
+                # blobs smuggled inside shell scripts or arbitrary args.
+                redacted = self._redact_text_value(redacted)
                 out.append(redacted)
             else:
                 out.append(self._redact_value(item))
         return out
 
     def _redact_annotations(self, annotations: dict[str, Any]) -> dict[str, Any]:
-        """Mask annotation values unless they have a known-safe prefix."""
+        """Mask annotation values with safe-prefix-aware policy.
+
+        Policy:
+          - Non-string values pass through unchanged.
+          - Keys NOT matching a safe prefix → whole value masked (annotation
+            key treated like a sensitive key).
+          - Keys matching a safe prefix (e.g. ``kubectl.kubernetes.io/``)
+            → still apply value heuristics (JWT/Bearer/base64). Catches
+            ``last-applied-configuration`` whose serialized spec may embed
+            user secrets, while preserving plain K8s metadata such as
+            ``app.kubernetes.io/version: "1.2.3"``.
+        """
         out: dict[str, Any] = {}
         for key, val in annotations.items():
-            if isinstance(val, str) and not any(
-                key.startswith(prefix) for prefix in _SAFE_ANNOTATION_PREFIXES
-            ):
-                out[key] = _mask_replacement(self.hash_mode, val)
-            else:
+            if not isinstance(val, str):
                 out[key] = val
+                continue
+            if any(key.startswith(prefix) for prefix in _SAFE_ANNOTATION_PREFIXES):
+                # Safe prefix: skip key-denylist whole-mask, but still scan
+                # the value for embedded secrets.
+                out[key] = self._redact_text_value(val, parent_key=key)
+            else:
+                out[key] = _mask_replacement(self.hash_mode, val)
         return out
 
     # -- Core traversal ------------------------------------------------------

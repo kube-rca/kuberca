@@ -324,3 +324,73 @@ def test_builtin_redacts_nested_structures() -> None:
     annotations = result["spec"]["metadata"]["annotations"]
     assert annotations["custom.io/key"] == MASK_TOKEN
     assert annotations["kubernetes.io/name"] == "safe"
+
+
+# ---------------------------------------------------------------------------
+# Coverage: command/args list with embedded JWT (Leak 2 fix)
+# ---------------------------------------------------------------------------
+
+
+def test_command_args_redacts_embedded_jwt_in_shell_script() -> None:
+    """args list with raw JWT inside a shell script gets hashed by value heuristics.
+
+    Regression for the case where ``sh -c 'echo eyJ...; sleep 3; exit 1'`` was
+    leaking the raw JWT through ``_redact_command_args`` because the
+    ``--flag=value`` CLI pattern did not match it.
+    """
+    redactor = BuiltinRedactor(hash_mode=True)
+    jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0In0.fake-signature"
+    pod_spec = {
+        "containers": [
+            {
+                "name": "app",
+                "command": ["sh", "-c"],
+                "args": [f"echo {jwt}; sleep 3; exit 1"],
+            }
+        ],
+    }
+    result = redactor.redact_object(pod_spec)
+    args_str = result["containers"][0]["args"][0]
+    assert jwt not in args_str
+    assert "[HASH:" in args_str
+
+
+# ---------------------------------------------------------------------------
+# Coverage: safe-prefix annotation with embedded secret (Leak 1 fix)
+# ---------------------------------------------------------------------------
+
+
+def test_kubectl_last_applied_configuration_redacts_embedded_jwt() -> None:
+    """kubectl.kubernetes.io/last-applied-configuration value is scanned for embedded JWT.
+
+    Regression for the case where the kubectl-managed annotation, whose
+    serialized spec carries user-data, was bypassed entirely under the
+    safe-prefix policy and leaked the raw token.
+    """
+    redactor = BuiltinRedactor(hash_mode=True)
+    jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0In0.fake-signature"
+    metadata = {
+        "annotations": {
+            "kubectl.kubernetes.io/last-applied-configuration": (
+                f'{{"spec":{{"env":[{{"name":"X","value":"{jwt}"}}]}}}}'
+            ),
+        },
+    }
+    result = redactor.redact_object(metadata)
+    annotation_val = result["annotations"]["kubectl.kubernetes.io/last-applied-configuration"]
+    assert jwt not in annotation_val
+    assert "[HASH:" in annotation_val
+
+
+def test_safe_annotation_without_secret_passes_through() -> None:
+    """Plain K8s metadata annotation under safe prefix passes unchanged."""
+    redactor = BuiltinRedactor(hash_mode=True)
+    metadata = {
+        "annotations": {
+            "app.kubernetes.io/version": "1.2.3",
+            "app.kubernetes.io/name": "my-app",
+        },
+    }
+    result = redactor.redact_object(metadata)
+    assert result["annotations"]["app.kubernetes.io/version"] == "1.2.3"
+    assert result["annotations"]["app.kubernetes.io/name"] == "my-app"
