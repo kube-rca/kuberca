@@ -1,4 +1,4 @@
-.PHONY: help incident oomkilled crashloop imagepull networkdelay 404 500 503 504 ratings-multi redaction-demo verify-clean clean-all lint
+.PHONY: help incident oomkilled crashloop imagepull networkdelay 404 500 503 504 ratings-multi redaction-demo clean-redaction-demo verify-clean clean-all lint
 
 NAMESPACE ?= bookinfo
 NAMESPACES ?= bookinfo kube-rca
@@ -31,6 +31,9 @@ redaction-demo: ## Run HashMode redaction demo (same JWT in 5 K8s spec locations
 	WAIT_SECONDS="$(WAIT_SECONDS)" \
 	POLL_INTERVAL_SECONDS="$(POLL_INTERVAL_SECONDS)" \
 	./scripts/run-redaction-demo.sh
+
+clean-redaction-demo: ## Force-delete redaction-demo resources orphaned outside the script's trap-based cleanup (Pod/Deployment/ConfigMap)
+	@kubectl $(if $(KUBE_CONTEXT),--context $(KUBE_CONTEXT),) -n kube-rca delete -f scenarios/redaction-demo/target-deployment.yaml --ignore-not-found
 
 imagepull: ## Run ImagePullBackOff scenario
 	@KUBE_CONTEXT="$(KUBE_CONTEXT)" \
