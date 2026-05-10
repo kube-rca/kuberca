@@ -95,7 +95,7 @@ agent:
   anthropic:
     modelId: "claude-sonnet-4-6"
   openai:
-    modelId: "gpt-5-mini"
+    modelId: "gpt-5.4-mini"
   sessionDB:
     host: kube-rca-postgresql.kube-rca.svc.cluster.local
     port: 5432

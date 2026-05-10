@@ -69,6 +69,6 @@ class StrandsModel(Protocol):
 # Default model IDs per provider
 DEFAULT_MODEL_IDS: dict[LLMProvider, str] = {
     LLMProvider.GEMINI: "gemini-3-flash-preview",
-    LLMProvider.OPENAI: "gpt-4o",
-    LLMProvider.ANTHROPIC: "claude-sonnet-4-20250514",
+    LLMProvider.OPENAI: "gpt-5.4-mini",
+    LLMProvider.ANTHROPIC: "claude-sonnet-4-6",
 }

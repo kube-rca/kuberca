@@ -358,7 +358,7 @@ backend:
 | agent.masking.regexList | list | `[]` | Regex list (JSON array) for masking sensitive values before LLM requests and DB persistence. |
 | agent.nodeSelector | object | `{}` | Node labels for agent pods assignment. |
 | agent.openai.apiKey | string | `""` | OpenAI API key value. When set (and no existingSecret), chart creates the Secret. |
-| agent.openai.modelId | string | `"gpt-5-mini"` | OpenAI model ID for Strands Agents. |
+| agent.openai.modelId | string | `"gpt-5.4-mini"` | OpenAI model ID for Strands Agents. |
 | agent.openai.secret.create | bool | `false` | Create a Secret for the OpenAI API key. |
 | agent.openai.secret.existingSecret | string | `"kube-rca-ai"` | Existing Secret name for the OpenAI API key. |
 | agent.openai.secret.key | string | `"openai-api-key"` | Secret key name for the OpenAI API key. |

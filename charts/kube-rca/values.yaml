@@ -379,7 +379,7 @@ agent:
       key: "ai-studio-api-key"
   openai:
     # -- OpenAI model ID for Strands Agents.
-    modelId: "gpt-5-mini"
+    modelId: "gpt-5.4-mini"
     # -- OpenAI API key value. When set (and no existingSecret), chart creates the Secret.
     apiKey: ""
     secret:
