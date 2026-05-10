@@ -526,3 +526,663 @@
 
 * **agent:** add analysis pipeline timing instrumentation ([74ad719](https://github.com/kube-rca/kuberca/commit/74ad7193705bc415190c14edf8f8d3a08999c445))
 * **kube-rca:** increase agent replicaCount default to 2 ([b2c6994](https://github.com/kube-rca/kuberca/commit/b2c69946dc903794bcfa55df31cc607114052a4e))
+
+## Pre-monorepo Component History
+
+The four components below lived in separate repositories before being
+merged into this monorepo on 2026-04-28. The histories are preserved
+verbatim from `kube-rca/{backend,frontend,agent,helm-charts}` for
+audit/archaeology purposes. Commit hashes link to the archived repos,
+which remain read-only on GitHub.
+
+### Backend (`kube-rca/backend`, archived)
+
+#### [0.5.1](https://github.com/kube-rca/backend/compare/0.5.0...0.5.1) (2026-04-03)
+
+
+##### Bug Fixes
+
+* **backend:** add retry with exponential backoff for agent analysis requests ([9b34ed3](https://github.com/kube-rca/backend/commit/9b34ed36efb5ca336a0201b749d11fa7cf899f75))
+* **backend:** upgrade go-jose/v4 to 4.1.4 for JWE panic fix (GHSA high) ([2d349e5](https://github.com/kube-rca/backend/commit/2d349e567e2dd428779e9fb133af80928f35e792))
+
+#### [0.5.0](https://github.com/kube-rca/backend/compare/0.4.0...0.5.0) (2026-04-02)
+
+
+##### Features
+
+* Add a required `name` field to webhook configurations, includin… ([cb483de](https://github.com/kube-rca/backend/commit/cb483de3d0c06c324f84ed714421ad8bbc4e79c3))
+* Add a required `name` field to webhook configurations, including database schema, API requests, and validation logic. ([fac832d](https://github.com/kube-rca/backend/commit/fac832d4cf5a7ae2853b100f023e176f311e3180))
+* add auto/manual analysis mode with severity-based control (KAN-172) ([48ecf14](https://github.com/kube-rca/backend/commit/48ecf14fdab1f6fa8a8d6b7cc2f228dd27935e41))
+* add firing/resolved analysis split to alert detail API ([4bcf251](https://github.com/kube-rca/backend/commit/4bcf251fa58b57d17210db9c58d2f22ac2ccd882))
+* add multi-provider OIDC support with auto-detection ([04ee09b](https://github.com/kube-rca/backend/commit/04ee09b776b4ea1534e48d3ba1f39a18222c2e77))
+* add notifier events and webhook-based routing ([e1aceba](https://github.com/kube-rca/backend/commit/e1aceba598a4398fd2bed710dd28bbbe2b412657))
+* add notifier events and webhook-based routing ([e1aceba](https://github.com/kube-rca/backend/commit/e1aceba598a4398fd2bed710dd28bbbe2b412657))
+* add notifier events and webhook-based routing ([c77a6f4](https://github.com/kube-rca/backend/commit/c77a6f4893cbc0060f1d929373066cc34577c448))
+* add settings option ([b6c9231](https://github.com/kube-rca/backend/commit/b6c92315f00df16f7ed5e6cca572d4314844e1ea))
+* add severity-channel mapping rule ([d8f8638](https://github.com/kube-rca/backend/commit/d8f863866c97c5982c3360547d9ca3e9e9214a20))
+* add SSE support for real-time event notifications (KAN-165) ([d26e895](https://github.com/kube-rca/backend/commit/d26e895380870a3f0fa17d681bcf02faba2486cd))
+* Alanlysis 기능 추가 (KAN-170) ([1d9f4a8](https://github.com/kube-rca/backend/commit/1d9f4a8e9723577156d3ef166abb42b833be17fe))
+* allow info severity payload ([ad77cf9](https://github.com/kube-rca/backend/commit/ad77cf925b56a1cddeb3bd8f031b9b727d156b3f))
+* **analyze:** add analysis SSE events and is_analyzing API field (KAN-173) ([b2ebbe4](https://github.com/kube-rca/backend/commit/b2ebbe437d95fdf59f2134586d8761b968d02ebc))
+* **analyze:** add in-flight dedup guard and configurable agent timeout ([f421628](https://github.com/kube-rca/backend/commit/f4216280d8043d800dd598ee72e5f794ced9fdd4))
+* **analyze:** differentiate resolved alert analysis from firing ([f5545f0](https://github.com/kube-rca/backend/commit/f5545f053cebc0d054860ea9d6e53f319ea3dab3))
+* **backend:** add IsManual flag to AlertStatusChangedEvent for manual resolve Slack prefix ([69a09bc](https://github.com/kube-rca/backend/commit/69a09bcf853308dedfd23bf41a1b8613251183ef))
+* **backend:** add manual alert resolve request/response models ([038b545](https://github.com/kube-rca/backend/commit/038b5455821f0ba8969a42f37bc433cb2217e837))
+* **backend:** add ManualResolveAlert DB function ([b03d56d](https://github.com/kube-rca/backend/commit/b03d56d77e95e66de425e4b6ba8a0585a45d8c38))
+* **backend:** add ResolveAlert and BulkResolveAlerts handlers with alertService dependency ([652266d](https://github.com/kube-rca/backend/commit/652266d8b971df2e79f8377d0951e30412a7a48a))
+* **backend:** add ResolveAlert and BulkResolveAlerts service methods with tests ([8aa926c](https://github.com/kube-rca/backend/commit/8aa926c1668147531307d894a3a909a3c1084679))
+* **backend:** DB-backed notification delivery tracking with strict thread routing ([433faa7](https://github.com/kube-rca/backend/commit/433faa7f25da4e634ec7bc5e5cba967d7980bf95))
+* **backend:** register alert resolve routes and update OpenAPI docs ([6efb61b](https://github.com/kube-rca/backend/commit/6efb61b3afab4674265a9519a59928ff229d5c3c))
+* **db:** add connection retry with exponential backoff and DB-aware health endpoints ([bc1c23a](https://github.com/kube-rca/backend/commit/bc1c23a26b6f424a8f9d6b89816bdb2ea5944a9b))
+* display OIDC login_id as 'Name (email)' format ([493873f](https://github.com/kube-rca/backend/commit/493873f85d6cefec8d669969320f9c5e417d8015))
+* **incidents:** expose is_analyzing field in incident detail API ([358c316](https://github.com/kube-rca/backend/commit/358c31680ce5b940208fcfd0f858b26b5904213e))
+* remove duplicated setting ([add8fa3](https://github.com/kube-rca/backend/commit/add8fa3f2bc906a689d4c951c83d030b64d51874))
+* sync UI/Helm setting ([a7dab54](https://github.com/kube-rca/backend/commit/a7dab54ed5393e69343c91d46d47133cb3ddb6d1))
+
+
+##### Bug Fixes
+
+* add prompt=select_account to OIDC auth URL ([50ce8f3](https://github.com/kube-rca/backend/commit/50ce8f39ee2b589d7f6cda73f342791b024c79e6))
+* **alerts:** resolve fingerprint dedup causing alert history loss ([#25](https://github.com/kube-rca/backend/issues/25)) ([d1fc66e](https://github.com/kube-rca/backend/commit/d1fc66ec413e2cf528cd2bb5c5048feea1ac7c83))
+* analysis-channel mapping rule ([22af24a](https://github.com/kube-rca/backend/commit/22af24a25cf9fdcc2ad741a56144d629296e6d6e))
+* **analyze:** correct fingerprint lookup and add incident-level analysis ([7dbd88a](https://github.com/kube-rca/backend/commit/7dbd88a801d983b3f30c94d552c8a2e6cabd821f))
+* **backend:** allow resolved analysis to wait for in-flight firing analysis ([8b83561](https://github.com/kube-rca/backend/commit/8b83561902355691ca562e4fac8a755d820d6017))
+* **backend:** enable markdown rendering for Slack attachments ([d45c938](https://github.com/kube-rca/backend/commit/d45c93808e3e96a17b6761e609dd762252d78c89))
+* **backend:** handle triple asterisk in Slack markdown conversion ([56eb03e](https://github.com/kube-rca/backend/commit/56eb03e3ea49aa905008789bcd4d638af1fb630f))
+* **backend:** preserve thread_ts on resolved alerts for async analysis routing ([da9ed5c](https://github.com/kube-rca/backend/commit/da9ed5c63db41e90af787af4caaa7cb7ed55f63e))
+* **backend:** set StartsAt and prefer direct ThreadTS in manual resolve ([77ce68e](https://github.com/kube-rca/backend/commit/77ce68e5b967ddec195403384a9f1c8969a7cd9a))
+* **backend:** strip markdown bold markers inside heading for Slack conversion ([58b58bd](https://github.com/kube-rca/backend/commit/58b58bd51f4af33b8435e5914cd8ec8cc7dd52b9))
+* **backend:** use semantic JSON comparison for SyncEnvDefaults ([af34aae](https://github.com/kube-rca/backend/commit/af34aae8e1d9794ed9ebcdc83ca8cfedd377e098))
+* **deps:** upgrade google.golang.org/grpc to v1.79.3 ([ad6fda1](https://github.com/kube-rca/backend/commit/ad6fda1ddfa8985d9a2d8aaeb83549afffbb5a6e))
+* edit thread_ts analysis mapping rule ([f8b309f](https://github.com/kube-rca/backend/commit/f8b309f76293a7301a63cbabea580a96055f4737))
+* **incidents:** prevent duplicate ongoing incidents with atomic upsert ([09b391a](https://github.com/kube-rca/backend/commit/09b391a02948165b5b45f563344a2467d3dd3d36))
+* use email as login_id for OIDC users instead of oidc_{sub} ([2efb25b](https://github.com/kube-rca/backend/commit/2efb25bf82a8bbaed3ca49125e6d2128feb5e05a))
+
+#### [0.4.0](https://github.com/kube-rca/backend/compare/0.3.0...0.4.0) (2026-02-27)
+
+
+##### Features
+
+* add OIDC authentication with security hardening ([b182d24](https://github.com/kube-rca/backend/commit/b182d24714f6b57ad1b4cb5cacf7a20dbe3fbf18))
+* add webhook config api ([65e788d](https://github.com/kube-rca/backend/commit/65e788d5adab46a39c57e25ca2922a0285effa6f))
+* add webhook config api ([65e788d](https://github.com/kube-rca/backend/commit/65e788d5adab46a39c57e25ca2922a0285effa6f))
+* add webhook config api ([15170f9](https://github.com/kube-rca/backend/commit/15170f9be16d74f0d18762304a342c934fb44fb2))
+* alert flapping (KAN-155) ([0a55a99](https://github.com/kube-rca/backend/commit/0a55a9921d1e2d0354dbe195c4d90651b5d96853))
+* Comment 수정 및 삭제 기능 (KAN-151) ([8f79c44](https://github.com/kube-rca/backend/commit/8f79c4473d7e4764a910160b16f5e8212e146e57))
+* flapping enable/disable (KAN-155) ([804316b](https://github.com/kube-rca/backend/commit/804316bbaab7393f20096d412028ea860f5b997f))
+* Incident & Alarm에 Comment 추가 (KAN-151) ([751570e](https://github.com/kube-rca/backend/commit/751570e6d61ae946a6366c6db503407491024c95))
+* 라벨 기반 검색을 위해 목록 반환시 라벨 추가(KAN-143) ([7bdeb97](https://github.com/kube-rca/backend/commit/7bdeb979fd63aaa17eb6c67dc4ff3e0e43def080))
+* 채팅 기능 (KAN-157) ([feaadae](https://github.com/kube-rca/backend/commit/feaadae2710a064ffdcb4081c3a4a0c70fc79ac9))
+
+
+##### Bug Fixes
+
+* route backend image pushes to component repository ([b0274da](https://github.com/kube-rca/backend/commit/b0274da089e1f99e40d80965a82ea2454fe686bd))
+* 채팅 기능 404 에러 (KAN-157) ([9dbde7e](https://github.com/kube-rca/backend/commit/9dbde7e71d9fcbd37cf170003dac904575a9aa2a))
+
+#### [0.3.0](https://github.com/kube-rca/backend/compare/0.2.0...0.3.0) (2026-02-01)
+
+
+##### Features
+
+* add ci pipeline ([ac63d12](https://github.com/kube-rca/backend/commit/ac63d12073eed1dd6b161a2a0071648a84b1e41f))
+* add ci pipeline ([4d7d485](https://github.com/kube-rca/backend/commit/4d7d485426f4d26da05b0eec0c149ae541a6713d))
+* add embedding request/response models ([8db38ef](https://github.com/kube-rca/backend/commit/8db38efa57113fa51e714dfe214e6abdb43d3a7d))
+* add embeddings handler and route ([49747e8](https://github.com/kube-rca/backend/commit/49747e8a3f749d7fc12c27bfa2bc5557c1345f24))
+* add embeddings insert query ([844c903](https://github.com/kube-rca/backend/commit/844c903ace23c630e78d3ecea9fc645bcb382b24))
+* add embeddings service ([a26a398](https://github.com/kube-rca/backend/commit/a26a398acc80d66e1e02a67bf3e8f7439d58f1e6))
+* add genai embedding client ([bcd0c2f](https://github.com/kube-rca/backend/commit/bcd0c2f965f207cc1798938f8bf722a41a5c120f))
+* add pg connection logic ([1af289f](https://github.com/kube-rca/backend/commit/1af289fef2cd009e4e8934027e16d61114519b62))
+* add pg connection logic ([fa06783](https://github.com/kube-rca/backend/commit/fa06783fdaf13c2723487a9e1d0b6dee5e9e487f))
+* **agent:** include incident_id in analysis request [build] ([6486662](https://github.com/kube-rca/backend/commit/64866621ef43aab906746f8b76c58066cb37e5dd))
+* Alert Manager 웹훅 DTO 및 handler 추가 ([461a524](https://github.com/kube-rca/backend/commit/461a52410e30c4d09ba21d562b72d4b26b5e5c8f))
+* **backend:** add JWT auth [KAN-87] ([e1db648](https://github.com/kube-rca/backend/commit/e1db6483b1f0e9254066ef37b9b1b4239a298094))
+* **backend:** add JWT auth [KAN-87] ([f965e75](https://github.com/kube-rca/backend/commit/f965e75ae1ca88a1a9744272103353e7006ffea2))
+* **backend:** add swagger docs [KAN-92] [build] ([a20e9bf](https://github.com/kube-rca/backend/commit/a20e9bfcc4ec75f4b7057d221d97d5c91f633188))
+* **backend:** persist alert analysis artifacts (KAN-102) ([92dfb33](https://github.com/kube-rca/backend/commit/92dfb338436575136144176fb5532e0a33f6b4ce))
+* **backend:** store alert summary/detail separately (KAN-124) ([ae857b4](https://github.com/kube-rca/backend/commit/ae857b4a8bf27bfd84a31bd4d426f7755d6f9975))
+* **backend:** support local .env [KAN-87] ([3f2b7a0](https://github.com/kube-rca/backend/commit/3f2b7a0a2a758673824cb82ad3cc38acd34e6129))
+* **client:** agent client 구현 ([c6bddee](https://github.com/kube-rca/backend/commit/c6bddee980ba8a1268af48e93deb6b9890d29e32))
+* **client:** Slack API 연동 로직 추가 ([416f03d](https://github.com/kube-rca/backend/commit/416f03d6cde1a2f0c6a5981a64c94445f815536e))
+* **client:** Slack 메시지 포맷, 필터링, 전송 로직 추가 ([73a2b76](https://github.com/kube-rca/backend/commit/73a2b7643af3b61b4a7f069a88d1be5d7a33bd3d))
+* DB is_enabled 컬럼 추가 [build] ([597f924](https://github.com/kube-rca/backend/commit/597f924d784f71f2377b2fbe1d6d65df04c248cd))
+* DB is_enabled 컬럼 추가 [build] ([015aaf1](https://github.com/kube-rca/backend/commit/015aaf1d3926d0f1ad2ee4b51225f9ff2f762c61))
+* **embedding:** add vector search API endpoint ([63310b0](https://github.com/kube-rca/backend/commit/63310b092783539b81eed5d8d128911a67aa7769))
+* **embedding:** add vector search API endpoint ([63310b0](https://github.com/kube-rca/backend/commit/63310b092783539b81eed5d8d128911a67aa7769))
+* **embedding:** add vector search API endpoint ([2eff8dc](https://github.com/kube-rca/backend/commit/2eff8dcca2177c4750f0467c7dcf605961fdd188))
+* enable EnsureEmbeddingSchema on startup ([c4576b7](https://github.com/kube-rca/backend/commit/c4576b774600ec4e9311297554f0108a829cc332))
+* enable EnsureEmbeddingSchema on startup ([c4576b7](https://github.com/kube-rca/backend/commit/c4576b774600ec4e9311297554f0108a829cc332))
+* enable EnsureEmbeddingSchema on startup ([03b3388](https://github.com/kube-rca/backend/commit/03b338882941857b10b8ecdb1c188ee601fbd1c8))
+* **handler:** Service 레이어 분리, main 로직 변경 ([21c7759](https://github.com/kube-rca/backend/commit/21c77599c988220ad11cad75b81225fa0cba9beb))
+* **handler:** 디버깅용 payload 로깅 ([8f052e6](https://github.com/kube-rca/backend/commit/8f052e6bd91a71afbf69df0cf6163262ad6ff769))
+* RCA 보드 목록 반환 API [KAN-54] ([89c3710](https://github.com/kube-rca/backend/commit/89c37109c0cf6bfe09ca22f48576512479a31e8c))
+* **service:** agent 비동기 호출/콜백 로직 추가 ([2a1c119](https://github.com/kube-rca/backend/commit/2a1c11986c9703846cda6c61ba4d2f350918102f))
+* 특정 RCA 정보 반환 [KAN-80] ([401f3e7](https://github.com/kube-rca/backend/commit/401f3e79829d2e2a2bc06fd876de5ff709883a6c))
+* 특정 RCA 편집 [KAN-81] [build] ([70731d0](https://github.com/kube-rca/backend/commit/70731d07a07fea8a810672307224fdf3894ed181))
+
+
+##### Bug Fixes
+
+* add pg go module ([a2e304c](https://github.com/kube-rca/backend/commit/a2e304cad2416b3f73669c5dcacdb4c0a972d48d))
+* **backend:** convert headings for slack [KAN-132] ([0d90067](https://github.com/kube-rca/backend/commit/0d90067b4b220220de8012375359006dfa597536))
+* **backend:** slack markdown conversion [KAN-132] ([ecbf12c](https://github.com/kube-rca/backend/commit/ecbf12cfa582111d2c35b5ebb54947320fc2353d))
+* change ai secret env var name [build] ([25113dd](https://github.com/kube-rca/backend/commit/25113ddb71e9e3e4ca81fb94e74d155ad8f9b1e6))
+* change file name and position ([411c9db](https://github.com/kube-rca/backend/commit/411c9db2c1584d9c984dd76b26c08a5d5c149969))
+* change go version from 1.22 to 1.23 ([173fe03](https://github.com/kube-rca/backend/commit/173fe032442f7fc2b2c6ede21aed05043ebb8a84))
+* change go version to 1.24 [build] ([0a97136](https://github.com/kube-rca/backend/commit/0a97136887f188f852aedf76ca46df26f90b632c))
+* **ci:** avoid double colon in tag [build] ([d09cd6e](https://github.com/kube-rca/backend/commit/d09cd6e5e35b470f7a446907563cd097843b3835))
+* **ci:** CA 인증서 복사 ([a0ac26b](https://github.com/kube-rca/backend/commit/a0ac26b705e2b06f2aa940ba6b4bdc88ed701211))
+* **ci:** write image tag output [build] ([8736efb](https://github.com/kube-rca/backend/commit/8736efbe22cc4dacf0139508e7c89863c7b2c8a3))
+* correct embedding_test.go to use config.EmbeddingConfig ([cff1013](https://github.com/kube-rca/backend/commit/cff10138f2ce96d0aa6e0c5319cf90ebc1b01fb8))
+* correct short SHA extraction and image tag setting in CI workflow [build] ([8165c8a](https://github.com/kube-rca/backend/commit/8165c8a0386ce6f90cf18293b8f1c491d24fb8f7))
+* debug 위해 embedding api key 로그에 출력 ([fa15415](https://github.com/kube-rca/backend/commit/fa15415a595253b5d3cd23eb97492ea41957b261))
+* **docs:** use absolute GitHub URLs for related components ([813555e](https://github.com/kube-rca/backend/commit/813555ef3e6dadfbcb406bfe045be763670eab9d))
+* **docs:** use absolute URL for logo image ([a759fc7](https://github.com/kube-rca/backend/commit/a759fc70193532ec421020dbb4a82c312aa0079d))
+* embedding schema 초기화 롤백 ([1011b1a](https://github.com/kube-rca/backend/commit/1011b1a44ac6d9810b6fdece831198556a8d6e1f))
+* embedding text 전달방식 수정 ([0100e41](https://github.com/kube-rca/backend/commit/0100e41f4686e03427014911ff2fd2b85334a280))
+* embedding 관련 db schema 초기화하도록 설정 ([edea791](https://github.com/kube-rca/backend/commit/edea7911d93e3e05d6dab3d134516cf258d949c8))
+* embedding 설정 관련 수정: [build] ([12a755b](https://github.com/kube-rca/backend/commit/12a755b2573ea3bda9fda987d9d78449fa086c78))
+* embedding 설정 관련 수정: [build] ([89c5024](https://github.com/kube-rca/backend/commit/89c5024613905f135afff5d89ebbfa3d8027fbb4))
+* enable ci pipeline ([09a255a](https://github.com/kube-rca/backend/commit/09a255af841be9d3ddc5ec3c1e355e8efaa79616))
+* gemini client backend endpoint 명시적으로 지정 [build] ([1f4e051](https://github.com/kube-rca/backend/commit/1f4e0512b727da7d9b5adf91105c246e7de7fd9a))
+* improve duplicate resolved alert detection [KAN-139] ([23b7a2d](https://github.com/kube-rca/backend/commit/23b7a2d068c7569a1597837d41a790275dfc168a))
+* **logging:** skip health and openapi access logs ([8934f05](https://github.com/kube-rca/backend/commit/8934f0513fbf454732c19f681630ac1767bf16b6))
+* login to public ecr [build] ([ed2b44d](https://github.com/kube-rca/backend/commit/ed2b44d87b8a231a7a8cc6a5091231685c35c0f9))
+* update CI pipeline to correctly set image tags and environment variables ([2165203](https://github.com/kube-rca/backend/commit/21652038c16e18a5bc7bf4395775b041f31e2e9c))
+* update CI workflow to correctly set short SHA and image tag outputs [build] ([e8a2d9c](https://github.com/kube-rca/backend/commit/e8a2d9c0f10aa1617a69a6c2477c42f2008ea6bc))
+* update image tag format to avoid invalid reference formats in CI workflow [build] ([c85122a](https://github.com/kube-rca/backend/commit/c85122aff0c29cd4339ec9d660687989a60c0228))
+* update image tag generation to use repository name instead of environment variable [build] ([6915c47](https://github.com/kube-rca/backend/commit/6915c47353890476ebead86fef43232621be6a5a))
+
+#### [0.2.0](https://github.com/kube-rca/backend/compare/kube-rca-backend-v0.1.0...kube-rca-backend-v0.2.0) (2026-02-01)
+
+
+##### Features
+
+* add ci pipeline ([ac63d12](https://github.com/kube-rca/backend/commit/ac63d12073eed1dd6b161a2a0071648a84b1e41f))
+* add ci pipeline ([4d7d485](https://github.com/kube-rca/backend/commit/4d7d485426f4d26da05b0eec0c149ae541a6713d))
+* add embedding request/response models ([8db38ef](https://github.com/kube-rca/backend/commit/8db38efa57113fa51e714dfe214e6abdb43d3a7d))
+* add embeddings handler and route ([49747e8](https://github.com/kube-rca/backend/commit/49747e8a3f749d7fc12c27bfa2bc5557c1345f24))
+* add embeddings insert query ([844c903](https://github.com/kube-rca/backend/commit/844c903ace23c630e78d3ecea9fc645bcb382b24))
+* add embeddings service ([a26a398](https://github.com/kube-rca/backend/commit/a26a398acc80d66e1e02a67bf3e8f7439d58f1e6))
+* add genai embedding client ([bcd0c2f](https://github.com/kube-rca/backend/commit/bcd0c2f965f207cc1798938f8bf722a41a5c120f))
+* add pg connection logic ([1af289f](https://github.com/kube-rca/backend/commit/1af289fef2cd009e4e8934027e16d61114519b62))
+* add pg connection logic ([fa06783](https://github.com/kube-rca/backend/commit/fa06783fdaf13c2723487a9e1d0b6dee5e9e487f))
+* **agent:** include incident_id in analysis request [build] ([6486662](https://github.com/kube-rca/backend/commit/64866621ef43aab906746f8b76c58066cb37e5dd))
+* Alert Manager 웹훅 DTO 및 handler 추가 ([461a524](https://github.com/kube-rca/backend/commit/461a52410e30c4d09ba21d562b72d4b26b5e5c8f))
+* **backend:** add JWT auth [KAN-87] ([e1db648](https://github.com/kube-rca/backend/commit/e1db6483b1f0e9254066ef37b9b1b4239a298094))
+* **backend:** add JWT auth [KAN-87] ([f965e75](https://github.com/kube-rca/backend/commit/f965e75ae1ca88a1a9744272103353e7006ffea2))
+* **backend:** add swagger docs [KAN-92] [build] ([a20e9bf](https://github.com/kube-rca/backend/commit/a20e9bfcc4ec75f4b7057d221d97d5c91f633188))
+* **backend:** persist alert analysis artifacts (KAN-102) ([92dfb33](https://github.com/kube-rca/backend/commit/92dfb338436575136144176fb5532e0a33f6b4ce))
+* **backend:** store alert summary/detail separately (KAN-124) ([ae857b4](https://github.com/kube-rca/backend/commit/ae857b4a8bf27bfd84a31bd4d426f7755d6f9975))
+* **backend:** support local .env [KAN-87] ([3f2b7a0](https://github.com/kube-rca/backend/commit/3f2b7a0a2a758673824cb82ad3cc38acd34e6129))
+* **client:** agent client 구현 ([c6bddee](https://github.com/kube-rca/backend/commit/c6bddee980ba8a1268af48e93deb6b9890d29e32))
+* **client:** Slack API 연동 로직 추가 ([416f03d](https://github.com/kube-rca/backend/commit/416f03d6cde1a2f0c6a5981a64c94445f815536e))
+* **client:** Slack 메시지 포맷, 필터링, 전송 로직 추가 ([73a2b76](https://github.com/kube-rca/backend/commit/73a2b7643af3b61b4a7f069a88d1be5d7a33bd3d))
+* DB is_enabled 컬럼 추가 [build] ([597f924](https://github.com/kube-rca/backend/commit/597f924d784f71f2377b2fbe1d6d65df04c248cd))
+* DB is_enabled 컬럼 추가 [build] ([015aaf1](https://github.com/kube-rca/backend/commit/015aaf1d3926d0f1ad2ee4b51225f9ff2f762c61))
+* **embedding:** add vector search API endpoint ([63310b0](https://github.com/kube-rca/backend/commit/63310b092783539b81eed5d8d128911a67aa7769))
+* **embedding:** add vector search API endpoint ([63310b0](https://github.com/kube-rca/backend/commit/63310b092783539b81eed5d8d128911a67aa7769))
+* **embedding:** add vector search API endpoint ([2eff8dc](https://github.com/kube-rca/backend/commit/2eff8dcca2177c4750f0467c7dcf605961fdd188))
+* enable EnsureEmbeddingSchema on startup ([c4576b7](https://github.com/kube-rca/backend/commit/c4576b774600ec4e9311297554f0108a829cc332))
+* enable EnsureEmbeddingSchema on startup ([c4576b7](https://github.com/kube-rca/backend/commit/c4576b774600ec4e9311297554f0108a829cc332))
+* enable EnsureEmbeddingSchema on startup ([03b3388](https://github.com/kube-rca/backend/commit/03b338882941857b10b8ecdb1c188ee601fbd1c8))
+* **handler:** Service 레이어 분리, main 로직 변경 ([21c7759](https://github.com/kube-rca/backend/commit/21c77599c988220ad11cad75b81225fa0cba9beb))
+* **handler:** 디버깅용 payload 로깅 ([8f052e6](https://github.com/kube-rca/backend/commit/8f052e6bd91a71afbf69df0cf6163262ad6ff769))
+* RCA 보드 목록 반환 API [KAN-54] ([89c3710](https://github.com/kube-rca/backend/commit/89c37109c0cf6bfe09ca22f48576512479a31e8c))
+* **service:** agent 비동기 호출/콜백 로직 추가 ([2a1c119](https://github.com/kube-rca/backend/commit/2a1c11986c9703846cda6c61ba4d2f350918102f))
+* 특정 RCA 정보 반환 [KAN-80] ([401f3e7](https://github.com/kube-rca/backend/commit/401f3e79829d2e2a2bc06fd876de5ff709883a6c))
+* 특정 RCA 편집 [KAN-81] [build] ([70731d0](https://github.com/kube-rca/backend/commit/70731d07a07fea8a810672307224fdf3894ed181))
+
+
+##### Bug Fixes
+
+* add pg go module ([a2e304c](https://github.com/kube-rca/backend/commit/a2e304cad2416b3f73669c5dcacdb4c0a972d48d))
+* **backend:** convert headings for slack [KAN-132] ([0d90067](https://github.com/kube-rca/backend/commit/0d90067b4b220220de8012375359006dfa597536))
+* **backend:** slack markdown conversion [KAN-132] ([ecbf12c](https://github.com/kube-rca/backend/commit/ecbf12cfa582111d2c35b5ebb54947320fc2353d))
+* change ai secret env var name [build] ([25113dd](https://github.com/kube-rca/backend/commit/25113ddb71e9e3e4ca81fb94e74d155ad8f9b1e6))
+* change file name and position ([411c9db](https://github.com/kube-rca/backend/commit/411c9db2c1584d9c984dd76b26c08a5d5c149969))
+* change go version from 1.22 to 1.23 ([173fe03](https://github.com/kube-rca/backend/commit/173fe032442f7fc2b2c6ede21aed05043ebb8a84))
+* change go version to 1.24 [build] ([0a97136](https://github.com/kube-rca/backend/commit/0a97136887f188f852aedf76ca46df26f90b632c))
+* **ci:** avoid double colon in tag [build] ([d09cd6e](https://github.com/kube-rca/backend/commit/d09cd6e5e35b470f7a446907563cd097843b3835))
+* **ci:** CA 인증서 복사 ([a0ac26b](https://github.com/kube-rca/backend/commit/a0ac26b705e2b06f2aa940ba6b4bdc88ed701211))
+* **ci:** write image tag output [build] ([8736efb](https://github.com/kube-rca/backend/commit/8736efbe22cc4dacf0139508e7c89863c7b2c8a3))
+* correct embedding_test.go to use config.EmbeddingConfig ([cff1013](https://github.com/kube-rca/backend/commit/cff10138f2ce96d0aa6e0c5319cf90ebc1b01fb8))
+* correct short SHA extraction and image tag setting in CI workflow [build] ([8165c8a](https://github.com/kube-rca/backend/commit/8165c8a0386ce6f90cf18293b8f1c491d24fb8f7))
+* debug 위해 embedding api key 로그에 출력 ([fa15415](https://github.com/kube-rca/backend/commit/fa15415a595253b5d3cd23eb97492ea41957b261))
+* **docs:** use absolute GitHub URLs for related components ([813555e](https://github.com/kube-rca/backend/commit/813555ef3e6dadfbcb406bfe045be763670eab9d))
+* **docs:** use absolute URL for logo image ([a759fc7](https://github.com/kube-rca/backend/commit/a759fc70193532ec421020dbb4a82c312aa0079d))
+* embedding schema 초기화 롤백 ([1011b1a](https://github.com/kube-rca/backend/commit/1011b1a44ac6d9810b6fdece831198556a8d6e1f))
+* embedding text 전달방식 수정 ([0100e41](https://github.com/kube-rca/backend/commit/0100e41f4686e03427014911ff2fd2b85334a280))
+* embedding 관련 db schema 초기화하도록 설정 ([edea791](https://github.com/kube-rca/backend/commit/edea7911d93e3e05d6dab3d134516cf258d949c8))
+* embedding 설정 관련 수정: [build] ([12a755b](https://github.com/kube-rca/backend/commit/12a755b2573ea3bda9fda987d9d78449fa086c78))
+* embedding 설정 관련 수정: [build] ([89c5024](https://github.com/kube-rca/backend/commit/89c5024613905f135afff5d89ebbfa3d8027fbb4))
+* enable ci pipeline ([09a255a](https://github.com/kube-rca/backend/commit/09a255af841be9d3ddc5ec3c1e355e8efaa79616))
+* gemini client backend endpoint 명시적으로 지정 [build] ([1f4e051](https://github.com/kube-rca/backend/commit/1f4e0512b727da7d9b5adf91105c246e7de7fd9a))
+* improve duplicate resolved alert detection [KAN-139] ([23b7a2d](https://github.com/kube-rca/backend/commit/23b7a2d068c7569a1597837d41a790275dfc168a))
+* **logging:** skip health and openapi access logs ([8934f05](https://github.com/kube-rca/backend/commit/8934f0513fbf454732c19f681630ac1767bf16b6))
+* login to public ecr [build] ([ed2b44d](https://github.com/kube-rca/backend/commit/ed2b44d87b8a231a7a8cc6a5091231685c35c0f9))
+* update CI pipeline to correctly set image tags and environment variables ([2165203](https://github.com/kube-rca/backend/commit/21652038c16e18a5bc7bf4395775b041f31e2e9c))
+* update CI workflow to correctly set short SHA and image tag outputs [build] ([e8a2d9c](https://github.com/kube-rca/backend/commit/e8a2d9c0f10aa1617a69a6c2477c42f2008ea6bc))
+* update image tag format to avoid invalid reference formats in CI workflow [build] ([c85122a](https://github.com/kube-rca/backend/commit/c85122aff0c29cd4339ec9d660687989a60c0228))
+* update image tag generation to use repository name instead of environment variable [build] ([6915c47](https://github.com/kube-rca/backend/commit/6915c47353890476ebead86fef43232621be6a5a))
+
+### Frontend (`kube-rca/frontend`, archived)
+
+#### [0.4.1](https://github.com/kube-rca/frontend/compare/0.4.0...0.4.1) (2026-04-03)
+
+
+##### Bug Fixes
+
+* **frontend:** remove duplicate severity badge in webhook routing ([c44ab8e](https://github.com/kube-rca/frontend/commit/c44ab8e98dffa427e31734a9b1b8993b43b7c416))
+
+#### [0.4.0](https://github.com/kube-rca/frontend/compare/0.3.0...0.4.0) (2026-03-29)
+
+
+##### Features
+
+* add analysis mode indicator to sidebar (KAN-172) ([e743255](https://github.com/kube-rca/frontend/commit/e7432552699c80a33b1f868d6103e23718eaf6e2))
+* add analysis mode UI with manual analyze buttons (KAN-172) ([32d8c2c](https://github.com/kube-rca/frontend/commit/32d8c2cf4010f10b71319ae0b5ad3f1bf743466f))
+* add info severity to AnalysisSettings and RCADetailView ([1f537c8](https://github.com/kube-rca/frontend/commit/1f537c8c0e935102579863193c6004cb6e5fa23c))
+* add settings option ([0808105](https://github.com/kube-rca/frontend/commit/080810515f476c24f0eecc8e6f83985a51896a91))
+* add severity-channel mapping rule ([3a80c86](https://github.com/kube-rca/frontend/commit/3a80c86baeac2b00bfaf57cf0eeb937711669250))
+* Add show/hide toggle for token input fields and remove an infor… ([29436d6](https://github.com/kube-rca/frontend/commit/29436d6ace2df4521e7573d05288eedf7359f5f2))
+* Add show/hide toggle for token input fields and remove an informational section in webhook settings. ([f25ba75](https://github.com/kube-rca/frontend/commit/f25ba752fbc391ec8cf67065960f85c875bfdd76))
+* Alanlysis Dashboard 추가 (KAN-171) ([2ff848d](https://github.com/kube-rca/frontend/commit/2ff848daf866d52d84a122a0e36d785d6983fd60))
+* analysis export 및 꺾은선 value 추가 ([cf42400](https://github.com/kube-rca/frontend/commit/cf42400e93c865fb7c86188d961f245d9b49a0bb))
+* **analyze:** add incident analysis polling and remove banner auto-dismiss ([d814e82](https://github.com/kube-rca/frontend/commit/d814e8234983d34c1e3c8aeae2662a66591fac2e))
+* apply same readability improvements to AlertTable ([0db9042](https://github.com/kube-rca/frontend/commit/0db90426a4b5c121f81b649dce1084dc868f8a37))
+* display firing/resolved analyses in stacked layout ([d55b6b9](https://github.com/kube-rca/frontend/commit/d55b6b9212e60ca82dc6b802ef3042d2fb9e623f))
+* export 기능 추가 (KAN-169) ([acfb2ec](https://github.com/kube-rca/frontend/commit/acfb2ecaaa8b86e146e062cf701bb7f5b0579a02))
+* **frontend:** add bulk resolve UI with checkboxes to AlertTable ([922dd76](https://github.com/kube-rca/frontend/commit/922dd763aa2efba747b945934cf83a6a9a48aa53))
+* **frontend:** add manual Resolve button to AlertDetailView ([a8e3671](https://github.com/kube-rca/frontend/commit/a8e3671260a412b34fa8034729de6cbea7232649))
+* **frontend:** add resolveAlert and bulkResolveAlerts API functions ([bfc400f](https://github.com/kube-rca/frontend/commit/bfc400f034d16220757eb9a89100859015cc2ba7))
+* Implement webhook name support across frontend components, API … ([d233fb4](https://github.com/kube-rca/frontend/commit/d233fb4fc32a156b985f7f09a7c0ea1f0bcaf40b))
+* Implement webhook name support across frontend components, API types, and add a feature plan. ([9dbd26c](https://github.com/kube-rca/frontend/commit/9dbd26cb3c2eb06e608a7f1964518bb6a28ec691))
+* improve analysis UX, fix settings load bug, add logo (KAN-173, KAN-172) ([92fd158](https://github.com/kube-rca/frontend/commit/92fd1587e822a492c69af8bc8b6ae68764c8fdb8))
+* improve incident table readability with larger text and column dividers ([3dcebab](https://github.com/kube-rca/frontend/commit/3dcebabeda59f9e7ea1e6b5a578a3cde03fa31ea))
+* new webhook routing navagation ([0465f22](https://github.com/kube-rca/frontend/commit/0465f22d40d1c5c209676082e5acaf522afb3e89))
+* redesign UI to Industrial Ops style ([4d1bbc5](https://github.com/kube-rca/frontend/commit/4d1bbc55d03f7d2f44c43d8db7e8c1ef41c62616))
+* remove alert owner hint message ([538724d](https://github.com/kube-rca/frontend/commit/538724d2f6a332c8701b86e84279c2b2d22e4765))
+* remove duplicated setting ([9e2fe94](https://github.com/kube-rca/frontend/commit/9e2fe945378ce6813e8ff5e56f9ae76dfd1d4d18))
+* render provider-specific OIDC login button ([4f0aa53](https://github.com/kube-rca/frontend/commit/4f0aa531b497a6ac9277f6b26b86671d53b3b485))
+* replace 1s polling with SSE + 30s fallback polling (KAN-165) ([b8fe313](https://github.com/kube-rca/frontend/commit/b8fe3133b826eaa75296c956072192b96114b510))
+* shrink Time column and expand Title column in tables ([06c3de0](https://github.com/kube-rca/frontend/commit/06c3de06d5aeba986b989ce07ee13062930f0a81))
+* support slack bot token and channel webhook settings ([dbd8fee](https://github.com/kube-rca/frontend/commit/dbd8fee7168e9d3c23983c9251aa12a68725ce32))
+* support slack bot token and channel webhook settings ([538cef6](https://github.com/kube-rca/frontend/commit/538cef6ada9314bf899de131474c57f1e28052a1))
+* unify table styles across Alert, Incident, and Archive dashboards ([af8cb78](https://github.com/kube-rca/frontend/commit/af8cb78567418bd845ad782a5e90ea1fac782eb4))
+
+
+##### Bug Fixes
+
+* **analyze:** always show Re-Analyze button, add incident analyze, remove Analyze All ([27e990a](https://github.com/kube-rca/frontend/commit/27e990ad0a64a879c6870154dc648087ef7e3e54))
+* **analyze:** improve polling logic with grace period and seenAnalyzing tracking ([4c35f23](https://github.com/kube-rca/frontend/commit/4c35f23f0c317cf0c5d817906cc3ac40882c9285))
+* **deps:** upgrade flatted to 3.4.2 ([86c02e2](https://github.com/kube-rca/frontend/commit/86c02e2305ab8d824b4ff2f08993304075c93d00))
+* **deps:** upgrade picomatch to fix CVE-2026-33672 (GHSA-3v7f-55p6-f55p) ([bf44b53](https://github.com/kube-rca/frontend/commit/bf44b534460264ed4ed3264bb687db5397ca23b2))
+* **frontend:** add line-clamp and tooltip to title columns in all tables ([efce8ad](https://github.com/kube-rca/frontend/commit/efce8adc16238b5a95dc1e6e86d378d784a33fac))
+* **frontend:** hide checkbox column when no firing alerts exist ([600ea74](https://github.com/kube-rca/frontend/commit/600ea74a1efb30e158f7e24c7969222bd894bcef))
+* **i18n:** localize remaining Korean alert message to English ([0b56d07](https://github.com/kube-rca/frontend/commit/0b56d07a8f7f10c2222525507d243d21095fd9a8))
+* normalize webhook config mapping for list and edit ([d21c5ba](https://github.com/kube-rca/frontend/commit/d21c5ba82473c1125ae729762b146869a8b4c91d))
+* normalize webhook config mapping for list and edit ([affd5e9](https://github.com/kube-rca/frontend/commit/affd5e98d5d561f8c567a3a5cf28c4317711b0f8))
+* prevent ID column text wrapping in all tables ([03e812a](https://github.com/kube-rca/frontend/commit/03e812a60068c0a4786a47b8120a0142c01c5c85))
+* prevent URL sync from clearing OIDC error params before AuthPanel reads them ([fe07231](https://github.com/kube-rca/frontend/commit/fe07231bd549674abe99fc67e2386dfe17310e0a))
+* replace login screen icon with actual logo and fix favicon ([165380d](https://github.com/kube-rca/frontend/commit/165380dc52b26c3c90cd135ae8a1ae29ca5126c4))
+* resolve all npm audit vulnerabilities ([9122750](https://github.com/kube-rca/frontend/commit/9122750a5ea1e7f9e6a3208cf2c9579cc90c1863))
+* robustly map slack webhook data in list and edit ([5b75d63](https://github.com/kube-rca/frontend/commit/5b75d6352740025fdf2dbe6ff204dbc1aed62c18))
+* robustly map slack webhook data in list and edit ([55140a0](https://github.com/kube-rca/frontend/commit/55140a0e318c6b75ccdd896154bd54b31c62989e))
+* skip URL param sync when not authenticated. ([fe07231](https://github.com/kube-rca/frontend/commit/fe07231bd549674abe99fc67e2386dfe17310e0a))
+* **ui:** resolve dashboard toolbar overflow and table responsive issues ([3145448](https://github.com/kube-rca/frontend/commit/31454486e0182e30cb02f6d169d4a49e84224a19))
+
+#### [0.3.0](https://github.com/kube-rca/frontend/compare/0.2.0...0.3.0) (2026-02-27)
+
+
+##### Features
+
+* Add alert variables and refactor webhook body variable insertion with a reusable component and improved UI. ([5124fb8](https://github.com/kube-rca/frontend/commit/5124fb8af35771320fef7b41ddb98180663af6b4))
+* Add alert variables and refactor webhook body variables ([7a630da](https://github.com/kube-rca/frontend/commit/7a630da84c1a2fdc30187f2a85a71c215b9176d3))
+* Add alert variables and refactor webhook body variables ([7a630da](https://github.com/kube-rca/frontend/commit/7a630da84c1a2fdc30187f2a85a71c215b9176d3))
+* add bg color to reserved field ([903a945](https://github.com/kube-rca/frontend/commit/903a945f7cb14e417f4aa2826671fd227240fcb8))
+* add bg color to reserved field ([9f13b53](https://github.com/kube-rca/frontend/commit/9f13b53b42d4f96943b74ca0116e626706c63653))
+* add OIDC login button and callback error handling ([7189ec5](https://github.com/kube-rca/frontend/commit/7189ec530657847319bc804e95c805a96801af01))
+* add settings page ([c03b3ac](https://github.com/kube-rca/frontend/commit/c03b3ac9ec949d4ed813d59e8df93a13d9c28505))
+* add settings page ([a2a3e8c](https://github.com/kube-rca/frontend/commit/a2a3e8cb7c89cb9c1578a5440d558c5f38265834))
+* add webhook list page ([77d774a](https://github.com/kube-rca/frontend/commit/77d774afd31c120ffb48913af3169027a1f91c7f))
+* add webhook list page ([b91a692](https://github.com/kube-rca/frontend/commit/b91a6924d843f90fb1a18eee838d2f1ac494ce2e))
+* Comment 편집 및 삭제 추가 (KAN-153) ([ddf70cf](https://github.com/kube-rca/frontend/commit/ddf70cff8782e77b0f4f4ddc0303986b7284c8ee))
+* Incident & Alarm에 Comment 기능 (KAN-153) ([6b9668c](https://github.com/kube-rca/frontend/commit/6b9668c03194e954e1779e4cc266aac602cc7135))
+* 검색 기능 추가 (KAN-143) ([032a93f](https://github.com/kube-rca/frontend/commit/032a93fed7b16f8af8304fe74235ddd5f093b614))
+* 채팅 기능 (KAN-86) ([e2242b9](https://github.com/kube-rca/frontend/commit/e2242b9b982fb5077cee42cc94e0ae8ebfc26898))
+
+
+##### Bug Fixes
+
+* Comment 메뉴바 표시와 일부 단축어 오류 수정 (KAN-153) ([1364ff5](https://github.com/kube-rca/frontend/commit/1364ff5573aaeb2fcb910f172a535382b2bfc582))
+* Comment 편집 및 삭제 오류 수정 (KAN-153) ([8efe3bc](https://github.com/kube-rca/frontend/commit/8efe3bc942856b95ea3dca393c6863a7083c9658))
+* daymode 글자안보이던 현상 해결 (KAN-96) ([307ec02](https://github.com/kube-rca/frontend/commit/307ec0268f3a3f441f17d26b159de4f2a59dbe6c))
+* import unimported modules ([871f192](https://github.com/kube-rca/frontend/commit/871f1922dba8d06233cfc7857a6c98f8fcc47a16))
+* import unimported modules ([60151b7](https://github.com/kube-rca/frontend/commit/60151b79d97d0502c475917d9a6b1cd202ef8940))
+* improve OIDC error display with prominent banner and URL cleanup ([a0f1b9b](https://github.com/kube-rca/frontend/commit/a0f1b9bf3cd50d0575cbb6dd2c44f842f3141e65))
+* route frontend image pushes to component repository ([5741190](https://github.com/kube-rca/frontend/commit/5741190bae0cbdb5d3e394e61e9f487e7487022f))
+* 자동 메세지 전송처리 삭제 ([040ce56](https://github.com/kube-rca/frontend/commit/040ce566dd7440e6f259a1b4e4c453432bc1d725))
+
+#### [0.2.0](https://github.com/kube-rca/frontend/compare/0.1.0...0.2.0) (2026-02-01)
+
+
+##### Features
+
+* add Dockerfile ([0e2e755](https://github.com/kube-rca/frontend/commit/0e2e75578b4ffdccaaa8d8bb412c4f0f21812fa1))
+* **auth:** add auth panel and token refresh [KAN-88] [build] ([4b46068](https://github.com/kube-rca/frontend/commit/4b4606801a3f4dd09dd83319ebbdfd8aa68bcfac))
+* **auth:** add auth panel and token refresh [KAN-88] [build] ([598638d](https://github.com/kube-rca/frontend/commit/598638d7fa27514b0c94d1265aa126821597d2f2))
+* Create ci.yml ([f2dbf7b](https://github.com/kube-rca/frontend/commit/f2dbf7b1550983849c4d6ca5a6a18311e4daab5d))
+* implement alerts dashboard with filtering and pagination ([52f3eed](https://github.com/kube-rca/frontend/commit/52f3eed2609946b26b0e27e446c49a65c134d21c))
+* RCA 편집 기능 구현 [KAN-56] ([416aff0](https://github.com/kube-rca/frontend/commit/416aff0af53b4a0ea5acd9b9a8d53fb5c97b758b))
+* 다크모드 구현 [KAN-89] [build] ([1171e62](https://github.com/kube-rca/frontend/commit/1171e62daa5de727644af2db111f53800d650253))
+* 특정 RCA 보고서 조회 [KAN-55] ([b219f5e](https://github.com/kube-rca/frontend/commit/b219f5eb0301d7560d7addd16b38c18feed729fe))
+
+
+##### Bug Fixes
+
+* **auth:** improve dark mode input contrast [KAN-89] [build] ([77025c2](https://github.com/kube-rca/frontend/commit/77025c294c9891a478b528b597d23ce5340149bc))
+* **docs:** use absolute GitHub URLs for related components ([1beda23](https://github.com/kube-rca/frontend/commit/1beda23f926df3334ab2ac35cd6b0c1a7dfb4d0b))
+* **docs:** use absolute URL for logo image ([303c66b](https://github.com/kube-rca/frontend/commit/303c66b000bf49140dd9f9e8fa2ef150b26e6951))
+* resolve npm audit vulnerabilities ([94fae8b](https://github.com/kube-rca/frontend/commit/94fae8bff91d8cc3ad8775d7e4528b6f41f30f1b))
+* Update README.md [build] ([8db3788](https://github.com/kube-rca/frontend/commit/8db37884d449d60937c479d0832b327c676392a0))
+
+### Agent (`kube-rca/agent`, archived)
+
+#### [1.2.1](https://github.com/kube-rca/agent/compare/1.2.0...1.2.1) (2026-04-03)
+
+
+##### Bug Fixes
+
+* **agent:** bypass kubernetes client event_time validation via raw JSON ([e692ab8](https://github.com/kube-rca/agent/commit/e692ab8a3c90f23cc3e674b19fe607c95375d7e8))
+* **agent:** handle PostgreSQL race condition in session schema initialization ([93e0dda](https://github.com/kube-rca/agent/commit/93e0dda04ceabd2f7189550f80b04f1025bdf737))
+* **agent:** improve analysis reliability and resource management ([88bdf8b](https://github.com/kube-rca/agent/commit/88bdf8bb10ba601a53b6aca4e8ce903488d6dae0))
+
+
+##### Performance Improvements
+
+* **agent:** add analysis pipeline timing instrumentation ([f71b7a8](https://github.com/kube-rca/agent/commit/f71b7a8cb180297633e857df7243ed35b04f70de))
+
+#### [1.2.0](https://github.com/kube-rca/agent/compare/1.1.0...1.2.0) (2026-04-02)
+
+
+##### Features
+
+* add built-in redaction masking-chaining [KAN-174] ([fb7777e](https://github.com/kube-rca/agent/commit/fb7777e50ed7c7d768e2eefff511e86c26bfdb72))
+* add settings option ([241e12c](https://github.com/kube-rca/agent/commit/241e12c4ba80449bd9a86e4fb57fadf6ef44799b))
+* add total timeout stop condition to LLM retry logic ([41ab472](https://github.com/kube-rca/agent/commit/41ab472e05dc6632505c60b8b65c85db15b513ad))
+* **agent:** add Loki log aggregation client and Strands tools ([fc4788b](https://github.com/kube-rca/agent/commit/fc4788b8e0716b36278f596699976e9eb7824f90))
+* **agent:** add tool timing logs for analysis ([6777f6e](https://github.com/kube-rca/agent/commit/6777f6ee854a2f72a5c9857a41b9b73290aa225a))
+* **agent:** async 엔드포인트 전환으로 분석 병렬 처리 지원 ([97d1b0d](https://github.com/kube-rca/agent/commit/97d1b0dbd4a8e2363c88d3a4701604782ae2c35f))
+* **agent:** portable K8s baseline context and capability-aware prompt ([8f111d0](https://github.com/kube-rca/agent/commit/8f111d0ec76b5b65050c2a87fd3d277632e7e1d5))
+* **agent:** tune LLM retry to 3-min exponential backoff ([89dc3d2](https://github.com/kube-rca/agent/commit/89dc3d214f8b02367c791899a447db03f069bdb1))
+* **analyze:** differentiate resolved alert analysis from firing ([da6ed90](https://github.com/kube-rca/agent/commit/da6ed904a9c157f8c2979385e24b0610c683af78))
+
+
+##### Bug Fixes
+
+* **agent:** add httpx transport errors to LLM retry and sanitize messages ([8ca98d7](https://github.com/kube-rca/agent/commit/8ca98d76c6bbdea81d8ec2f5380c021cc95cfb09))
+* **agent:** context-aware missing data and stronger tool usage directive ([175d5f0](https://github.com/kube-rca/agent/commit/175d5f0b31f8d5401fc2f0e8f234f21a2b541885))
+* **agent:** disable default PrintingCallbackHandler in Strands Agent ([6f4620c](https://github.com/kube-rca/agent/commit/6f4620ce55ca76ad232646ab5e6b2eefeea6327b))
+* **agent:** enforce completed-findings tone and active tool usage in prompt ([b92db2a](https://github.com/kube-rca/agent/commit/b92db2a602d54d6fb05a6ec81faf6e4fb6a89238))
+* **agent:** extract detail section only and strip markdown bold from title ([d421e11](https://github.com/kube-rca/agent/commit/d421e11b18d7d41aad31d14a69b9d9b908859ba6))
+* **agent:** handle Gemini turn-order violations from sliding-window truncation ([c715989](https://github.com/kube-rca/agent/commit/c71598913181299c83d2e9c2d95cf270d48cc7d6))
+* **agent:** improve analysis fallback for missing pod labels and empty exceptions ([79c5440](https://github.com/kube-rca/agent/commit/79c544059de0e25e2ac097d64afaeaa8aa15ae02))
+* **agent:** improve incident summary parsing for bold-without-colon LLM responses ([22fd82b](https://github.com/kube-rca/agent/commit/22fd82b32e17e60afdddc78fe50e1f176d24a17d))
+* **agent:** prevent entire LLM response from leaking into incident title and summary ([3fb72ec](https://github.com/kube-rca/agent/commit/3fb72eccaf060ebf7de8a8d9607214d80f0ef595))
+* **agent:** remove incident summary length limit to prevent truncation ([8c06521](https://github.com/kube-rca/agent/commit/8c06521e6357fe4895780eec8a1397ffe494dbb6))
+* **agent:** set anthropic max token defaults ([55a0abd](https://github.com/kube-rca/agent/commit/55a0abd399b02e334a560219533675b30d0f9cb0))
+* **agent:** upgrade strands-agents 1.23.0 → 1.30.0, remove thought signature monkey-patch ([dbbcd22](https://github.com/kube-rca/agent/commit/dbbcd226d35e81bc7a3873f4c744b73953e8ee2e))
+* **agent:** use FQDN service.name for Tempo TraceQL queries ([6f1d453](https://github.com/kube-rca/agent/commit/6f1d453a8691616255d3ea7c8105cb0538d344e2))
+* **analysis:** remove hardcoded summary length limits ([c4ea258](https://github.com/kube-rca/agent/commit/c4ea258b6b099bef1f5254553ab9afd4e9d19b5d))
+* **deps:** upgrade cryptography 46.0.6, requests 2.33.0 ([20bcf65](https://github.com/kube-rca/agent/commit/20bcf6554657aab48decf2269571b572ac307410))
+* **deps:** upgrade pyasn1 to 0.6.3 ([00374f3](https://github.com/kube-rca/agent/commit/00374f35310714126a19bd4e350cb82e03f1c6e9))
+* **deps:** upgrade Pygments 2.19.2 to 2.20.0 ([eff7999](https://github.com/kube-rca/agent/commit/eff79991cbb4aa5bfd008a0d2a843750bdade7b4))
+* **deps:** upgrade PyJWT 2.10.1 → 2.12.1 (CVE-2026-32597) ([f4badf7](https://github.com/kube-rca/agent/commit/f4badf7f057c9716ed67e2f2f31777137114536b))
+* lint check ([fe64a5b](https://github.com/kube-rca/agent/commit/fe64a5b3702ebbb1cfac82fc68fb2c19a6fb6a8f))
+* **prompt:** enforce bold markdown headers for analysis subsections ([37c5215](https://github.com/kube-rca/agent/commit/37c521511c656af8cca84476c805f458558a7746))
+
+
+##### Documentation
+
+* **agent:** note manual resolve as analysis trigger source ([d915336](https://github.com/kube-rca/agent/commit/d915336ef2de1f977458d66cb2300e5f7f35221d))
+
+#### [1.1.0](https://github.com/kube-rca/agent/compare/1.0.0...1.1.0) (2026-02-22)
+
+
+##### Features
+
+* add tenacity-based LLM API retry for transient errors (KAN-159) ([3ed6790](https://github.com/kube-rca/agent/commit/3ed6790129266a7c084e59bc11d272610c14a78a))
+* **agent:** add generic manifest read tools ([ebe49e7](https://github.com/kube-rca/agent/commit/ebe49e724aa19a4e1a55269de33cdb146078077b))
+* **agent:** add regex masking for llm and storage flows (KAN-146) ([#10](https://github.com/kube-rca/agent/issues/10)) ([e1aad94](https://github.com/kube-rca/agent/commit/e1aad94c94db2882d1805ec2b34cb1e4865c2e37))
+* **agent:** enrich daemonset and events context (KAN-79) ([8c678bc](https://github.com/kube-rca/agent/commit/8c678bc51bc04059abe6a1b9c3e7a7b18eac7c29))
+* **agent:** enrich daemonset and events context (KAN-79) ([ace5c00](https://github.com/kube-rca/agent/commit/ace5c003ac9c4877256d6088a69e39e66ecff4ea))
+* **agent:** integrate tempo trace context into analysis (KAN-145) ([#9](https://github.com/kube-rca/agent/issues/9)) ([e17cd5e](https://github.com/kube-rca/agent/commit/e17cd5efe834e0680393a8fbf62dd0f2bdf47365))
+* 채팅 기능 추가 (KAN-158) ([4fd3051](https://github.com/kube-rca/agent/commit/4fd3051219d31d5d1e07a8cb5e4f62497e975d4d))
+
+
+##### Bug Fixes
+
+* **agent:** align tempo timeout default and docs (KAN-145) ([a19bd6e](https://github.com/kube-rca/agent/commit/a19bd6eb34134133264a7af23e9958885f112b09))
+* build error ([4751f41](https://github.com/kube-rca/agent/commit/4751f4104f96f6699f322e7576029f7a55f6efd7))
+* bump cryptography to 46.0.5 for CVE-2026-26007 ([9036346](https://github.com/kube-rca/agent/commit/90363461a6fba2ab38af8a6d00af21ce4c23c6d0))
+* Gemini 400 function-call turn order error in multi-turn chat ([4d87b9a](https://github.com/kube-rca/agent/commit/4d87b9a18979949b9be8500b0d2bb83bc36de9d9))
+* recover chat session state and standardize english chat errors ([2d08669](https://github.com/kube-rca/agent/commit/2d08669128de6d092e720be09a07045e696c1b43))
+* route agent image pushes to component repository ([35c6b84](https://github.com/kube-rca/agent/commit/35c6b84f922962fedcf4d3bad8227bb1ddb41f35))
+* **tempo:** normalize time window and surface query failures ([f1e4cf8](https://github.com/kube-rca/agent/commit/f1e4cf8753593665c0a1511fb8bde2ac02e9ccfd))
+
+
+##### Documentation
+
+* add LLM retry environment variables to README (KAN-159) ([ad4faa5](https://github.com/kube-rca/agent/commit/ad4faa5846add0aaff4ed2ab7de4c66e8ac84364))
+* add release-please merge policy ([#8](https://github.com/kube-rca/agent/issues/8)) ([52c8e91](https://github.com/kube-rca/agent/commit/52c8e91193d3df3d96a1ec311365ffeb63bb8a95))
+* **agent:** align README with current API schema ([b3755af](https://github.com/kube-rca/agent/commit/b3755afa50d9b3ca5e5fef286c84689b060810d4))
+* **agent:** update README for generic manifest tools ([974a17f](https://github.com/kube-rca/agent/commit/974a17f752cb89c18d7da8308d883042ea467eb5))
+* **license:** align with MIT ([14719ed](https://github.com/kube-rca/agent/commit/14719ed1eb9010b7759b145952680e9cb03a3728))
+
+#### [1.0.0](https://github.com/kube-rca/agent/compare/0.1.0...1.0.0) (2026-02-01)
+
+
+##### ⚠ BREAKING CHANGES
+
+* **agent:** rename analyze endpoint to /analyze [build]
+
+##### Features
+
+* **agent:** accept alert analysis request payload ([d42b2c0](https://github.com/kube-rca/agent/commit/d42b2c0772b5d38c932f8fe957ea3c8ec3680b43))
+* **agent:** add alert analysis endpoint ([212d3db](https://github.com/kube-rca/agent/commit/212d3db392173a403badadea21ab5900f3ef810c))
+* **agent:** add alert context artifacts (KAN-102) ([f624861](https://github.com/kube-rca/agent/commit/f6248612e3d9c580d7b53271b091ace870e635ce))
+* **agent:** add CrashLoop/ImagePull test targets and refactor startup ([43e3715](https://github.com/kube-rca/agent/commit/43e37150487669d216d032471e70f0143f378d49))
+* **agent:** add openapi export [KAN-92] [build] ([38cb58c](https://github.com/kube-rca/agent/commit/38cb58c7133f3e387701dc47c8b46b24641d1d76))
+* **agent:** add pod discovery and prometheus metrics listing tools ([70b139f](https://github.com/kube-rca/agent/commit/70b139f1a06431b7966f5074a1e84a29ebb708b1))
+* **agent:** add prometheus client and expand analysis tools [build] ([f63a01e](https://github.com/kube-rca/agent/commit/f63a01e608a44ec0e654b9342ca622ac9e95490a))
+* **agent:** add prompt budget and session summaries ([1150336](https://github.com/kube-rca/agent/commit/11503360c6c420de6e5751585d6267ee87345a05))
+* **agent:** improve OOMKilled testing scripts and docs [build] ([a8fc161](https://github.com/kube-rca/agent/commit/a8fc161e2443bce0dc294526a650395174dfdd3c))
+* **agent:** migrate agent to FastAPI [KAN-66] [build] ([084a5ad](https://github.com/kube-rca/agent/commit/084a5adb1b652f5006e9d2e206b694a30f9734a3))
+* **agent:** rename analyze endpoint to /analyze [build] ([b0cef8c](https://github.com/kube-rca/agent/commit/b0cef8cc4078de1ce59558857f5fc11e69eb5f1e))
+* **agent:** require PROMETHEUS_URL for Prometheus queries (KAN-134) ([c7f99b4](https://github.com/kube-rca/agent/commit/c7f99b4ee7a144d9e9c4f888db5c539157997746))
+* **agent:** route docs via proxy [KAN-92] [build] ([dd717ec](https://github.com/kube-rca/agent/commit/dd717ec7e029e0f62b3dcbe5dc8380951bb0c17c))
+* **agent:** split alert summary/detail (KAN-124) ([11f6665](https://github.com/kube-rca/agent/commit/11f6665c7078269c0bde83e8ccf1e4a6c3695949))
+* **agent:** support provider model ids (KAN-144) ([218b0c5](https://github.com/kube-rca/agent/commit/218b0c503dc08d1cc746d25e8e3a5163da2ffb15))
+* **agent:** support WEB_CONCURRENCY workers [KAN-77] ([1ee94d1](https://github.com/kube-rca/agent/commit/1ee94d1e2c35776ede731765babe44726600d4e3))
+* **api:** pass incident_id to analysis engine ([68b29f8](https://github.com/kube-rca/agent/commit/68b29f85575aec14ac6e19de6e681c95ed982bc8))
+* **clients:** add PostgreSQL session repository ([ca5e78e](https://github.com/kube-rca/agent/commit/ca5e78e2857fe5784037bbeeafe69bd5fe7e2c1b))
+* **clients:** add session-based agent caching ([524bc3d](https://github.com/kube-rca/agent/commit/524bc3d7fbc51822f6721437beebc8846f3e9178))
+* **config:** add session DB and cache settings ([8f39c37](https://github.com/kube-rca/agent/commit/8f39c37d08f00f453fbdfb7164859378105dd3b3))
+* **llm:** support multi-provider (Gemini, OpenAI, Anthropic) (KAN-144) ([1aeef99](https://github.com/kube-rca/agent/commit/1aeef994702cd992d2d249620c64f5931056d477))
+* **prometheus:** add query_range for time-series history data [KAN-134] ([cb0130f](https://github.com/kube-rca/agent/commit/cb0130f2f85b507f03620514fffe12eb113c0db2))
+
+
+##### Bug Fixes
+
+* **agent:** bump kubernetes for urllib3 security fixes ([527ca45](https://github.com/kube-rca/agent/commit/527ca45ae79494808c7f5d0de9ed02fb6fdc7423))
+* **agent:** bump kubernetes for urllib3 security fixes ([459406e](https://github.com/kube-rca/agent/commit/459406e596babb620e3e377dda11a0ccc82fc587))
+* **agent:** enforce list dash in prompt [KAN-132] ([7166a06](https://github.com/kube-rca/agent/commit/7166a06bc22cbf03c1ea6a938f9fca9059b99330))
+* **agent:** guard empty analysis response ([78d02be](https://github.com/kube-rca/agent/commit/78d02be74ce867c6e340a5fcc484a3b3ad455b33))
+* **agent:** handle non-utf8 thought signatures [build] ([22551d0](https://github.com/kube-rca/agent/commit/22551d039c5836d69d47a0a20c3c6f73978a9556))
+* **agent:** isolate alert and summary sessions ([d28a72b](https://github.com/kube-rca/agent/commit/d28a72bcb85f8f93b7b2107fcec0bf4c46e75639))
+* **agent:** make session writes idempotent ([c70a142](https://github.com/kube-rca/agent/commit/c70a14283f17d2155fd1f668e894eff08e726697))
+* **agent:** refine output formatting [KAN-132] ([98dabda](https://github.com/kube-rca/agent/commit/98dabda4f1a7de6f9b45a21b527d14005b12200d))
+* **agent:** resolve ruff lint errors [build] ([8d4dde9](https://github.com/kube-rca/agent/commit/8d4dde9a107542ba6e453bce3198d8a89377a372))
+* **agent:** serialize strands session writes [KAN-118] ([dc55e5e](https://github.com/kube-rca/agent/commit/dc55e5e136b3a86bd8112b3369df01773076d7d6))
+* **agent:** tolerate gemini formatter signature changes ([921c742](https://github.com/kube-rca/agent/commit/921c7427486c2cd8719620035f7f00db29ec5dbd))
+* **config:** revert gemini model to gemini-3-flash-preview ([7ed05c2](https://github.com/kube-rca/agent/commit/7ed05c2b4c1e72aaf53f10264b6e3456c3abf6e1))
+* **docs:** use absolute GitHub URLs for related components ([a33bd99](https://github.com/kube-rca/agent/commit/a33bd99bdc8308c0bc8b82c4bc1538e91bd16531))
+* **docs:** use absolute URL for logo image ([05347ae](https://github.com/kube-rca/agent/commit/05347ae799170155b82cc2fafecf23ac91b5f4b1))
+* **logging:** filter health and openapi access logs ([4c10348](https://github.com/kube-rca/agent/commit/4c10348ff779b5960bd741e634a5e9ea433c7d3b))
+* serialize alert payload and add local OOM test target [build] ([6ac5bf6](https://github.com/kube-rca/agent/commit/6ac5bf6ad5782790b1bb7c488e5dced12c1c18de))
+
+
+##### Documentation
+
+* **agent:** add README and response schema ([cffe4ed](https://github.com/kube-rca/agent/commit/cffe4ede61f70169ac882c550ee7da621e175055))
+* **agent:** translate README to English ([2e7f8f0](https://github.com/kube-rca/agent/commit/2e7f8f0fb52e01dc5f4311fcae42c32834ad967c))
+* enhance README for open source project ([3fbd4da](https://github.com/kube-rca/agent/commit/3fbd4dad511896709075a9749ab5584ba95a5bfe))
+
+### Helm Chart (`kube-rca/helm-charts`, archived)
+
+#### [0.7.0](https://github.com/kube-rca/helm-charts/compare/0.6.0...0.7.0) (2026-04-03)
+
+
+##### Features
+
+* **helm:** add inline apiKey value fields to values.yaml ([c8b1630](https://github.com/kube-rca/helm-charts/commit/c8b163096f0bce1a0c5a511bb90733670343930a))
+* **helm:** add postgresql and embedding secret name auto-resolve helpers ([a209880](https://github.com/kube-rca/helm-charts/commit/a209880dcf45e69bc919383ab9ce81a07059d4df))
+* **helm:** populate agent secrets with inline apiKey values ([e207f3f](https://github.com/kube-rca/helm-charts/commit/e207f3f7dd7083f81a415d468f706b67ddf86b3e))
+* **helm:** use auto-resolve helper for agent session DB secret ([b29727e](https://github.com/kube-rca/helm-charts/commit/b29727e804687b4a912df6d8015638829c9d9e86))
+* **helm:** use auto-resolve helpers for postgresql and embedding secrets ([d0e1ae9](https://github.com/kube-rca/helm-charts/commit/d0e1ae9e12b54bf8fc9ee903be31d75ca8c27798))
+
+
+##### Performance Improvements
+
+* **kube-rca:** increase agent replicaCount default to 2 ([9ceefb2](https://github.com/kube-rca/helm-charts/commit/9ceefb244b8442d1c7eb155a13433d4839057c3c))
+
+#### [0.6.0](https://github.com/kube-rca/helm-charts/compare/0.5.0...0.6.0) (2026-04-02)
+
+
+##### Features
+
+* add built-in Redaction option [KAN-174] ([f1a0915](https://github.com/kube-rca/helm-charts/commit/f1a09154aa4ca730fb91ca7346d2c9ea1d01aff8))
+* add cert manager and move ingress hosts to 2 domains ([413da8e](https://github.com/kube-rca/helm-charts/commit/413da8e82378538c5f403f4a092a0160f487936d))
+* add gp2 values for stateful apps ([5fcd369](https://github.com/kube-rca/helm-charts/commit/5fcd369002967cd18a5a32a5cb4df7ba0d5d942a))
+* alert flapping 환경변수 (KAN-155) ([7532d90](https://github.com/kube-rca/helm-charts/commit/7532d90f6b4485644795601e4081cc3356d97575))
+* flapping enable/disable (KAN-155) ([09f8058](https://github.com/kube-rca/helm-charts/commit/09f8058bafe6f3f7092d6967bb5a1f5bd64e6399))
+* **kube-rca:** add LLM retry configuration for agent (KAN-159) ([605d9dd](https://github.com/kube-rca/helm-charts/commit/605d9dd713d21f074ffe76f41bbcab33db5caf1d))
+* **kube-rca:** add Loki env vars for agent deployment ([1ecbe44](https://github.com/kube-rca/helm-charts/commit/1ecbe440f00c9068172456afaed0ec055982113e))
+* **kube-rca:** add MANUAL_ANALYZE_SEVERITIES env for analysis mode (KAN-172) ([d2091d6](https://github.com/kube-rca/helm-charts/commit/d2091d65460457ed20bf3cc71f49d90c62c6de2f))
+* **kube-rca:** add OIDC authentication helm values and deployment env ([7a96d50](https://github.com/kube-rca/helm-charts/commit/7a96d50748531a36842ee9cf7b42a39567ddbed2))
+* **kube-rca:** replace hook job with initContainer and add DB-aware probes ([e708991](https://github.com/kube-rca/helm-charts/commit/e708991ffb6d6511e559bf010581336964d13488))
+
+
+##### Bug Fixes
+
+* **chart:** add agent startupProbe and sync eks values ([c94dcda](https://github.com/kube-rca/helm-charts/commit/c94dcdaab9a1dad843ca0f1d8510a3227db80dcd))
+* **chart:** add anthropic max token env ([a5c8090](https://github.com/kube-rca/helm-charts/commit/a5c8090b2192a9e6e8d9987e65634bb97a58596f))
+* **kube-rca:** harden chart security, add probes, fix secret bug ([03c8560](https://github.com/kube-rca/helm-charts/commit/03c8560fc4ffa2e0fa40619a24ca7ca3c3e08dfb))
+* **kube-rca:** increase postgresql CPU limits to resolve throttling ([147216d](https://github.com/kube-rca/helm-charts/commit/147216d267ba33b3128a2abb7850adb697955e5f))
+* **kube-rca:** remove container securityContext defaults ([cf439c6](https://github.com/kube-rca/helm-charts/commit/cf439c6dc0437c6f74e29ee5a3db79bc6c2b9cdc))
+* **kube-rca:** remove runAsNonRoot from default podSecurityContext ([4e8dc20](https://github.com/kube-rca/helm-charts/commit/4e8dc20133e4ccdc6d06387d6cb20c8369c6fddb))
+* publish chart and image paths under kube-rca-ecr ([128aaa6](https://github.com/kube-rca/helm-charts/commit/128aaa6c043e8caa2a50fbdcac62e4ae754f0293))
+
+#### [0.5.0](https://github.com/kube-rca/helm-charts/compare/0.4.0...0.5.0) (2026-02-09)
+
+
+##### Features
+
+* **kube-rca:** add agent masking regex helm settings (KAN-146) ([#8](https://github.com/kube-rca/helm-charts/issues/8)) ([3fec5b5](https://github.com/kube-rca/helm-charts/commit/3fec5b52ccc6c276cb5329fe46f9ff399e633a8e))
+* **observability:** add tempo stack and wire agent tempo settings (KAN-73) ([#7](https://github.com/kube-rca/helm-charts/issues/7)) ([3a1642f](https://github.com/kube-rca/helm-charts/commit/3a1642f474bf2c72faf99fcad2efccc332acfc13))
+
+
+##### Bug Fixes
+
+* **helm:** harden tempo defaults for timeout and load (KAN-145) ([3459fde](https://github.com/kube-rca/helm-charts/commit/3459fde4c0a1560f022682f6cf97f6eaff06e260))
+
+#### [0.4.0](https://github.com/kube-rca/helm-charts/compare/0.3.0...0.4.0) (2026-02-05)
+
+
+##### Features
+
+* **kube-rca:** move postgresql to dependency and update configuration (KAN-110) ([c8229e2](https://github.com/kube-rca/helm-charts/commit/c8229e2396c86e5891f54514dbb030cc39bc59d9))
+
+
+##### Bug Fixes
+
+* **helm:** align postgres host and hooks (KAN-110) ([a71a963](https://github.com/kube-rca/helm-charts/commit/a71a963b43a22b22a6014f276a39d02fd3961b99))
+* **helm:** run wait-for-db after postgres (KAN-110) ([4de3f14](https://github.com/kube-rca/helm-charts/commit/4de3f143cde7664914eaa547c09fd090a6eb666d))
+
+#### [0.3.0](https://github.com/kube-rca/helm-charts/compare/0.2.0...0.3.0) (2026-02-01)
+
+
+##### Features
+
+* add db config env vars ([5f6e8af](https://github.com/kube-rca/helm-charts/commit/5f6e8af22207f46285ed7e20576c179be5e0e2a0))
+* get ai api key from env ([afc9d15](https://github.com/kube-rca/helm-charts/commit/afc9d15d1fc14d53f1e4fc08cbed76bdb9653704))
+* **helm:** add backend auth secrets [KAN-87] ([f8a4f7f](https://github.com/kube-rca/helm-charts/commit/f8a4f7f5acebb1cb4eaf253393bd8c290c18a4b0))
+* **helm:** add openapi docs service [KAN-92] [build] ([8783f56](https://github.com/kube-rca/helm-charts/commit/8783f566673a38f78a43846d655c210d14c323be))
+* **helm:** add provider model ids (KAN-144) ([5a15249](https://github.com/kube-rca/helm-charts/commit/5a15249bb7f6901e18b2a127837c5e4077c853f5))
+* **helm:** configure agent worker count [KAN-77] ([5eb9d50](https://github.com/kube-rca/helm-charts/commit/5eb9d5045bd9a07ba5bfffa6942dcb0cce168820))
+* **helm:** enforce deploy ordering https://kube-rca.atlassian.net/browse/KAN-109 [KAN-109] ([c9cebc6](https://github.com/kube-rca/helm-charts/commit/c9cebc66f73702fb8fec316d0beac9816cdd9fea))
+* **helm:** expose prompt settings for agent ([d7ef0b2](https://github.com/kube-rca/helm-charts/commit/d7ef0b2f1f215aa58c8b9893740e313923ee36d9))
+* **helm:** wire PROMETHEUS_URL for agent (KAN-134) ([a8aa0e8](https://github.com/kube-rca/helm-charts/commit/a8aa0e8cb31e5a7868210476802de059f7fadb9c))
+* **kube-rca:** add agent component and update docs ([85cf826](https://github.com/kube-rca/helm-charts/commit/85cf82652a8c256b1dd6a181e3925e21f6d548f8))
+* **kube-rca:** add agent K8s/Prometheus env vars to Helm chart ([696820d](https://github.com/kube-rca/helm-charts/commit/696820d9320596e9dff1f1fb83e94fbcdaaae7ae))
+* **kube-rca:** add frontend/backend ingress ([c74a0ca](https://github.com/kube-rca/helm-charts/commit/c74a0ca76c2e533306b7d67dab3cb8263d208879))
+* **kube-rca:** add helm chart and Argo CD application ([d2949c6](https://github.com/kube-rca/helm-charts/commit/d2949c60d1113f94c4fca653b8123cf03ecea936))
+* **kube-rca:** add Helm hooks for deployment ordering [KAN-109] ([86fe597](https://github.com/kube-rca/helm-charts/commit/86fe597759bc6e5e85f19041561596a662cf4a65))
+* **kube-rca:** make PostgreSQL secret configurable via values ([c0def5c](https://github.com/kube-rca/helm-charts/commit/c0def5cfad1888edf370bd9c5faca0ecf34162d5))
+* **kube-rca:** update gemini model to gemini-2.5-flash in values ([f800806](https://github.com/kube-rca/helm-charts/commit/f8008065f7ba3034164b4a928a6a59cbea1eb932))
+* update backend image tag ([b821eb2](https://github.com/kube-rca/helm-charts/commit/b821eb254e65c5f15ab08bb0216b43c593456484))
+* Update Gemini embedding API key secret name and key ([1a01be6](https://github.com/kube-rca/helm-charts/commit/1a01be6f2304a20729cb2a4f7979066fae9a76ff))
+
+
+##### Bug Fixes
+
+* **chart:** revert gemini model to gemini-3-flash-preview ([b17326c](https://github.com/kube-rca/helm-charts/commit/b17326c805e457eaaf07f3cf80784405aee2bbb9))
+* embedding model 정보 주입 방식 수정 ([1298d78](https://github.com/kube-rca/helm-charts/commit/1298d788b6c72ac6ed978680a351c31ea8060d06))
+* fix postgres host name ([123fad5](https://github.com/kube-rca/helm-charts/commit/123fad5016186a33b2918c7c174195e977046e05))
+* **helm:** align agent port to 8000 ([78e8bd6](https://github.com/kube-rca/helm-charts/commit/78e8bd6c85c6cff1d9670f2930ccfb2895a19013))
+* **helm:** disable backend ingress override [KAN-92] ([54191d6](https://github.com/kube-rca/helm-charts/commit/54191d6400a555dfb205b50a9a994f65346008af))
+* **helm:** proxy docs api routes [KAN-92] [build] ([9a09028](https://github.com/kube-rca/helm-charts/commit/9a090282dad67ac1e0055ee2e54e888c3ad2712b))
+* **helm:** rollout on config change [KAN-92] ([02d180c](https://github.com/kube-rca/helm-charts/commit/02d180c66304b462774b8fdd68b3e0c099dfe274))
+* **kube-rca:** align ai secret and API key env ([893b3c9](https://github.com/kube-rca/helm-charts/commit/893b3c969a5fcfb6d62b9ede3f837ab6e8a92ac5))
+* **kube-rca:** remove openapi ingress basic auth ([c5c1ec9](https://github.com/kube-rca/helm-charts/commit/c5c1ec99d53430b66ae131c2aa196a9a26171048))
+* **kube-rca:** route /api to backend from frontend ingress ([6ead897](https://github.com/kube-rca/helm-charts/commit/6ead897ea374182ca7fcf26b2b1af9b773e1e5f4))
+
+#### [0.2.0](https://github.com/kube-rca/helm-charts/compare/kube-rca-v0.1.0...kube-rca-v0.2.0) (2026-02-01)
+
+
+##### Features
+
+* add db config env vars ([5f6e8af](https://github.com/kube-rca/helm-charts/commit/5f6e8af22207f46285ed7e20576c179be5e0e2a0))
+* get ai api key from env ([afc9d15](https://github.com/kube-rca/helm-charts/commit/afc9d15d1fc14d53f1e4fc08cbed76bdb9653704))
+* **helm:** add backend auth secrets [KAN-87] ([f8a4f7f](https://github.com/kube-rca/helm-charts/commit/f8a4f7f5acebb1cb4eaf253393bd8c290c18a4b0))
+* **helm:** add openapi docs service [KAN-92] [build] ([8783f56](https://github.com/kube-rca/helm-charts/commit/8783f566673a38f78a43846d655c210d14c323be))
+* **helm:** add provider model ids (KAN-144) ([5a15249](https://github.com/kube-rca/helm-charts/commit/5a15249bb7f6901e18b2a127837c5e4077c853f5))
+* **helm:** configure agent worker count [KAN-77] ([5eb9d50](https://github.com/kube-rca/helm-charts/commit/5eb9d5045bd9a07ba5bfffa6942dcb0cce168820))
+* **helm:** enforce deploy ordering https://kube-rca.atlassian.net/browse/KAN-109 [KAN-109] ([c9cebc6](https://github.com/kube-rca/helm-charts/commit/c9cebc66f73702fb8fec316d0beac9816cdd9fea))
+* **helm:** expose prompt settings for agent ([d7ef0b2](https://github.com/kube-rca/helm-charts/commit/d7ef0b2f1f215aa58c8b9893740e313923ee36d9))
+* **helm:** wire PROMETHEUS_URL for agent (KAN-134) ([a8aa0e8](https://github.com/kube-rca/helm-charts/commit/a8aa0e8cb31e5a7868210476802de059f7fadb9c))
+* **kube-rca:** add agent component and update docs ([85cf826](https://github.com/kube-rca/helm-charts/commit/85cf82652a8c256b1dd6a181e3925e21f6d548f8))
+* **kube-rca:** add agent K8s/Prometheus env vars to Helm chart ([696820d](https://github.com/kube-rca/helm-charts/commit/696820d9320596e9dff1f1fb83e94fbcdaaae7ae))
+* **kube-rca:** add frontend/backend ingress ([c74a0ca](https://github.com/kube-rca/helm-charts/commit/c74a0ca76c2e533306b7d67dab3cb8263d208879))
+* **kube-rca:** add helm chart and Argo CD application ([d2949c6](https://github.com/kube-rca/helm-charts/commit/d2949c60d1113f94c4fca653b8123cf03ecea936))
+* **kube-rca:** add Helm hooks for deployment ordering [KAN-109] ([86fe597](https://github.com/kube-rca/helm-charts/commit/86fe597759bc6e5e85f19041561596a662cf4a65))
+* **kube-rca:** make PostgreSQL secret configurable via values ([c0def5c](https://github.com/kube-rca/helm-charts/commit/c0def5cfad1888edf370bd9c5faca0ecf34162d5))
+* **kube-rca:** update gemini model to gemini-2.5-flash in values ([f800806](https://github.com/kube-rca/helm-charts/commit/f8008065f7ba3034164b4a928a6a59cbea1eb932))
+* update backend image tag ([b821eb2](https://github.com/kube-rca/helm-charts/commit/b821eb254e65c5f15ab08bb0216b43c593456484))
+* Update Gemini embedding API key secret name and key ([1a01be6](https://github.com/kube-rca/helm-charts/commit/1a01be6f2304a20729cb2a4f7979066fae9a76ff))
+
+
+##### Bug Fixes
+
+* **chart:** revert gemini model to gemini-3-flash-preview ([b17326c](https://github.com/kube-rca/helm-charts/commit/b17326c805e457eaaf07f3cf80784405aee2bbb9))
+* embedding model 정보 주입 방식 수정 ([1298d78](https://github.com/kube-rca/helm-charts/commit/1298d788b6c72ac6ed978680a351c31ea8060d06))
+* fix postgres host name ([123fad5](https://github.com/kube-rca/helm-charts/commit/123fad5016186a33b2918c7c174195e977046e05))
+* **helm:** align agent port to 8000 ([78e8bd6](https://github.com/kube-rca/helm-charts/commit/78e8bd6c85c6cff1d9670f2930ccfb2895a19013))
+* **helm:** disable backend ingress override [KAN-92] ([54191d6](https://github.com/kube-rca/helm-charts/commit/54191d6400a555dfb205b50a9a994f65346008af))
+* **helm:** proxy docs api routes [KAN-92] [build] ([9a09028](https://github.com/kube-rca/helm-charts/commit/9a090282dad67ac1e0055ee2e54e888c3ad2712b))
+* **helm:** rollout on config change [KAN-92] ([02d180c](https://github.com/kube-rca/helm-charts/commit/02d180c66304b462774b8fdd68b3e0c099dfe274))
+* **kube-rca:** align ai secret and API key env ([893b3c9](https://github.com/kube-rca/helm-charts/commit/893b3c969a5fcfb6d62b9ede3f837ab6e8a92ac5))
+* **kube-rca:** remove openapi ingress basic auth ([c5c1ec9](https://github.com/kube-rca/helm-charts/commit/c5c1ec99d53430b66ae131c2aa196a9a26171048))
+* **kube-rca:** route /api to backend from frontend ingress ([6ead897](https://github.com/kube-rca/helm-charts/commit/6ead897ea374182ca7fcf26b2b1af9b773e1e5f4))
+
