@@ -68,7 +68,7 @@ backend:
   replicaCount: 1
   image:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr/backend
-    tag: 1.3.1
+    tag: 1.3.2
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
@@ -173,7 +173,7 @@ agent:
   replicaCount: 2
   image:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr/agent
-    tag: 1.3.1
+    tag: 1.3.2
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
@@ -272,7 +272,7 @@ frontend:
   replicaCount: 1
   image:
     repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr/frontend
-    tag: 1.3.1
+    tag: 1.3.2
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP

@@ -6,6 +6,14 @@
 
 - Relicensed from MIT to Apache License 2.0. Existing forks must update their LICENSE references. Contributor consent for this change tracked in `.github/RELICENSE_CONSENT.md`. (#<TBD-PR-number>)
 
+## [1.3.2](https://github.com/kube-rca/kuberca/compare/1.3.1...1.3.2) (2026-05-10)
+
+
+### Bug Fixes
+
+* **agent/deps:** bump python-multipart to 0.0.28 (CVE-2026-42561) ([#87](https://github.com/kube-rca/kuberca/issues/87)) ([1b30cb2](https://github.com/kube-rca/kuberca/commit/1b30cb24809e41f5306dd08e264820caa534ea32))
+* **ci:** bump trivy-action to v0.36.0 in release-please workflow ([#91](https://github.com/kube-rca/kuberca/issues/91)) ([f3872f4](https://github.com/kube-rca/kuberca/commit/f3872f42be0b6ffac154733f72fa0801461d0425))
+
 ## [1.3.1](https://github.com/kube-rca/kuberca/compare/v1.3.0...1.3.1) (2026-05-10)
 
 
