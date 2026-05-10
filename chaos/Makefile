@@ -1,4 +1,4 @@
-.PHONY: help incident oomkilled crashloop imagepull networkdelay 404 500 503 504 ratings-multi verify-clean clean-all lint
+.PHONY: help incident oomkilled crashloop imagepull networkdelay 404 500 503 504 ratings-multi redaction-demo verify-clean clean-all lint
 
 NAMESPACE ?= bookinfo
 NAMESPACES ?= bookinfo kube-rca
@@ -25,6 +25,12 @@ crashloop: ## Run CrashLoopBackOff scenario
 	WAIT_SECONDS="$(WAIT_SECONDS)" \
 	POLL_INTERVAL_SECONDS="$(POLL_INTERVAL_SECONDS)" \
 	./scripts/run-crashloop.sh
+
+redaction-demo: ## Run HashMode redaction demo (same JWT in 5 K8s spec locations, triggers CrashLoopBackOff)
+	@KUBE_CONTEXT="$(KUBE_CONTEXT)" \
+	WAIT_SECONDS="$(WAIT_SECONDS)" \
+	POLL_INTERVAL_SECONDS="$(POLL_INTERVAL_SECONDS)" \
+	./scripts/run-redaction-demo.sh
 
 imagepull: ## Run ImagePullBackOff scenario
 	@KUBE_CONTEXT="$(KUBE_CONTEXT)" \
