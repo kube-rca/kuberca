@@ -18,6 +18,7 @@ Scenarios:
   503           Istio fault injection: 503 Service Unavailable
   ratings-multi Combined ratings faults (404 from load-generator, 503 from reviews)
   504           Istio fault injection: 504 Gateway Timeout
+  redaction-demo Demo HashMode redaction (same JWT in 5 K8s spec locations)
 
 Environment:
   NAMESPACE              Target namespace (default: bookinfo)
@@ -194,6 +195,12 @@ case "$SCENARIO" in
   crashloop)
     TARGET_MANIFEST="${SCENARIOS_DIR}/crashloop/target-deployment.yaml"
     LABEL_SELECTOR="app=chaos-crashloop-target"
+    EXPECTED_REASON="CrashLoopBackOff"
+    DEFAULT_NAMESPACE="kube-rca"
+    ;;
+  redaction-demo)
+    TARGET_MANIFEST="${SCENARIOS_DIR}/redaction-demo/target-deployment.yaml"
+    LABEL_SELECTOR="app=chaos-redaction-demo-target"
     EXPECTED_REASON="CrashLoopBackOff"
     DEFAULT_NAMESPACE="kube-rca"
     ;;

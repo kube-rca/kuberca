@@ -1,0 +1,82 @@
+# Demo scenario for HashMode (BUILTIN_REDACTION_HASH_MODE=true).
+#
+# A single fake JWT is placed in 5 distinct K8s spec locations. With
+# HashMode enabled the agent emits the same [HASH:xxxxxxxx] for every
+# occurrence (correlation preserved); with HashMode disabled all five
+# collapse to [MASKED] (correlation lost).
+#
+# Trigger: container echoes the token to stdout and exits 1 — produces
+# CrashLoopBackOff which fires KubePodCrashLooping → Alertmanager →
+# backend webhook → agent analysis → Slack/UI.
+#
+# Cleanup: `kubectl -n kube-rca delete -f` is invoked automatically by
+# scripts/run_scenario.sh on Enter / Ctrl-C.
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chaos-redaction-demo-config
+  namespace: kube-rca
+  labels:
+    app: chaos-redaction-demo-target
+data:
+  # Position #1: ConfigMap data key contains denylist substring "token".
+  api.token: |
+    eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vIiwicm9sZSI6ImFkbWluIn0.fake-demo-signature-redaction-correlation
+  # Control value — should remain unmasked in agent output (proves masking
+  # is selective, not blanket).
+  region: ap-northeast-2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chaos-redaction-demo-target
+  namespace: kube-rca
+  labels:
+    app: chaos-redaction-demo-target
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chaos-redaction-demo-target
+  template:
+    metadata:
+      labels:
+        app: chaos-redaction-demo-target
+      annotations:
+        # Position #2: annotation key contains denylist substring "token".
+        # demo.kuberca.io/ is not in _SAFE_ANNOTATION_PREFIXES so it is
+        # subject to standard key-denylist redaction.
+        demo.kuberca.io/api-token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vIiwicm9sZSI6ImFkbWluIn0.fake-demo-signature-redaction-correlation"
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36.1
+          env:
+            # Position #3: env name contains "token" → BuiltinRedactor
+            # _redact_env_list applies _mask_replacement to .value.
+            - name: DEMO_API_TOKEN
+              value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vIiwicm9sZSI6ImFkbWluIn0.fake-demo-signature-redaction-correlation"
+          envFrom:
+            - configMapRef:
+                name: chaos-redaction-demo-config
+          command: ["sh", "-c"]
+          # Position #4: args[0] embeds the raw JWT directly so the K8s
+          # API spec exposes the literal token (would be hidden if we only
+          # referenced $DEMO_API_TOKEN — env expansion happens at runtime
+          # inside the container, not in the spec).
+          # Position #5: the runtime echo prints the env-expanded JWT to
+          # stdout, where get_pod_logs picks it up.
+          args:
+            - >-
+              echo "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vIiwicm9sZSI6ImFkbWluIn0.fake-demo-signature-redaction-correlation";
+              echo "Boot with token: $DEMO_API_TOKEN";
+              sleep 3;
+              exit 1
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "16Mi"
+            limits:
+              cpu: "50m"
+              memory: "32Mi"
