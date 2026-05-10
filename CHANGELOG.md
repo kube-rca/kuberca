@@ -6,6 +6,21 @@
 
 - Relicensed from MIT to Apache License 2.0. Existing forks must update their LICENSE references. Contributor consent for this change tracked in `.github/RELICENSE_CONSENT.md`. (#<TBD-PR-number>)
 
+## [1.3.0](https://github.com/kube-rca/kuberca/compare/v1.2.0...v1.3.0) (2026-05-10)
+
+
+### Features
+
+* **chaos,charts,agent:** HashMode redaction demo + align AI model defaults ([#79](https://github.com/kube-rca/kuberca/issues/79)) ([c7dc068](https://github.com/kube-rca/kuberca/commit/c7dc068c04f1c18b2c352cc757bff6d2e6f2fb04))
+* **frontend:** make header logo clickable to navigate home ([#82](https://github.com/kube-rca/kuberca/issues/82)) ([ea80328](https://github.com/kube-rca/kuberca/commit/ea803288ada258ae28577c46d837f0e59153db1f))
+
+
+### Bug Fixes
+
+* **agent:** redactor coverage for safe-prefix annotations and arbitrary args ([#84](https://github.com/kube-rca/kuberca/issues/84)) ([b54d5e4](https://github.com/kube-rca/kuberca/commit/b54d5e454ad774a050e8dc887f18c8598fd22f81))
+* **chaos:** add make clean-redaction-demo for orphaned-resource cleanup ([#83](https://github.com/kube-rca/kuberca/issues/83)) ([3009128](https://github.com/kube-rca/kuberca/commit/30091280bfaa98574d9f550368633bd8eccb0976))
+* **chaos:** normalize JWT inputs in redaction-demo so 5 positions hash to same digest ([#81](https://github.com/kube-rca/kuberca/issues/81)) ([9d13815](https://github.com/kube-rca/kuberca/commit/9d13815519831769f8189712e5665eb7f6a2a98f))
+
 ## [1.2.0](https://github.com/kube-rca/kuberca/compare/v1.1.0...v1.2.0) (2026-05-05)
 
 
