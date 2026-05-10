@@ -220,22 +220,17 @@ def build_traceql_query(service_name: str | None, namespace: str | None) -> str:
 
 
 def _extract_trace_summaries(
-    payload: dict[str, object] | list[object],
+    payload: dict[str, object] | list[object] | None,
 ) -> list[dict[str, object]]:
-    entries: list[object]
+    entries: list[object] = []
     if isinstance(payload, dict):
-        if isinstance(payload.get("traces"), list):
-            entries = payload.get("traces", [])
-        elif isinstance(payload.get("data"), list):
-            entries = payload.get("data", [])
-        elif isinstance(payload.get("results"), list):
-            entries = payload.get("results", [])
-        else:
-            entries = []
+        for key in ("traces", "data", "results"):
+            value = payload.get(key)
+            if isinstance(value, list):
+                entries = value
+                break
     elif isinstance(payload, list):
         entries = payload
-    else:
-        entries = []
 
     normalized: list[dict[str, object]] = []
     for entry in entries:

@@ -92,6 +92,27 @@ def test_build_traceql_query_empty() -> None:
     assert query == "{}"
 
 
+def test_extract_trace_summaries_returns_empty_for_none_payload() -> None:
+    # Caller (`search_traces`) returns early on error, but the function's type
+    # signature now accepts None to mirror the union from `_request_with_fallback`.
+    from app.clients.tempo import _extract_trace_summaries
+
+    assert _extract_trace_summaries(None) == []
+
+
+def test_extract_trace_summaries_falls_back_to_data_then_results() -> None:
+    # When `traces` key is missing, the function should walk `data` then
+    # `results` before giving up — preserves prior behavior across Tempo
+    # response shape variants.
+    from app.clients.tempo import _extract_trace_summaries
+
+    payload_data: dict[str, object] = {"data": [{"traceID": "abc"}]}
+    payload_results: dict[str, object] = {"results": [{"traceID": "def"}]}
+
+    assert [s["trace_id"] for s in _extract_trace_summaries(payload_data)] == ["abc"]
+    assert [s["trace_id"] for s in _extract_trace_summaries(payload_results)] == ["def"]
+
+
 def test_search_traces_preserves_unix_window(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("TEMPO_URL", "http://tempo.monitoring.svc.cluster.local:3200")
     captured = _install_fake_urlopen(monkeypatch)
