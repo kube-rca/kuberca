@@ -6,6 +6,14 @@
 
 - Relicensed from MIT to Apache License 2.0. Existing forks must update their LICENSE references. Contributor consent for this change tracked in `.github/RELICENSE_CONSENT.md`. (#<TBD-PR-number>)
 
+## [1.3.1](https://github.com/kube-rca/kuberca/compare/v1.3.0...1.3.1) (2026-05-10)
+
+
+### Bug Fixes
+
+* **agent:** use TraceQL char class for namespace fallback regex ([#88](https://github.com/kube-rca/kuberca/issues/88)) ([48599ee](https://github.com/kube-rca/kuberca/commit/48599ee334cb4702cea7a13157ab1b96fdcf9259))
+* **release-please:** sync values.yaml/appVersion/CHANGELOG with manifest version ([#85](https://github.com/kube-rca/kuberca/issues/85)) ([e7bc445](https://github.com/kube-rca/kuberca/commit/e7bc4452e7ea8b3bd1f7bf5893c97de62ab000dc))
+
 ## [1.3.0](https://github.com/kube-rca/kuberca/compare/v1.2.0...v1.3.0) (2026-05-10)
 
 
@@ -1185,4 +1193,3 @@ which remain read-only on GitHub.
 * **kube-rca:** align ai secret and API key env ([893b3c9](https://github.com/kube-rca/helm-charts/commit/893b3c969a5fcfb6d62b9ede3f837ab6e8a92ac5))
 * **kube-rca:** remove openapi ingress basic auth ([c5c1ec9](https://github.com/kube-rca/helm-charts/commit/c5c1ec99d53430b66ae131c2aa196a9a26171048))
 * **kube-rca:** route /api to backend from frontend ingress ([6ead897](https://github.com/kube-rca/helm-charts/commit/6ead897ea374182ca7fcf26b2b1af9b773e1e5f4))
-
