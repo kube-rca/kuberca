@@ -6,6 +6,22 @@
 
 - Relicensed from MIT to Apache License 2.0. Existing forks must update their LICENSE references. Contributor consent for this change tracked in `.github/RELICENSE_CONSENT.md`. (#<TBD-PR-number>)
 
+## [1.4.0](https://github.com/kube-rca/kuberca/compare/1.3.2...1.4.0) (2026-05-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* default language is now `en`. Existing Korean users must set `language: ko` in values.yaml or `--set language=ko`.
+
+### Features
+
+* add `language` config (ko|en) for analysis and Slack messages ([a749e72](https://github.com/kube-rca/kuberca/commit/a749e7265242c203f7007927c441b63e060dd61b))
+
+
+### Miscellaneous Chores
+
+* release as 1.4.0 instead of 2.0.0 ([39d78b0](https://github.com/kube-rca/kuberca/commit/39d78b0c71d2e63ee8e7025d89881162cbd3e2ef))
+
 ## [1.3.2](https://github.com/kube-rca/kuberca/compare/1.3.1...1.3.2) (2026-05-10)
 
 
