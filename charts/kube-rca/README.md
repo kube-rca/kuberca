@@ -510,6 +510,7 @@ backend:
 | hooks.waitJob.resources.limits.memory | string | `"32Mi"` |  |
 | hooks.waitJob.resources.requests.cpu | string | `"10m"` |  |
 | hooks.waitJob.resources.requests.memory | string | `"16Mi"` |  |
+| language | string | `"en"` | Response language for backend Slack messages and agent RCA results. Allowed: `ko` \| `en`. Default `en` — existing Korean users must explicitly set `language: ko` (BREAKING CHANGE). |
 | nameOverride | string | `""` | Override the name of the chart. |
 | openapi.affinity | object | `{}` | Affinity for OpenAPI pods assignment. |
 | openapi.baseUrl | string | `"/"` | Base URL for Swagger UI. |

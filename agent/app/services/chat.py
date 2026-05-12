@@ -5,6 +5,7 @@ import logging
 from typing import Any, cast
 
 from app.clients.strands_agent import AnalysisEngine
+from app.core.config import DEFAULT_LANGUAGE, normalize_language
 from app.core.masking import Masker, RegexMasker
 from app.schemas.chat import ChatRequest
 
@@ -23,9 +24,10 @@ def _is_invalid_session_restore_error(exc: BaseException) -> bool:
         if marker in visited:
             continue
         visited.add(marker)
-        if isinstance(current, ValueError) and "invalid conversation manager state" in str(
-            current
-        ).lower():
+        if (
+            isinstance(current, ValueError)
+            and "invalid conversation manager state" in str(current).lower()
+        ):
             return True
         stack.append(getattr(current, "__cause__", None))
         stack.append(getattr(current, "__context__", None))
@@ -37,10 +39,14 @@ def _to_pretty_json(payload: dict[str, Any]) -> str:
     return json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True)
 
 
-def _build_chat_prompt(request: ChatRequest, masker: Masker) -> str:
+def _build_chat_prompt(
+    request: ChatRequest,
+    masker: Masker,
+    default_language: str = DEFAULT_LANGUAGE,
+) -> str:
     """Build prompt for chat Q&A about an incident."""
     user_msg = masker.mask_text(request.message).strip() or "Tell me about this incident."
-    language = "en" if (request.language or "").strip().lower() == "en" else "ko"
+    language = normalize_language(request.language, default=default_language)
     response_language = "English" if language == "en" else "Korean"
     base = (
         "You are kube-rca-agent. A user is asking a question about an incident. "
@@ -66,10 +72,12 @@ class ChatService:
         self,
         analysis_engine: AnalysisEngine | None,
         masker: Masker | None = None,
+        default_language: str = DEFAULT_LANGUAGE,
     ) -> None:
         self._logger = logger
         self._analysis_engine = analysis_engine
         self._masker = masker or RegexMasker()
+        self._default_language = normalize_language(default_language)
 
     def chat(self, request: ChatRequest) -> tuple[str, str | None]:
         """Answer user questions about an incident (name, id, content, metrics, etc.).
@@ -84,7 +92,7 @@ class ChatService:
                 ),
                 request.conversation_id,
             )
-        prompt = _build_chat_prompt(request, self._masker)
+        prompt = _build_chat_prompt(request, self._masker, self._default_language)
         session_id = (request.conversation_id or "default").strip() or "default"
         session_id = f"{session_id}:chat"
         try:

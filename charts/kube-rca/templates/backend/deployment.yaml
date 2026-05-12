@@ -63,6 +63,8 @@ spec:
                   key: {{ default "password" $pgSecret.key | quote }}
             - name: PGDATABASE
               value: {{ default "kube-rca" .Values.backend.postgresql.database | quote }}
+            - name: LANGUAGE
+              value: {{ include "kube-rca.language" . | quote }}
             {{- $auth := default (dict) .Values.backend.auth }}
             {{- if $auth.enabled }}
             {{- $authSecret := default (dict) $auth.secret }}

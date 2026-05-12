@@ -8,6 +8,23 @@ from dataclasses import dataclass
 DEFAULT_GEMINI_MODEL_ID = "gemini-3-flash-preview"
 DEFAULT_ANTHROPIC_MAX_TOKENS = 8192
 DEFAULT_AI_PROVIDER = "gemini"
+DEFAULT_LANGUAGE = "en"
+SUPPORTED_LANGUAGES = ("ko", "en")
+
+
+def normalize_language(value: str | None, default: str = DEFAULT_LANGUAGE) -> str:
+    """Normalize a language code to one of ``SUPPORTED_LANGUAGES``.
+
+    Falls back to ``default`` (which itself is normalized to ``en`` when
+    invalid) for unknown/empty values.
+    """
+    raw = (value or "").strip().lower()
+    if raw in SUPPORTED_LANGUAGES:
+        return raw
+    fallback = (default or "").strip().lower()
+    if fallback in SUPPORTED_LANGUAGES:
+        return fallback
+    return DEFAULT_LANGUAGE
 
 
 def _get_int_env(name: str, default: int) -> int:
@@ -82,6 +99,9 @@ def _validate_regex_list(patterns: list[str], name: str) -> None:
 class Settings:
     port: int
     log_level: str
+    # Default response language (ko | en). Used when a request does not
+    # provide its own ``language`` field.
+    language: str
     # AI Provider settings
     ai_provider: str  # gemini, openai, anthropic
     gemini_api_key: str
@@ -154,6 +174,7 @@ def load_settings() -> Settings:
     return Settings(
         port=_get_int_env("PORT", 8000),
         log_level=os.getenv("LOG_LEVEL", "info"),
+        language=normalize_language(os.getenv("LANGUAGE")),
         # AI Provider settings
         ai_provider=ai_provider,
         gemini_api_key=os.getenv("GEMINI_API_KEY", ""),

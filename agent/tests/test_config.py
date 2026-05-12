@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from app.core.config import DEFAULT_ANTHROPIC_MAX_TOKENS, load_settings
+from app.core.config import (
+    DEFAULT_ANTHROPIC_MAX_TOKENS,
+    DEFAULT_LANGUAGE,
+    load_settings,
+    normalize_language,
+)
 
 
 def test_load_settings_parses_masking_regex_list_json(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -74,3 +79,43 @@ def test_load_settings_falls_back_for_invalid_anthropic_max_tokens(
     settings = load_settings()
 
     assert settings.anthropic_max_tokens == DEFAULT_ANTHROPIC_MAX_TOKENS
+
+
+def test_load_settings_language_defaults_to_en(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("LANGUAGE", raising=False)
+
+    settings = load_settings()
+
+    assert settings.language == DEFAULT_LANGUAGE == "en"
+
+
+@pytest.mark.parametrize(
+    "raw, expected",
+    [("ko", "ko"), ("en", "en"), ("KO", "ko"), ("  En  ", "en")],
+)
+def test_load_settings_language_accepts_supported_values(
+    monkeypatch: pytest.MonkeyPatch, raw: str, expected: str
+) -> None:
+    monkeypatch.setenv("LANGUAGE", raw)
+
+    settings = load_settings()
+
+    assert settings.language == expected
+
+
+@pytest.mark.parametrize("value", ["fr", "ja", "", "english"])
+def test_load_settings_language_invalid_falls_back_to_en(
+    monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    monkeypatch.setenv("LANGUAGE", value)
+
+    settings = load_settings()
+
+    assert settings.language == "en"
+
+
+def test_normalize_language_uses_default_for_invalid_value() -> None:
+    assert normalize_language("fr", default="ko") == "ko"
+    assert normalize_language(None, default="ko") == "ko"
+    # Invalid default itself falls back to "en"
+    assert normalize_language("fr", default="zz") == "en"

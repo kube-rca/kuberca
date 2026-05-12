@@ -1549,3 +1549,316 @@ def test_analysis_service_error_categorization_integration() -> None:
     assert "analysis engine unavailable" in analysis
     assert "RuntimeError" in analysis
     assert ctx.get("analysis_quality") == "low"
+
+
+# ── language / i18n ────────────────────────────────────────────────────────
+
+
+def _empty_context() -> K8sContext:
+    return K8sContext(
+        namespace="default",
+        pod_name="demo-pod",
+        workload=None,
+        pod_status=None,
+        events=[],
+        previous_logs=[],
+        warnings=[],
+    )
+
+
+def _ko_request() -> AlertAnalysisRequest:
+    return AlertAnalysisRequest(
+        alert=Alert(
+            status="firing",
+            labels={"namespace": "default", "pod": "demo-pod"},
+            annotations={"summary": "Test"},
+            fingerprint="lang-ko",
+        ),
+        thread_ts="1234567890.123456",
+        language="ko",
+    )
+
+
+def _en_request() -> AlertAnalysisRequest:
+    return AlertAnalysisRequest(
+        alert=Alert(
+            status="firing",
+            labels={"namespace": "default", "pod": "demo-pod"},
+            annotations={"summary": "Test"},
+            fingerprint="lang-en",
+        ),
+        thread_ts="1234567890.123456",
+        language="en",
+    )
+
+
+def test_analysis_prompt_korean_uses_korean_section_headers() -> None:
+    engine = CapturingAnalysisEngine("ok")
+    service = AnalysisService(
+        FakeKubernetesClient(_empty_context()),
+        analysis_engine=engine,
+        default_language="en",  # ensure request override beats service default
+    )
+
+    service.analyze(_ko_request())
+
+    assert "근본 원인" in engine.last_prompt
+    assert "확인 근거" in engine.last_prompt
+    assert "조치 사항" in engine.last_prompt
+    assert "누락된 데이터" in engine.last_prompt
+    # English mirror headers should not leak into the Korean prompt body
+    assert "#### **Root Cause**" not in engine.last_prompt
+    assert "#### **Action Items**" not in engine.last_prompt
+
+
+def test_analysis_prompt_english_uses_english_section_headers() -> None:
+    engine = CapturingAnalysisEngine("ok")
+    service = AnalysisService(
+        FakeKubernetesClient(_empty_context()),
+        analysis_engine=engine,
+        default_language="ko",  # ensure request override beats service default
+    )
+
+    service.analyze(_en_request())
+
+    assert "Root Cause" in engine.last_prompt
+    assert "Evidence" in engine.last_prompt
+    assert "Action Items" in engine.last_prompt
+    assert "Missing Data" in engine.last_prompt
+    assert "#### **근본 원인**" not in engine.last_prompt
+    assert "#### **조치 사항**" not in engine.last_prompt
+
+
+def test_analysis_language_fallback_to_default_when_request_missing() -> None:
+    engine = CapturingAnalysisEngine("ok")
+    service = AnalysisService(
+        FakeKubernetesClient(_empty_context()),
+        analysis_engine=engine,
+        default_language="en",
+    )
+
+    service.analyze(_sample_request())  # language=None -> settings default ("en")
+
+    assert "Root Cause" in engine.last_prompt
+    assert "#### **근본 원인**" not in engine.last_prompt
+
+
+def test_analysis_language_invalid_falls_back_to_default() -> None:
+    engine = CapturingAnalysisEngine("ok")
+    service = AnalysisService(
+        FakeKubernetesClient(_empty_context()),
+        analysis_engine=engine,
+        default_language="ko",
+    )
+    request = AlertAnalysisRequest(
+        alert=Alert(
+            status="firing",
+            labels={"namespace": "default", "pod": "demo-pod"},
+            annotations={"summary": "Test"},
+            fingerprint="lang-bogus",
+        ),
+        thread_ts="1234567890.123456",
+        language="fr",  # unsupported
+    )
+
+    service.analyze(request)
+
+    assert "근본 원인" in engine.last_prompt
+    assert "#### **Root Cause**" not in engine.last_prompt
+
+
+def test_analysis_extracts_english_response_sections() -> None:
+    """English LLM markdown response is parsed into summary/detail via _split_alert_analysis."""
+    response_text = (
+        "### Summary\n"
+        "Pod restarted due to OOMKill.\n\n"
+        "### Detail\n"
+        "#### Root Cause\n"
+        "- memory exceeded limit\n"
+        "#### Evidence\n"
+        "- event: OOMKilled\n"
+    )
+    engine = FakeAnalysisEngine(response_text)
+    service = AnalysisService(
+        FakeKubernetesClient(_empty_context()),
+        analysis_engine=engine,
+        default_language="en",
+    )
+
+    analysis, summary, detail, ctx, _ = service.analyze(_en_request())
+
+    assert "Pod restarted due to OOMKill." in summary
+    assert "Root Cause" in detail
+    # Non-bilingual response: raw markdown is preserved as the analysis string.
+    assert "### Summary" in analysis
+    assert "### Detail" in analysis
+    assert ctx.get("analysis_quality")
+
+
+def test_incident_summary_prompt_korean_sections() -> None:
+    engine = CapturingAnalysisEngine("ok")
+    service = AnalysisService(
+        FakeKubernetesClient(_empty_context()),
+        analysis_engine=engine,
+        default_language="en",
+    )
+    request = IncidentSummaryRequest(
+        incident_id="inc-1",
+        title="bookinfo outage",
+        severity="critical",
+        fired_at="2024-01-01T12:00:00Z",
+        resolved_at="2024-01-01T12:10:00Z",
+        alerts=[
+            AlertSummaryInput(
+                fingerprint="fp-1",
+                alert_name="HighErrorRate",
+                severity="critical",
+                status="firing",
+            )
+        ],
+        language="ko",
+    )
+
+    service.summarize_incident_with_i18n(request)
+
+    assert "근본 원인" in engine.last_prompt
+    assert "재발 방지 권고" in engine.last_prompt
+
+
+def test_incident_summary_prompt_english_sections() -> None:
+    engine = CapturingAnalysisEngine("ok")
+    service = AnalysisService(
+        FakeKubernetesClient(_empty_context()),
+        analysis_engine=engine,
+        default_language="ko",
+    )
+    request = IncidentSummaryRequest(
+        incident_id="inc-2",
+        title="bookinfo outage",
+        severity="critical",
+        fired_at="2024-01-01T12:00:00Z",
+        resolved_at="2024-01-01T12:10:00Z",
+        alerts=[
+            AlertSummaryInput(
+                fingerprint="fp-2",
+                alert_name="HighErrorRate",
+                severity="critical",
+                status="firing",
+            )
+        ],
+        language="en",
+    )
+
+    service.summarize_incident_with_i18n(request)
+
+    assert "root cause" in engine.last_prompt
+    assert "prevention recommendations" in engine.last_prompt
+
+
+def test_incident_summary_fallback_localized_to_english() -> None:
+    service = AnalysisService(
+        FakeKubernetesClient(_empty_context()),
+        analysis_engine=None,
+        default_language="en",
+    )
+    request = IncidentSummaryRequest(
+        incident_id="inc-3",
+        title="bookinfo outage",
+        severity="critical",
+        fired_at="2024-01-01T12:00:00Z",
+        resolved_at="2024-01-01T12:10:00Z",
+        alerts=[
+            AlertSummaryInput(
+                fingerprint="fp-3",
+                alert_name="HighErrorRate",
+                severity="critical",
+                status="firing",
+            )
+        ],
+        language="en",
+    )
+
+    _, summary, detail, _, _ = service.summarize_incident_with_i18n(request)
+
+    assert "Incident analysis unavailable" in summary
+    assert "Incident ID" in detail
+    assert "인시던트" not in summary
+    assert "인시던트" not in detail
+
+
+def test_parse_alert_analysis_result_prefers_request_language() -> None:
+    """Bilingual JSON response should expose the requested language as primary."""
+    from app.services.analysis import _parse_alert_analysis_result
+
+    bilingual = json.dumps(
+        {
+            "ko": {"summary": "요약-한국어", "detail": "상세-한국어"},
+            "en": {"summary": "summary-en", "detail": "detail-en"},
+        },
+        ensure_ascii=False,
+    )
+
+    analysis_en, summary_en, detail_en, summary_i18n, detail_i18n = _parse_alert_analysis_result(
+        bilingual, "en"
+    )
+    assert summary_en == "summary-en"
+    assert detail_en == "detail-en"
+    assert "### 1) Summary" in analysis_en
+    assert summary_i18n == {"ko": "요약-한국어", "en": "summary-en"}
+    assert detail_i18n == {"ko": "상세-한국어", "en": "detail-en"}
+
+    analysis_ko, summary_ko, detail_ko, _, _ = _parse_alert_analysis_result(bilingual, "ko")
+    assert summary_ko == "요약-한국어"
+    assert detail_ko == "상세-한국어"
+    assert "### 1) 요약" in analysis_ko
+
+
+def test_parse_incident_summary_result_prefers_request_language() -> None:
+    from app.services.analysis import _parse_incident_summary_result
+
+    bilingual = json.dumps(
+        {
+            "title": "[svc] outage",
+            "ko": {"summary": "한국어 요약", "detail": "한국어 상세"},
+            "en": {"summary": "english summary", "detail": "english detail"},
+        },
+        ensure_ascii=False,
+    )
+
+    title_en, summary_en, detail_en, summary_i18n, detail_i18n = _parse_incident_summary_result(
+        bilingual, "fallback", "en"
+    )
+    assert title_en == "[svc] outage"
+    assert summary_en == "english summary"
+    assert detail_en == "english detail"
+    assert summary_i18n["ko"] == "한국어 요약"
+    assert detail_i18n["en"] == "english detail"
+
+    _, summary_ko, detail_ko, _, _ = _parse_incident_summary_result(bilingual, "fallback", "ko")
+    assert summary_ko == "한국어 요약"
+    assert detail_ko == "한국어 상세"
+
+
+def test_split_alert_analysis_handles_english_response() -> None:
+    from app.services.analysis import _split_alert_analysis
+
+    response_text = "### Summary\nPod restarted due to OOMKill.\n\n### Detail\nRoot cause is OOM."
+    summary, detail = _split_alert_analysis(response_text, "en")
+    assert "Pod restarted" in summary
+    assert "Root cause is OOM" in detail
+
+
+def test_parse_incident_summary_english_response() -> None:
+    response_text = (
+        "### Title\n"
+        "Outage on bookinfo\n\n"
+        "### Summary\n"
+        "Errors recovered after restart.\n\n"
+        "### Detail\n"
+        "#### Root Cause\n"
+        "- memory exhaustion\n"
+    )
+    title, summary, detail = _parse_incident_summary(response_text, "fallback", "en")
+    assert title == "Outage on bookinfo"
+    assert "Errors recovered" in summary
+    assert "Root Cause" in detail

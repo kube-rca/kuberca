@@ -1,5 +1,9 @@
 nameOverride: ''
 fullnameOverride: ''
+# 응답 언어. backend Slack 메시지와 agent RCA 분석 결과에 적용.
+# 허용 값: ko | en
+# 기본값 en — 기존 한국어 사용자는 명시적으로 `language: ko` 지정 필요. (BREAKING CHANGE)
+language: en
 hooks:
   enabled: true
   waitJob:

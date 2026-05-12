@@ -199,3 +199,87 @@ func TestLoad_PostgresDefaults(t *testing.T) {
 		t.Errorf("Postgres.SSLMode = %q, want disable", cfg.Postgres.SSLMode)
 	}
 }
+
+// TestLoad_LanguageDefaultsToEn verifies the OSS default language is "en"
+// when LANGUAGE is unset, and propagates to Slack/Agent sub-configs.
+func TestLoad_LanguageDefaultsToEn(t *testing.T) {
+	t.Setenv("LANGUAGE", "")
+
+	cfg := Load()
+
+	if cfg.Language != "en" {
+		t.Errorf("Language = %q, want en", cfg.Language)
+	}
+	if cfg.Slack.Language != "en" {
+		t.Errorf("Slack.Language = %q, want en", cfg.Slack.Language)
+	}
+	if cfg.Agent.Language != "en" {
+		t.Errorf("Agent.Language = %q, want en", cfg.Agent.Language)
+	}
+}
+
+// TestLoad_LanguageKo verifies LANGUAGE=ko is accepted and propagated.
+func TestLoad_LanguageKo(t *testing.T) {
+	t.Setenv("LANGUAGE", "ko")
+
+	cfg := Load()
+
+	if cfg.Language != "ko" {
+		t.Errorf("Language = %q, want ko", cfg.Language)
+	}
+	if cfg.Slack.Language != "ko" {
+		t.Errorf("Slack.Language = %q, want ko", cfg.Slack.Language)
+	}
+	if cfg.Agent.Language != "ko" {
+		t.Errorf("Agent.Language = %q, want ko", cfg.Agent.Language)
+	}
+}
+
+// TestLoad_LanguageCaseInsensitive verifies that uppercase LANGUAGE values are
+// normalized to lowercase.
+func TestLoad_LanguageCaseInsensitive(t *testing.T) {
+	t.Setenv("LANGUAGE", "KO")
+
+	cfg := Load()
+
+	if cfg.Language != "ko" {
+		t.Errorf("Language = %q, want ko", cfg.Language)
+	}
+}
+
+// TestLoad_LanguageInvalidFallsBackToEn verifies invalid LANGUAGE values fall
+// back to the OSS default ("en").
+func TestLoad_LanguageInvalidFallsBackToEn(t *testing.T) {
+	for _, raw := range []string{"ja", "fr", "kor", "english", " "} {
+		t.Setenv("LANGUAGE", raw)
+
+		cfg := Load()
+
+		if cfg.Language != "en" {
+			t.Errorf("LANGUAGE=%q: Language = %q, want en (fallback)", raw, cfg.Language)
+		}
+	}
+}
+
+// TestNormalizeLanguage verifies the normalizeLanguage helper directly so the
+// contract is locked in at the function boundary.
+func TestNormalizeLanguage(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"ko", "ko"},
+		{"en", "en"},
+		{"KO", "ko"},
+		{"En", "en"},
+		{" ko ", "ko"},
+		{"", "en"},
+		{"ja", "en"},
+		{"invalid", "en"},
+	}
+	for _, tt := range tests {
+		if got := normalizeLanguage(tt.input); got != tt.want {
+			t.Errorf("normalizeLanguage(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
