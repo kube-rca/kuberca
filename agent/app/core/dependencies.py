@@ -108,9 +108,11 @@ def get_tempo_client() -> TempoClient | None:
 
 @lru_cache
 def get_chat_service() -> ChatService:
+    settings = get_settings()
     return ChatService(
         analysis_engine=get_analysis_engine(),
         masker=get_masker(),
+        default_language=settings.language,
     )
 
 
@@ -136,4 +138,5 @@ def get_analysis_service() -> AnalysisService:
         prompt_token_budget=settings.prompt_token_budget,
         prompt_max_log_lines=settings.prompt_max_log_lines,
         prompt_max_events=settings.prompt_max_events,
+        default_language=settings.language,
     )

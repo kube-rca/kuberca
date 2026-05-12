@@ -31,6 +31,9 @@ type SlackClient struct {
 	channelID   string
 	frontendURL string
 	httpClient  *http.Client
+	// language is the normalized backend default ("ko" or "en") used to localize
+	// fixed Slack message strings (titles, prefixes, flapping bodies).
+	language string
 
 	// threadMap: fingerprint -> thread_ts 매핑
 	//   - resolved 알림을 firing과 같은 스레드로 보내기 위함
@@ -82,10 +85,15 @@ type SlackResponse struct {
 
 // SlackClient 객체 생성
 func NewSlackClient(cfg config.SlackConfig) *SlackClient {
+	language := cfg.Language
+	if language != "ko" && language != "en" {
+		language = "en"
+	}
 	return &SlackClient{
 		botToken:    cfg.BotToken,
 		channelID:   cfg.ChannelID,
 		frontendURL: strings.TrimRight(cfg.FrontendURL, "/"),
+		language:    language,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -242,7 +250,7 @@ func (c *SlackClient) SendToThreadInChannel(channelID, threadTS, text string) er
 		Attachments: []SlackAttachment{
 			{
 				Color: "#6f42c1", // purple for AI analysis
-				Title: "🤖 AI 분석 결과",
+				Title: c.t("analysis_result_title"),
 				Text:  toSlackMarkdown(text),
 				MrkdwnIn: []string{
 					"text",
@@ -339,4 +347,32 @@ func stripMarkdownBold(s string) string {
 		break
 	}
 	return s
+}
+
+// slackI18n holds localized Slack message strings keyed by language ("ko"|"en").
+// Add new keys here when introducing new fixed strings; do not export.
+var slackI18n = map[string]map[string]string{
+	"ko": {
+		"analysis_result_title":    "🤖 AI 분석 결과",
+		"manually_resolved_prefix": "🔧 [Manually Resolved]",
+		"incident_dashboard_link":  "🔍 Incident 대시보드 보러가기",
+		"flapping_detected_body":   "이 알림이 30분 내에 %d회 반복(firing→resolved)되어 Flapping으로 감지되었습니다.\n안정화될 때까지 추가 알림 및 AI 분석이 일시 중지됩니다.\n상태는 계속 추적되며, 30분간 안정 시 자동으로 해제됩니다.",
+		"flapping_cleared_body":    "이 알림이 30분 이상 안정 상태를 유지하여 Flapping 상태가 해제되었습니다.\n정상 알림 모니터링이 재개됩니다.",
+	},
+	"en": {
+		"analysis_result_title":    "🤖 AI Analysis",
+		"manually_resolved_prefix": "🔧 [Manually Resolved]",
+		"incident_dashboard_link":  "🔍 View incident dashboard",
+		"flapping_detected_body":   "This alert toggled (firing→resolved) %d times within 30 minutes and was detected as flapping.\nFurther notifications and AI analysis are paused until it stabilizes.\nIt will be cleared automatically after 30 minutes of stability.",
+		"flapping_cleared_body":    "This alert remained stable for over 30 minutes; flapping is now cleared.\nNormal alert monitoring has resumed.",
+	},
+}
+
+// t returns the localized Slack string for the given key, falling back to the
+// English entry if the language-specific entry is missing.
+func (c *SlackClient) t(key string) string {
+	if v, ok := slackI18n[c.language][key]; ok {
+		return v
+	}
+	return slackI18n["en"][key]
 }

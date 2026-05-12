@@ -333,3 +333,11 @@ Agent service endpoint for wait-for-agent.
 {{- define "kube-rca.hook.agent.port" -}}
 {{- default 8000 .Values.agent.service.port -}}
 {{- end -}}
+
+{{/*
+Normalize language value. Returns one of: ko, en. Default en.
+*/}}
+{{- define "kube-rca.language" -}}
+{{- $lang := default "en" .Values.language | lower -}}
+{{- if has $lang (list "ko" "en") -}}{{ $lang }}{{- else -}}en{{- end -}}
+{{- end -}}

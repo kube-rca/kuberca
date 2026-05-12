@@ -61,6 +61,9 @@ type AgentClient struct {
 	retryMaxAttempts int
 	retryBaseBackoff time.Duration
 	retryMaxBackoff  time.Duration
+	// language is the backend default ("ko" or "en") attached to every Agent
+	// request payload (/analyze, /summarize-incident, /chat).
+	language string
 }
 
 // PreviousAnalysisContext - 이전 firing 분석 컨텍스트 (resolved 분석 시 참조)
@@ -78,6 +81,7 @@ type AgentAnalysisRequest struct {
 	IncidentID       string                   `json:"incident_id,omitempty"`
 	AnalysisType     string                   `json:"analysis_type,omitempty"`
 	PreviousAnalysis *PreviousAnalysisContext `json:"previous_analysis,omitempty"`
+	Language         string                   `json:"language,omitempty"`
 }
 
 // AgentAnalysisResponse 구조체 정의
@@ -102,6 +106,7 @@ type IncidentSummaryRequest struct {
 	FiredAt    string              `json:"fired_at"`
 	ResolvedAt string              `json:"resolved_at"`
 	Alerts     []AlertSummaryInput `json:"alerts"`
+	Language   string              `json:"language,omitempty"`
 }
 
 // AlertSummaryInput - 개별 Alert 분석 내용 (Agent에 전달)
@@ -178,12 +183,18 @@ func NewAgentClient(cfg config.AgentConfig) *AgentClient {
 		retryMaxBackoff = 15 * time.Second
 	}
 
+	language := cfg.Language
+	if language != "ko" && language != "en" {
+		language = "en"
+	}
+
 	log.Printf(
-		"Agent client initialized (base_url=%s, timeout_seconds=%d, retry_max_attempts=%d, retry_base_backoff=%s)",
+		"Agent client initialized (base_url=%s, timeout_seconds=%d, retry_max_attempts=%d, retry_base_backoff=%s, language=%s)",
 		baseURL,
 		timeoutSeconds,
 		retryMaxAttempts,
 		retryBaseBackoff,
+		language,
 	)
 
 	return &AgentClient{
@@ -194,6 +205,7 @@ func NewAgentClient(cfg config.AgentConfig) *AgentClient {
 		retryMaxAttempts: retryMaxAttempts,
 		retryBaseBackoff: retryBaseBackoff,
 		retryMaxBackoff:  retryMaxBackoff,
+		language:         language,
 	}
 }
 
@@ -245,6 +257,7 @@ func (c *AgentClient) doRequestAnalysis(alert model.Alert, threadTS, incidentID,
 		IncidentID:       incidentID,
 		AnalysisType:     analysisType,
 		PreviousAnalysis: prevAnalysis,
+		Language:         c.language,
 	}
 
 	payload, err := json.Marshal(req)
@@ -283,6 +296,10 @@ func (c *AgentClient) doRequestAnalysis(alert model.Alert, threadTS, incidentID,
 
 // POST /summarize-incident - Incident 최종 분석 요청
 func (c *AgentClient) RequestIncidentSummary(req IncidentSummaryRequest) (*IncidentSummaryResponse, error) {
+	if req.Language == "" {
+		req.Language = c.language
+	}
+
 	payload, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal incident summary request: %w", err)
@@ -321,6 +338,10 @@ func (c *AgentClient) RequestIncidentSummary(req IncidentSummaryRequest) (*Incid
 
 // POST /chat - Agent 채팅 요청
 func (c *AgentClient) RequestChat(ctx context.Context, req AgentChatRequest) (*AgentChatResponse, error) {
+	if req.Language == "" {
+		req.Language = c.language
+	}
+
 	payload, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal chat request: %w", err)

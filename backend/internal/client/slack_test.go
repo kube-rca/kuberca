@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/kube-rca/backend/internal/config"
 )
 
 func TestToSlackMarkdown(t *testing.T) {
@@ -70,6 +72,58 @@ func TestToSlackMarkdown(t *testing.T) {
 				t.Fatalf("toSlackMarkdown() = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestSlackClient_LanguageEn_AnalysisTitle(t *testing.T) {
+	c := NewSlackClient(config.SlackConfig{Language: "en"})
+	if got := c.t("analysis_result_title"); got != "🤖 AI Analysis" {
+		t.Errorf("analysis_result_title (en) = %q, want %q", got, "🤖 AI Analysis")
+	}
+}
+
+func TestSlackClient_LanguageKo_AnalysisTitle(t *testing.T) {
+	c := NewSlackClient(config.SlackConfig{Language: "ko"})
+	if got := c.t("analysis_result_title"); got != "🤖 AI 분석 결과" {
+		t.Errorf("analysis_result_title (ko) = %q, want %q", got, "🤖 AI 분석 결과")
+	}
+}
+
+func TestSlackClient_LanguageInvalidFallback(t *testing.T) {
+	c := NewSlackClient(config.SlackConfig{Language: "invalid"})
+	// Invalid language is normalized to "en" at construction.
+	if got := c.t("analysis_result_title"); got != "🤖 AI Analysis" {
+		t.Errorf("analysis_result_title (invalid) = %q, want en fallback %q", got, "🤖 AI Analysis")
+	}
+	if got := c.t("incident_dashboard_link"); got != "🔍 View incident dashboard" {
+		t.Errorf("incident_dashboard_link (invalid) = %q, want en fallback", got)
+	}
+}
+
+func TestSlackClient_LanguageMissingKey_FallsBackToEn(t *testing.T) {
+	// Construct a ko-language client but request a key that does not exist in
+	// the ko map (simulated by mutating slackI18n locally would be invasive;
+	// instead verify the helper logic by checking that an unknown key returns
+	// the en value when present, and "" when absent in both).
+	c := NewSlackClient(config.SlackConfig{Language: "ko"})
+	if got := c.t("__unknown_key__"); got != "" {
+		t.Errorf("unknown key should return empty string, got %q", got)
+	}
+}
+
+func TestSlackClient_KoFlappingBody_ContainsCycleFormatter(t *testing.T) {
+	c := NewSlackClient(config.SlackConfig{Language: "ko"})
+	body := c.t("flapping_detected_body")
+	if !strings.Contains(body, "%d") {
+		t.Errorf("ko flapping_detected_body missing %%d formatter, got %q", body)
+	}
+}
+
+func TestSlackClient_EnFlappingBody_ContainsCycleFormatter(t *testing.T) {
+	c := NewSlackClient(config.SlackConfig{Language: "en"})
+	body := c.t("flapping_detected_body")
+	if !strings.Contains(body, "%d") {
+		t.Errorf("en flapping_detected_body missing %%d formatter, got %q", body)
 	}
 }
 

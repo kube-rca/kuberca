@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -18,6 +19,10 @@ type Config struct {
 	AI        AIConfig
 	Analysis  AnalysisConfig
 	Webhook   WebhookConfig
+	// Language is the backend-wide default language ("ko" or "en"), sourced from
+	// LANGUAGE env var. Used for Agent payloads (/analyze, /summarize-incident,
+	// /chat fallback) and Slack message i18n.
+	Language string
 }
 
 // WebhookConfig controls inbound /webhook/alertmanager hardening.
@@ -41,6 +46,9 @@ type SlackConfig struct {
 	BotToken    string
 	ChannelID   string
 	FrontendURL string
+	// Language is the normalized backend default ("ko" or "en") propagated from
+	// the top-level Config.Language. Used to localize Slack message strings.
+	Language string
 }
 
 type AgentConfig struct {
@@ -49,6 +57,10 @@ type AgentConfig struct {
 	RetryMaxAttempts     int
 	RetryBaseBackoffSecs int
 	RetryMaxBackoffSecs  int
+	// Language is the normalized backend default ("ko" or "en") propagated from
+	// the top-level Config.Language. Included in Agent /analyze, /summarize-incident,
+	// and /chat (fallback) payloads.
+	Language string
 }
 
 type EmbeddingConfig struct {
@@ -112,11 +124,14 @@ type AnalysisConfig struct {
 
 func Load() Config {
 	_ = godotenv.Load()
+	language := normalizeLanguage(os.Getenv("LANGUAGE"))
 	return Config{
+		Language: language,
 		Slack: SlackConfig{
 			BotToken:    os.Getenv("SLACK_BOT_TOKEN"),
 			ChannelID:   os.Getenv("SLACK_CHANNEL_ID"),
 			FrontendURL: os.Getenv("FRONTEND_URL"),
+			Language:    language,
 		},
 		Agent: AgentConfig{
 			BaseURL:              getenv("AGENT_URL", "http://kube-rca-agent.kube-rca.svc:8000"),
@@ -124,6 +139,7 @@ func Load() Config {
 			RetryMaxAttempts:     getenvInt("AGENT_RETRY_MAX_ATTEMPTS", 3),
 			RetryBaseBackoffSecs: getenvInt("AGENT_RETRY_BASE_BACKOFF_SECONDS", 5),
 			RetryMaxBackoffSecs:  getenvInt("AGENT_RETRY_MAX_BACKOFF_SECONDS", 15),
+			Language:             language,
 		},
 		Embedding: EmbeddingConfig{
 			Provider: getenv("EMBEDDING_PROVIDER", "google"),
@@ -208,4 +224,14 @@ func getenvBool(key string, fallback bool) bool {
 		}
 	}
 	return fallback
+}
+
+// normalizeLanguage returns "ko" or "en" only. Any other input (empty, invalid)
+// falls back to "en" — the OSS default. See AGENTS.md for project language policy.
+func normalizeLanguage(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	if s == "ko" || s == "en" {
+		return s
+	}
+	return "en"
 }

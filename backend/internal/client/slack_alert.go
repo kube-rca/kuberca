@@ -47,7 +47,8 @@ func (c *SlackClient) sendAlertWithThread(alert model.Alert, status, incidentID 
 
 	var title string
 	if isManual {
-		title = fmt.Sprintf("🔧 [Manually Resolved] [%s] %s",
+		title = fmt.Sprintf("%s [%s] %s",
+			c.t("manually_resolved_prefix"),
 			alert.Labels["severity"],
 			alert.Labels["alertname"],
 		)
@@ -68,7 +69,7 @@ func (c *SlackClient) sendAlertWithThread(alert model.Alert, status, incidentID 
 
 	// Incident 페이지 링크 추가
 	if incidentID != "" && c.frontendURL != "" {
-		incidentLink := fmt.Sprintf("<%s/incidents/%s|🔍 Incident 대시보드 보러가기>", c.frontendURL, incidentID)
+		incidentLink := fmt.Sprintf("<%s/incidents/%s|%s>", c.frontendURL, incidentID, c.t("incident_dashboard_link"))
 		fields = append(fields, SlackField{Title: "Incident", Value: incidentLink, Short: false})
 	}
 
@@ -152,12 +153,7 @@ func (c *SlackClient) SendFlappingDetectionInChannel(alert model.Alert, incident
 	emoji := "⚠️"
 	title := fmt.Sprintf("%s [FLAPPING DETECTED] %s", emoji, alert.Labels["alertname"])
 
-	description := fmt.Sprintf(
-		"이 알림이 30분 내에 %d회 반복(firing→resolved)되어 Flapping으로 감지되었습니다.\n"+
-			"안정화될 때까지 추가 알림 및 AI 분석이 일시 중지됩니다.\n"+
-			"상태는 계속 추적되며, 30분간 안정 시 자동으로 해제됩니다.",
-		cycleCount,
-	)
+	description := fmt.Sprintf(c.t("flapping_detected_body"), cycleCount)
 
 	fields := []SlackField{
 		{Title: "Alert Name", Value: alert.Labels["alertname"], Short: true},
@@ -221,7 +217,7 @@ func (c *SlackClient) SendFlappingClearedInChannel(channelID, threadTS string) e
 
 	emoji := "✅"
 	title := fmt.Sprintf("%s Flapping Cleared", emoji)
-	description := "이 알림이 30분 이상 안정 상태를 유지하여 Flapping 상태가 해제되었습니다.\n정상 알림 모니터링이 재개됩니다."
+	description := c.t("flapping_cleared_body")
 
 	msg := SlackMessage{
 		Channel:  channelID,

@@ -13,9 +13,55 @@ from app.clients.k8s import KubernetesClient, resolve_alert_target
 from app.clients.strands_agent import AnalysisEngine
 from app.clients.summary_store import SummaryStore
 from app.clients.tempo import TempoClient, build_traceql_query
+from app.core.config import DEFAULT_LANGUAGE, normalize_language
 from app.core.masking import Masker, RegexMasker
 from app.models.k8s import AnalysisTarget, K8sContext
 from app.schemas.analysis import AlertAnalysisRequest, IncidentSummaryRequest
+
+_KO_HEADERS: dict[str, str] = {
+    "root_cause": "근본 원인",
+    "evidence": "확인 근거",
+    "action_items": "조치 사항",
+    "missing_data": "누락된 데이터",
+    "recovery": "복구 확인",
+    "impact": "장애 영향",
+    "delta": "이전 분석 대비 변화",
+    "prevention": "재발 방지 권고",
+    "title": "제목",
+    "summary": "요약",
+    "detail": "상세 분석",
+    "incident_summary_sections": "근본 원인, 영향 범위, 해결 과정, 재발 방지 권고",
+}
+_EN_HEADERS: dict[str, str] = {
+    "root_cause": "Root Cause",
+    "evidence": "Evidence",
+    "action_items": "Action Items",
+    "missing_data": "Missing Data",
+    "recovery": "Recovery Confirmation",
+    "impact": "Impact Assessment",
+    "delta": "Delta Analysis",
+    "prevention": "Prevention Recommendations",
+    "title": "Title",
+    "summary": "Summary",
+    "detail": "Detail",
+    "incident_summary_sections": (
+        "root cause, impact scope, resolution timeline, prevention recommendations"
+    ),
+}
+
+
+def _headers(lang: str) -> dict[str, str]:
+    return _EN_HEADERS if lang == "en" else _KO_HEADERS
+
+
+def _resolve_request_language(value: str | None, default_language: str) -> str:
+    """Pick the response language for an analyze/summarize/chat request.
+
+    The request-level ``language`` field takes precedence; ``None``/invalid
+    values fall back to ``default_language`` (the service-level default,
+    typically derived from ``settings.language``).
+    """
+    return normalize_language(value, default=default_language)
 
 
 class AnalysisService:
@@ -36,6 +82,7 @@ class AnalysisService:
         prompt_token_budget: int = 32000,
         prompt_max_log_lines: int = 25,
         prompt_max_events: int = 25,
+        default_language: str = DEFAULT_LANGUAGE,
     ) -> None:
         self._logger = logging.getLogger(__name__)
         self._k8s_client = k8s_client
@@ -53,6 +100,7 @@ class AnalysisService:
         self._prompt_token_budget = max(0, prompt_token_budget)
         self._prompt_max_log_lines = max(0, prompt_max_log_lines)
         self._prompt_max_events = max(0, prompt_max_events)
+        self._default_language = normalize_language(default_language)
 
     def analyze(
         self, request: AlertAnalysisRequest
@@ -71,6 +119,7 @@ class AnalysisService:
         dict[str, object],
         list[dict[str, object]],
     ]:
+        lang = _resolve_request_language(request.language, self._default_language)
         t_start = time.perf_counter()
 
         target = resolve_alert_target(request.alert.labels)
@@ -133,10 +182,10 @@ class AnalysisService:
 
         if self._analysis_engine is None:
             analysis = self._masker.mask_text(
-                _fallback_summary(request, k8s_context, "analysis engine not configured")
+                _fallback_summary(request, k8s_context, "analysis engine not configured", lang)
             )
             analysis, summary, detail, summary_i18n, detail_i18n = _parse_alert_analysis_result(
-                analysis
+                analysis, lang
             )
             masked_context = build_masked_context(engine_issue="not_configured")
             return (
@@ -175,6 +224,7 @@ class AnalysisService:
             effective_max_log_lines,
             effective_max_events,
             self._masker,
+            lang,
         )
         t_prompt = time.perf_counter()
 
@@ -192,6 +242,7 @@ class AnalysisService:
                         request,
                         k8s_context,
                         "analysis engine returned empty response",
+                        lang,
                     )
                 )
                 (
@@ -200,7 +251,7 @@ class AnalysisService:
                     detail,
                     summary_i18n,
                     detail_i18n,
-                ) = _parse_alert_analysis_result(analysis)
+                ) = _parse_alert_analysis_result(analysis, lang)
                 masked_context = build_masked_context(engine_issue="empty_response")
                 self._log_analysis_timing(
                     t_start,
@@ -219,8 +270,8 @@ class AnalysisService:
                     masked_context,
                     masked_artifacts,
                 )
-            analysis, summary, detail, summary_i18n, detail_i18n = (
-                _parse_alert_analysis_result(analysis)
+            analysis, summary, detail, summary_i18n, detail_i18n = _parse_alert_analysis_result(
+                analysis, lang
             )
             self._store_summary(summary_key, summary)
             masked_context = build_masked_context()
@@ -251,10 +302,10 @@ class AnalysisService:
                 exc,
             )
             analysis = self._masker.mask_text(
-                _fallback_summary(request, k8s_context, error_cat.user_message)
+                _fallback_summary(request, k8s_context, error_cat.user_message, lang)
             )
             analysis, summary, detail, summary_i18n, detail_i18n = _parse_alert_analysis_result(
-                analysis
+                analysis, lang
             )
             masked_context = build_masked_context(engine_issue=error_cat.name)
             self._log_analysis_timing(
@@ -298,9 +349,7 @@ class AnalysisService:
             total_ms,
         )
 
-    def summarize_incident(
-        self, request: IncidentSummaryRequest
-    ) -> tuple[str, str, str]:
+    def summarize_incident(self, request: IncidentSummaryRequest) -> tuple[str, str, str]:
         title, summary, detail, _, _ = self.summarize_incident_with_i18n(request)
         return title, summary, detail
 
@@ -312,15 +361,17 @@ class AnalysisService:
         Returns:
             tuple[str, str, str]: (title, summary, detail)
         """
+        lang = _resolve_request_language(request.language, self._default_language)
         if self._analysis_engine is None:
             return self._mask_incident_result(
-                _fallback_incident_summary_result(request, "analysis engine not configured")
+                _fallback_incident_summary_result(request, "analysis engine not configured", lang)
             )
 
         prompt = _build_incident_summary_prompt(
             request,
             self._masker,
             self._prompt_token_budget,
+            lang,
         )
         try:
             session_id = _resolve_summary_session_id(request)
@@ -329,12 +380,12 @@ class AnalysisService:
                 result = ""
             masked_result = self._masker.mask_text(result)
             return self._mask_incident_result(
-                _parse_incident_summary_result(masked_result, request.title)
+                _parse_incident_summary_result(masked_result, request.title, lang)
             )
         except Exception as exc:  # noqa: BLE001
             self._logger.exception("Incident summary analysis failed")
             return self._mask_incident_result(
-                _fallback_incident_summary_result(request, f"analysis failed: {exc}")
+                _fallback_incident_summary_result(request, f"analysis failed: {exc}", lang)
             )
 
     def _mask_incident_result(
@@ -480,7 +531,15 @@ def _build_prompt(
     prompt_max_log_lines: int,
     prompt_max_events: int,
     masker: Masker,
+    lang: str = DEFAULT_LANGUAGE,
 ) -> str:
+    headers = _headers(lang)
+    primary_lang = "en" if lang == "en" else "ko"
+    language_focus = (
+        f"Render the primary response in {('English' if primary_lang == 'en' else 'Korean')}. "
+        f"Always emit both `ko` and `en` keys in the JSON envelope so the UI can switch "
+        f"languages, but write the bulk of your reasoning in the primary language first.\n"
+    )
     alert_payload = cast(
         dict[str, Any],
         masker.mask_object(request.alert.model_dump(by_alias=True, mode="json")),
@@ -535,10 +594,19 @@ def _build_prompt(
     )
     if analysis_type == "resolved" and request.previous_analysis is not None:
         prev = request.previous_analysis
+        resolved_sections = "\n".join(
+            f"- #### {headers[key]}" for key in ("recovery", "impact", "delta", "prevention")
+        )
+        action_example = (
+            "(e.g., 'Raise the memory limit to 512Mi.')"
+            if lang == "en"
+            else "(e.g., '메모리 limit을 512Mi로 상향 조정하십시오')"
+        )
         prompt = (
             "You are kube-rca-agent. This is a RESOLVED alert.\n"
             "Your goal is NOT to repeat the root cause analysis from the firing phase.\n"
             "Focus on recovery confirmation and post-incident insights.\n\n"
+            f"{language_focus}\n"
             "Return ONLY valid JSON with this exact shape:\n"
             "{\n"
             '  "ko": {"summary": "...", "detail": "..."},\n'
@@ -546,14 +614,12 @@ def _build_prompt(
             "}\n"
             "The `ko.detail` and `en.detail` values must be markdown strings.\n"
             "Resolved alert detail structure:\n"
-            "- #### 복구 확인 (Recovery Confirmation)\n"
-            "- #### 장애 영향 (Impact Assessment)\n"
-            "- #### 이전 분석 대비 변화 (Delta Analysis)\n"
-            "- #### 재발 방지 권고 (Prevention Recommendations)\n"
+            f"{resolved_sections}\n"
             "Formatting rules:\n"
             "- Use '####' for subsections.\n"
             "- Leave one blank line between sections/subsections.\n"
             "- Use '-' for unordered lists (do not use '*').\n"
+            f"- Action recommendations should be concrete {action_example}.\n"
             "- Limit each subsection to 3-5 bullets; one sentence per bullet (<= 120 chars).\n"
             "- Use inline code only for literal keys/values/commands.\n"
             f"{policy_block}"
@@ -564,9 +630,22 @@ def _build_prompt(
             f"Detail: {masker.mask_text(prev.detail)}\n\n"
         )
     else:
+        firing_section_names = ", ".join(
+            headers[key] for key in ("root_cause", "evidence", "action_items", "missing_data")
+        )
+        firing_section_headers = "\n".join(
+            f"  #### **{headers[key]}**"
+            for key in ("root_cause", "evidence", "action_items", "missing_data")
+        )
+        action_example = (
+            "(e.g., 'Raise the memory limit to 512Mi.')"
+            if lang == "en"
+            else "(e.g., '메모리 limit을 512Mi로 상향 조정하십시오')"
+        )
         prompt = (
             "You are kube-rca-agent. Analyze the alert using the provided Kubernetes context.\n"
             "Your audience is a human operator reading this on Slack.\n"
+            f"{language_focus}\n"
             "Return ONLY valid JSON with this exact shape:\n"
             "{\n"
             '  "ko": {"summary": "...", "detail": "..."},\n'
@@ -575,7 +654,7 @@ def _build_prompt(
             "`ko.summary` and `en.summary` should be 3-5 sentences "
             "including root cause, impact, and next action.\n"
             "`ko.detail` and `en.detail` must be markdown strings using "
-            "sections for 근본 원인, 확인 근거, 조치 사항, 누락된 데이터.\n"
+            f"sections for {firing_section_names}.\n"
             "\n"
             "Analysis behavior:\n"
             "- ACTIVELY use tools to discover information. "
@@ -584,10 +663,10 @@ def _build_prompt(
             "get_pod_status) to find the affected resources yourself.\n"
             "- Your analysis MUST contain completed findings based on evidence "
             "you gathered using tools.\n"
-            "- 조치 사항 must be actionable operator recommendations "
-            "(e.g., '메모리 limit을 512Mi로 상향 조정하십시오').\n"
-            "- 누락된 데이터 lists ONLY data you could NOT obtain even after using tools. "
-            "Do NOT list data that is expectedly absent "
+            f"- '{headers['action_items']}' must be actionable operator recommendations "
+            f"{action_example}.\n"
+            f"- '{headers['missing_data']}' lists ONLY data you could NOT obtain "
+            "even after using tools. Do NOT list data that is expectedly absent "
             "(e.g., previous_logs when restart_count is 0, "
             "or service info when no service label exists).\n"
             "- Prefer direct evidence from logs, events, workload state, "
@@ -597,10 +676,7 @@ def _build_prompt(
             "\n"
             "Formatting rules:\n"
             "- Each subsection MUST start with a bold '####' markdown header exactly as shown:\n"
-            "  #### **근본 원인**\n"
-            "  #### **확인 근거**\n"
-            "  #### **조치 사항**\n"
-            "  #### **누락된 데이터**\n"
+            f"{firing_section_headers}\n"
             "- Leave one blank line between sections/subsections.\n"
             "- Use '-' for unordered lists (do not use '*').\n"
             "- Limit each subsection to 3-5 bullets; one sentence per bullet (<= 120 chars).\n"
@@ -1228,7 +1304,13 @@ def _fallback_summary(
     request: AlertAnalysisRequest,
     k8s_context: K8sContext,
     reason: str,
+    lang: str = DEFAULT_LANGUAGE,
 ) -> str:
+    # ``lang`` is reserved for callers that want a localized header line.
+    # Today the fallback body stays in English (operator-facing diagnostic text);
+    # downstream ``_parse_alert_analysis_result`` clones the same text into the
+    # i18n dicts so the UI still receives both keys.
+    del lang
     alert = request.alert
     lines = [
         f"analysis engine unavailable: {reason}",
@@ -1264,22 +1346,38 @@ def _to_pretty_json(payload: dict[str, Any]) -> str:
 
 
 def _fallback_incident_summary_result(
-    request: IncidentSummaryRequest, reason: str
+    request: IncidentSummaryRequest,
+    reason: str,
+    lang: str = DEFAULT_LANGUAGE,
 ) -> tuple[str, str, str, dict[str, str], dict[str, str]]:
     """Generate fallback summary when analysis engine is unavailable."""
     alert_names = [a.alert_name for a in request.alerts]
     title = request.title  # Keep original title
-    summary = f"인시던트 분석 불가: {reason}"
-    detail_lines = [
-        f"인시던트 ID: {request.incident_id}",
-        f"제목: {request.title}",
-        f"심각도: {request.severity}",
-        f"발생 시각: {request.fired_at}",
-        f"해결 시각: {request.resolved_at}",
-        f"관련 알림 ({len(request.alerts)}개): {', '.join(alert_names)}",
-        "",
-        f"분석 엔진 오류: {reason}",
-    ]
+
+    if lang == "en":
+        summary = f"Incident analysis unavailable: {reason}"
+        detail_lines = [
+            f"Incident ID: {request.incident_id}",
+            f"Title: {request.title}",
+            f"Severity: {request.severity}",
+            f"Fired at: {request.fired_at}",
+            f"Resolved at: {request.resolved_at}",
+            f"Related alerts ({len(request.alerts)}): {', '.join(alert_names)}",
+            "",
+            f"Analysis engine error: {reason}",
+        ]
+    else:
+        summary = f"인시던트 분석 불가: {reason}"
+        detail_lines = [
+            f"인시던트 ID: {request.incident_id}",
+            f"제목: {request.title}",
+            f"심각도: {request.severity}",
+            f"발생 시각: {request.fired_at}",
+            f"해결 시각: {request.resolved_at}",
+            f"관련 알림 ({len(request.alerts)}개): {', '.join(alert_names)}",
+            "",
+            f"분석 엔진 오류: {reason}",
+        ]
     detail = "\n".join(detail_lines)
     summary_i18n = {"ko": summary, "en": summary}
     detail_i18n = {"ko": detail, "en": detail}
@@ -1323,23 +1421,34 @@ def _extract_inline_value(text: str, keys: list[str]) -> str:
     return ""
 
 
-def _parse_incident_summary(result: str, original_title: str) -> tuple[str, str, str]:
+def _parse_incident_summary(
+    result: str,
+    original_title: str,
+    lang: str = DEFAULT_LANGUAGE,
+) -> tuple[str, str, str]:
     """Parse AI response into title, summary and detail.
 
-    The AI is instructed to return structured content with 제목, 요약 and 상세 분석 sections.
-    Tries markdown-header extraction first, then inline colon-based extraction.
+    The AI is instructed to return structured content with 제목/Title, 요약/Summary
+    and 상세 분석/Detail sections. Tries markdown-header extraction first, then
+    inline colon-based extraction. ``lang`` only reorders the key preference list
+    so the matching language wins ties; both languages are still recognized.
     """
     all_keys = ["제목", "title", "요약", "summary", "상세", "detail"]
+    title_keys = ["title", "제목"] if lang == "en" else ["제목", "title"]
+    summary_keys = ["summary", "요약"] if lang == "en" else ["요약", "summary"]
+    detail_keys = (
+        ["detail", "상세 분석", "상세"] if lang == "en" else ["상세 분석", "상세", "detail"]
+    )
 
     # 1) Markdown header format (### 제목\ncontent)
-    title = _extract_section(result, ["제목", "title"], all_keys) or ""
-    summary = _extract_section(result, ["요약", "summary"], all_keys) or ""
+    title = _extract_section(result, title_keys, all_keys) or ""
+    summary = _extract_section(result, summary_keys, all_keys) or ""
 
     # 2) Inline format (**제목 (Title)**: content)
     if not title:
-        title = _extract_inline_value(result, ["제목", "title"])
+        title = _extract_inline_value(result, title_keys)
     if not summary:
-        summary = _extract_inline_value(result, ["요약", "summary"])
+        summary = _extract_inline_value(result, summary_keys)
 
     # Title should be first line only
     if title:
@@ -1362,7 +1471,7 @@ def _parse_incident_summary(result: str, original_title: str) -> tuple[str, str,
         title = title[:_TITLE_MAX_LEN].rstrip() + "…"
 
     # Extract only the detail section; fall back to full result if not found.
-    detail = _extract_section(result, ["상세 분석", "상세", "detail"], all_keys) or result
+    detail = _extract_section(result, detail_keys, all_keys) or result
     return title, summary, detail
 
 
@@ -1390,15 +1499,17 @@ def _normalize_i18n_texts(
     return {"ko": ko_text, "en": en_text}, ko_text, en_text
 
 
-def _compose_alert_analysis(summary: str, detail: str) -> str:
+def _compose_alert_analysis(summary: str, detail: str, lang: str = DEFAULT_LANGUAGE) -> str:
+    headers = _headers(lang)
     return (
-        f"### 1) 요약 (Summary)\n{summary.strip()}\n\n"
-        f"### 2) 상세 분석 (Detail)\n{detail.strip()}"
+        f"### 1) {headers['summary']}\n{summary.strip()}\n\n"
+        f"### 2) {headers['detail']}\n{detail.strip()}"
     ).strip()
 
 
 def _parse_alert_analysis_result(
     result: str,
+    lang: str = DEFAULT_LANGUAGE,
 ) -> tuple[str, str, str, dict[str, str], dict[str, str]]:
     payload = _parse_bilingual_payload(result)
     if payload is not None:
@@ -1408,36 +1519,42 @@ def _parse_alert_analysis_result(
         ko_detail = str(ko.get("detail", "")).strip()
         en_summary = str(en.get("summary", "")).strip()
         en_detail = str(en.get("detail", "")).strip()
-        summary_i18n, ko_summary, _ = _normalize_i18n_texts(ko_summary, en_summary)
-        detail_i18n, ko_detail, _ = _normalize_i18n_texts(ko_detail, en_detail)
-        analysis = _compose_alert_analysis(ko_summary, ko_detail)
-        return analysis, ko_summary, ko_detail, summary_i18n, detail_i18n
+        summary_i18n, ko_summary, en_summary = _normalize_i18n_texts(ko_summary, en_summary)
+        detail_i18n, ko_detail, en_detail = _normalize_i18n_texts(ko_detail, en_detail)
+        primary_summary = en_summary if lang == "en" else ko_summary
+        primary_detail = en_detail if lang == "en" else ko_detail
+        analysis = _compose_alert_analysis(primary_summary, primary_detail, lang)
+        return analysis, primary_summary, primary_detail, summary_i18n, detail_i18n
 
-    summary, detail = _split_alert_analysis(result)
+    summary, detail = _split_alert_analysis(result, lang)
     summary_i18n = {"ko": summary, "en": summary}
     detail_i18n = {"ko": detail, "en": detail}
     return result, summary, detail, summary_i18n, detail_i18n
 
 
 def _parse_incident_summary_result(
-    result: str, original_title: str
+    result: str,
+    original_title: str,
+    lang: str = DEFAULT_LANGUAGE,
 ) -> tuple[str, str, str, dict[str, str], dict[str, str]]:
     payload = _parse_bilingual_payload(result)
     if payload is not None:
         title = str(payload.get("title", "")).strip() or original_title
         ko = payload.get("ko") if isinstance(payload.get("ko"), dict) else {}
         en = payload.get("en") if isinstance(payload.get("en"), dict) else {}
-        summary_i18n, ko_summary, _ = _normalize_i18n_texts(
+        summary_i18n, ko_summary, en_summary = _normalize_i18n_texts(
             str(ko.get("summary", "")).strip(),
             str(en.get("summary", "")).strip(),
         )
-        detail_i18n, ko_detail, _ = _normalize_i18n_texts(
+        detail_i18n, ko_detail, en_detail = _normalize_i18n_texts(
             str(ko.get("detail", "")).strip(),
             str(en.get("detail", "")).strip(),
         )
-        return title, ko_summary, ko_detail, summary_i18n, detail_i18n
+        primary_summary = en_summary if lang == "en" else ko_summary
+        primary_detail = en_detail if lang == "en" else ko_detail
+        return title, primary_summary, primary_detail, summary_i18n, detail_i18n
 
-    title, summary, detail = _parse_incident_summary(result, original_title)
+    title, summary, detail = _parse_incident_summary(result, original_title, lang)
     summary_i18n = {"ko": summary, "en": summary}
     detail_i18n = {"ko": detail, "en": detail}
     return title, summary, detail, summary_i18n, detail_i18n
@@ -1626,13 +1743,22 @@ def _build_incident_summary_prompt(
     request: IncidentSummaryRequest,
     masker: Masker,
     prompt_token_budget: int,
+    lang: str = DEFAULT_LANGUAGE,
 ) -> str:
     incident_data = _build_incident_summary_payload(request)
     incident_data = cast(dict[str, Any], masker.mask_object(incident_data))
 
+    headers = _headers(lang)
+    primary_language_label = "English" if lang == "en" else "Korean"
+    language_focus = (
+        f"Write the primary narrative in {primary_language_label}, "
+        f"but always populate both `ko` and `en` so the UI can switch languages.\n"
+    )
+
     prompt_prefix = (
         "You are kube-rca-agent. An incident has been resolved and you need to "
         "provide a final RCA summary.\n"
+        f"{language_focus}"
         "Analyze ALL alerts and their individual analyses to synthesize a "
         "comprehensive incident summary. Every distinct alert type "
         "(e.g. 5xx errors AND 4xx errors) must be addressed in the summary "
@@ -1651,15 +1777,19 @@ def _build_incident_summary_prompt(
         "- `ko.summary` and `en.summary` should be 1-2 sentences "
         "describing the root cause and resolution.\n"
         "- `ko.detail` and `en.detail` must be markdown strings covering "
-        "근본 원인, 영향 범위, 해결 과정, 재발 방지 권고.\n\n"
+        f"{headers['incident_summary_sections']}.\n\n"
     )
     return _apply_incident_summary_budget(prompt_prefix, incident_data, prompt_token_budget)
 
 
-def _split_alert_analysis(result: str) -> tuple[str, str]:
+def _split_alert_analysis(result: str, lang: str = DEFAULT_LANGUAGE) -> tuple[str, str]:
     all_keys = ["요약", "summary", "상세", "detail"]
-    summary = _extract_section(result, ["요약", "summary"], all_keys)
-    detail = _extract_section(result, ["상세 분석", "상세", "detail"], all_keys)
+    summary_keys = ["summary", "요약"] if lang == "en" else ["요약", "summary"]
+    detail_keys = (
+        ["detail", "상세 분석", "상세"] if lang == "en" else ["상세 분석", "상세", "detail"]
+    )
+    summary = _extract_section(result, summary_keys, all_keys)
+    detail = _extract_section(result, detail_keys, all_keys)
 
     if not detail:
         detail = result.strip()

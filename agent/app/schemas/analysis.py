@@ -18,6 +18,7 @@ class AlertAnalysisRequest(BaseModel):
     incident_id: str | None = None
     analysis_type: str | None = None
     previous_analysis: PreviousAnalysisContext | None = None
+    language: str | None = None  # ko | en. None falls back to settings.language.
 
 
 class AlertAnalysisArtifact(BaseModel):
@@ -62,6 +63,7 @@ class IncidentSummaryRequest(BaseModel):
     fired_at: str
     resolved_at: str
     alerts: list[AlertSummaryInput]
+    language: str | None = None  # ko | en. None falls back to settings.language.
 
 
 class IncidentSummaryResponse(BaseModel):

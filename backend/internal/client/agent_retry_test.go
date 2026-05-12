@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -163,5 +164,181 @@ func TestRequestAnalysis_ExhaustsRetries(t *testing.T) {
 	}
 	if callCount.Load() != 3 {
 		t.Errorf("expected 3 calls, got %d", callCount.Load())
+	}
+}
+
+// --- language payload propagation tests ---
+
+// newTestClientWithLanguage builds an AgentClient whose backend default
+// language is set via cfg, mirroring production wiring.
+func newTestClientWithLanguage(url, language string) *AgentClient {
+	cfg := config.AgentConfig{
+		BaseURL:              url,
+		HTTPTimeoutSeconds:   5,
+		RetryMaxAttempts:     1,
+		RetryBaseBackoffSecs: 0,
+		RetryMaxBackoffSecs:  0,
+		Language:             language,
+	}
+	return NewAgentClient(cfg)
+}
+
+func TestAgentClient_AnalyzePayloadContainsLanguageEn(t *testing.T) {
+	var captured AgentAnalysisRequest
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&captured); err != nil {
+			t.Fatalf("failed to decode body: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(AgentAnalysisResponse{Status: "ok"})
+	}))
+	defer server.Close()
+
+	c := newTestClientWithLanguage(server.URL, "en")
+	if _, err := c.RequestAnalysis(dummyAlert(), "ts-1", "inc-1", "firing", nil); err != nil {
+		t.Fatalf("RequestAnalysis error: %v", err)
+	}
+	if captured.Language != "en" {
+		t.Errorf("payload Language = %q, want %q", captured.Language, "en")
+	}
+}
+
+func TestAgentClient_AnalyzePayloadContainsLanguageKo(t *testing.T) {
+	var captured AgentAnalysisRequest
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&captured); err != nil {
+			t.Fatalf("failed to decode body: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(AgentAnalysisResponse{Status: "ok"})
+	}))
+	defer server.Close()
+
+	c := newTestClientWithLanguage(server.URL, "ko")
+	if _, err := c.RequestAnalysis(dummyAlert(), "ts-1", "inc-1", "firing", nil); err != nil {
+		t.Fatalf("RequestAnalysis error: %v", err)
+	}
+	if captured.Language != "ko" {
+		t.Errorf("payload Language = %q, want %q", captured.Language, "ko")
+	}
+}
+
+func TestAgentClient_AnalyzePayloadLanguageInvalidFallback(t *testing.T) {
+	var captured AgentAnalysisRequest
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&captured); err != nil {
+			t.Fatalf("failed to decode body: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(AgentAnalysisResponse{Status: "ok"})
+	}))
+	defer server.Close()
+
+	c := newTestClientWithLanguage(server.URL, "ja")
+	if _, err := c.RequestAnalysis(dummyAlert(), "ts-1", "inc-1", "firing", nil); err != nil {
+		t.Fatalf("RequestAnalysis error: %v", err)
+	}
+	if captured.Language != "en" {
+		t.Errorf("payload Language = %q, want en fallback", captured.Language)
+	}
+}
+
+func TestAgentClient_IncidentSummaryContainsLanguage(t *testing.T) {
+	var captured IncidentSummaryRequest
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&captured); err != nil {
+			t.Fatalf("failed to decode body: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(IncidentSummaryResponse{Status: "ok"})
+	}))
+	defer server.Close()
+
+	c := newTestClientWithLanguage(server.URL, "ko")
+	req := IncidentSummaryRequest{
+		IncidentID: "inc-1",
+		Title:      "test",
+	}
+	if _, err := c.RequestIncidentSummary(req); err != nil {
+		t.Fatalf("RequestIncidentSummary error: %v", err)
+	}
+	if captured.Language != "ko" {
+		t.Errorf("payload Language = %q, want ko", captured.Language)
+	}
+}
+
+func TestAgentClient_IncidentSummaryPreservesExplicitLanguage(t *testing.T) {
+	var captured IncidentSummaryRequest
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&captured); err != nil {
+			t.Fatalf("failed to decode body: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(IncidentSummaryResponse{Status: "ok"})
+	}))
+	defer server.Close()
+
+	// Backend default is "en", but caller explicitly sets "ko" — should be respected.
+	c := newTestClientWithLanguage(server.URL, "en")
+	req := IncidentSummaryRequest{
+		IncidentID: "inc-1",
+		Title:      "test",
+		Language:   "ko",
+	}
+	if _, err := c.RequestIncidentSummary(req); err != nil {
+		t.Fatalf("RequestIncidentSummary error: %v", err)
+	}
+	if captured.Language != "ko" {
+		t.Errorf("payload Language = %q, want explicit ko", captured.Language)
+	}
+}
+
+func TestAgentClient_ChatFallbackToBackendLanguage(t *testing.T) {
+	var captured AgentChatRequest
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&captured); err != nil {
+			t.Fatalf("failed to decode body: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(AgentChatResponse{Status: "ok", Answer: "hi"})
+	}))
+	defer server.Close()
+
+	c := newTestClientWithLanguage(server.URL, "ko")
+	req := AgentChatRequest{Message: "hello"}
+	if _, err := c.RequestChat(context.Background(), req); err != nil {
+		t.Fatalf("RequestChat error: %v", err)
+	}
+	if captured.Language != "ko" {
+		t.Errorf("payload Language = %q, want backend default ko", captured.Language)
+	}
+}
+
+func TestAgentClient_ChatPreservesExplicitLanguage(t *testing.T) {
+	var captured AgentChatRequest
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&captured); err != nil {
+			t.Fatalf("failed to decode body: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(AgentChatResponse{Status: "ok", Answer: "hi"})
+	}))
+	defer server.Close()
+
+	// Backend default is "en", caller passes "ko" — caller wins.
+	c := newTestClientWithLanguage(server.URL, "en")
+	req := AgentChatRequest{Message: "hello", Language: "ko"}
+	if _, err := c.RequestChat(context.Background(), req); err != nil {
+		t.Fatalf("RequestChat error: %v", err)
+	}
+	if captured.Language != "ko" {
+		t.Errorf("payload Language = %q, want caller ko", captured.Language)
 	}
 }
