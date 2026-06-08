@@ -1,5 +1,5 @@
 # Dependabot keeps each component's dependency graph fresh.
-# Updates are grouped by ecosystem so we get one PR per group per week
+# Updates are grouped by ecosystem so we get one PR per group per month
 # instead of dozens of single-package PRs.
 #
 # Ecosystems covered:
@@ -15,8 +15,7 @@ updates:
   - package-ecosystem: "gomod"
     directory: "/backend"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       time: "06:00"
       timezone: "Asia/Seoul"
     open-pull-requests-limit: 5
@@ -36,8 +35,7 @@ updates:
   - package-ecosystem: "pip"
     directory: "/agent"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       time: "06:00"
       timezone: "Asia/Seoul"
     open-pull-requests-limit: 5
@@ -57,8 +55,7 @@ updates:
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       time: "06:00"
       timezone: "Asia/Seoul"
     open-pull-requests-limit: 5
@@ -78,8 +75,7 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       time: "06:00"
       timezone: "Asia/Seoul"
     open-pull-requests-limit: 5
@@ -99,8 +95,7 @@ updates:
   - package-ecosystem: "docker"
     directory: "/backend"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       time: "06:00"
       timezone: "Asia/Seoul"
     open-pull-requests-limit: 3
@@ -110,12 +105,15 @@ updates:
       - "dependencies"
       - "docker"
       - "backend"
+    groups:
+      backend-docker:
+        patterns:
+          - "*"
 
   - package-ecosystem: "docker"
     directory: "/frontend"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       time: "06:00"
       timezone: "Asia/Seoul"
     open-pull-requests-limit: 3
@@ -125,12 +123,15 @@ updates:
       - "dependencies"
       - "docker"
       - "frontend"
+    groups:
+      frontend-docker:
+        patterns:
+          - "*"
 
   - package-ecosystem: "docker"
     directory: "/agent"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       time: "06:00"
       timezone: "Asia/Seoul"
     open-pull-requests-limit: 3
@@ -140,3 +141,7 @@ updates:
       - "dependencies"
       - "docker"
       - "agent"
+    groups:
+      agent-docker:
+        patterns:
+          - "*"
