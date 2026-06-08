@@ -136,7 +136,7 @@ For the source of truth, see `agent/tests/test_masking.py` in the repo — it do
 `helm upgrade` is generally safe between minor versions:
 
 ```bash
-helm upgrade kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/charts/kube-rca \
+helm upgrade kube-rca oci://ghcr.io/kube-rca/charts/kube-rca \
   -n kube-rca \
   -f my-values.yaml
 ```

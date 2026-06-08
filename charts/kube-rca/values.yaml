@@ -68,7 +68,7 @@ postgresql:
 backend:
   replicaCount: 1
   image:
-    repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr/backend
+    repository: ghcr.io/kube-rca/backend
     tag: 1.4.0
     pullPolicy: IfNotPresent
   service:
@@ -173,7 +173,7 @@ backend:
 agent:
   replicaCount: 2
   image:
-    repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr/agent
+    repository: ghcr.io/kube-rca/agent
     tag: 1.4.0
     pullPolicy: IfNotPresent
   service:
@@ -272,7 +272,7 @@ agent:
 frontend:
   replicaCount: 1
   image:
-    repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr/frontend
+    repository: ghcr.io/kube-rca/frontend
     tag: 1.4.0
     pullPolicy: IfNotPresent
   service:

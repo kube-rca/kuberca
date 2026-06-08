@@ -43,23 +43,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
 
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v6.1.0
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ap-northeast-2
-          role-session-name: github-actions-${{ matrix.component }}
-
-      - name: Login to ECR Public
-        id: ecr
-        uses: aws-actions/amazon-ecr-login@4625ce35226a7557230889aae2f52eb50ec3dcda # v2.0.1
-        with:
-          registry-type: public
-        env:
-          AWS_DEFAULT_REGION: us-east-1
-          AWS_REGION: us-east-1
-
-      - name: Login to ghcr.io (mirror)
+      - name: Log in to GHCR
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
         with:
           registry: ghcr.io
@@ -70,12 +54,8 @@ jobs:
         id: refs
         run: |
           TAG="${{ needs.release-please.outputs.tag_name }}"
-          ECR_IMAGE="${{ steps.ecr.outputs.registry }}/r5b7j2e4/kube-rca-ecr/${{ matrix.component }}:${TAG}"
           GHCR_IMAGE="ghcr.io/kube-rca/${{ matrix.component }}:${TAG}"
-          {
-            echo "ecr_image=${ECR_IMAGE}"
-            echo "ghcr_image=${GHCR_IMAGE}"
-          } >> "$GITHUB_OUTPUT"
+          echo "ghcr_image=${GHCR_IMAGE}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push
         id: build
@@ -86,7 +66,6 @@ jobs:
           provenance: true
           sbom: true
           tags: |
-            ${{ steps.refs.outputs.ecr_image }}
             ${{ steps.refs.outputs.ghcr_image }}
 
       - name: Install cosign
@@ -96,25 +75,17 @@ jobs:
         env:
           COSIGN_EXPERIMENTAL: "1"
         run: |
-          cosign sign --yes "${{ steps.refs.outputs.ecr_image }}@${{ steps.build.outputs.digest }}"
           cosign sign --yes "${{ steps.refs.outputs.ghcr_image }}@${{ steps.build.outputs.digest }}"
 
       - name: Generate SBOM (SPDX JSON)
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
         with:
-          image: ${{ steps.refs.outputs.ecr_image }}
+          image: ${{ steps.refs.outputs.ghcr_image }}
           format: spdx-json
           artifact-name: ${{ matrix.component }}-sbom.spdx.json
           output-file: ${{ matrix.component }}-sbom.spdx.json
 
-      - name: Attest build provenance (ECR)
-        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
-        with:
-          subject-name: ${{ steps.refs.outputs.ecr_image }}
-          subject-digest: ${{ steps.build.outputs.digest }}
-          push-to-registry: true
-
-      - name: Attest build provenance (ghcr)
+      - name: Attest build provenance
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
           subject-name: ${{ steps.refs.outputs.ghcr_image }}
@@ -124,7 +95,7 @@ jobs:
       - name: Trivy vulnerability scan
         uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
-          image-ref: ${{ steps.refs.outputs.ecr_image }}
+          image-ref: ${{ steps.refs.outputs.ghcr_image }}
           severity: CRITICAL,HIGH
           exit-code: "1"
           ignore-unfixed: true
@@ -137,7 +108,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
+      packages: write   # push chart to GHCR (OCI)
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -145,19 +116,13 @@ jobs:
       - uses: azure/setup-helm@fe7b79cd5ee1e45176fcad797de68ecaf3ca4814 # v4.2.0
       - name: Add Bitnami chart repo
         run: helm repo add bitnami https://charts.bitnami.com/bitnami --force-update
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v6.1.0
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ap-northeast-2
-          role-session-name: github-actions-helm
-      - name: Login to ECR Public (OCI)
+      - name: Login to GHCR (OCI)
         run: |
-          aws ecr-public get-login-password --region us-east-1 | \
-            helm registry login --username AWS --password-stdin public.ecr.aws
+          echo "${{ secrets.GITHUB_TOKEN }}" | \
+            helm registry login ghcr.io --username ${{ github.actor }} --password-stdin
       - name: Build chart dependencies
         run: helm dependency build charts/kube-rca
       - name: Package chart
         run: helm package charts/kube-rca
-      - name: Push chart to ECR
-        run: helm push kube-rca-*.tgz oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/charts
+      - name: Push chart to GHCR
+        run: helm push kube-rca-*.tgz oci://ghcr.io/kube-rca/charts

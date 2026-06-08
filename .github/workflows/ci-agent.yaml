@@ -70,7 +70,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write   # commit helm-values bump back to main
-      id-token: write   # AWS OIDC for ECR Public push
+      packages: write   # push image to GHCR
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -87,30 +87,22 @@ jobs:
       - name: Test
         working-directory: agent
         run: pytest
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v6.1.0
+      - name: Log in to GHCR
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ap-northeast-2
-          role-session-name: github-actions-agent
-      - name: Login to ECR Public
-        id: ecr
-        uses: aws-actions/amazon-ecr-login@4625ce35226a7557230889aae2f52eb50ec3dcda # v2.0.1
-        with:
-          registry-type: public
-        env:
-          AWS_DEFAULT_REGION: us-east-1
-          AWS_REGION: us-east-1
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Set image tag
         id: tag
         run: echo "image_tag=agent-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
       - name: Build and push
         run: |
           docker build \
-            -t "${{ steps.ecr.outputs.registry }}/r5b7j2e4/kube-rca-ecr/agent:${{ steps.tag.outputs.image_tag }}" \
+            -t "ghcr.io/kube-rca/agent:${{ steps.tag.outputs.image_tag }}" \
             agent/
           docker push \
-            "${{ steps.ecr.outputs.registry }}/r5b7j2e4/kube-rca-ecr/agent:${{ steps.tag.outputs.image_tag }}"
+            "ghcr.io/kube-rca/agent:${{ steps.tag.outputs.image_tag }}"
       - name: Update helm values (agent image tag)
         uses: mikefarah/yq@751d8ad57b84f1794661bc70c0afb92a22ad7b3c # v4.53.2
         with:

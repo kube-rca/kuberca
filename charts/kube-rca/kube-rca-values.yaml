@@ -1,6 +1,6 @@
 backend:
   image:
-    repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr/backend
+    repository: ghcr.io/kube-rca/backend
     tag: backend-da93bc9
   auth:
     secret:
@@ -42,7 +42,7 @@ backend:
           - api-kuberca.kkamji.net
 frontend:
   image:
-    repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr/frontend
+    repository: ghcr.io/kube-rca/frontend
     tag: frontend-da93bc9
   ingress:
     enabled: true
@@ -70,7 +70,7 @@ postgresql:
         memory: 512Mi
 agent:
   image:
-    repository: public.ecr.aws/r5b7j2e4/kube-rca-ecr/agent
+    repository: ghcr.io/kube-rca/agent
     tag: agent-da93bc9
   workers: 4
   aiProvider: gemini
