@@ -18,6 +18,11 @@ RUN npm run build
 # Production stage
 FROM nginx:alpine@sha256:8b1e78743a03dbb2c95171cc58639fef29abc8816598e27fb910ed2e621e589a
 
+# Patch OS packages whose Alpine fix lands before the nginx base image is
+# rebuilt (e.g. libxml2 CVE-2026-6732, fixed in 2.13.9-r1). Keeps the release
+# Trivy gate green without waiting on an upstream nginx rebuild.
+RUN apk upgrade --no-cache
+
 # Copy built files from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
