@@ -2,8 +2,8 @@ apiVersion: v2
 name: kube-rca
 description: Deploy kube-rca backend and frontend
 type: application
-version: 1.4.3
-appVersion: 1.4.3
+version: 1.4.4
+appVersion: 1.4.4
 dependencies:
   - name: postgresql
     version: 18.1.13
