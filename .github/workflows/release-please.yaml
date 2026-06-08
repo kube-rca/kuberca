@@ -29,10 +29,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write       # AWS OIDC + cosign keyless + provenance
+      id-token: write       # cosign keyless + provenance attestation
       attestations: write   # actions/attest-build-provenance
       packages: write       # ghcr.io push
     strategy:
+      fail-fast: false      # one component's failure must not cancel the others
       matrix:
         component: [backend, frontend, agent]
     steps:
@@ -54,8 +55,11 @@ jobs:
         id: refs
         run: |
           TAG="${{ needs.release-please.outputs.tag_name }}"
-          GHCR_IMAGE="ghcr.io/kube-rca/${{ matrix.component }}:${TAG}"
-          echo "ghcr_image=${GHCR_IMAGE}" >> "$GITHUB_OUTPUT"
+          GHCR_REPO="ghcr.io/kube-rca/${{ matrix.component }}"
+          {
+            echo "ghcr_repo=${GHCR_REPO}"
+            echo "ghcr_image=${GHCR_REPO}:${TAG}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Build and push
         id: build
@@ -88,7 +92,7 @@ jobs:
       - name: Attest build provenance
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
-          subject-name: ${{ steps.refs.outputs.ghcr_image }}
+          subject-name: ${{ steps.refs.outputs.ghcr_repo }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
