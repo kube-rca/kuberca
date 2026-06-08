@@ -1,7 +1,7 @@
 backend:
   image:
     repository: ghcr.io/kube-rca/backend
-    tag: backend-4b572fd
+    tag: backend-800ba9f
   auth:
     secret:
       existingSecret: kube-rca-auth
