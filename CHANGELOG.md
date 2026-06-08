@@ -6,6 +6,13 @@
 
 - Relicensed from MIT to Apache License 2.0. Existing forks must update their LICENSE references. Contributor consent for this change tracked in `.github/RELICENSE_CONSENT.md`. (#<TBD-PR-number>)
 
+## [1.4.4](https://github.com/kube-rca/kuberca/compare/1.4.3...1.4.4) (2026-06-08)
+
+
+### Bug Fixes
+
+* **docker:** apk upgrade in frontend image to clear libxml2 CVE ([#128](https://github.com/kube-rca/kuberca/issues/128)) ([925b687](https://github.com/kube-rca/kuberca/commit/925b68768a283ae36c0b03b6a67722932efe376b))
+
 ## [1.4.3](https://github.com/kube-rca/kuberca/compare/1.4.2...1.4.3) (2026-06-08)
 
 
