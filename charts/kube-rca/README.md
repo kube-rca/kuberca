@@ -64,7 +64,7 @@ frontend:
 **Option A — From OCI Registry (recommended):**
 
 ```bash
-helm upgrade --install kube-rca oci://public.ecr.aws/r5b7j2e4/kube-rca-ecr/charts/kube-rca \
+helm upgrade --install kube-rca oci://ghcr.io/kube-rca/charts/kube-rca \
   -n kube-rca --create-namespace \
   -f my-values.yaml
 ```
@@ -337,7 +337,7 @@ backend:
 | agent.gemini.secret.existingSecret | string | `"kube-rca-ai"` | Existing Secret name for the Gemini API key. |
 | agent.gemini.secret.key | string | `"ai-studio-api-key"` | Secret key name for the Gemini API key. |
 | agent.image.pullPolicy | string | `"IfNotPresent"` | Agent image pull policy. |
-| agent.image.repository | string | `"public.ecr.aws/r5b7j2e4/kube-rca-ecr/agent"` | Agent image repository. |
+| agent.image.repository | string | `"ghcr.io/kube-rca/agent"` | Agent image repository. |
 | agent.image.tag | string | `"1.3.0"` | Agent image tag. Synced by release-please from manifest version. |
 | agent.ingress.annotations | object | `{}` | Annotations for agent ingress. |
 | agent.ingress.enabled | bool | `false` | Enable agent ingress. |
@@ -432,7 +432,7 @@ backend:
 | backend.flapping.detectionWindowMinutes | int | `30` | Time window (minutes) for detecting flapping cycles (FLAP_DETECTION_WINDOW_MINUTES). |
 | backend.flapping.enabled | bool | `true` | Enable alert flapping detection (FLAP_ENABLED). |
 | backend.image.pullPolicy | string | `"IfNotPresent"` | Backend image pull policy. |
-| backend.image.repository | string | `"public.ecr.aws/r5b7j2e4/kube-rca-ecr/backend"` | Backend image repository. |
+| backend.image.repository | string | `"ghcr.io/kube-rca/backend"` | Backend image repository. |
 | backend.image.tag | string | `"1.3.0"` | Backend image tag. Synced by release-please from manifest version. |
 | backend.ingress.annotations | object | `{}` | Annotations for backend ingress. |
 | backend.ingress.enabled | bool | `false` | Enable backend ingress. |
@@ -475,7 +475,7 @@ backend:
 | frontend.affinity | object | `{}` | Affinity for frontend pods assignment. |
 | frontend.containerPort | int | `80` | Frontend container port. |
 | frontend.image.pullPolicy | string | `"IfNotPresent"` | Frontend image pull policy. |
-| frontend.image.repository | string | `"public.ecr.aws/r5b7j2e4/kube-rca-ecr/frontend"` | Frontend image repository. |
+| frontend.image.repository | string | `"ghcr.io/kube-rca/frontend"` | Frontend image repository. |
 | frontend.image.tag | string | `"1.3.0"` | Frontend image tag. Synced by release-please from manifest version. |
 | frontend.ingress.annotations | object | `{}` | Annotations for frontend ingress. |
 | frontend.ingress.enabled | bool | `false` | Enable frontend ingress. |

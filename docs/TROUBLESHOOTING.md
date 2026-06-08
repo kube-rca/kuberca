@@ -155,13 +155,13 @@ The host, scheme, and path must match exactly. After editing, `helm upgrade` and
 
 **Symptom**
 
-Pods stuck in `ImagePullBackOff`. `kubectl describe pod` shows errors pulling from `public.ecr.aws/r5b7j2e4/kube-rca-ecr/...`.
+Pods stuck in `ImagePullBackOff`. `kubectl describe pod` shows errors pulling from `ghcr.io/kube-rca/...`.
 
 **Cause**
 
 ECR Public *does* allow anonymous pulls — no credentials needed. So this is almost always a node-side networking or DNS issue:
 
-- The cluster cannot reach `public.ecr.aws` (egress firewall, NAT gateway, no IPv4 route)
+- The cluster cannot reach `ghcr.io` (egress firewall, NAT gateway, no IPv4 route)
 - Region-restricted egress policy blocks `*.amazonaws.com`
 - Stale image cache after an image tag was force-pushed (rare)
 
@@ -172,7 +172,7 @@ ECR Public *does* allow anonymous pulls — no credentials needed. So this is al
    ```bash
    kubectl run --rm -it --image=alpine:3 net-debug -- sh
    apk add --no-cache curl
-   curl -sI https://public.ecr.aws/v2/
+   curl -sI https://ghcr.io/v2/
    ```
 
    You should get a 401 (challenge) — that proves DNS + TLS work.
@@ -182,7 +182,7 @@ ECR Public *does* allow anonymous pulls — no credentials needed. So this is al
 3. Verify the tag actually exists:
 
    ```bash
-   docker pull public.ecr.aws/r5b7j2e4/kube-rca-ecr/backend:backend-0.5.1
+   docker pull ghcr.io/kube-rca/backend:backend-0.5.1
    ```
 
 ---
