@@ -6,6 +6,13 @@
 
 - Relicensed from MIT to Apache License 2.0. Existing forks must update their LICENSE references. Contributor consent for this change tracked in `.github/RELICENSE_CONSENT.md`. (#<TBD-PR-number>)
 
+## [1.4.5](https://github.com/kube-rca/kuberca/compare/1.4.4...1.4.5) (2026-06-08)
+
+
+### Miscellaneous Chores
+
+* release 1.4.5 ([78f661c](https://github.com/kube-rca/kuberca/commit/78f661c22ad70320074029b99f576d8d38e447c3))
+
 ## [1.4.4](https://github.com/kube-rca/kuberca/compare/1.4.3...1.4.4) (2026-06-08)
 
 
