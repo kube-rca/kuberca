@@ -6,6 +6,13 @@
 
 - Relicensed from MIT to Apache License 2.0. Existing forks must update their LICENSE references. Contributor consent for this change tracked in `.github/RELICENSE_CONSENT.md`. (#<TBD-PR-number>)
 
+## [1.4.3](https://github.com/kube-rca/kuberca/compare/1.4.2...1.4.3) (2026-06-08)
+
+
+### Bug Fixes
+
+* **docker:** refresh base images to patch HIGH CVEs ([#125](https://github.com/kube-rca/kuberca/issues/125)) ([965e16b](https://github.com/kube-rca/kuberca/commit/965e16b04fcd7c03e73d87f4bccf5fb35ffe3a19))
+
 ## [1.4.2](https://github.com/kube-rca/kuberca/compare/1.4.1...1.4.2) (2026-06-08)
 
 
