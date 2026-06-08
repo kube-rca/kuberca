@@ -44,7 +44,7 @@ jobs:
         working-directory: backend
         run: go vet ./...
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
+        uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee # v9.2.1
         with:
           version: v2.11.4
           working-directory: backend
@@ -104,7 +104,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Log in to GHCR
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -120,7 +120,7 @@ jobs:
           docker push \
             "ghcr.io/kube-rca/backend:${{ steps.tag.outputs.image_tag }}"
       - name: Update helm values (backend image tag)
-        uses: mikefarah/yq@751d8ad57b84f1794661bc70c0afb92a22ad7b3c # v4.53.2
+        uses: mikefarah/yq@1b9b4ac5187171d2e5e3129be0cfa827c7f9d53d # v4.53.3
         with:
           cmd: yq -i '.backend.image.tag = "${{ steps.tag.outputs.image_tag }}"' charts/kube-rca/kube-rca-values.yaml
       - name: Commit and push helm values
