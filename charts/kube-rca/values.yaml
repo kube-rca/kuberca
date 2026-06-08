@@ -69,7 +69,7 @@ backend:
   replicaCount: 1
   image:
     repository: ghcr.io/kube-rca/backend
-    tag: 1.4.0
+    tag: 1.4.1
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
@@ -174,7 +174,7 @@ agent:
   replicaCount: 2
   image:
     repository: ghcr.io/kube-rca/agent
-    tag: 1.4.0
+    tag: 1.4.1
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
@@ -273,7 +273,7 @@ frontend:
   replicaCount: 1
   image:
     repository: ghcr.io/kube-rca/frontend
-    tag: 1.4.0
+    tag: 1.4.1
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
