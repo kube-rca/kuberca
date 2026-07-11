@@ -117,7 +117,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ needs.release-please.outputs.tag_name }}
-      - uses: azure/setup-helm@fe7b79cd5ee1e45176fcad797de68ecaf3ca4814 # v4.2.0
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
       - name: Add Bitnami chart repo
         run: helm repo add bitnami https://charts.bitnami.com/bitnami --force-update
       - name: Login to GHCR (OCI)
