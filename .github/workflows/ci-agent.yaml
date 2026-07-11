@@ -69,10 +69,13 @@ jobs:
     if: github.ref_name == 'main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # commit helm-values bump back to main
-      packages: write   # push image to GHCR
+      contents: write        # push the chart-bump branch (never main directly)
+      packages: write        # push image to GHCR
+      pull-requests: write   # open/update the chart-bump PR
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0   # full history so the bump branch can merge origin/main
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: "3.12"
@@ -103,24 +106,67 @@ jobs:
             agent/
           docker push \
             "ghcr.io/kube-rca/agent:${{ steps.tag.outputs.image_tag }}"
+      - name: Prepare chart-bump branch
+        run: |
+          set -euo pipefail
+          BRANCH="ci/bump-agent-image"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # actions/checkout narrows remote.origin.fetch to the triggering ref,
+          # so fetch main (and the bump branch, when it exists) with explicit
+          # refspecs to guarantee the remote-tracking refs are present.
+          git fetch origin "+refs/heads/main:refs/remotes/origin/main"
+
+          # Idempotent branch: reuse the dedicated bump branch if it exists, else
+          # fork it from main. Merge main (never rebase) so the push stays a
+          # fast-forward and needs no --force. `-X theirs` auto-resolves a
+          # concurrently re-touched image-tag line instead of leaving a conflict
+          # that strands the workflow; yq re-sets the tag in the next step.
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            git fetch origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
+            git checkout -B "$BRANCH" "origin/$BRANCH"
+            git merge --no-edit -X theirs origin/main
+          else
+            git checkout -B "$BRANCH" origin/main
+          fi
       - name: Update helm values (agent image tag)
         uses: mikefarah/yq@1b9b4ac5187171d2e5e3129be0cfa827c7f9d53d # v4.53.3
         with:
           cmd: yq -i '.agent.image.tag = "${{ steps.tag.outputs.image_tag }}"' charts/kube-rca/kube-rca-values.yaml
-      - name: Commit and push helm values
+      - name: Commit and open or update chart image-bump PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_TAG: ${{ steps.tag.outputs.image_tag }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add charts/kube-rca/kube-rca-values.yaml
-          git diff --cached --quiet || git commit -m "chore(charts): bump agent image to ${{ steps.tag.outputs.image_tag }}"
+          set -euo pipefail
+          BRANCH="ci/bump-agent-image"
+          FILE="charts/kube-rca/kube-rca-values.yaml"
+          TITLE="chore(charts): bump agent image to ${IMAGE_TAG}"
 
-          for i in 1 2 3 4 5; do
-            git pull --rebase origin main
-            if git push origin main; then
-              exit 0
-            fi
-            echo "Push failed (attempt $i/5). Retrying in 2s..."
-            sleep 2
-          done
-          echo "Failed to push after 5 attempts."
-          exit 1
+          git add "$FILE"
+          if git diff --cached --quiet; then
+            echo "Chart already at ${IMAGE_TAG}; nothing to commit."
+          else
+            git commit -m "$TITLE"
+          fi
+
+          # Fast-forward push only (no --force); safe because this branch is
+          # written exclusively by CI.
+          git push origin "$BRANCH"
+
+          if [ "$(git rev-list --count "origin/main..$BRANCH")" -eq 0 ]; then
+            echo "Branch has no changes relative to main; skipping PR."
+            exit 0
+          fi
+
+          if [ "$(gh pr list --head "$BRANCH" --base main --state open --json number --jq 'length')" -gt 0 ]; then
+            echo "Open PR already tracks $BRANCH; the push updated it."
+          else
+            gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "$TITLE" \
+              --body "Automated chart image-tag bump from CI (workflow: ${GITHUB_WORKFLOW}, commit: ${GITHUB_SHA}). Sets .agent.image.tag to ${IMAGE_TAG} in ${FILE}."
+          fi
