@@ -6,6 +6,13 @@
 
 - Relicensed from MIT to Apache License 2.0. Existing forks must update their LICENSE references. Contributor consent for this change tracked in `.github/RELICENSE_CONSENT.md`. (#<TBD-PR-number>)
 
+## [1.4.6](https://github.com/kube-rca/kuberca/compare/1.4.5...1.4.6) (2026-07-11)
+
+
+### Bug Fixes
+
+* **ci:** create chart bump PRs instead of pushing main ([#142](https://github.com/kube-rca/kuberca/issues/142)) ([71bdc67](https://github.com/kube-rca/kuberca/commit/71bdc67eb5e87e39fb2376563b6fc8c01c7a2234))
+
 ## [1.4.5](https://github.com/kube-rca/kuberca/compare/1.4.4...1.4.5) (2026-06-08)
 
 
