@@ -128,7 +128,7 @@ function App() {
   const [oidcLoginUrl, setOidcLoginUrl] = useState('');
   const [oidcProvider, setOidcProvider] = useState('');
   const [isChatDocked, setIsChatDocked] = useState(false);
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [exportFormat, setExportFormat] = useState<ExportFormat>('csv');
 
   // Cleanup debounce timer on unmount

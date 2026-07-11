@@ -52,7 +52,7 @@ export function useSSE(options: UseSSEOptions): UseSSEReturn {
   const [connectionState, setConnectionState] = useState<SSEConnectionState>('disconnected');
   const eventSourceRef = useRef<EventSource | null>(null);
   const retryCountRef = useRef(0);
-  const retryTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onEventRef = useRef(onEvent);
   const enabledRef = useRef(enabled);
   const mountedRef = useRef(true);
@@ -79,7 +79,7 @@ export function useSSE(options: UseSSEOptions): UseSSEReturn {
     }
     if (retryTimerRef.current) {
       clearTimeout(retryTimerRef.current);
-      retryTimerRef.current = undefined;
+      retryTimerRef.current = null;
     }
   }, []);
 
