@@ -34,11 +34,11 @@ jobs:
             Unlicense,
             BlueOak-1.0.0,
             0BSD
-          # golang.org/x/* publish a compound license expression
+          # Some Go modules publish a compound license expression
           # `BSD-3-Clause AND LicenseRef-scancode-google-patent-license-golang`.
           # The Google patent grant addendum is not in the SPDX list, so the
           # action cannot match it against allow-licenses even though the base
-          # BSD-3-Clause is permissive. Allow-list these by package URL.
+          # BSD-3-Clause is permissive. Allow-list only the affected package URLs.
           allow-dependencies-licenses: >-
             pkg:golang/golang.org/x/arch,
             pkg:golang/golang.org/x/crypto,
@@ -50,5 +50,6 @@ jobs:
             pkg:golang/golang.org/x/term,
             pkg:golang/golang.org/x/text,
             pkg:golang/golang.org/x/time,
-            pkg:golang/golang.org/x/tools
+            pkg:golang/golang.org/x/tools,
+            pkg:golang/google.golang.org/protobuf
           comment-summary-in-pr: on-failure
