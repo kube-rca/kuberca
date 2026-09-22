@@ -43,7 +43,7 @@ backend:
 frontend:
   image:
     repository: ghcr.io/kube-rca/frontend
-    tag: frontend-fa28c20
+    tag: frontend-9a921b5
   ingress:
     enabled: true
     ingressClassName: nginx
