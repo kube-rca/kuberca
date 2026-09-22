@@ -59,6 +59,12 @@ updates:
       time: "06:00"
       timezone: "Asia/Seoul"
     open-pull-requests-limit: 5
+    ignore:
+      # TypeScript 7 is outside the peer range supported by the current
+      # @typescript-eslint toolchain (<6.1). Re-enable after that toolchain supports it.
+      - dependency-name: "typescript"
+        versions:
+          - ">=7.0.0"
     commit-message:
       prefix: "chore(frontend/deps)"
     labels:
