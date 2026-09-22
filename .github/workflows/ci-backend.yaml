@@ -18,18 +18,13 @@ jobs:
     permissions:
       contents: read
     env:
-      # backend/go.mod sets `toolchain go1.25.9` while setup-go installs 1.25.0
-      # from the `go 1.25.0` directive. Without `GOTOOLCHAIN=local`, `go install`
-      # of gosec / govulncheck triggers an auto-toolchain download that mixes
-      # 1.25.9 compile binaries with the 1.25.0 go tool, producing
-      # `compile: version "go1.25.9" does not match go tool version "go1.25.0"`.
-      # Pin to the locally provisioned toolchain for the whole job.
+      # Pin to the locally provisioned patched toolchain for the whole job.
       GOTOOLCHAIN: local
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
-          go-version: '1.25.11'
+          go-version: '1.26.8'
           check-latest: true
       - name: Format check
         working-directory: backend
@@ -103,11 +98,11 @@ jobs:
       packages: write        # push image to GHCR
       pull-requests: write   # open/update the chart-bump PR
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0   # full history so the bump branch can merge origin/main
       - name: Log in to GHCR
-        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -148,7 +143,7 @@ jobs:
             git checkout -B "$BRANCH" origin/main
           fi
       - name: Update helm values (backend image tag)
-        uses: mikefarah/yq@1b9b4ac5187171d2e5e3129be0cfa827c7f9d53d # v4.53.3
+        uses: mikefarah/yq@c14f446382944492701b16c1ddb48bb9dbe683e3 # v4.53.6
         with:
           cmd: yq -i '.backend.image.tag = "${{ steps.tag.outputs.image_tag }}"' charts/kube-rca/kube-rca-values.yaml
       - name: Commit and open or update chart image-bump PR
