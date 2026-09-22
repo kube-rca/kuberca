@@ -76,6 +76,12 @@ updates:
         update-types:
           - "minor"
           - "patch"
+      vitest-major:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+        update-types:
+          - "major"
 
   # ──────────────── GitHub Actions ────────────────
   - package-ecosystem: "github-actions"
